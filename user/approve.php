@@ -25,5 +25,5 @@ if ($docId) {
     header("Location: request_list.php?msg=approved");
     exit;
 } else {
-    echo "ไม่พบรหัสเอกสาร";
+    echo "ไม่พบรหัสเอกสารtest";
 }
