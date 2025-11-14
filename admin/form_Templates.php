@@ -50,12 +50,13 @@ $fields = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     หน้าหลัก
                 </div>
             </a>
-            <a href="user_Managerment.php" id="tab-users">
-                <div
-                    class="px-4 py-2 rounded-[11px] font-bold transition text-white hover:bg-white hover:text-teal-500">
-                    กำหนดสิทธิ์
-                </div>
-            </a>
+            <?php 
+// ✅ แสดงเมนู "กำหนดสิทธิ์" ก็ต่อเมื่อผู้ใช้มี perm_id = 3
+if (isset($_SESSION['permissions']) && in_array(3, $_SESSION['permissions'])): 
+?>
+            <?php renderAdminExtraMenus(); ?>
+            <?php endif; ?>
+
             <!-- Dropdown จัดการเทมเพลต -->
             <div class="relative">
                 <button id="templateBtn"

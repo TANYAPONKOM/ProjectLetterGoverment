@@ -176,7 +176,7 @@ if (!isset($_SESSION['role_id']) || $_SESSION['role_id'] != 1) {
 
                 <!-- Buttons -->
                 <div class="flex justify-end space-x-3 pt-4">
-                    <a href="user_Managerment.php"
+                    <a href="../user_Managerment.php"
                         class="px-4 py-2 rounded-lg bg-gray-300 text-gray-700 font-semibold hover:bg-gray-400 transition">
                         ยกเลิก
                     </a>

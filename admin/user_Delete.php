@@ -16,5 +16,5 @@ if ($id) {
 }
 
 // กลับไปหน้าจัดการผู้ใช้
-header("Location: user_Managerment.php");
+header("Location: ../user_Managerment.php");
 exit;

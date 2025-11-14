@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([$username, $password, $fullname, $email, $role_id, $position, $department_id]);
 
         addLog($_SESSION['user_id'], "ผู้ใช้ {$currentUser} จัดการเพิ่มผู้ใช้: {$username}");
-        header("Location: user_Managerment.php?success=1");
+        header("Location: ../user_Managerment.php?success=1");
         exit;
     }
 
@@ -66,7 +66,7 @@ if ($action === 'edit') {
     // ✅ บันทึก log
     addLog($_SESSION['user_id'], "แก้ไขข้อมูลผู้ใช้ {$username} และอัปเดตสิทธิ์การเข้าถึง");
 
-    header("Location: user_Managerment.php?success=1");
+    header("Location: ../user_Managerment.php?success=1");
     exit;
 }
 
@@ -83,7 +83,7 @@ if ($action === 'edit') {
             addLog($_SESSION['user_id'], "ผู้ใช้ {$currentUser} จัดการลบผู้ใช้: {$user['username']}");
         }
 
-        header("Location: user_Managerment.php?success=1");
+        header("Location: ../user_Managerment.php?success=1");
         exit;
     }
 }
