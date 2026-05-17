@@ -136,17 +136,25 @@ $amountStr = $valueMap[8] ?? "";
 $vehicle = $valueMap[9] ?? "";
 $faculty = $valueMap[10] ?? "";
 $department = $valueMap[11] ?? "";
+$researchTitle = $valueMap[13] ?? "";
 
 
-$name = $valueMap[1] ?? '';
-$position = $valueMap[2] ?? '';
-$faculty = $valueMap[3] ?? '';
-$department = $valueMap[4] ?? '';
-$conference = $valueMap[5] ?? '';
-$country = $valueMap[6] ?? '';
-$paper_title = $valueMap[7] ?? '';
-$date_range = $valueMap[8] ?? '';
-$table_data = $valueMap[9] ?? ''; 
+$noCost = (($valueMap[12] ?? '0') === '1');
+
+$budgetStmt = $pdo->prepare("
+  SELECT item_type, description, amount
+  FROM budget_items
+  WHERE document_id = :id
+  ORDER BY item_id ASC
+");
+$budgetStmt->execute([':id' => $docId]);
+$budgetItems = $budgetStmt->fetchAll(PDO::FETCH_ASSOC);
+
+$budgetTotal = 0;
+foreach ($budgetItems as $item) {
+  $budgetTotal += (float)$item['amount'];
+}
+$hasExpense = (!$noCost && !empty($budgetItems) && $budgetTotal > 0);
 
 $purposeCode = 'other';
 
@@ -196,7 +204,106 @@ $len = max(20, $len);
   <title>บันทึกข้อความ #<?= h($document['document_id']) ?></title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <link rel="stylesheet" href="/Pro_letter/documents/memo-styles.css">
+
+  <style>
+  .memo-title-row {
+    position: relative;
+    height: 1.65cm;
+    margin-bottom: 0.35em;
+  }
+
+  .memo-title-row .garuda-img {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 1.6cm;
+    width: auto;
+  }
+
+  .memo-title-row .doc-title {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0.50cm;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: "TH SarabunPSK";
+    font-size: 30pt;
+    font-weight: bold;
+    line-height: 1 !important;
+    text-align: center;
+    transform: translateX(-0.3cm);
+  }
+
+  .signature-area {
+    margin-top: 50px;
+    margin-left: 0;
+    width: max-content;
+  }
+
+  .signature-name {
+    text-align: left;
+    font-family: "TH SarabunPSK";
+    font-size: 16pt;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .signature-position {
+    text-align: center;
+    font-family: "TH SarabunPSK";
+    font-size: 16pt;
+    line-height: 1.1;
+    margin-top: 2px;
+    white-space: nowrap;
+  }
+
+  .approve-line {
+    font-family: "TH SarabunPSK";
+    font-size: 16pt;
+    line-height: 1.2;
+    margin-left: 0.9cm;
+  }
+
+  .memo-to-row {
+    display: flex;
+    align-items: flex-end;
+    margin-bottom: 6px;
+  }
+
+  .memo-to-row .memo-to-label {
+    font-family: "TH SarabunPSK";
+    font-size: 16pt;
+    width: 1.15cm;
+    flex: 0 0 1.15cm;
+    line-height: 1;
+  }
+
+  .memo-to-row .memo-to-text {
+    font-family: "TH SarabunPSK";
+    font-size: 16pt;
+    font-weight: 300;
+    line-height: 1;
+    padding-left: 14px;
+  }
+
+  .expense-title-section {
+    margin-top: 0;
+    margin-bottom: 0.8cm;
+  }
+
+  .expense-main-title {
+    font-family: "TH SarabunPSK";
+    font-size: 16pt;
+    font-weight: bold;
+    text-align: center;
+    margin: 0 0 0cm 0;
+  }
+  </style>
+</head>
 </head>
 
 <body class="view-document">
@@ -237,14 +344,9 @@ $len = max(20, $len);
   <?php endif; ?>
 
   <main class="page">
-    <div style="display:flex; align-items:flex-end; justify-content:flex-start; gap:20px; margin-bottom:0.5em;">
-      <img src="https://i.pinimg.com/474x/bd/55/cc/bd55ccc4416012910a723da8f810658b.jpg"
-        style="height:1.6cm; width:auto; margin-top:0;" />
-      <h1 class="doc-title" style="font-size:30pt;font-weight:bold;font-family:'TH SarabunPSK';
-      line-height:1.0;margin-bottom:-10px;text-align:center;flex:1;
-      transform: translateX(-0.3cm);">
-        บันทึกข้อความ
-      </h1>
+    <div class="memo-title-row">
+      <img src="/Pro_letter/assets/img/garuda.jpg" class="garuda-img" />
+      <h1 class="doc-title">บันทึกข้อความ</h1>
     </div>
     <div class="doc-row">
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
@@ -276,8 +378,9 @@ $len = max(20, $len);
         </span>
       </div>
     </div>
-    <div class="content-block single " style=" margin-left: 1.45cm;">
-      เรียน คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม
+    <div class="memo-to-row">
+      <div class="memo-to-label">เรียน</div>
+      <div class="memo-to-text">คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม</div>
     </div>
     <div class="content-block paragraph">
       ตามที่ สมาคมสหกิจศึกษาไทย กำหนดจัดอบรมหลักสูตร
@@ -298,13 +401,17 @@ $len = max(20, $len);
       <span class="chip keep"><?= h($courseName ?: 'ชื่อหลักสูตร') ?></span>
       ระหว่างวันที่ <span class="chip"><?= h($joinDates ?: '') ?></span>
       ณ <span class="chip"><?= h($location ?: '') ?></span>
-      <?= h($prettyAmount ?: '') ?></span> บาท
+      <?php if ($hasExpense): ?>
+      เป็นเงินจำนวน <span class="chip"><?= h($prettyAmount ?: number_format($budgetTotal, 2)) ?></span> บาท
       โดยขอใช้แหล่งเงินจัดสรรให้หน่วยงาน ประจำปีงบประมาณ
       <span class="chip">
         <?= h($thaiYear ? 'พ.ศ. ' . $thaiYear : 'พ.ศ. ....') ?>
       </span>
-      แผนงานจัดการศึกษาระดับอุดมศึกษา กองทุนพัฒนาบุคลากร หมวดค่าใช้สอย -->
+      แผนงานจัดการศึกษาระดับอุดมศึกษา กองทุนพัฒนาบุคลากร หมวดค่าใช้สอย
       <span class="keep">(รายละเอียดตามเอกสารแนบ)</span>
+      <?php else: ?>
+      โดยไม่เบิกค่าใช้จ่ายใดๆ ทั้งสิ้น
+      <?php endif; ?>
     </div>
     <div class="content-block paragraph">
       จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ
@@ -316,89 +423,121 @@ $len = max(20, $len);
       </div>
     </div>
     <div style="font-family:'TH SarabunPSK'; font-size:16pt; line-height:1.2;"> เรียน <?= h($hdr_to) ?> </div>
-    <div class="content-block single align-to-dean"> เพื่อโปรดพิจารณาอนุมัติ </div>
-    <div class="content-block single align-to-dean" style="margin-top:50px;;"> (ผู้ช่วยศาสตราจารย์ ดร. ขนิษฐา
-      นามี)<br /> หัวหน้าภาควิชาเทคโนโลยีสารสนเทศ </div>
+    <div class="approve-line">
+      เพื่อโปรดพิจารณาอนุมัติ
+    </div>
+    <div class="signature-area">
+      <div class="signature-name">(ผู้ช่วยศาสตราจารย์ ดร. ขนิษฐา นามี)</div>
+      <div class="signature-position">หัวหน้าภาควิชาเทคโนโลยีสารสนเทศ</div>
+    </div>
+    <?php if (!$hasExpense): ?>
     <div class="footer-actions">
-      <button type="button" onclick="window.print()"
+      <button type="button" onclick="downloadPdf()"
         class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-        พิมพ์/ดูตัวอย่าง
+        ดาวน์โหลด PDF
       </button>
+
       <a href="/Pro_letter/documents/form_Memo.php?id=<?= $docId ?>" id="editBtn"
         data-can-edit="<?= $canEdit ? '1' : '0' ?>" class="px-6 py-2 rounded-md text-xl font-bold
-   <?= $canEdit
-      ? "bg-teal-500 hover:bg-teal-600 text-white"
-      : "bg-gray-300 text-gray-600 cursor-not-allowed" ?>">
+        <?= $canEdit
+          ? "bg-teal-500 hover:bg-teal-600 text-white"
+          : "bg-gray-300 text-gray-600 cursor-not-allowed" ?>">
         แก้ไข
       </a>
+
       <a href="<?= $homePath ?>"
         class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md text-xl font-bold">
         กลับหน้าหลัก
       </a>
     </div>
+    <?php endif; ?>
   </main>
+  <?php if ($hasExpense): ?>
   <div class="page">
     <form action="save_expense.php" method="post" id="expenseForm">
-      <div class="mt-4 mb-10">
-        <h2 class="text-[16pt] font-bold text-center leading-[1.1] mb-6">
+      <div class="expense-title-section">
+        <?php if ($purposeCode === 'academic'): ?>
+        <h2 class="expense-main-title">
           ประมาณการค่าใช้จ่าย<br>
-          การนำเสนอผลงานวิจัยในการประชุมวิชาการระดับนานาชาติ
+          การนำเสนอผลงานวิจัยในการประชุมวิชาการ
         </h2>
+
         <div class="text-[16pt] leading-[1.15]">
           <div class="flex mb-1">
             <div class="w-[180px]">ชื่อ–สกุล</div>
-            <div class="flex-1">
-              <?= h($name ?: 'รองศาสตราจารย์ ดร.อนิราช มิ่งขวัญ') ?>
-            </div>
+            <div class="flex-1"><?= h($ownerName ?: '-') ?></div>
           </div>
+
           <div class="flex mb-1">
             <div class="w-[180px]">มหาวิทยาลัยต้นสังกัด</div>
             <div class="flex-1">
-              ภาควิชาเทคโนโลยีสารสนเทศ คณะเทคโนโลยีและการจัดการอุตสาหกรรม<br>
+              ภาควิชา<?= h($department ?: '-') ?> <?= h($faculty ?: '-') ?><br>
               มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
             </div>
           </div>
+
           <div class="flex mb-1">
             <div class="w-[180px]">ชื่อการประชุมวิชาการ</div>
-            <div class="flex-1">
-              2024 8th International Conference on Natural Language Processing and<br>
-              Information Retrieval (NLPIR 2024)
-            </div>
+            <div class="flex-1"><?= h($courseName ?: '-') ?></div>
           </div>
+
           <div class="flex mb-1">
             <div class="w-[180px]">วันที่</div>
-            <div class="flex-1">12 – 15 ธันวาคม 2567</div>
+            <div class="flex-1"><?= h($joinDates ?: '-') ?></div>
           </div>
+
           <div class="flex mb-1">
             <div class="w-[180px]">สถานที่</div>
-            <div class="flex-1">Okayama, Japan</div>
+            <div class="flex-1"><?= h($location ?: '-') ?></div>
           </div>
+
           <div class="flex mb-1">
             <div class="w-[180px]">ชื่อผลงานวิจัย</div>
-            <div class="flex-1">
-              “Enhancing Retrieval-Augmented Generation Systems by<br>
-              Text-Representing Centroid”
-            </div>
+            <div class="flex-1"><?= h($researchTitle ?: '-') ?></div>
           </div>
         </div>
+        <?php else: ?>
+        <h2 class="expense-main-title">
+          ประมาณการค่าใช้จ่าย
+        </h2>
+
+        <div class="text-[16pt] font-bold text-center leading-[1.05]">
+          <div class="mb-[2px]">
+            ค่าใช้จ่ายในการ<?= h($joinType ?: 'เข้าร่วม') ?>
+          </div>
+
+          <div class="mb-[2px] font-bold">
+            <?= ($purposeCode === 'training') ? 'หลักสูตร' : 'หัวข้อ/งาน' ?>
+            “<?= h($courseName ?: '-') ?>”
+          </div>
+
+          <div class="mb-[2px] font-bold">
+            ระหว่างวันที่ <?= h($joinDates ?: '-') ?>
+          </div>
+
+          <div class="mb-[2px] font-bold">
+            สถานที่ <?= h($location ?: '-') ?>
+          </div>
+        </div>
+        <?php endif; ?>
       </div>
       <h2 class="text-[16pt] font-bold mt-4 mb-3 text-left">
         ตารางสรุปค่าใช้จ่ายในการไปนำเสนอผลงานวิจัย
       </h2>
       <table id="expenseTable" style="width:100%; border-collapse:collapse; font-family:'TH SarabunPSK';
-              font-size:16pt; line-height:1.25; table-layout:fixed;">
+              font-size:16pt; line-height:1.15; table-layout:fixed;">
         <tr style="height:28px;">
           <th style="
-            width:55px;
-            border:1px solid #000; 
+            width:75px;
+            border:0.6px solid #000; 
             padding:3px 4px; 
             text-align:center; 
             font-weight:bold;">
-            ลำดับ<br>ที่
+            ลำดับที่
           </th>
           <th style="
     width:65%; 
-    border:1px solid #000; 
+    border:0.6px solid #000; 
     padding:3px 6px; 
     text-align:center; 
     font-weight:bold;
@@ -408,7 +547,7 @@ $len = max(20, $len);
           </th>
           <th style="
     width:120px; 
-    border:1px solid #000; 
+    border:0.6px solid #000; 
     padding:3px 4px; 
     text-align:center; 
     font-weight:bold;
@@ -417,103 +556,45 @@ $len = max(20, $len);
             จำนวนเงิน (บาท)
           </th>
         </tr>
+        <?php if (!empty($budgetItems)): ?>
+        <?php foreach ($budgetItems as $index => $item): ?>
         <tr>
-          <td style="border:1px solid #000; padding:3px 4px; text-align:center; vertical-align: top;">1</td>
-          <td style="border:1px solid #000; padding:3px 8px; text-align:left;" contenteditable="true">
-            ค่าลงทะเบียน (1 คน × 540 USD) (ตามที่จ่ายจริง)<br>
-            - (1 USD = 35.00 บาท)
+          <td style="border:0.6px solid #000; padding:3px 4px; text-align:center; vertical-align: top;">
+            <?= $index + 1 ?>
           </td>
-          <td style="border:1px solid #000; padding:3px 4px; text-align:right; vertical-align: top;"
-            contenteditable="true">
-            18,900.00
+          <td style="border:0.6px solid #000; padding:3px 8px; text-align:left; vertical-align: top;">
+            <?= nl2br(h($item['description'] ?: $item['item_type'])) ?>
+          </td>
+          <td style="border:0.6px solid #000; padding:3px 4px; text-align:right; vertical-align: top;">
+            <?= number_format((float)$item['amount'], 2) ?>
           </td>
         </tr>
+        <?php endforeach; ?>
+        <?php else: ?>
         <tr>
-          <td style="border:1px solid #000; padding:3px 4px; text-align:center; vertical-align: top;">2</td>
-          <td style="border:1px solid #000; padding:3px 8px; text-align:left;" contenteditable="true">
-            ค่าเดินทางระหว่างประเทศ (ตามที่จ่ายจริง)<br>
-            - ตั๋วเครื่องบิน ไป–กลับ ชั้นประหยัด กรุงเทพฯ → ญี่ปุ่น<br>
-            &nbsp;&nbsp;&nbsp;(25,000.00 บาท × 1 คน)
-          </td>
-          <td style="border:1px solid #000; padding:3px 4px; text-align:right; vertical-align: top;"
-            contenteditable="true">
-            25,000.00
+          <td colspan="3" style="border:0.6px solid #000; padding:8px; text-align:center;">
+            ไม่พบข้อมูลประมาณค่าใช้จ่าย
           </td>
         </tr>
-        <tr>
-          <td style="border:1px solid #000; padding:3px 4px; text-align:center; vertical-align: top;">3</td>
-          <td style="border:1px solid #000; padding:3px 8px; text-align:left;" contenteditable="true">
-            ค่าที่พัก ตามที่จ่ายจริง (ไม่เกิน 2 คืน)<br>
-            - ค่าที่พัก 13–14 ธันวาคม 2567 (7,000.00 บาท × 2 คืน)
-          </td>
-          <td style="border:1px solid #000; padding:3px 4px; text-align:right; vertical-align: top;"
-            contenteditable="true">
-            14,000.00
-          </td>
-        </tr>
-        <tr>
-          <td style="border:1px solid #000; padding:3px 4px; text-align:center; vertical-align: top;">4</td>
-          <td style="border:1px solid #000; padding:3px 8px; text-align:left;" contenteditable="true">
-            ค่าพาหนะ<br>
-            - วันที่ 13 ธ.ค. 67 ค่าโดยสารรถแท็กซี่ ไป–กลับที่พัก–งาน NLPIR 2024<br>
-            &nbsp;&nbsp;&nbsp;(2,500.00 × 2 เที่ยว)<br>
+        <?php endif; ?>
 
-            - วันที่ 14 ธ.ค. 67 ค่าโดยสารรถแท็กซี่ ไป–กลับที่พัก–งาน NLPIR 2024<br>
-            &nbsp;&nbsp;&nbsp;(2,500.00 × 2 เที่ยว)<br>
-
-            - วันที่ 15 ธ.ค. 67 ค่าโดยสารรถแท็กซี่ ไป–กลับที่พัก–งาน NLPIR 2024<br>
-            &nbsp;&nbsp;&nbsp;(2,500.00 × 2 เที่ยว)
-          </td>
-          <td style="border:1px solid #000; padding:3px 4px; text-align:right; vertical-align: top;"
-            contenteditable="true">
-            15,000.00
-          </td>
-        </tr>
         <tr>
-          <td style="border:1px solid #000; padding:3px 4px; text-align:center; vertical-align: top;">5</td>
-          <td style="border:1px solid #000; padding:3px 8px; text-align:left;" contenteditable="true">
-            ค่าเบี้ยเลี้ยง วันละ 3,100.00 บาท รวม 3 วัน (ไม่เกิน 3 วัน)<br>
-            - ค่าเบี้ย 13–14–15 ธันวาคม 2567 (3,100.00 × 3 วัน)
-          </td>
-          <td style="border:1px solid #000; padding:3px 4px; text-align:right; vertical-align: top;"
-            contenteditable="true">
-            9,300.00
-          </td>
-        </tr>
-        <tr>
-          <th style="
-        width:55px;
-        border:1px solid #000;
-        padding:3px 4px;
-        background:#ffffff;
-    "></th>
-          <th colspan="1" style="
-        border:1px solid #000;
-        padding:3px 6px;
-        text-align:right;
-        font-weight:bold;
-        background:#f8f8f8;
-    ">
-            รวมเป็นเงิน * (เบิกได้ไม่เกิน 80,000.00 บาท)
+          <th style="border:0.6px solid #000; padding:3px 4px; background:#ffffff;"></th>
+          <th style="border:0.6px solid #000; padding:3px 6px; text-align:left; font-weight:bold; background:#ffffff;">
+            รวมเป็นเงิน
           </th>
-          <th style="
-        width:150px;
-        border:1px solid #000;
-        padding:3px 4px;
-        text-align:right;
-        font-weight:bold;
-        background:#ffffff;
-    ">
-            82,200.00
+          <th style="border:0.6px solid #000; padding:3px 4px; text-align:right; font-weight:bold; background:#ffffff;">
+            <?= number_format($budgetTotal, 2) ?>
           </th>
         </tr>
       </table>
+
       <input type="hidden" name="doc_id" value="<?= $docId ?>">
       <input type="hidden" name="table_data" id="table_data">
       <div class="footer-actions">
-        <button type="button" onclick="window.print()"
+        <button type="button" onclick="downloadPdf()"
           class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          พิมพ์/ดูตัวอย่าง
+          ดาวน์โหลด PDF
         </button>
 
         <a href="/Pro_letter/documents/form_Memo.php?id=<?= $docId ?>" id="editBtn"
@@ -530,6 +611,8 @@ $len = max(20, $len);
       </div>
     </form>
   </div>
+  <?php endif; ?>
+
   <script>
   function getQuery(name) {
     const url = new URL(window.location.href);
@@ -624,6 +707,187 @@ $len = max(20, $len);
       });
     }
   });
+  async function downloadPdf() {
+    try {
+      const {
+        jsPDF
+      } = window.jspdf;
+
+      const pages = document.querySelectorAll(".page");
+      if (!pages.length) {
+        alert("ไม่พบหน้าเอกสาร .page");
+        return;
+      }
+
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4"
+      });
+
+      for (let i = 0; i < pages.length; i++) {
+        const clone = pages[i].cloneNode(true);
+        clone.classList.add("print-mode");
+
+        clone.style.position = "fixed";
+        clone.style.left = "-9999px";
+        clone.style.top = "0";
+        clone.style.width = "794px";
+        clone.style.minHeight = "1123px";
+        clone.style.boxSizing = "border-box";
+        clone.style.background = "#ffffff";
+
+        const cloneActions = clone.querySelectorAll(".footer-actions");
+        cloneActions.forEach(el => el.remove());
+
+        const cloneGaruda = clone.querySelector(".garuda-img");
+        if (cloneGaruda) {
+          cloneGaruda.style.transform = "translateY(-0.65cm)";
+        }
+        const cloneTitle = clone.querySelector(".doc-title");
+        if (cloneTitle) {
+          cloneTitle.style.top = "-0.85cm";
+        }
+        const cloneTitleRow = clone.querySelector(".memo-title-row");
+        if (cloneTitleRow) {
+          cloneTitleRow.style.height = "0.8cm";
+          cloneTitleRow.style.marginBottom = "0.1cm";
+        }
+
+        clone.querySelectorAll(".dot-line").forEach(line => {
+          line.style.position = "relative";
+          line.style.overflow = "visible";
+          line.style.backgroundImage = "none";
+
+          const dot = document.createElement("div");
+          dot.className = "pdf-real-dot-line";
+
+          dot.style.position = "absolute";
+          dot.style.left = "0";
+          dot.style.right = "0";
+          dot.style.bottom = "-12px";
+          dot.style.height = "0";
+          dot.style.zIndex = "1";
+          dot.style.pointerEvents = "none";
+          dot.style.borderTop = "2px dotted #000";
+
+          line.prepend(dot);
+        });
+
+        clone.querySelectorAll(".dot-line .chip").forEach(chip => {
+          chip.style.position = "relative";
+          chip.style.zIndex = "3";
+          chip.style.display = "inline";
+          chip.style.background = "transparent";
+          chip.style.paddingLeft = "0";
+          chip.style.paddingRight = "0";
+        });
+        const expenseTable = clone.querySelector("#expenseTable");
+
+        if (expenseTable) {
+          // 1. เปลี่ยนเป็น separate และห่าง 0 เพื่อแก้บั๊ก html2canvas วาดเส้นซ้อนกันจนหนาเตอะ
+          expenseTable.style.borderCollapse = "separate";
+          expenseTable.style.borderSpacing = "0";
+          expenseTable.style.width = "100%";
+          expenseTable.style.tableLayout = "fixed";
+          expenseTable.style.background = "#ffffff";
+
+          // 2. กำหนดให้ตัวตารางหลักมีเส้นขอบแค่ ด้านบน และ ด้านซ้าย
+          expenseTable.style.setProperty("border", "none", "important");
+          expenseTable.style.setProperty("border-top", "0.5px solid #414141", "important");
+          expenseTable.style.setProperty("border-left", "0.5px solid #414141", "important");
+
+          expenseTable.querySelectorAll("th").forEach(th => {
+            // 3. หัวตารางแต่ละช่อง ให้มีเส้นขอบแค่ ด้านล่าง และ ด้านขวา (เส้นจะไม่ซ้อนกัน)
+            th.style.setProperty("border", "none", "important");
+            th.style.setProperty("border-bottom", "0.5px solid #414141", "important");
+            th.style.setProperty("border-right", "0.5px solid #414141", "important");
+
+            th.style.setProperty("background", "#ffffff", "important");
+            th.style.setProperty("color", "#000", "important");
+            th.style.setProperty("font-weight", "bold", "important");
+            th.style.setProperty("vertical-align", "middle", "important");
+            th.style.setProperty("text-align", "center", "important");
+            th.style.setProperty("line-height", "1.0", "important");
+            th.style.setProperty("padding-top", "2px", "important");
+            th.style.setProperty("padding-bottom", "12px", "important");
+            th.style.setProperty("padding-left", "4px", "important");
+            th.style.setProperty("padding-right", "4px", "important");
+          });
+
+          expenseTable.querySelectorAll("td").forEach(td => {
+            // 4. ช่องข้อมูลแต่ละช่อง ให้มีเส้นขอบแค ด้านล่าง และ ด้านขวา เช่นกัน
+            td.style.setProperty("border", "none", "important");
+            td.style.setProperty("border-bottom", "0.5px solid #414141", "important");
+            td.style.setProperty("border-right", "0.5px solid #414141", "important");
+
+            td.style.setProperty("background", "#ffffff", "important");
+            td.style.setProperty("color", "#000", "important");
+            td.style.setProperty("vertical-align", "middle", "important");
+            td.style.setProperty("line-height", "1.0", "important");
+            td.style.setProperty("padding-top", "2px", "important");
+            td.style.setProperty("padding-bottom", "12px", "important");
+            td.style.setProperty("padding-left", "8px", "important");
+            td.style.setProperty("padding-right", "8px", "important");
+          });
+
+          const totalRow = expenseTable.querySelector("tr:last-child");
+          if (totalRow) {
+            totalRow.querySelectorAll("th, td").forEach(cell => {
+              // 5. ช่องแถวสรุปผลรวม ก็ใช้หลักการ ด้านล่าง และ ด้านขวา
+              cell.style.setProperty("border", "none", "important");
+              cell.style.setProperty("border-bottom", "0.5px solid #414141", "important");
+              cell.style.setProperty("border-right", "0.5px solid #414141", "important");
+
+              cell.style.setProperty("background", "#ffffff", "important");
+              cell.style.setProperty("color", "#000", "important");
+              cell.style.setProperty("font-weight", "bold", "important");
+              cell.style.setProperty("vertical-align", "middle", "important");
+              cell.style.setProperty("line-height", "1.0", "important");
+              cell.style.setProperty("padding-top", "2px", "important");
+              cell.style.setProperty("padding-bottom", "12px", "important");
+            });
+
+            const totalCells = totalRow.querySelectorAll("th, td");
+            if (totalCells.length >= 3) {
+              totalCells[1].style.setProperty("text-align", "left", "important");
+              totalCells[1].style.setProperty("padding-left", "14px", "important");
+              totalCells[2].style.setProperty("text-align", "right", "important");
+              totalCells[2].style.setProperty("padding-right", "14px", "important");
+            }
+          }
+        }
+        document.body.appendChild(clone);
+
+        const canvas = await html2canvas(clone, {
+          scale: 4,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          windowWidth: 794,
+          windowHeight: 1123,
+          scrollX: 0,
+          scrollY: 0
+        });
+
+        document.body.removeChild(clone);
+
+        const imgData = canvas.toDataURL("image/png");
+
+        if (i > 0) {
+          pdf.addPage();
+        }
+
+        pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
+      }
+
+      pdf.save("memo_<?= $docId ?>.pdf");
+
+    } catch (error) {
+      console.error(error);
+      alert("สร้าง PDF ไม่สำเร็จ กรุณากด F12 ดู Console");
+    }
+  }
   </script>
 </body>
 

@@ -64,6 +64,7 @@ $amountStr   = $formData[8]  ?? '';
 $vehicle     = $formData[9]  ?? '';
 $faculty     = $formData[10] ?? '';
 $department  = $formData[11] ?? '';
+$researchTitle = $formData[13] ?? ''; // ชื่อผลงานวิจัย เฉพาะกรณีนำเสนอผลงานทางวิชาการ
 
 $isRangeDate = preg_match('/\d+\s*-\s*\d+/', $joinDates);
 
@@ -374,7 +375,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       <div class="leading-tight">
         <div class="text-[16px] font-bold">Smart</div>
         <div class="text-[16px] font-bold -mt-[2px]">Government</div>
-        <div class="text-[13px] mt-[0px]">Letter Management System</div>
+        <div class="text-[13px] mt-[0px]">Letter Assistant System</div>
       </div>
     </div>
     <div class="flex items-center space-x-4">
@@ -521,24 +522,47 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
                   <?= ($purpose === 'meeting') ? 'checked' : '' ?> />
                 เข้าร่วมประชุมวิชาการในงาน
               </label>
-              <label class="flex items-center gap-2">
-                <input type="radio" name="purpose" value="other" class="accent-black" id="purposeOtherRadio"
+              <label class="flex items-start gap-2">
+                <input type="radio" name="purpose" value="other" class="accent-black mt-2" id="purposeOtherRadio"
                   <?= ($purpose === 'other') ? 'checked' : '' ?> />
-                อื่น ๆ
-                (ระบุ)
-                <input type="text" name="purpose_other_detail" id="purposeOtherInput"
-                  data-spell-field="purpose_other_detail"
-                  class="border rounded-md p-2 w-[260px] ml-3 <?= ($purpose === 'other') ? '' : 'bg-gray-100 text-gray-400' ?>"
-                  placeholder="โปรดระบุ" value="<?= h($purposeOther) ?>"
-                  <?= ($purpose === 'other') ? '' : 'disabled' ?> />
-                <div id="purposeOtherSpellBox" class="spell-box hidden"></div>
-                <div id="purposeOtherSpellLoading" class="spell-loading hidden">
-                  <div class="spell-loading-row">
-                    <div class="spell-spinner"></div>
-                    <span>กำลังตรวจคำผิด...</span>
+
+                <span class="mt-2">อื่น ๆ (ระบุ)</span>
+
+                <div class="flex flex-col ml-3">
+                  <input type="text" name="purpose_other_detail" id="purposeOtherInput"
+                    data-spell-field="purpose_other_detail"
+                    class="border rounded-md p-2 w-[260px] <?= ($purpose === 'other') ? '' : 'bg-gray-100 text-gray-400' ?>"
+                    placeholder="โปรดระบุ" value="<?= h($purposeOther) ?>"
+                    <?= ($purpose === 'other') ? '' : 'disabled' ?> />
+
+                  <div id="purposeOtherSpellBox" class="spell-box hidden"></div>
+
+                  <div id="purposeOtherSpellLoading" class="spell-loading hidden">
+                    <div class="spell-loading-row">
+                      <div class="spell-spinner"></div>
+                      <span>กำลังตรวจคำผิด...</span>
+                    </div>
                   </div>
                 </div>
               </label>
+            </div>
+          </div>
+        </div>
+        <div class="mb-4 flex items-start gap-4 <?= ($purpose === 'academic') ? '' : 'hidden' ?>"
+          id="researchTitleWrap">
+          <label class="lbl text-gray-800 whitespace-nowrap pt-2" for="researchTitle">
+            ชื่อผลงานวิจัย :
+          </label>
+          <div class="w-full">
+            <textarea name="research_title" rows="2" data-spell-field="research_title"
+              class="w-full border rounded-md p-2 shadow-sm" id="researchTitle"><?= h($researchTitle) ?></textarea>
+
+            <div id="researchTitleSpellBox" class="spell-box hidden"></div>
+            <div id="researchTitleSpellLoading" class="spell-loading hidden">
+              <div class="spell-loading-row">
+                <div class="spell-spinner"></div>
+                <span>กำลังตรวจคำผิด...</span>
+              </div>
             </div>
           </div>
         </div>
@@ -614,19 +638,25 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
               <?= $isOnline ? 'checked' : '' ?>>
             <label for="onlineCheckbox">เข้าร่วมในรูปแบบออนไลน์</label>
           </div>
-          <div class="flex items-center ml-6 gap-2">
-            <input type="radio" name="is_online" value="0" id="onsiteCheckbox" class="accent-black"
+          <div class="flex items-start ml-6 gap-2">
+            <input type="radio" name="is_online" value="0" id="onsiteCheckbox" class="accent-black mt-3"
               <?= !$isOnline ? 'checked' : '' ?>>
-            <label for="onsiteCheckbox">เข้าร่วมในรูปแบบออนไซต์</label>
-            <label class="lbl text-gray-800 ml-4 mr-2" for="placeOnsite">ระบุสถานที่ไป :</label>
-            <input type="text" name="place" id="placeOnsite" data-spell-field="place" class="border rounded-md p-2 w-[400px]
-  <?= !$isOnline ? '' : 'bg-gray-100 text-gray-400' ?>" value="<?= !$isOnline ? h($location) : '' ?>"
-              <?= !$isOnline ? '' : 'disabled' ?>>
-            <div id="placeOnsiteSpellBox" class="spell-box hidden"></div>
-            <div id="placeOnsiteSpellLoading" class="spell-loading hidden">
-              <div class="spell-loading-row">
-                <div class="spell-spinner"></div>
-                <span>กำลังตรวจคำผิด...</span>
+
+            <label for="onsiteCheckbox" class="mt-2">เข้าร่วมในรูปแบบออนไซต์</label>
+            <label class="lbl text-gray-800 ml-4 mr-2 mt-2" for="placeOnsite">ระบุสถานที่ไป :</label>
+
+            <div class="flex flex-col">
+              <input type="text" name="place" id="placeOnsite" data-spell-field="place" class="border rounded-md p-2 w-[400px]
+<?= !$isOnline ? '' : 'bg-gray-100 text-gray-400' ?>" value="<?= !$isOnline ? h($location) : '' ?>"
+                <?= !$isOnline ? '' : 'disabled' ?>>
+
+              <div id="placeOnsiteSpellBox" class="spell-box hidden"></div>
+
+              <div id="placeOnsiteSpellLoading" class="spell-loading hidden">
+                <div class="spell-loading-row">
+                  <div class="spell-spinner"></div>
+                  <span>กำลังตรวจคำผิด...</span>
+                </div>
               </div>
             </div>
           </div>
@@ -640,8 +670,17 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
               <span>บาท</span>
             </div>
           </div>
-          <?php $noCostChecked = (!empty($formData[8]) && (float)$formData[8] == 0.0) ? 'checked' : ''; ?>
+          <?php
+            $noCostValue = $formData[12] ?? '';
+            if ($noCostValue !== '') {
+                $noCostChecked = ((string)$noCostValue === '1') ? 'checked' : '';
+            } else {
+                $amountForCheck = str_replace(',', '', $formData[8] ?? '');
+                $noCostChecked = ($amountForCheck !== '' && (float)$amountForCheck == 0.0) ? 'checked' : '';
+            }
+            ?>
           <label class="flex items-center gap-2 ml-6 mt-2">
+            <input type="hidden" name="no_cost" value="0">
             <input type="checkbox" name="no_cost" value="1" class="accent-black" id="noCostCheckbox"
               <?= $noCostChecked ?> />
             โดยไม่เบิกค่าใช้จ่ายใดๆทั้งสิ้น
@@ -738,11 +777,35 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
               </div>
             </div>
             <div id="lodForm" class="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div class="md:col-span-2">
-                <label class="text-gray-700">ช่วงวันที่ (เช่น 2 – 3 ก.พ. 68)</label>
-                <input type="text" id="lodDateText" class="w-full border rounded-md p-2" placeholder="2 – 3 ก.พ. 68">
+              <div class="md:col-span-4">
+                <label class="text-gray-700 block mb-2">ช่วงวันที่เข้าพัก</label>
+
+                <div class="space-y-3 text-gray-800">
+                  <div class="flex items-center gap-2">
+                    <input type="radio" name="lod_date_option" value="single" id="lodOptSingle" class="accent-[#11C2B9]"
+                      checked>
+                    <span>วันเดียว :</span>
+                    <input type="text" id="lodSingleDate" class="border rounded-md p-2 shadow-sm w-48 cursor-pointer"
+                      placeholder="เลือกวันที่" readonly>
+                  </div>
+
+                  <div class="flex flex-wrap items-center gap-2">
+                    <input type="radio" name="lod_date_option" value="range" id="lodOptRange" class="accent-[#11C2B9]">
+                    <span>หลายวัน :</span>
+
+                    <input type="text" id="lodStartDate" class="border rounded-md p-2 shadow-sm w-48 cursor-pointer"
+                      placeholder="เริ่มต้น" readonly>
+
+                    <span>ถึง</span>
+
+                    <input type="text" id="lodEndDate" class="border rounded-md p-2 shadow-sm w-48 cursor-pointer"
+                      placeholder="สิ้นสุด" readonly>
+                  </div>
+
+                  <input type="hidden" id="lodDateText">
+                </div>
               </div>
-              <div>
+              <div class="md:col-span-2">
                 <label class="text-gray-700">ราคา/คืน</label>
                 <input type="number" id="lodUnit" class="w-full border rounded-md p-2" min="0" step="0.01" value="0">
               </div>
@@ -840,6 +903,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     </div>
   </form>
   <script>
+  const byId = (id) => document.getElementById(id);
   const spellState = {
     purpose_other_detail: {
       checked: false,
@@ -849,6 +913,13 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       errors: []
     },
     event_title: {
+      checked: false,
+      hasError: false,
+      ignored: false,
+      suggestions: [],
+      errors: []
+    },
+    research_title: {
       checked: false,
       hasError: false,
       ignored: false,
@@ -880,6 +951,8 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     const subCategory = document.getElementById("subCategory");
 
     const purposeOtherInput = document.getElementById("purposeOtherInput");
+    const researchTitleWrap = document.getElementById("researchTitleWrap");
+    const researchTitle = document.getElementById("researchTitle");
     const eventTitle = document.getElementById("eventTitle");
     const placeOnsite = document.getElementById("placeOnsite");
 
@@ -891,6 +964,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
     const purposeOtherSpellBox = document.getElementById("purposeOtherSpellBox");
     const eventTitleSpellBox = document.getElementById("eventTitleSpellBox");
+    const researchTitleSpellBox = document.getElementById("researchTitleSpellBox");
     const placeOnsiteSpellBox = document.getElementById("placeOnsiteSpellBox");
 
 
@@ -920,6 +994,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       if (!el) return null;
       if (el.id === "purposeOtherInput") return document.getElementById("purposeOtherSpellLoading");
       if (el.id === "eventTitle") return document.getElementById("eventTitleSpellLoading");
+      if (el.id === "researchTitle") return document.getElementById("researchTitleSpellLoading");
       if (el.id === "placeOnsite") return document.getElementById("placeOnsiteSpellLoading");
       return null;
     }
@@ -999,6 +1074,27 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     }
 
     function syncPurposeUI() {
+      const chosenPurpose = document.querySelector('input[name="purpose"]:checked');
+      const isAcademic = chosenPurpose?.value === "academic";
+
+      if (researchTitleWrap) {
+        researchTitleWrap.classList.toggle("hidden", !isAcademic);
+      }
+
+      if (!isAcademic && researchTitle) {
+        researchTitle.value = "";
+        clearError(researchTitle);
+        clearSpellResult(researchTitle);
+
+        spellState.research_title = {
+          checked: false,
+          hasError: false,
+          ignored: false,
+          suggestions: [],
+          errors: []
+        };
+      }
+
       if (purposeOtherRadio && purposeOtherRadio.checked) {
         purposeOtherInput.disabled = false;
         purposeOtherInput.classList.remove("bg-gray-100", "text-gray-400");
@@ -1237,7 +1333,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
     function validateStep1Minimal() {
       [
-        docDateDisplay, fullname, position, eventTitle,
+        docDateDisplay, fullname, position, researchTitle, eventTitle,
         singleDate, startDate, endDate, rangeDisplay, placeOnsite, amountInput
       ].forEach(clearError);
       let firstError = null;
@@ -1246,6 +1342,11 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       if (!chosenPurpose) {
         firstError = firstError || (purposeOtherRadio || purposeRadios[0]);
         setError((purposeOtherRadio || purposeRadios[0]), "กรุณาเลือกข้อ 3");
+      } else if (chosenPurpose.value === "academic") {
+        if (!researchTitle?.value?.trim()) {
+          firstError = firstError || researchTitle;
+          setError(researchTitle, "กรุณากรอกชื่อผลงานวิจัย");
+        }
       } else if (chosenPurpose.value === "other") {
         if (!purposeOtherInput?.value?.trim()) {
           firstError = firstError || purposeOtherInput;
@@ -1318,28 +1419,105 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       return true;
     }
 
-    nextBtn?.addEventListener("click", async () => {
-      if (noCostCheckbox?.checked) return;
-      if (optSingle?.checked && singleDate?.value?.trim()) {
-        joinDate.value = singleDate.value.trim();
-      }
-      if (optRange?.checked && rangeDisplay?.value?.trim()) {
-        joinDate.value = rangeDisplay.value.trim();
-      }
-      await checkSpellField(purposeOtherInput);
-      await checkSpellField(eventTitle);
-      await checkSpellField(placeOnsite);
-      for (const key in spellState) {
-        const state = spellState[key];
-        if (state.checked && state.hasError && !state.ignored) {
-          alert("กรุณาเลือกคำแนะนำ หรือกดใช้ข้อความเดิมก่อนดำเนินการ");
-          return;
+    async function checkAllSpellFields() {
+      const fields = [
+        purposeOtherInput,
+        researchTitle,
+        eventTitle,
+        placeOnsite
+      ];
+
+      let hasAnySpellError = false;
+      let firstSpellErrorEl = null;
+
+      for (const el of fields) {
+        if (!el || !shouldCheckSpell(el)) continue;
+
+        const fieldName = el.dataset.spellField || "";
+        const text = (el.value || "").trim();
+
+        if (!text) continue;
+
+        const state = spellState[fieldName];
+
+        if (
+          state &&
+          state.checked &&
+          !state.hasError &&
+          state.lastText === text
+        ) {
+          continue;
+        }
+
+        if (isApprovedText(fieldName, text) || correctedTexts[fieldName] === text) {
+          setSpellPassed(el, fieldName, text, false);
+          continue;
+        }
+
+        await checkSpellField(el);
+
+        const updatedState = spellState[fieldName];
+        const remainingErrors = filterApprovedErrors(updatedState?.errors || []);
+
+        if (
+          updatedState &&
+          updatedState.hasError &&
+          remainingErrors.length > 0
+        ) {
+          hasAnySpellError = true;
+          firstSpellErrorEl = firstSpellErrorEl || el;
         }
       }
-      if (!validateStep1Minimal()) return;
-      showStep2();
 
+      for (const key in spellState) {
+        const state = spellState[key];
+        const remainingErrors = filterApprovedErrors(state.errors || []);
+
+        if (state.checked && state.hasError && remainingErrors.length > 0) {
+          hasAnySpellError = true;
+        }
+      }
+
+      if (hasAnySpellError) {
+        alert("กรุณาเลือกคำแนะนำ หรือกดใช้ข้อความเดิมก่อนดำเนินการ");
+
+        if (firstSpellErrorEl) {
+          firstSpellErrorEl.scrollIntoView({
+            behavior: "smooth",
+            block: "center"
+          });
+          firstSpellErrorEl.focus();
+        }
+
+        return false;
+      }
+
+      return true;
+    }
+
+    nextBtn?.addEventListener("click", async () => {
+      if (noCostCheckbox?.checked) return;
+
+
+
+      try {
+        if (optSingle?.checked && singleDate?.value?.trim()) {
+          joinDate.value = singleDate.value.trim();
+        }
+
+        if (optRange?.checked && rangeDisplay?.value?.trim()) {
+          joinDate.value = rangeDisplay.value.trim();
+        }
+
+        const okSpell = await checkAllSpellFields();
+        if (!okSpell) return;
+
+        if (!validateStep1Minimal()) return;
+
+        showStep2();
+      } finally {}
     });
+
     backBtn?.addEventListener("click", () => {
       showStep1();
     });
@@ -1363,7 +1541,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
         [
           mainCategory, subCategory,
           docDateDisplay, fullname, position,
-          purposeOtherInput, eventTitle,
+          purposeOtherInput, researchTitle, eventTitle,
           singleDate, startDate, endDate, rangeDisplay,
           placeOnsite, amountInput, carPlateInput
         ].forEach(clearError);
@@ -1394,6 +1572,11 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
         if (!chosenPurpose) {
           firstError = firstError || (purposeOtherRadio || purposeRadios[0]);
           setError((purposeOtherRadio || purposeRadios[0]), "กรุณาเลือกข้อ 3");
+        } else if (chosenPurpose.value === "academic") {
+          if (!researchTitle?.value?.trim()) {
+            firstError = firstError || researchTitle;
+            setError(researchTitle, "กรุณากรอกชื่อผลงานวิจัย");
+          }
         } else if (chosenPurpose.value === "other") {
           if (!purposeOtherInput?.value?.trim()) {
             firstError = firstError || purposeOtherInput;
@@ -1462,17 +1645,8 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
           return;
         }
 
-        await checkSpellField(purposeOtherInput);
-        await checkSpellField(eventTitle);
-        await checkSpellField(placeOnsite);
-
-        for (const key in spellState) {
-          const state = spellState[key];
-          if (state.checked && state.hasError && !state.ignored) {
-            alert("กรุณาเลือกคำแนะนำ หรือกดใช้ข้อความเดิมก่อนดำเนินการ");
-            return;
-          }
-        }
+        const okSpell = await checkAllSpellFields();
+        if (!okSpell) return;
 
         // ผ่านทุกอย่างแล้วค่อย submit จริง
         memoForm.submit();
@@ -1509,6 +1683,11 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     const lodNights = document.getElementById("lodNights");
     const lodPeople = document.getElementById("lodPeople");
     const lodDateText = document.getElementById("lodDateText");
+    const lodOptSingle = document.getElementById("lodOptSingle");
+    const lodOptRange = document.getElementById("lodOptRange");
+    const lodSingleDate = document.getElementById("lodSingleDate");
+    const lodStartDate = document.getElementById("lodStartDate");
+    const lodEndDate = document.getElementById("lodEndDate");
     const lodTotal = document.getElementById("lodTotal");
 
     const perEnabled = document.getElementById("perEnabled");
@@ -1528,56 +1707,42 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       const ignoreBtn = e.target.closest(".spell-ignore-btn");
       if (!ignoreBtn) return;
 
-      const targetId = ignoreBtn.dataset.target;
-      const target = document.getElementById(targetId);
+      const target = byId(ignoreBtn.dataset.target);
       if (!target) return;
 
       const fieldName = target.dataset.spellField || "";
       const currentText = (target.value || "").trim();
 
-      spellState[fieldName] = {
-        checked: true,
-        hasError: false,
-        ignored: true,
-        suggestions: [],
-        errors: [],
-        lastText: currentText
-      };
-
-      clearSpellResult(target);
-      target.classList.remove("spell-error");
-      target.classList.add("spell-ok");
+      // ✅ จำข้อความ/คำนี้ว่าอนุญาตแล้วในหน้านี้
+      setSpellPassed(target, fieldName, currentText, true);
     });
+
 
 
     document.addEventListener("click", (e) => {
       const btn = e.target.closest(".spell-suggestion-btn");
       if (!btn) return;
 
-      const targetId = btn.dataset.target;
+      const target = byId(btn.dataset.target);
       const word = btn.dataset.word;
       const wrongWord = btn.dataset.wrongWord;
-      const target = document.getElementById(targetId);
 
       if (!target || !word || !wrongWord) return;
 
-      const currentValue = target.value || "";
-      const updatedValue = replaceWholeWordOnce(currentValue, wrongWord, word);
-
-      target.value = updatedValue;
+      const beforeText = target.value || "";
+      const afterText = replaceWholeWordOnce(beforeText, wrongWord, word);
+      target.value = afterText;
 
       const fieldName = target.dataset.spellField || "";
-      spellState[fieldName] = {
-        checked: false,
-        hasError: false,
-        ignored: false,
-        suggestions: [],
-        errors: [],
-        lastText: ""
-      };
+      const currentText = (target.value || "").trim();
 
-      checkSpellField(target);
+      // ✅ คำที่ผู้ใช้เลือกจากคำแนะนำ ถือว่าผ่านทันที ไม่ต้องตรวจซ้ำทันที
+      correctedTexts[fieldName] = currentText;
+      approvedWords.add(word);
+
+      setSpellPassed(target, fieldName, currentText, false);
     });
+
 
     function n(v) {
       const x = Number(String(v ?? "").replace(/,/g, ""));
@@ -1587,6 +1752,65 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     function money(x) {
       return (Math.round((x + Number.EPSILON) * 100) / 100).toFixed(2);
     }
+    const lodMonthsTH = [
+      "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+      "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
+    ];
+
+    function lodThaiShortDate(dateObj) {
+      if (!dateObj) return "";
+      const d = dateObj.getDate();
+      const m = lodMonthsTH[dateObj.getMonth()];
+      const y = String(dateObj.getFullYear() + 543).slice(-2);
+      return `${d} ${m} ${y}`;
+    }
+
+    function updateLodDateText() {
+      if (!lodDateText) return;
+
+      if (lodOptSingle?.checked) {
+        lodDateText.value = lodSingleDate?.value || "";
+      } else {
+        const start = lodStartDate?.value || "";
+        const end = lodEndDate?.value || "";
+        lodDateText.value = (start && end) ? `${start} – ${end}` : "";
+      }
+
+      calcAll();
+    }
+    flatpickr(lodSingleDate, {
+      locale: "th",
+      disableMobile: true,
+      allowInput: false,
+      onChange: ([d]) => {
+        lodSingleDate.value = d ? lodThaiShortDate(d) : "";
+        updateLodDateText();
+      }
+    });
+
+    flatpickr(lodStartDate, {
+      locale: "th",
+      disableMobile: true,
+      allowInput: false,
+      onChange: ([d]) => {
+        lodStartDate.value = d ? lodThaiShortDate(d) : "";
+        updateLodDateText();
+      }
+    });
+
+    flatpickr(lodEndDate, {
+      locale: "th",
+      disableMobile: true,
+      allowInput: false,
+      onChange: ([d]) => {
+        lodEndDate.value = d ? lodThaiShortDate(d) : "";
+        updateLodDateText();
+      }
+    });
+
+    [lodOptSingle, lodOptRange].forEach(el => {
+      el?.addEventListener("change", updateLodDateText);
+    });
 
     function toggleBlock(enabledEl, blockEl) {
       if (!enabledEl || !blockEl) return;
@@ -1724,8 +1948,12 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       }
       buildBudgetHiddenInputs();
     }
-    [regPrice, regPeople, lodUnit, lodNights, lodPeople, perUnit, perMeals, perPeople, lodDateText]
+    [regPrice, regPeople, lodUnit, lodNights, lodPeople, perUnit, perMeals, perPeople]
     .forEach(el => el?.addEventListener("input", calcAll));
+
+    [lodSingleDate, lodStartDate, lodEndDate].forEach(el => {
+      el?.addEventListener("change", updateLodDateText);
+    });
 
     function clearOldHidden(prefix) {
       memoForm.querySelectorAll(`input[data-budget="${prefix}"]`).forEach(el => el.remove());
@@ -1803,6 +2031,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       if (!el) return null;
       if (el.id === "purposeOtherInput") return purposeOtherSpellBox;
       if (el.id === "eventTitle") return eventTitleSpellBox;
+      if (el.id === "researchTitle") return researchTitleSpellBox;
       if (el.id === "placeOnsite") return placeOnsiteSpellBox;
       return null;
     }
@@ -1964,11 +2193,60 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       return normalized;
     }
 
-    function isIgnoredForSameText(fieldName, text) {
-      const state = spellState[fieldName];
-      return !!(state && state.ignored && state.lastText === text);
+    function extractThaiWords(text = "") {
+      return String(text)
+        .split(/[^\u0E00-\u0E7Fa-zA-Z0-9]+/g)
+        .map(w => w.trim())
+        .filter(Boolean);
     }
+
+    function rememberApprovedText(fieldName, text) {
+      const cleanText = String(text || "").trim();
+      if (!fieldName || !cleanText) return;
+
+      approvedTexts[fieldName] = cleanText;
+
+      extractThaiWords(cleanText).forEach(word => {
+        approvedWords.add(word);
+      });
+    }
+
+    function isApprovedText(fieldName, text) {
+      const cleanText = String(text || "").trim();
+      return !!(fieldName && cleanText && approvedTexts[fieldName] === cleanText);
+    }
+
+    function filterApprovedErrors(errors = []) {
+      return errors.filter(item => {
+        const wrongWord = String(item?.wrongWord || "").trim();
+        if (!wrongWord) return false;
+        return !approvedWords.has(wrongWord);
+      });
+    }
+
+    function setSpellPassed(el, fieldName, text, remember = false) {
+      if (remember) {
+        rememberApprovedText(fieldName, text);
+      }
+
+      spellState[fieldName] = {
+        checked: true,
+        hasError: false,
+        ignored: remember,
+        errors: [],
+        lastText: text
+      };
+
+      clearSpellResult(el);
+      if ((text || "").trim() !== "") {
+        el.classList.add("spell-ok");
+      }
+    }
+
     const spellCache = {};
+    const approvedWords = new Set();
+    const approvedTexts = {};
+    const correctedTexts = {};
 
     async function checkSpellField(el) {
       if (!el) return;
@@ -1986,16 +2264,18 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
       const fieldName = el.dataset.spellField || "";
       const cacheKey = `${fieldName}::${text}`;
-      if (isIgnoredForSameText(fieldName, text)) {
-        showSpellOk(el);
+      if (isApprovedText(fieldName, text) || correctedTexts[fieldName] === text) {
+        setSpellPassed(el, fieldName, text, false);
         return;
       }
+
 
       if (spellCache[cacheKey]) {
         const cached = spellCache[cacheKey];
 
         if (cached.hasError) {
-          const normalizedErrors = normalizeErrors(cached.errors || [], text);
+          const normalizedErrors = filterApprovedErrors(normalizeErrors(cached.errors || [], text));
+
 
           if (normalizedErrors.length === 0) {
             spellState[fieldName] = {
@@ -2062,7 +2342,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
         spellCache[cacheKey] = result;
 
         if (result.hasError) {
-          const normalizedErrors = normalizeErrors(result.errors || [], text);
+          const normalizedErrors = filterApprovedErrors(normalizeErrors(result.errors || [], text));
 
           if (normalizedErrors.length === 0) {
             spellState[fieldName] = {

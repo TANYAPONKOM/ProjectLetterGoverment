@@ -59,7 +59,7 @@ main {
       <div class="leading-tight">
         <div class="text-[16px] font-bold">Smart</div>
         <div class="text-[16px] font-bold -mt-[2px]">Government</div>
-        <div class="text-[13px] mt-[0px]">Letter Management System</div>
+        <div class="text-[13px] mt-[0px]">Letter Assistant System</div>
       </div>
     </div>
     <div class="flex items-center space-x-4">
@@ -131,7 +131,7 @@ main {
     <!-- Tabs -->
     <div class="flex space-x-6 border-b mb-4">
       <button id="tab-pending" class="bg-teal-500 text-white px-4 py-2 rounded-t-md font-semibold">รอตรวจสอบ</button>
-      <button id="tab-done" class="text-gray-500 px-4 py-2 rounded-t-md font-semibold">อนุมัติแล้ว</button>
+      <button id="tab-done" class="text-gray-500 px-4 py-2 rounded-t-md font-semibold">ผ่านการตรวจสอบแล้ว</button>
       <button id="tab-edit" class="text-gray-500 px-4 py-2 rounded-t-md font-semibold">รอการแก้ไข</button>
     </div>
 
@@ -184,7 +184,7 @@ main {
         statusText = "รอตรวจสอบ";
         statusClass = "bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs font-semibold";
       } else if (s === "done") {
-        statusText = "อนุมัติแล้ว";
+        statusText = "ผ่านการตรวจสอบแล้ว";
         statusClass = "bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold";
       } else if (s === "edit") {
         statusText = "รอการแก้ไข";
@@ -255,7 +255,7 @@ main {
         statusBadge = `
         <span class="px-2 py-1 rounded-full text-xs font-semibold
                      bg-green-100 text-green-700">
-          ตรวจสอบแล้ว
+          ผ่านการตรวจสอบแล้ว
         </span>`;
       } else if (req.status === "edit") {
         statusBadge = `

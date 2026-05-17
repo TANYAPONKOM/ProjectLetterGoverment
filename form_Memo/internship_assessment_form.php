@@ -1,4 +1,4 @@
-<?php    //pro_letter/form_memo/internship_assessment_form.php
+<?php    //pro_letter/form_memo/internship_assessment_form.php  ขอเข้าเยี่ยมศึกษาดูงาน
 session_start();
 require_once __DIR__ . '/../functions.php';
 

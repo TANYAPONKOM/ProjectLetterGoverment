@@ -1,74 +1,155 @@
 <?php  // pro_letter/admin/home.php
 session_start();
-if (!isset($_SESSION['role_id']) || $_SESSION['role_id'] != 1) {
+if (!isset($_SESSION['role_id']) || !in_array((int)$_SESSION['role_id'], [1, 2])) {
   header('Location: ../login.html');
   exit;
 }
 
 require_once __DIR__ . '/../functions.php';
 $pdo = getPDO();
-$users = getActiveUsers();
+$current = basename($_SERVER['PHP_SELF']);
 
-// 📌 รับค่าจาก query string
 $activeTab = $_GET['tab'] ?? 'all';
 $dateFrom = $_GET['date_from'] ?? '';
 $dateTo = $_GET['date_to'] ?? '';
+$keyword = trim($_GET['keyword'] ?? '');
 
-// 📌 สร้าง SQL
-$sql = "SELECT d.document_id, d.doc_no, d.doc_date, d.status, d.remark, 
-               u.fullname
-        FROM documents d
-        LEFT JOIN users u ON d.owner_id = u.user_id
-        WHERE 1=1";
+$where = [];
 $params = [];
 
-// ✅ ฟิกข้อมูลตัวอย่างเอกสาร
-$documents = [
-  [
-    "fullname" => "ดร.พิทย์พิมล ชูรอด",
-    "title" => "โครงการวิจัยด้านการศึกษา",
-    "date" => "2025-09-28",
-    "status" => "pending",
-    "action" => "เปิดเอกสาร"
-  ],
-  [
-    "fullname" => "ดร.พิทย์พิมล ชูรอด",
-    "title" => "บันทึกขออนุมัติใช้งบประมาณ",
-    "date" => "2025-09-27",
-    "status" => "approved",
-    "action" => "แจ้งทางเมล"
-  ],
-  [
-    "fullname" => "ดร.พิทย์พิมล ชูรอด",
-    "title" => "รายงานผลการดำเนินงาน",
-    "date" => "2025-09-25",
-    "status" => "rejected",
-    "action" => "แจ้งทางเมล"
-  ],
-];
-
-// ✅ อ่านสถานะที่เลือกจาก query string (ค่าเริ่มต้น = all)
-$activeTab = $_GET['tab'] ?? 'all';
-
-// ✅ ฟิลเตอร์ข้อมูลตาม tab
-$filteredDocs = ($activeTab === 'all')
-  ? $documents
-  : array_filter($documents, fn($d) => $d['status'] === $activeTab);
-
-// ✅ ฟิลเตอร์เพิ่มตามวันที่ (date_from)
-if (!empty($dateFrom)) {
-  $filteredDocs = array_filter($filteredDocs, function ($d) use ($dateFrom) {
-    return date('Y-m-d', strtotime($d['date'])) === $dateFrom;
-  });
+if ($activeTab === 'pending') {
+  $where[] = "h.status IN ('submitted', 'reviewing')";
+} elseif ($activeTab === 'approved') {
+  $where[] = "h.status = 'approved'";
+} elseif ($activeTab === 'rejected') {
+  $where[] = "h.status = 'rejected'";
 }
 
+if ($dateFrom !== '') {
+  $where[] = "DATE(h.history_at) >= ?";
+  $params[] = $dateFrom;
+}
 
-$totalDocs = count($documents);
-$approvedDocs = count(array_filter($documents, fn($d) => $d['status'] === 'approved'));
-$pendingDocs = count(array_filter($documents, fn($d) => $d['status'] === 'pending'));
-$rejectedDocs = count(array_filter($documents, fn($d) => $d['status'] === 'rejected'));
+if ($dateTo !== '') {
+  $where[] = "DATE(h.history_at) <= ?";
+  $params[] = $dateTo;
+}
 
-function thai_date($date)
+if ($keyword !== '') {
+  $where[] = "(
+    h.actor_name LIKE ?
+    OR h.owner_name LIKE ?
+    OR h.subject LIKE ?
+    OR h.template_name LIKE ?
+    OR h.action_label LIKE ?
+    OR h.detail LIKE ?
+  )";
+  for ($i = 0; $i < 6; $i++) {
+    $params[] = "%{$keyword}%";
+  }
+}
+
+$whereSql = count($where) ? "WHERE " . implode(" AND ", $where) : "";
+
+$historySql = "
+  SELECT *
+  FROM (
+    SELECT
+      al.log_id AS history_id,
+      al.created_at AS history_at,
+      al.action AS action_code,
+      CASE
+        WHEN al.action = 'SUBMITTED' THEN 'ส่งคำขอเอกสาร'
+        WHEN al.action = 'CREATED' THEN 'สร้างเอกสาร'
+        WHEN al.action = 'UPDATED' THEN 'แก้ไขเอกสาร'
+        WHEN al.action = 'APPROVED' THEN 'อนุมัติเอกสาร'
+        WHEN al.action = 'REJECTED' THEN 'ตีกลับเอกสาร'
+        ELSE al.action
+      END AS action_label,
+      al.detail,
+      d.document_id,
+      d.doc_no,
+      d.subject,
+      d.status,
+      t.template_name,
+      actor.fullname AS actor_name,
+      owner.fullname AS owner_name
+    FROM audit_logs al
+    LEFT JOIN documents d ON al.document_id = d.document_id
+    LEFT JOIN users actor ON al.user_id = actor.user_id
+    LEFT JOIN users owner ON d.owner_id = owner.user_id
+    LEFT JOIN templates t ON d.template_id = t.template_id
+
+    UNION ALL
+
+    SELECT
+      d.document_id AS history_id,
+      d.created_at AS history_at,
+      'CREATED' AS action_code,
+      'สร้างเอกสาร' AS action_label,
+      'สร้างรายการเอกสารเข้าสู่ระบบ' AS detail,
+      d.document_id,
+      d.doc_no,
+      d.subject,
+      d.status,
+      t.template_name,
+      owner.fullname AS actor_name,
+      owner.fullname AS owner_name
+    FROM documents d
+    LEFT JOIN users owner ON d.owner_id = owner.user_id
+    LEFT JOIN templates t ON d.template_id = t.template_id
+
+    UNION ALL
+
+    SELECT
+      d.document_id AS history_id,
+      d.updated_at AS history_at,
+      'UPDATED' AS action_code,
+      'แก้ไขเอกสาร' AS action_label,
+      'มีการแก้ไขข้อมูลเอกสาร' AS detail,
+      d.document_id,
+      d.doc_no,
+      d.subject,
+      d.status,
+      t.template_name,
+      editor.fullname AS actor_name,
+      owner.fullname AS owner_name
+    FROM documents d
+    LEFT JOIN users editor ON d.approved_by = editor.user_id
+    LEFT JOIN users owner ON d.owner_id = owner.user_id
+    LEFT JOIN templates t ON d.template_id = t.template_id
+    WHERE d.updated_at IS NOT NULL
+  ) h
+  $whereSql
+  ORDER BY h.history_at DESC
+";
+
+$stmt = $pdo->prepare($historySql);
+$stmt->execute($params);
+$filteredDocs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE is_active = 1")->fetchColumn();
+$totalDocs = (int)$pdo->query("SELECT COUNT(*) FROM documents")->fetchColumn();
+$approvedDocs = (int)$pdo->query("SELECT COUNT(*) FROM documents WHERE status = 'approved'")->fetchColumn();
+$pendingDocs = (int)$pdo->query("SELECT COUNT(*) FROM documents WHERE status IN ('submitted', 'reviewing')")->fetchColumn();
+$rejectedDocs = (int)$pdo->query("SELECT COUNT(*) FROM documents WHERE status = 'rejected'")->fetchColumn();
+
+function statusBadge($status)
+{
+  if (in_array($status, ['submitted', 'reviewing'])) {
+    return '<span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700">รอตรวจสอบ</span>';
+  }
+  if ($status === 'approved') {
+    return '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">อนุมัติแล้ว</span>';
+  }
+  if ($status === 'rejected') {
+    return '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-700">ถูกตีกลับ</span>';
+  }
+  if ($status === 'draft') {
+    return '<span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700">ฉบับร่าง</span>';
+  }
+  return '<span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">' . htmlspecialchars($status ?? '-') . '</span>';
+}function thai_date($date)
 {
   $time = strtotime($date);
   $d = date("d", $time);
@@ -128,7 +209,7 @@ function thai_date($date)
       <div class="leading-tight">
         <div class="text-[16px] font-bold">Smart</div>
         <div class="text-[16px] font-bold -mt-[2px]">Government</div>
-        <div class="text-[13px] mt-[0px]">Letter Management System</div>
+        <div class="text-[13px] mt-[0px]">Letter Assistant System</div>
       </div>
     </div>
 
@@ -211,113 +292,155 @@ function thai_date($date)
   <main class="max-w-7xl w-full px-8 mx-auto bg-white mt-4 mb-12 p-6 rounded shadow min-h-[70vh]">
 
     <!-- Operation History -->
-    <!-- Header ของตาราง + การ์ดผู้ใช้ -->
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl font-bold">ประวัติการใช้งานเอกสาร</h2>
+    <div class="mb-5">
+      <h2 class="text-xl font-bold mb-4">ประวัติการใช้งานเอกสาร</h2>
 
-      <!-- Card Users -->
-      <div id="card-users" class="bg-white px-4 py-2 rounded-lg shadow flex items-center space-x-3">
-        <!-- Circle Icon -->
-        <div class="w-12 h-12 rounded-full bg-teal-500 flex items-center justify-center text-white">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M13 7a3 3 0 11-6 0 3 3 0 016 0zM4 14s1-1 6-1 6 1 6 1v1H4v-1z" />
-          </svg>
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-teal-500">
+          <div class="text-sm text-gray-500">จำนวนผู้ใช้งาน</div>
+          <div class="text-2xl font-bold text-gray-800"><?= number_format($totalUsers) ?></div>
         </div>
 
-        <!-- Text Info (inline) -->
-        <div class="flex items-center space-x-2">
-          <span class="text-sm text-gray-500">จำนวนผู้ใช้ : </span>
-          <span class="text-lg font-bold text-gray-800"><?= number_format(count($users)) ?></span>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-sky-500">
+          <div class="text-sm text-gray-500">เอกสารทั้งหมด</div>
+          <div class="text-2xl font-bold text-gray-800"><?= number_format($totalDocs) ?></div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-yellow-400">
+          <div class="text-sm text-gray-500">รอตรวจสอบ</div>
+          <div class="text-2xl font-bold text-gray-800"><?= number_format($pendingDocs) ?></div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500">
+          <div class="text-sm text-gray-500">อนุมัติแล้ว</div>
+          <div class="text-2xl font-bold text-gray-800"><?= number_format($approvedDocs) ?></div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-500">
+          <div class="text-sm text-gray-500">ถูกตีกลับ</div>
+          <div class="text-2xl font-bold text-gray-800"><?= number_format($rejectedDocs) ?></div>
         </div>
       </div>
-
     </div>
 
     <!-- Tabs + ฟอร์มเลือกช่วงวัน -->
     <div class="flex items-center justify-between border-b mb-4">
       <!-- Tabs -->
       <div class="flex space-x-6">
-        <a href="?tab=all"
+        <a href="?tab=all&keyword=<?= urlencode($keyword) ?>&date_from=<?= urlencode($dateFrom) ?>&date_to=<?= urlencode($dateTo) ?>"
           class="px-4 py-2 rounded-t-md font-semibold <?= $activeTab === 'all' ? 'bg-teal-500 text-white' : 'text-gray-500' ?>">
           เอกสารทั้งหมด
         </a>
-        <a href="?tab=pending"
+        <a href="?tab=pending&keyword=<?= urlencode($keyword) ?>&date_from=<?= urlencode($dateFrom) ?>&date_to=<?= urlencode($dateTo) ?>"
           class="px-4 py-2 rounded-t-md font-semibold <?= $activeTab === 'pending' ? 'bg-teal-500 text-white' : 'text-gray-500' ?>">
           รอตรวจสอบ
         </a>
-        <a href="?tab=approved"
+        <a href="?tab=approved&keyword=<?= urlencode($keyword) ?>&date_from=<?= urlencode($dateFrom) ?>&date_to=<?= urlencode($dateTo) ?>"
           class="px-4 py-2 rounded-t-md font-semibold <?= $activeTab === 'approved' ? 'bg-teal-500 text-white' : 'text-gray-500' ?>">
           อนุมัติแล้ว
         </a>
-        <a href="?tab=rejected"
+        <a href="?tab=rejected&keyword=<?= urlencode($keyword) ?>&date_from=<?= urlencode($dateFrom) ?>&date_to=<?= urlencode($dateTo) ?>"
           class="px-4 py-2 rounded-t-md font-semibold <?= $activeTab === 'rejected' ? 'bg-teal-500 text-white' : 'text-gray-500' ?>">
           ถูกตีกลับ
         </a>
       </div>
 
       <!-- ฟอร์มเลือกช่วงวัน -->
-      <form method="get" class="flex space-x-2 items-center">
-        <label class="text-sm text-gray-600">วันที่:</label>
-        <input type="date" name="date_from" value="<?= htmlspecialchars($_GET['date_from'] ?? '') ?>"
-          class="border rounded px-2 py-1 text-sm">
-        <button type="submit"
-          class="bg-teal-500 text-white px-3 py-1 rounded text-sm hover:bg-teal-600 transition">ค้นหา</button>
+      <form method="get" class="flex flex-wrap gap-2 items-center justify-end">
+        <input type="hidden" name="tab" value="<?= htmlspecialchars($activeTab) ?>">
+
+        <input type="text" name="keyword" value="<?= htmlspecialchars($keyword) ?>"
+          placeholder="ค้นหา ผู้ดำเนินการ / เจ้าของ / เรื่องเอกสาร" class="border rounded px-3 py-2 text-sm w-72">
+
+        <label class="text-sm text-gray-600">จาก:</label>
+        <input type="date" name="date_from" value="<?= htmlspecialchars($dateFrom) ?>"
+          class="border rounded px-2 py-2 text-sm">
+
+        <label class="text-sm text-gray-600">ถึง:</label>
+        <input type="date" name="date_to" value="<?= htmlspecialchars($dateTo) ?>"
+          class="border rounded px-2 py-2 text-sm">
+
+        <button type="submit" class="bg-teal-500 text-white px-4 py-2 rounded text-sm hover:bg-teal-600 transition">
+          ค้นหา
+        </button>
+
+        <a href="history_page.php?tab=<?= htmlspecialchars($activeTab) ?>"
+          class="bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-300 transition">
+          ล้าง
+        </a>
       </form>
     </div>
 
     <!-- Document Table -->
+    <!-- Document History Table -->
     <div class="overflow-x-auto rounded-lg shadow">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-100 text-gray-700 text-sm">
           <tr>
-            <th class="px-4 py-3 text-left font-semibold">ผู้ส่ง</th>
+            <th class="px-4 py-3 text-left font-semibold">วัน/เวลา</th>
+            <th class="px-4 py-3 text-left font-semibold">ผู้ดำเนินการ</th>
+            <th class="px-4 py-3 text-left font-semibold">เจ้าของเอกสาร</th>
             <th class="px-4 py-3 text-left font-semibold">เรื่องเอกสาร</th>
-            <th class="px-4 py-3 text-left font-semibold">วันที่</th>
+            <th class="px-4 py-3 text-left font-semibold">การกระทำ</th>
             <th class="px-4 py-3 text-left font-semibold">สถานะ</th>
-            <th class="px-4 py-3 text-center font-semibold">การดำเนินการ</th>
+            <th class="px-4 py-3 text-left font-semibold">รายละเอียด</th>
           </tr>
         </thead>
+
         <tbody class="divide-y divide-gray-200 text-sm">
+          <?php if (empty($filteredDocs)): ?>
+          <tr>
+            <td colspan="7" class="px-4 py-8 text-center text-gray-500">
+              ไม่พบประวัติการใช้งานเอกสารตามเงื่อนไขที่ค้นหา
+            </td>
+          </tr>
+          <?php endif; ?>
+
           <?php foreach ($filteredDocs as $doc): ?>
           <tr class="hover:bg-gray-50 transition">
-            <!-- Fullname -->
-            <td class="px-4 py-3 flex items-center space-x-3">
-              <div class="w-8 h-8 rounded-full bg-teal-400 flex items-center justify-center font-bold text-white">
-                <?= mb_substr($doc['fullname'], 0, 1) ?>
-              </div>
-              <span class="font-medium text-gray-800"><?= htmlspecialchars($doc['fullname']) ?></span>
+            <td class="px-4 py-3 text-gray-700 whitespace-nowrap">
+              <?= date("d/m/Y H:i", strtotime($doc['history_at'])) ?>
             </td>
-            <!-- Title -->
-            <td class="px-4 py-3 text-gray-700">
-              <?= htmlspecialchars($doc['title']) ?>
-            </td>
-            <!-- Date -->
-            <td class="px-4 py-3 text-gray-600">
-              <?= date("d/m/Y", strtotime($doc['date'])) ?>
-            </td>
-            <!-- Status -->
+
             <td class="px-4 py-3">
-              <?php if ($doc['status'] === 'pending'): ?>
-              <span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-600">รอตรวจสอบ</span>
-              <?php elseif ($doc['status'] === 'approved'): ?>
-              <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-600">อนุมัติ</span>
-              <?php elseif ($doc['status'] === 'rejected'): ?>
-              <span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-600">ถูกตีกลับ</span>
-              <?php endif; ?>
+              <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-full bg-teal-400 flex items-center justify-center font-bold text-white">
+                  <?= htmlspecialchars(mb_substr($doc['actor_name'] ?? '-', 0, 1)) ?>
+                </div>
+                <span class="font-medium text-gray-800">
+                  <?= htmlspecialchars($doc['actor_name'] ?? '-') ?>
+                </span>
+              </div>
             </td>
-            <!-- Action -->
-            <!-- Action -->
-            <td class="px-4 py-3 text-center align-middle">
-              <a href="#" class="flex items-center justify-center w-10 h-10 rounded-full 
-       bg-gradient-to-r from-sky-400 to-sky-500 hover:from-sky-500 hover:to-sky-600 
-       text-white shadow-md transition duration-200 ease-in-out mx-auto" title="ดูเวลา / เปิดเอกสาร">
-                <!-- Clock Icon -->
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
-                  stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </a>
+
+            <td class="px-4 py-3 text-gray-700">
+              <?= htmlspecialchars($doc['owner_name'] ?? '-') ?>
+            </td>
+
+            <td class="px-4 py-3 text-gray-700 min-w-[260px]">
+              <div class="font-semibold text-gray-800">
+                <?= htmlspecialchars($doc['subject'] ?: 'ไม่ระบุเรื่องเอกสาร') ?>
+              </div>
+              <div class="text-xs text-gray-500 mt-1">
+                <?= htmlspecialchars($doc['template_name'] ?? '-') ?>
+                <?php if (!empty($doc['doc_no'])): ?>
+                · เลขที่ <?= htmlspecialchars($doc['doc_no']) ?>
+                <?php endif; ?>
+              </div>
+            </td>
+
+            <td class="px-4 py-3">
+              <span class="px-2 py-1 text-xs rounded-full bg-sky-100 text-sky-700">
+                <?= htmlspecialchars($doc['action_label'] ?? '-') ?>
+              </span>
+            </td>
+
+            <td class="px-4 py-3">
+              <?= statusBadge($doc['status'] ?? '') ?>
+            </td>
+
+            <td class="px-4 py-3 text-gray-600 max-w-[260px]">
+              <?= htmlspecialchars($doc['detail'] ?? '-') ?>
             </td>
           </tr>
           <?php endforeach; ?>

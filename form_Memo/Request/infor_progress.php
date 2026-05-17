@@ -173,7 +173,7 @@ if (!isset($_SESSION['user_id'])) {
             <div class="leading-tight">
                 <div class="text-[16px] font-bold">Smart</div>
                 <div class="text-[16px] font-bold -mt-[2px]">Government</div>
-                <div class="text-[13px] mt-[0px]">Letter Management System</div>
+                <div class="text-[13px] mt-[0px]">Letter Assistant System</div>
             </div>
         </div>
         <div class="flex items-center space-x-4">

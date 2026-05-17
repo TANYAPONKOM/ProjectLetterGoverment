@@ -153,9 +153,31 @@ def api_spell_check(payload: SpellCheckRequest):
     found_errors = []
     seen_words = set()
 
-    # 1) เช็กจาก misspellings แบบ substring ก่อน
-    for wrong_word, suggestions in COMMON_MISSPELLINGS.items():
-        if wrong_word in text and wrong_word not in seen_words:
+        # 1) เช็กจาก misspellings แบบปลอดภัยกว่าเดิม
+    # ไม่จับคำผิดที่เป็นส่วนหนึ่งของคำถูก เช่น โรงแรม ไม่ควรถูกจับเป็น โรงแร
+    sorted_misspellings = sorted(COMMON_MISSPELLINGS.items(), key=lambda x: len(x[0]), reverse=True)
+
+    for wrong_word, suggestions in sorted_misspellings:
+        if wrong_word in seen_words:
+            continue
+
+        if should_ignore_word(wrong_word):
+            continue
+
+        # ถ้าคำที่เจออยู่ใน custom dictionary ให้ถือว่าถูก ไม่ต้องแจ้ง
+        if wrong_word in CUSTOM_WORDS:
+            continue
+
+        # จับเฉพาะกรณีที่ข้อความมีคำผิดจริง และไม่ใช่ส่วนย่อยของคำแนะนำที่ถูกต้อง
+        if wrong_word in text:
+            is_part_of_correct_suggestion = any(
+                wrong_word != correct_word and wrong_word in correct_word and correct_word in text
+                for correct_word in suggestions
+            )
+
+            if is_part_of_correct_suggestion:
+                continue
+
             found_errors.append({
                 "wrongWord": wrong_word,
                 "suggestions": suggestions[:5]

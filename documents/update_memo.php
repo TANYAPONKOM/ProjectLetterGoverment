@@ -43,6 +43,7 @@ try {
   $position = trim($_POST['position'] ?? '');
   $purpose = $_POST['purpose'] ?? '';
   $eventTitle = trim($_POST['event_title'] ?? '');
+$researchTitle = trim($_POST['research_title'] ?? '');
 
   $dateOption = $_POST['date_option'] ?? '';
   $singleDate = trim($_POST['single_date'] ?? '');
@@ -51,9 +52,10 @@ try {
   $isOnline = isset($_POST['is_online']) ? 1 : 0;
   $place = trim($_POST['place'] ?? '');
 
-  $noCost = isset($_POST['no_cost']) ? 1 : 0;
-  $amountRaw = str_replace(',', '', trim($_POST['amount'] ?? '0'));
-  $amount = $noCost ? 0.00 : (is_numeric($amountRaw) ? (float) $amountRaw : 0.00);
+  $noCost = (($_POST['no_cost'] ?? '0') === '1') ? 1 : 0;
+
+$amountRaw = str_replace(',', '', trim($_POST['amount'] ?? '0'));
+$amount = $noCost ? 0.00 : (is_numeric($amountRaw) ? (float) $amountRaw : 0.00);
 
   $carUsed = isset($_POST['car_used']) ? 1 : 0;
   $carPlate = trim($_POST['car_plate'] ?? '');
@@ -72,6 +74,8 @@ try {
     $errors['purpose'] = 'required';
   if ($eventTitle === '')
     $errors['event_title'] = 'required';
+  if ($purpose === 'academic' && $researchTitle === '')
+    $errors['research_title'] = 'required';
   if ($dateOption === 'single' && $singleDate === '')
     $errors['single_date'] = 'required';
   if ($dateOption === 'range' && $rangeDate === '')
@@ -162,7 +166,7 @@ if (!$canEdit) {
   ]);
 
   // ค่า field อื่น ๆ
-  $values = [
+ $values = [
     1 => $docDate,
     2 => $fullname,
     3 => $position,
@@ -173,9 +177,10 @@ if (!$canEdit) {
     8 => number_format($amount, 2, '.', ''),
     9 => $carUsed ? $carPlate : '',
     10 => $faculty,
-    11 => $department
-    // ❌ ไม่ต้องมี phone แยกแล้ว
-  ];
+    11 => $department,
+    12 => (string)$noCost,
+    13 => ($purpose === 'academic') ? $researchTitle : ''
+];
 
   $q = $pdo->prepare("SELECT field_id FROM template_fields WHERE template_id = :tid");
   $q->execute([':tid' => $templateId]);
@@ -196,7 +201,13 @@ if (!$canEdit) {
     ]);
   }
 
- $pdo->commit();
+  if ($noCost) {
+    $pdo->prepare("DELETE FROM budget_items WHERE document_id = :id")
+      ->execute([':id' => $documentId]);
+  }
+
+
+$pdo->commit();
 
 /* =======================================================
    🔄 ทำให้กลับไปหน้าเดิม (admin/officer/user)
@@ -206,6 +217,11 @@ $redirectBack = trim($redirectBack);
 
 /* ถ้ามี referer ที่ส่งมา → กลับไปหน้านั้น */
 if ($redirectBack !== '') {
+    if (!$noCost) {
+        header("Location: /Pro_letter/documents/form_Calcu.php?id={$documentId}&from=update");
+        exit;
+    }
+
     header("Location: /Pro_letter/documents/view_memo.php?id={$documentId}&saved=1&from=update");
     exit;
 }

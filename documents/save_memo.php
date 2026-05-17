@@ -30,6 +30,7 @@ try {
     $position = trim($_POST['position'] ?? '');
     $purpose = $_POST['purpose'] ?? '';    // academic|training|meeting|other
     $eventTitle = trim($_POST['event_title'] ?? '');
+    $researchTitle = trim($_POST['research_title'] ?? '');
 
    $joinDates = trim($_POST['join_date'] ?? ''); // วันเดียว หรือ หลายวัน (ข้อความไทย)
 
@@ -38,9 +39,10 @@ try {
 
     $place = trim($_POST['place'] ?? '');
 
-    $noCost = isset($_POST['no_cost']) ? 1 : 0;
-    $amountRaw = str_replace(',', '', trim($_POST['amount'] ?? '0'));
-    $amount = $noCost ? 0.00 : (is_numeric($amountRaw) ? (float) $amountRaw : 0.00);
+   $noCost = (($_POST['no_cost'] ?? '0') === '1') ? 1 : 0;
+
+$amountRaw = str_replace(',', '', trim($_POST['amount'] ?? '0'));
+$amount = $noCost ? 0.00 : (is_numeric($amountRaw) ? (float) $amountRaw : 0.00);
 
     $carUsed = isset($_POST['car_used']) ? 1 : 0;
     $carPlate = trim($_POST['car_plate'] ?? '');
@@ -63,6 +65,9 @@ if ($purpose === 'other') {
     if ($other === '') {
         $errors['purpose_other_detail'] = 'required';
     }
+}
+if ($purpose === 'academic' && $researchTitle === '') {
+    $errors['research_title'] = 'required';
 }
 
 if ($eventTitle === '') {
@@ -212,18 +217,20 @@ if ($carUsed && $carPlate === '') {
 
 
     $values = [
-        1 => $docDate,
-        2 => $fullname,
-        3 => $position,
-        4 => $joinType,
-        5 => $eventTitle,
-        6 => $joinDates,
-        7 => $isOnline ? 'เข้าร่วมรูปแบบออนไลน์' : $place,
-        8 => number_format($amount, 2, '.', ''),
-        9 => $carUsed ? $carPlate : '',
-        10 => $faculty,
-        11 => $department,
-    ];
+    1 => $docDate,
+    2 => $fullname,
+    3 => $position,
+    4 => $joinType,
+    5 => $eventTitle,
+    6 => $joinDates,
+    7 => $isOnline ? 'เข้าร่วมรูปแบบออนไลน์' : $place,
+    8 => number_format($amount, 2, '.', ''),
+    9 => $carUsed ? $carPlate : '',
+    10 => $faculty,
+    11 => $department,
+    12 => (string)$noCost, // 1 = ไม่เบิกค่าใช้จ่าย, 0 = มีค่าใช้จ่าย
+    13 => ($purpose === 'academic') ? $researchTitle : '',
+];
 
     // อนุญาตเฉพาะ field_id ที่ template นี้มีจริง
     $q = $pdo->prepare("SELECT field_id FROM template_fields WHERE template_id = :tid");
@@ -266,8 +273,8 @@ if ($carUsed && $carPlate === '') {
     $pdo->prepare("DELETE FROM budget_items WHERE document_id = :id")
         ->execute([':id' => $documentId]);
 
-    // insert ใหม่
-    if (is_array($types) && is_array($descs) && is_array($amounts)) {
+    // insert ใหม่ เฉพาะกรณีมีค่าใช้จ่ายเท่านั้น
+if (!$noCost && is_array($types) && is_array($descs) && is_array($amounts)) {
         $insB = $pdo->prepare("
             INSERT INTO budget_items (document_id, item_type, description, amount)
             VALUES (:doc, :type, :desc, :amt)

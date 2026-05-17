@@ -38,6 +38,48 @@ if (!isset($_SESSION['user_id'])) {
     flex-direction: column;
   }
 
+  .swal2-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 12px !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .swal2-actions button {
+    margin: 0 !important;
+  }
+
+  #holdCancelBtn {
+    min-width: 220px;
+  }
+
+  .cancel-actions-row {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 12px !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .myCancelBtn {
+    background: #6b7280 !important;
+    color: #fff !important;
+    border: none !important;
+    padding: 12px 24px !important;
+    border-radius: 10px !important;
+    font-weight: bold !important;
+    font-size: 15px !important;
+    min-width: 120px !important;
+    margin: 0 !important;
+  }
+
+  .myCancelBtn {
+    min-width: 140px !important;
+  }
+
   #requestListContainer {
     flex: 1;
     overflow-y: auto;
@@ -60,7 +102,7 @@ if (!isset($_SESSION['user_id'])) {
       <div class="leading-tight">
         <div class="text-[16px] font-bold">Smart</div>
         <div class="text-[16px] font-bold -mt-[2px]">Government</div>
-        <div class="text-[13px] mt-[0px]">Letter Management System</div>
+        <div class="text-[13px] mt-[0px]">Letter Assistant System</div>
       </div>
     </div>
     <div class="flex items-center space-x-4">
@@ -121,7 +163,7 @@ if (!isset($_SESSION['user_id'])) {
         รอตรวจสอบ
       </button>
       <button id="tab-done" class="text-gray-500 px-4 py-2 rounded-t-md font-semibold">
-        อนุมัติแล้ว
+        ผ่านการตรวจสอบแล้ว
       </button>
       <button id="tab-edit" class="text-gray-500 px-4 py-2 rounded-t-md font-semibold">
         รอการแก้ไข
@@ -176,7 +218,7 @@ if (!isset($_SESSION['user_id'])) {
         statusTh = "รอตรวจสอบ";
         userViewStatus = "pending_view";
       } else if (d.status === "approved") {
-        statusTh = "อนุมัติแล้ว";
+        statusTh = "ผ่านการตรวจสอบแล้ว";
         userViewStatus = "approved";
       } else if (d.status === "rejected") {
         statusTh = "รอการแก้ไข";
@@ -244,7 +286,7 @@ if (!isset($_SESSION['user_id'])) {
       let statusClass = "";
       if (req.status === "รอตรวจสอบ") {
         statusClass = "bg-yellow-100 text-yellow-700";
-      } else if (req.status === "อนุมัติแล้ว") {
+      } else if (req.status === "ผ่านการตรวจสอบแล้ว") {
         statusClass = "bg-green-100 text-green-700";
       } else if (req.status === "รอการแก้ไข") {
         statusClass = "bg-red-100 text-red-700";
@@ -256,12 +298,20 @@ if (!isset($_SESSION['user_id'])) {
       // 🟡 ยังเป็น draft → แสดงปุ่ม
       if (req.raw_status === "draft") {
         actionHtml = `
-        <button onclick="submitDocument(${req.document_id})"
-          class="mt-3 px-6 py-2 bg-teal-500 hover:bg-teal-600
-                 text-white text-sm font-semibold rounded-xl shadow">
-          ยืนยันการส่ง
-        </button>
-      `;
+  <div class="mt-3 flex gap-2">
+    <button onclick="submitDocument(${req.document_id})"
+      class="px-5 py-2 bg-teal-500 hover:bg-teal-600
+             text-white text-sm font-semibold rounded-xl shadow">
+      ยืนยันการส่ง
+    </button>
+
+    <button onclick="cancelDocument(${req.document_id})"
+      class="px-5 py-2 bg-red-500 hover:bg-red-600
+             text-white text-sm font-semibold rounded-xl shadow">
+      ยกเลิกคำขอ
+    </button>
+  </div>
+`;
       }
 
       // ⏳ ส่งแล้ว → แสดงข้อความ (ไม่ใช่ปุ่ม)
@@ -541,6 +591,107 @@ if (!isset($_SESSION['user_id'])) {
             Swal.fire("ผิดพลาด", res.message || "ไม่สามารถส่งได้", "error");
           }
         });
+    });
+  }
+
+  function cancelDocument(id) {
+    Swal.fire({
+      title: "ยกเลิกคำขอนี้?",
+      html: `
+      <p style="font-size:16px; margin-bottom:10px; text-align:center;">
+        หากยกเลิกแล้ว รายการนี้จะถูกลบออกจากรายการคำขอ
+      </p>
+    `,
+      icon: "warning",
+      showConfirmButton: false,
+      showCancelButton: true,
+      cancelButtonText: "ไม่ยกเลิก",
+      buttonsStyling: false,
+      customClass: {
+        actions: "cancel-actions-row",
+        cancelButton: "myCancelBtn"
+      },
+      didOpen: () => {
+        const actions = Swal.getActions();
+
+        const holdBtn = document.createElement("button");
+        holdBtn.id = "holdCancelBtn";
+        holdBtn.type = "button";
+        holdBtn.textContent = "กดค้าง 2 วินาทีเพื่อยืนยัน";
+
+        holdBtn.style.cssText = `
+        background:#dc2626;
+        color:#fff;
+        border:none;
+        padding:12px 24px;
+        border-radius:10px;
+        font-weight:bold;
+        cursor:pointer;
+        font-size:15px;
+        min-width:220px;
+        margin:0;
+      `;
+
+        actions.prepend(holdBtn);
+
+        let timer = null;
+
+        const startHold = (e) => {
+          e.preventDefault();
+
+          holdBtn.textContent = "กำลังกดยืนยัน...";
+          holdBtn.style.background = "#991b1b";
+
+          timer = setTimeout(() => {
+            Swal.close();
+
+            fetch("../documents/cancel_document.php", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  document_id: id
+                })
+              })
+              .then(r => r.json())
+              .then(res => {
+                if (res.success) {
+                  Swal.fire({
+                    icon: "success",
+                    title: "ยกเลิกคำขอแล้ว",
+                    timer: 1200,
+                    showConfirmButton: false
+                  });
+
+                  loadRequests();
+                } else {
+                  Swal.fire(
+                    "ผิดพลาด",
+                    res.message || "ไม่สามารถยกเลิกได้",
+                    "error"
+                  );
+                }
+              });
+          }, 2000);
+        };
+
+        const stopHold = () => {
+          clearTimeout(timer);
+          timer = null;
+
+          holdBtn.textContent = "กดค้าง 2 วินาทีเพื่อยืนยัน";
+          holdBtn.style.background = "#dc2626";
+        };
+
+        holdBtn.addEventListener("mousedown", startHold);
+        holdBtn.addEventListener("mouseup", stopHold);
+        holdBtn.addEventListener("mouseleave", stopHold);
+
+        holdBtn.addEventListener("touchstart", startHold);
+        holdBtn.addEventListener("touchend", stopHold);
+        holdBtn.addEventListener("touchcancel", stopHold);
+      }
     });
   }
   </script>

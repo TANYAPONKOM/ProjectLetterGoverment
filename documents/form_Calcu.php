@@ -298,7 +298,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       <div class="leading-tight">
         <div class="text-[16px] font-bold">Smart</div>
         <div class="text-[16px] font-bold -mt-[2px]">Government</div>
-        <div class="text-[13px] mt-[0px]">Letter Management System</div>
+        <div class="text-[13px] mt-[0px]">Letter Assistant System</div>
       </div>
     </div>
     <div class="flex items-center space-x-4">
@@ -362,6 +362,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     <?php endif; ?>
     <input type="hidden" name="expense_json" id="expenseJsonInput" value="<?= h($expenseJson) ?>">
     <input type="hidden" name="amount" id="amountHidden" value="<?= h($formData[8] ?? '0.00') ?>">
+    <input type="hidden" name="no_cost" value="0">
 
 
     <!-- กล่องเนื้อหา -->
@@ -450,8 +451,35 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
           <div id="lodForm" class="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3">
             <div class="md:col-span-2">
-              <label class="text-gray-700">ช่วงวันที่ (เช่น 2 – 3 ก.พ. 68)</label>
-              <input type="text" id="lodDateText" class="w-full border rounded-md p-2" placeholder="2 – 3 ก.พ. 68">
+              <label class="text-gray-700 block mb-2">ช่วงวันที่เข้าพัก</label>
+
+              <div class="space-y-3 text-gray-800">
+                <label class="flex items-center gap-2">
+                  <input type="radio" name="lod_date_option" value="single" id="lodOptSingle" class="accent-[#11C2B9]"
+                    checked>
+                  <span>วันเดียว :</span>
+                  <div class="relative">
+                    <input type="text" id="lodSingleDate"
+                      class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่"
+                      readonly>
+                  </div>
+                </label>
+
+                <div class="flex flex-wrap items-center gap-2">
+                  <input type="radio" name="lod_date_option" value="range" id="lodOptRange" class="accent-[#11C2B9]">
+                  <span>หลายวัน :</span>
+
+                  <input type="text" id="lodStartDate" class="border rounded-md p-2 shadow-sm w-40 cursor-pointer"
+                    placeholder="เริ่มต้น" readonly>
+
+                  <span>ถึง</span>
+
+                  <input type="text" id="lodEndDate" class="border rounded-md p-2 shadow-sm w-40 cursor-pointer"
+                    placeholder="สิ้นสุด" readonly>
+                </div>
+
+                <input type="hidden" id="lodDateText">
+              </div>
             </div>
             <div>
               <label class="text-gray-700">ราคา/คืน</label>
@@ -624,15 +652,68 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       const x = Number(String(v ?? "").replace(/,/g, ""));
       return Number.isFinite(x) ? x : 0;
     };
+    const TH_MONTH_SHORT = [
+      "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+      "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
+    ];
+
+    function thaiShortDate(dateObj) {
+      if (!dateObj) return "";
+      const d = dateObj.getDate();
+      const m = TH_MONTH_SHORT[dateObj.getMonth()];
+      const y = String(dateObj.getFullYear() + 543).slice(-2);
+      return `${d} ${m} ${y}`;
+    }
+
+    function updateLodDateText() {
+      if (!lodDateText) return;
+
+      if (lodOptSingle?.checked) {
+        lodDateText.value = lodSingleDate?.value || "";
+      } else {
+        const s = lodStartDate?.value || "";
+        const e = lodEndDate?.value || "";
+        lodDateText.value = (s && e) ? `${s} – ${e}` : "";
+      }
+
+      state.allowance.lodging.date_text = lodDateText.value;
+      calc();
+    }
+    flatpickr(lodSingleDate, {
+      locale: "th",
+      dateFormat: "Y-m-d",
+      onChange: function(selectedDates) {
+        lodSingleDate.value = selectedDates[0] ? thaiShortDate(selectedDates[0]) : "";
+        updateLodDateText();
+      }
+    });
+
+    flatpickr(lodStartDate, {
+      locale: "th",
+      dateFormat: "Y-m-d",
+      onChange: function(selectedDates) {
+        lodStartDate.value = selectedDates[0] ? thaiShortDate(selectedDates[0]) : "";
+        updateLodDateText();
+      }
+    });
+
+    flatpickr(lodEndDate, {
+      locale: "th",
+      dateFormat: "Y-m-d",
+      onChange: function(selectedDates) {
+        lodEndDate.value = selectedDates[0] ? thaiShortDate(selectedDates[0]) : "";
+        updateLodDateText();
+      }
+    });
+
+    [lodOptSingle, lodOptRange].forEach(el => {
+      el?.addEventListener("change", updateLodDateText);
+    });
 
     function calc() {
       // 1 compensation
 
       const compSum = state.compensation.reduce((s, it) => s + num(it.amount), 0);
-      const amountInput = document.getElementById("amountInput"); // อยู่ step1 แต่เข้าถึงได้
-
-      // ใน calc() หลังคำนวณ total เสร็จ
-      if (amountInput) amountInput.value = String(total.toFixed(2));
       // 2 allowance
       let reg = 0,
         lod = 0,
@@ -786,6 +867,11 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
     const lodEnabled = document.getElementById("lodEnabled");
     const lodDateText = document.getElementById("lodDateText");
+    const lodOptSingle = document.getElementById("lodOptSingle");
+    const lodOptRange = document.getElementById("lodOptRange");
+    const lodSingleDate = document.getElementById("lodSingleDate");
+    const lodStartDate = document.getElementById("lodStartDate");
+    const lodEndDate = document.getElementById("lodEndDate");
     const lodUnit = document.getElementById("lodUnit");
     const lodNights = document.getElementById("lodNights");
     const lodPeople = document.getElementById("lodPeople");
@@ -807,7 +893,12 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       regPrice.disabled = regPeople.disabled = !regEnabled.checked;
 
       lodForm.style.opacity = lodEnabled.checked ? "1" : "0.5";
-      [lodDateText, lodUnit, lodNights, lodPeople].forEach(el => el.disabled = !lodEnabled.checked);
+      [lodDateText, lodOptSingle, lodOptRange, lodSingleDate, lodStartDate, lodEndDate, lodUnit, lodNights,
+        lodPeople
+      ]
+      .forEach(el => {
+        if (el) el.disabled = !lodEnabled.checked;
+      });
 
       perForm.style.opacity = perEnabled.checked ? "1" : "0.5";
       [perUnit, perMeals, perPeople].forEach(el => el.disabled = !perEnabled.checked);
@@ -906,8 +997,8 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       calc();
     }));
 
-    [lodDateText, lodUnit, lodNights, lodPeople].forEach(el => el.addEventListener("input", () => {
-      state.allowance.lodging.date_text = lodDateText.value;
+    [lodUnit, lodNights, lodPeople].forEach(el => el.addEventListener("input", () => {
+      updateLodDateText();
       state.allowance.lodging.unit_price = num(lodUnit.value);
       state.allowance.lodging.nights = num(lodNights.value) || 1;
       state.allowance.lodging.people = num(lodPeople.value) || 1;
@@ -942,6 +1033,18 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
       lodEnabled.checked = !!state.allowance.lodging.enabled;
       lodDateText.value = state.allowance.lodging.date_text || "";
+
+      if (lodDateText.value.includes("–") || lodDateText.value.includes("-")) {
+        lodOptRange.checked = true;
+        lodOptSingle.checked = false;
+        const parts = lodDateText.value.split(/[–-]/).map(x => x.trim());
+        lodStartDate.value = parts[0] || "";
+        lodEndDate.value = parts[1] || "";
+      } else {
+        lodOptSingle.checked = true;
+        lodOptRange.checked = false;
+        lodSingleDate.value = lodDateText.value || "";
+      }
       lodUnit.value = num(state.allowance.lodging.unit_price);
       lodNights.value = num(state.allowance.lodging.nights) || 1;
       lodPeople.value = num(state.allowance.lodging.people) || 1;
