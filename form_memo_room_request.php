@@ -118,10 +118,10 @@ foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
 /* --------------------------------------------------
    ฟังก์ชัน helper
 -------------------------------------------------- */
-function h($s)
-{
-  return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
-}
+// function h($s)
+// {
+//   return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
+// }
 
 function thai_date($ymd)
 {

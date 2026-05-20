@@ -1,4 +1,4 @@
-<?php //หนังสือเรียนเชิญวิทยากร 
+<?php //form_memo_sut_wellness.php ขอเข้าเยี่ยมศึกษาดูงาน 
 session_start();
 require_once __DIR__ . '/../functions.php';
 
@@ -29,6 +29,10 @@ if ($roleId == 1) {
 } else {
   $homePath = "/Pro_letter/user/home.php";
 }
+
+$referer = $_SERVER['HTTP_REFERER'] ?? $homePath;
+$docId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$editQuestionUrl = "/Pro_letter/documents/infor_study_visit.php?id=" . $docId . "&edit=1";
 
 
 /* --------------------------------------------------
@@ -106,32 +110,12 @@ $readonly = !$canEdit;
 /* --------------------------------------------------
    ดึงค่า field จาก document_values
 -------------------------------------------------- */
-$q = $pdo->prepare("
-  SELECT 
-    dv.field_id,
-    dv.value_text,
-    tf.field_key
-  FROM document_values dv
-  LEFT JOIN template_fields tf ON tf.field_id = dv.field_id
-  WHERE dv.document_id = :id
-");
+$q = $pdo->prepare("SELECT field_id, value_text FROM document_values WHERE document_id = :id");
 $q->execute([':id' => $docId]);
 
 $valueMap = [];
-$valueMapByKey = [];
-
 foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
-  $fid = (int) ($row['field_id'] ?? 0);
-  $val = (string) ($row['value_text'] ?? '');
-
-  if ($fid > 0) {
-    $valueMap[$fid] = $val;
-  }
-
-  $key = trim((string) ($row['field_key'] ?? ''));
-  if ($key !== '') {
-    $valueMapByKey[$key] = $val;
-  }
+  $valueMap[(int) $row['field_id']] = $row['value_text'];
 }
 
 /* --------------------------------------------------
@@ -142,41 +126,20 @@ foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
 //   return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
 // }
 
-function thai_digit($text)
+function thai_num($text)
 {
-  return strtr((string) $text, [
-    '0' => '๐',
-    '1' => '๑',
-    '2' => '๒',
-    '3' => '๓',
-    '4' => '๔',
-    '5' => '๕',
-    '6' => '๖',
-    '7' => '๗',
-    '8' => '๘',
-    '9' => '๙',
+  return strtr((string)$text, [
+    '0' => '๐', '1' => '๑', '2' => '๒', '3' => '๓', '4' => '๔',
+    '5' => '๕', '6' => '๖', '7' => '๗', '8' => '๘', '9' => '๙'
   ]);
 }
 
-function arabic_digit($text)
+function thai_date($ymd)
 {
-  return strtr((string) $text, [
-    '๐' => '0',
-    '๑' => '1',
-    '๒' => '2',
-    '๓' => '3',
-    '๔' => '4',
-    '๕' => '5',
-    '๖' => '6',
-    '๗' => '7',
-    '๘' => '8',
-    '๙' => '9',
-  ]);
-}
-
-function thai_months()
-{
-  return [
+  if (!$ymd || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $ymd))
+    return "";
+  [$y, $m, $d] = explode("-", $ymd);
+  $months = [
     1 => "มกราคม",
     2 => "กุมภาพันธ์",
     3 => "มีนาคม",
@@ -188,128 +151,98 @@ function thai_months()
     9 => "กันยายน",
     10 => "ตุลาคม",
     11 => "พฤศจิกายน",
-    12 => "ธันวาคม",
+    12 => "ธันวาคม"
   ];
+  return thai_num(intval($d) . " " . $months[intval($m)] . " " . (intval($y) + 543));
 }
 
-function thai_date_from_parts($year, $month, $day, $withWeekday = false)
+function thai_item_no($i)
 {
-  $year = (int) $year;
-  $month = (int) $month;
-  $day = (int) $day;
-
-  if ($year > 2400) {
-    $christYear = $year - 543;
-    $thaiYear = $year;
-  } else {
-    $christYear = $year;
-    $thaiYear = $year + 543;
-  }
-
-  if (!checkdate($month, $day, $christYear)) {
-    return "";
-  }
-
-  $months = thai_months();
-  $dateText = thai_digit($day) . " " . $months[$month] . " " . thai_digit($thaiYear);
-
-  if ($withWeekday) {
-    $weekdays = [
-      "อาทิตย์",
-      "จันทร์",
-      "อังคาร",
-      "พุธ",
-      "พฤหัสบดี",
-      "ศุกร์",
-      "เสาร์",
-    ];
-    $w = (int) date('w', strtotime(sprintf('%04d-%02d-%02d', $christYear, $month, $day)));
-    return "วัน" . $weekdays[$w] . "ที่ " . $dateText;
-  }
-
-  return $dateText;
+  return thai_num((string)$i);
 }
 
-function thai_date($rawDate)
+function split_lines($text)
 {
-  return thai_date_any($rawDate, false);
-}
-
-function thai_date_with_weekday($rawDate)
-{
-  return thai_date_any($rawDate, true);
-}
-
-function thai_date_any($rawDate, $withWeekday = false)
-{
-  $rawDate = trim((string) $rawDate);
-  if ($rawDate === '') {
-    return "";
-  }
-
-  if ($withWeekday && preg_match('/^วัน/u', $rawDate)) {
-    return thai_digit($rawDate);
-  }
-
-  $date = arabic_digit($rawDate);
-
-  if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $date, $m)) {
-    return thai_date_from_parts($m[1], $m[2], $m[3], $withWeekday);
-  }
-
-  if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $date, $m)) {
-    return thai_date_from_parts($m[3], $m[2], $m[1], $withWeekday);
-  }
-
-  $months = thai_months();
-  $monthRegex = implode('|', array_map('preg_quote', $months));
-
-  if (preg_match('/(\d{1,2})\s+(' . $monthRegex . ')\s+(\d{4})/u', $date, $m)) {
-    $monthNumber = array_search($m[2], $months, true);
-    if ($monthNumber !== false) {
-      return thai_date_from_parts($m[3], $monthNumber, $m[1], $withWeekday);
-    }
-  }
-
-  return thai_digit($rawDate);
-}
-
-function format_thai_time_range($timeText)
-{
-  $timeText = trim((string) $timeText);
-  if ($timeText === '') {
-    return "";
-  }
-
-  $timeText = str_replace(':', '.', $timeText);
-  $timeText = preg_replace('/\s*-\s*/', ' - ', $timeText);
-
-  return thai_digit($timeText);
+  $lines = preg_split('/\R/u', trim((string)$text));
+  return array_values(array_filter(array_map('trim', $lines), fn($v) => $v !== ''));
 }
 
 /* --------------------------------------------------
-   Mapping ตัวแปรหลักจาก document_values
+   Mapping ตัวแปรหลักจาก document_values สำหรับเอกสารขอเข้าเยี่ยมศึกษาดูงาน
 -------------------------------------------------- */
 $docDate = $valueMap[1] ?? $document['doc_date'];
-$ownerName = $valueMap[2] ?? "";
-$position = $valueMap[3] ?? "";
-$joinType = $valueMap[4] ?? "";
-$courseName = $valueMap[5] ?? "";
-$projectTitle = $valueMap[5] ?? "";
-$joinDates = $valueMap[6] ?? "";
-$eventDate = $valueMap[6] ?? ($valueMap[16] ?? "");
-$location = $valueMap[7] ?? "";
-$amountStr = $valueMap[8] ?? "";
-$vehicle = $valueMap[9] ?? "";
-$faculty = $valueMap[10] ?? "";
-$department = $valueMap[11] ?? "";
-$eventPlace = $valueMap[13] ?? "";
+$ownerName = trim($valueMap[2] ?? "");
+$position = trim($valueMap[3] ?? "");
+$joinType = trim($valueMap[4] ?? "ขออนุญาตเข้าเยี่ยมชมศึกษาดูงาน");
+$visitPlace = trim($valueMap[5] ?? "SUT Wellness Academy");
+$visitPeriod = trim($valueMap[6] ?? "");
+$placeDetail = trim($valueMap[7] ?? "");
+$teacherCount = trim($valueMap[8] ?? "");
+$visitTime = trim($valueMap[9] ?? "");
+$faculty = trim($valueMap[10] ?? "");
+$department = trim($valueMap[11] ?? "");
+$subjectFromValue = trim($valueMap[14] ?? "");
+$objectiveText = trim($valueMap[25] ?? "");
+$toPerson = trim($valueMap[26] ?? "");
+$purposeText = trim($valueMap[27] ?? "");
+$teacherNamesText = trim($valueMap[28] ?? "");
+$teacherAffiliationsText = trim($valueMap[29] ?? "");
+$teacherListText = trim($valueMap[30] ?? "");
+$receiverName = trim($valueMap[56] ?? "");
+$receiverPosition = trim($valueMap[57] ?? "");
 
-$docSubject = $valueMap[14] ?? ($document['subject'] ?? "");
-$objective = $valueMap[25] ?? "";
-$toPerson = $valueMap[26] ?? "";
-$inviteStatement = $valueMapByKey['invite_statement'] ?? "";
-$eventTime = $valueMapByKey['event_time'] ?? "";
+$subject = $subjectFromValue !== "" ? $subjectFromValue : trim($document['subject'] ?? "");
+if ($subject === "") {
+  $subject = "ขออนุญาตเข้าเยี่ยมชมศึกษาดูงาน " . ($visitPlace ?: "SUT Wellness Academy");
+}
+if ($toPerson === "") {
+  $toPerson = "อธิการบดีมหาวิทยาลัยเทคโนโลยีสุรนารี (มทส.)";
+}
+if ($receiverName === "") {
+  $receiverName = "ผู้ช่วยศาสตราจารย์พีระศักดิ์ เสรีกุล";
+}
+if ($receiverPosition === "") {
+  $receiverPosition = "รองอธิการบดีประจำ มจพ.วิทยาเขตปราจีนบุรี";
+}
+if ($ownerName === "") {
+  $ownerName = $_SESSION['fullname'] ?? $_SESSION['name'] ?? "";
+}
+if ($position === "") {
+  $position = $_SESSION['position'] ?? "อาจารย์ประจำภาควิชาเทคโนโลยีสารสนเทศ";
+}
+if ($placeDetail === "") {
+  $placeDetail = "ศูนย์สุขภาพเพื่อการป้องกัน รักษา และฟื้นฟูสุขภาพด้วยแผนไทยประยุกต์ แบบครบวงจร";
+}
+if ($purposeText === "") {
+  $purposeText = "เพื่อนำข้อมูลและความรู้ที่ได้รับมาพัฒนาให้เกิดประโยชน์กับ การจัดการเรียนการสอน งานวิจัย และการพัฒนานวัตกรรม";
+}
+
+$teacherRows = [];
+if ($teacherListText !== "") {
+  foreach (split_lines($teacherListText) as $line) {
+    $parts = array_map('trim', explode('|', $line, 2));
+    $teacherRows[] = [
+      'name' => $parts[0] ?? '',
+      'affiliation' => $parts[1] ?? ''
+    ];
+  }
+}
+if (!$teacherRows) {
+  $names = split_lines($teacherNamesText);
+  $affs = split_lines($teacherAffiliationsText);
+  $max = max(count($names), count($affs));
+  for ($i = 0; $i < $max; $i++) {
+    $teacherRows[] = [
+      'name' => $names[$i] ?? '',
+      'affiliation' => $affs[$i] ?? $faculty
+    ];
+  }
+}
+$teacherRows = array_values(array_filter($teacherRows, fn($r) => trim($r['name'] ?? '') !== ''));
+if ($teacherCount === "" || (int)$teacherCount <= 0) {
+  $teacherCount = count($teacherRows);
+}
+$teacherCountThai = thai_num((string)$teacherCount);
 
 /* --------------------------------------------------
    Mapping joinType → purposeCode (รหัส)
@@ -334,27 +267,11 @@ switch (trim($joinType)) {
 
 $header_text = $document["header_text"] ?? "";
 $doc_no = $document["doc_no"] ?? "";
-$subject = $docSubject ?: ($document["subject"] ?? "");
 
 /* --------------------------------------------------
    คำนวณวันที่ไทย, งบประมาณ
 -------------------------------------------------- */
 $thaiDocDate = thai_date($docDate);
-$thaiEventDate = thai_date_with_weekday($eventDate);
-$thaiEventTime = format_thai_time_range($eventTime);
-$prettyAmount = $amountStr !== "" ? number_format((float) $amountStr, 2) : "";
-
-$displayFaculty = $faculty ?: "คณะเทคโนโลยีและการจัดการอุตสาหกรรม";
-$displayDepartment = $department ?: "เทคโนโลยีสารสนเทศ";
-$displayDepartmentFull = "ภาควิชา" . $displayDepartment;
-$displaySubject = $subject ?: "ขอเรียนเชิญเป็นวิทยากรบรรยาย";
-$displayToPerson = $toPerson ?: "คุณ................................................";
-$displayProjectTitle = $projectTitle ?: "................................................";
-$displayInviteStatement = $inviteStatement ?: "เห็นว่าท่านเป็นผู้มีความเชี่ยวชาญและมีประสบการณ์สูง ในสาขาวิชาชีพดังกล่าว ซึ่งจะเป็นประโยชน์แก่นักศึกษาผู้เข้าร่วมโครงการเป็นอย่างดี";
-$displayObjective = $objective ?: "................................................";
-$displayEventDate = $thaiEventDate ?: "วันที่................................................";
-$displayEventTime = $thaiEventTime ?: "................";
-$displayLocation = $location ?: "................................................";
 
 /* --------------------------------------------------
    สร้างข้อความส่วนหัวที่ใช้ในเนื้อหา
@@ -364,8 +281,8 @@ $hdr_agency = trim(
   ($department ? "ภาควิชา" . $department : "ภาควิชา........................")
 );
 
-$hdr_subject = $joinType ?: "เข้ารับการฝึกอบรมหลักสูตร";
-$hdr_to = "คณบดี" . ($faculty ?: "คณะ..................................");
+$hdr_subject = $joinType ?: "ขออนุญาตเข้าเยี่ยมชมศึกษาดูงาน";
+$hdr_to = $toPerson ?: "อธิการบดีมหาวิทยาลัยเทคโนโลยีสุรนารี (มทส.)";
 
 /* --------------------------------------------------
    ปีไทย
@@ -848,34 +765,36 @@ $len = max(20, $len);
     <form id="updateForm" action="update_memo.php" method="post">
       <input type="hidden" name="header_text" id="hidden_header_text" value="<?= h($header_text) ?>">
       <input type="hidden" name="doc_no" id="hidden_doc_no" value="<?= h($doc_no) ?>">
-
-      <!-- hidden input ครบทุก field_id -->
-      <input type="hidden" name="redirect_back" value="<?= htmlspecialchars($referer) ?>">
-
+      <input type="hidden" name="redirect_back" value="<?= h($referer) ?>">
       <input type="hidden" name="document_id" value="<?= h($document['document_id']) ?>">
+      <input type="hidden" name="form_type" value="study_visit">
+      <input type="hidden" name="document_type" value="infor_study_visit">
+      <input type="hidden" name="target_form" value="form_memo_sut_wellness.php">
+      <input type="hidden" name="redirect_to" value="form_memo_sut_wellness.php">
 
-      <!-- สำคัญ: ให้ doc_date เป็นรูปแบบเดิม (YYYY-MM-DD) ที่ดึงมาจาก DB -->
       <input type="hidden" name="doc_date" id="hidden_doc_date" value="<?= h($docDate) ?>">
-
+      <input type="hidden" name="subject" id="hidden_subject" value="<?= h($subject) ?>">
+      <input type="hidden" name="memo_subject" id="hidden_memo_subject" value="<?= h($subject) ?>">
+      <input type="hidden" name="to_person" id="hidden_to_person" value="<?= h($toPerson) ?>">
+      <input type="hidden" name="receiver_name" id="hidden_receiver_name" value="<?= h($receiverName) ?>">
+      <input type="hidden" name="receiver_position" id="hidden_receiver_position" value="<?= h($receiverPosition) ?>">
       <input type="hidden" name="fullname" id="hidden_ownerName" value="<?= h($ownerName) ?>">
       <input type="hidden" name="position" id="hidden_position" value="<?= h($position) ?>">
-
-      <!-- ส่ง purpose เป็นรหัส ไม่ใช่ข้อความไทย -->
-      <input type="hidden" name="purpose" id="hidden_joinType" value="<?= h($purposeCode) ?>">
-
-      <input type="hidden" name="event_title" id="hidden_courseName" value="<?= h($courseName) ?>">
-
-
-      <input type="hidden" name="range_date" id="hidden_joinDates" value="<?= h($joinDates) ?>">
-      <input type="hidden" name="place" id="hidden_location" value="<?= h($location) ?>">
-      <input type="hidden" name="amount" id="hidden_amountStr" value="<?= h($amountStr) ?>">
-      <input type="hidden" name="car_plate" id="hidden_vehicle" value="<?= h($vehicle) ?>">
+      <input type="hidden" name="visit_place" id="hidden_visit_place" value="<?= h($visitPlace) ?>">
+      <input type="hidden" name="place_detail" id="hidden_place_detail" value="<?= h($placeDetail) ?>">
+      <input type="hidden" name="objective" id="hidden_objective" value="<?= h($objectiveText) ?>">
+      <input type="hidden" name="study_purpose" id="hidden_study_purpose" value="<?= h($purposeText) ?>">
+      <input type="hidden" name="visit_period" id="hidden_visit_period" value="<?= h($visitPeriod) ?>">
+      <input type="hidden" name="visit_time" id="hidden_visit_time" value="<?= h($visitTime) ?>">
+      <input type="hidden" name="teacher_count" id="hidden_teacher_count" value="<?= h($teacherCount) ?>">
+      <input type="hidden" name="teacher_names_text" id="hidden_teacher_names_text" value="<?= h($teacherNamesText) ?>">
+      <input type="hidden" name="teacher_affiliations_text" id="hidden_teacher_affiliations_text"
+        value="<?= h($teacherAffiliationsText) ?>">
+      <input type="hidden" name="teacher_list_text" id="hidden_teacher_list_text" value="<?= h($teacherListText) ?>">
       <input type="hidden" name="faculty" id="hidden_faculty" value="<?= h($faculty) ?>">
       <input type="hidden" name="department" id="hidden_department" value="<?= h($department) ?>">
+      <input type="hidden" name="purpose" value="study_visit">
 
-      <!-- ตัวเลือกช่วงวันที่: ใช้ range เป็นค่า default ตาม UI ปัจจุบัน -->
-      <input type="hidden" name="date_option" id="hidden_dateOption" value="range">
-      <input type="hidden" name="single_date" id="hidden_singleDate" value="">
 
 
       <!-- หัวหนังสือราชการภายนอก -->
@@ -886,17 +805,11 @@ $len = max(20, $len);
   margin-top:18px;
 ">
 
-        <!-- เลขที่ -->
-        <div style="
-    font-size:16pt;
-    padding-top:50px;
-    white-space:nowrap;
-  ">
-          ที่ อว ๗๑๒๐/๗๑๖
+        <div style="font-size:16pt; padding-top:107px; white-space:nowrap;">
+          ที่ อว ๗๑๐๑.๑๕/
         </div>
 
-        <!-- ครุฑ -->
-        <div style="text-align:center; position:relative; left:32px; top:6px;">
+        <div style="text-align:center; position:relative; left:55px; top:6px;">
           <img src="/Pro_letter/assets/img/garuda.jpg" style="
         width:123px;
         height:auto;
@@ -911,62 +824,41 @@ $len = max(20, $len);
       ">
         </div>
 
-        <!-- ที่อยู่ -->
         <div style="
-  font-size:15.5pt;
-  line-height:1.28;
-
-  padding-top:58px;
-
-  padding-left:44px;
-
-  width:380px;
-
-  text-align:left;
-">
-
-          <div style="
-      position:relative;
-      top:-5px;
+    font-size:15.5pt;
+    line-height:1.28;
+    padding-top:115px;
+    padding-left:44px;
+    width:380px;
+    text-align:left;
   ">
-            คณะเทคโนโลยีและการจัดการอุตสาหกรรม
-          </div>
-
-          <div style="
-      position:relative;
-      top:-2px;
-  ">
+          <div style="position:relative; top:-5px;">
             มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
           </div>
 
-          ๑๒๙ หมู่ ๒๑ ต.เนินหอม อ.เมือง จ.ปราจีนบุรี ๒๕๒๓๐
-
+          <div style="position:relative; top:-2px;">
+            ๑๒๙ หมู่ ๒๑ ต.เนินหอม อ.เมือง จ.ปราจีนบุรี ๒๕๒๓๐
+          </div>
         </div>
-
       </div>
 
       <!-- วันที่ -->
       <div style="
   font-size:16pt;
-
   text-align:center;
-
-  margin-top:17px;
-
+  margin-top:20px;
   margin-bottom:16px;
-
   position:relative;
-
-  left:29px;
+  left:60px;
 ">
-        <?= h($thaiDocDate ?: '๗ ตุลาคม ๒๕๖๘') ?>
+        <?= h($thaiDocDate ?: "") ?>
       </div>
 
       <div style="
-    font-family:'TH SarabunPSK';
-    font-size:16pt;
-    line-height:1.15;
-    color:#111;
+  font-family:'TH SarabunPSK';
+  font-size:16pt;
+  line-height:1.15;
+  color:#111;
 ">
 
         <!-- เรื่อง -->
@@ -976,19 +868,11 @@ $len = max(20, $len);
     column-gap:0;
     margin-bottom:2px;
     line-height:1.38;
-">
-
-          <div style="white-space:nowrap;">
-            เรื่อง
+  ">
+          <div style="white-space:nowrap;">เรื่อง</div>
+          <div style="text-align:left; line-height:1.38;">
+            <span contenteditable="false" data-target="subject"><?= h($subject) ?></span>
           </div>
-
-          <div style="
-        text-align:left;
-        line-height:1.38;
-    ">
-            <?= h($displaySubject) ?>
-          </div>
-
         </div>
 
         <!-- เรียน -->
@@ -996,151 +880,99 @@ $len = max(20, $len);
     display:grid;
     grid-template-columns: 1.2cm 1fr;
     column-gap:0;
-    margin-bottom:2px;
+    margin-bottom:8px;
     line-height:1.38;
-">
-
-          <div style="white-space:nowrap;">
-            เรียน
-          </div>
-
-          <div style="
-        text-align:left;
-        line-height:1.38;
-    ">
-            <?= nl2br(h($displayToPerson)) ?>
-          </div>
-
-        </div>
-
-        <div style="margin-bottom:8px;">
-
-          <div>
-            <span style="display:inline-block; width:2.2cm;">
-              สิ่งที่ส่งมาด้วย
-            </span>
-
-            <span style="
-        display:inline-block;
-        width:8.3cm;
-        padding-left:0.25cm;
-    ">
-              ๑. รายละเอียดโครงการ
-            </span>
-
-            <span>จำนวน ๑ ชุด</span>
-          </div>
-
-          <div>
-            <span style="display:inline-block; width:2.2cm;"></span>
-
-            <span style="
-        display:inline-block;
-        width:8.3cm;
-        padding-left:0.25cm;
-    ">
-              ๒. แบบตอบรับการเป็นวิทยากร
-            </span>
-
-            <span>จำนวน ๑ ฉบับ</span>
+  ">
+          <div style="white-space:nowrap;">เรียน</div>
+          <div style="text-align:left; line-height:1.38;">
+            <span contenteditable="false" data-target="to_person"><?= h($toPerson) ?></span>
           </div>
         </div>
 
         <!-- ย่อหน้า 1 -->
         <p style="
-        text-indent:2.5cm;
-        margin:0 0 10px 0;
-        text-align:justify;
-        line-height:1.38;
-        letter-spacing:-0.1px;
-        word-spacing:-1px;
-    ">
-          ด้วย<?= h($displayDepartmentFull) ?> <?= h($displayFaculty) ?>
+    text-indent:2.5cm;
+    margin:0 0 10px 0;
+    text-align:justify;
+    line-height:1.38;
+    letter-spacing:-0.1px;
+    word-spacing:-1px;
+  ">
+          ด้วย <span contenteditable="false" data-target="ownerName"><?= h($ownerName) ?></span>
+          <span contenteditable="false" data-target="position"><?= h($position) ?></span>
+          สังกัด <?= $department !== '' ? 'ภาควิชา' . h($department) : 'ภาควิชาเทคโนโลยีสารสนเทศ' ?>
+          <?= $faculty !== '' ? h($faculty) : 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม' ?>
           มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
-          ได้ดำเนินการจัด<?= h($displayProjectTitle) ?> ใน<?= h($displayEventDate) ?> เวลา <?= h($displayEventTime) ?>
-          น.
-          ณ <?= h($displayLocation) ?> โดยมีวัตถุประสงค์<?= nl2br(h($displayObjective)) ?>
-          รายละเอียดโครงการตามสิ่งที่ส่งมาด้วย ๑
+          มีความประสงค์จะขออนุญาตเข้าเยี่ยมชม
+          <span contenteditable="false" data-target="visit_place"><?= h($visitPlace) ?></span>
+          <span contenteditable="false" data-target="place_detail"><?= h($placeDetail) ?></span>
+          <?= $visitPeriod !== '' ? 'ใน' . h($visitPeriod) : '' ?>
+          <?= $visitTime !== '' ? 'เวลา ' . h($visitTime) : '' ?>
+          <span contenteditable="false" data-target="study_purpose"><?= h($purposeText) ?></span>
+          โดยมีรายชื่อคณาจารย์ที่จะเข้าเยี่ยมชมศึกษาดูงาน
+          จำนวน <span contenteditable="false" data-target="teacher_count_display"><?= h($teacherCountThai) ?></span> คน
+          ดังรายชื่อต่อไปนี้
         </p>
 
-        <!-- ย่อหน้า 2 -->
-        <p style="
-        text-indent:2.5cm;
-        margin:0 0 10px 0;
-        text-align:justify;
-        line-height:1.38;
-        letter-spacing:-0.1px;
-        word-spacing:-1px;
-    ">
-          <?= h($displayDepartmentFull) ?> <?= nl2br(h($displayInviteStatement)) ?>
-          จึงขอเรียนเชิญท่านเป็นวิทยากรบรรยายเรื่องดังกล่าว ตามวัน เวลา และสถานที่ข้างต้น
-        </p>
-
-        <!-- ย่อหน้า 3 -->
-        <p style="
-        text-indent:2.5cm;
-        margin:0 0 10px 0;
-        line-height:1.38;
-    ">
-          จึงเรียนมาเพื่อโปรดพิจารณาให้ความอนุเคราะห์ จะขอบคุณยิ่ง
-        </p>
-
-        <!-- ขอแสดงความนับถือ -->
+        <!-- รายชื่อ -->
         <div style="
-    text-align:center;
-    margin-top:22px;
-    width:100%;
-">
+    margin-left:2.5cm;
+    margin-top:0;
+    margin-bottom:12px;
+    line-height:1.38;
+  ">
+          <?php if (!empty($teacherRows)): ?>
+          <?php foreach ($teacherRows as $idx => $teacher): ?>
+          <div style="display:grid; grid-template-columns: 7.2cm 1fr;">
+            <div><?= h(thai_item_no($idx + 1)) ?>. <?= h($teacher['name'] ?? '') ?></div>
+            <div><?= h($teacher['affiliation'] ?? '') ?></div>
+          </div>
+          <?php endforeach; ?>
+          <?php else: ?>
+          <div style="display:grid; grid-template-columns: 7.2cm 1fr;">
+            <div>๑. ........................................................</div>
+            <div><?= h($faculty ?: 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม') ?></div>
+          </div>
+          <?php endif; ?>
+        </div>
+
+        <!-- ย่อหน้าปิด -->
+        <p style="
+    text-indent:2.5cm;
+    margin:0 0 10px 0;
+    line-height:1.38;
+  ">
+          จึงเรียนมาเพื่อโปรดพิจารณาอนุญาตให้เข้าเยี่ยมชมศึกษาดูงาน และขอขอบคุณมา ณ โอกาสนี้
+        </p>
+
+        <div style="text-align:center; margin-top:22px; width:100%;">
           ขอแสดงความนับถือ
         </div>
 
-        <!-- ลายเซ็น -->
         <div style="
     text-align:center;
     margin-top:52px;
     width:100%;
     line-height:1.15;
     white-space:nowrap;
-">
-
-          <div>
-            (ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์)
-          </div>
-
-          <div>
-            คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม
-          </div>
-
+  ">
+          <div>(<span contenteditable="false" data-target="receiver_name"><?= h($receiverName) ?></span>)</div>
+          <div><span contenteditable="false" data-target="receiver_position"><?= h($receiverPosition) ?></span></div>
         </div>
 
         <!-- footer -->
         <div style="
     margin-top:30px;
     margin-left:0.2cm;
-
     font-size:16pt;
-
     line-height:1.32;
-
     letter-spacing:-0.05px;
-
     color:#111;
-">
-
-          <?= h($displayDepartmentFull) ?><br>
-
+  ">
+          ภาควิชาเทคโนโลยีสารสนเทศ<br>
           โทรศัพท์ ๐-๓๗๒๑-๗๓๔๐-๓ ต่อ ๗๐๖๕-๖<br>
-
           โทรสาร ๐-๓๗๒๑-๗๓๑๗-๘<br>
-
-          ไปรษณีย์อิเล็กทรอนิกส์ :
-          <a href="mailto:it@itm.kmutnb.ac.th" style="
-         color:#0563c1;
-         text-decoration:underline;
-       ">
-            it@itm.kmutnb.ac.th
-          </a>
-
+          ไปรษณีย์อิเล็กทรอนิกส์ Ladda.t@fitm.kmutnb.ac.th
         </div>
 
       </div>
@@ -1157,11 +989,12 @@ $len = max(20, $len);
           ดาวน์โหลด PDF
         </button>
 
-        <!-- 🟩 USER: ปุ่มยืนยัน -->
+        <!-- 🟩 USER: ปุ่มแก้ไขเอกสาร -->
         <?php if ($roleId === 3): ?>
-        <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          ยืนยันการแก้ไข
-        </button>
+        <a href="<?= h($editQuestionUrl) ?>"
+          class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+          แก้ไขเอกสาร
+        </a>
         <?php endif; ?>
 
         <!-- 🟦 OFFICER & ADMIN -->
@@ -1170,7 +1003,7 @@ $len = max(20, $len);
         <!-- ปุ่มอนุมัติ -->
         <button type="button" onclick="updateStatus('approved')"
           class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          ยืนยันการแก้ไข
+          ผ่านการตรวจสอบ
         </button>
 
         <!-- ปุ่มไม่ผ่าน -->
@@ -1258,6 +1091,11 @@ $len = max(20, $len);
         }
 
         hidden.value = text;
+        if (target === "subject") {
+          const memoSubject = document.getElementById("hidden_memo_subject");
+          if (memoSubject) memoSubject.value = text;
+        }
+
       }
     });
   });
@@ -1404,7 +1242,7 @@ $len = max(20, $len);
         pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
       }
 
-      pdf.save("speaker_invitation_<?= (int)$docId ?>.pdf");
+      pdf.save("sut_wellness_<?= (int)$docId ?>.pdf");
 
     } catch (error) {
       console.error(error);

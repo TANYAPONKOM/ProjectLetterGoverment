@@ -1,7 +1,7 @@
 <?php
 // pro_letter/documents/form_Memo.php
-$CURRENT_MAIN = "train";
-$CURRENT_SUB  = "ฝึกอบรม";
+$CURRENT_MAIN = "external";
+$CURRENT_SUB  = "ฝึกอบรม ";
 
 session_start();
 require_once __DIR__ . '/../functions.php';
@@ -64,14 +64,18 @@ $amountStr   = $formData[8]  ?? '';
 $vehicle     = $formData[9]  ?? '';
 $faculty     = $formData[10] ?? '';
 $department  = $formData[11] ?? '';
-$researchTitle = $formData[13] ?? ''; // ชื่อผลงานวิจัย เฉพาะกรณีนำเสนอผลงานทางวิชาการ
+$memoSubject   = $formData[14] ?? '';
+$academicTopic = $formData[13] ?? '';
+$academicLevel = $formData[15] ?? '';
+$eventDate     = $formData[16] ?? '';
 
 $isRangeDate = preg_match('/\d+\s*-\s*\d+/', $joinDates);
+$isEventRangeDate = preg_match('/\d+\s*-\s*\d+/', $eventDate);
 
 $isOnline = ($location === 'เข้าร่วมรูปแบบออนไลน์');
 
 $purpose = 'other';
-if ($joinType === 'นำเสนอผลงานทางวิชาการ') {
+if ($joinType === 'นำเสนอผลงานวิจัย') {
     $purpose = 'academic';
 } elseif ($joinType === 'เข้าร่วมประชุมวิชาการในงาน') {
     $purpose = 'meeting';
@@ -489,7 +493,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
             <label class="lbl text-gray-800 whitespace-nowrap">ที่ต้องการให้ปรากฎบนบันทึกข้อความ</label>
           </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 items-end">
+        <div class="space-y-4 mb-6">
           <div class="flex items-center gap-3">
             <label class="lbl text-gray-800 whitespace-nowrap" for="fullname">2.ชื่อ - นามสกุล :</label>
             <input type="text" name="fullname" class="flex-1 border rounded-md p-2" id="fullname"
@@ -498,179 +502,275 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
           <div class="flex items-center gap-3">
             <label class="lbl text-gray-800 whitespace-nowrap" for="position">ตำแหน่ง :</label>
             <input type="text" name="position" class="flex-1 border rounded-md p-2" id="position"
-              value="<?= $isEdit ? htmlspecialchars($_SESSION['role_name'] ?? '') : 'อาจารย์ประจำภาควิชาเทคโนโลยีสารสนเทศ' ?>" />
+              value="<?= h($formData[5] ?? ($_SESSION['position'] ?? 'อาจารย์ประจำภาควิชาเทคโนโลยีสารสนเทศ')) ?>">
           </div>
-        </div>
-        <div class="mb-4">
-          <div class="flex items-start gap-2">
-            <label class="lbl text-gray-800 whitespace-nowrap mt-1" id="purposeLabel">
-              3.ขออนุมัติไปเข้าร่วม
-            </label>
-            <div class="space-y-1 text-gray-800" id="purposeGroup" role="radiogroup" aria-labelledby="purposeLabel">
-              <label class="flex items-center gap-2">
-                <input type="radio" name="purpose" value="academic" class="accent-black"
-                  <?= ($purpose === 'academic') ? 'checked' : '' ?> />
-                นำเสนอผลงานทางวิชาการ
+          <div class="mb-4">
+            <div class="flex items-start gap-2">
+              <label class="lbl text-gray-800 whitespace-nowrap mt-1" id="purposeLabel">
+                3.ขออนุมัติไปเข้าร่วม
               </label>
-              <label class="flex items-center gap-2">
-                <input type="radio" name="purpose" value="training" class="accent-black"
-                  <?= ($purpose === 'training') ? 'checked' : '' ?> />
-                เข้ารับการฝึกอบรมหลักสูตร
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="radio" name="purpose" value="meeting" class="accent-black"
-                  <?= ($purpose === 'meeting') ? 'checked' : '' ?> />
-                เข้าร่วมประชุมวิชาการในงาน
-              </label>
-              <label class="flex items-start gap-2">
-                <input type="radio" name="purpose" value="other" class="accent-black mt-2" id="purposeOtherRadio"
-                  <?= ($purpose === 'other') ? 'checked' : '' ?> />
+              <div class="space-y-1 text-gray-800" id="purposeGroup" role="radiogroup" aria-labelledby="purposeLabel">
+                <label class="flex items-center gap-2">
+                  <input type="radio" name="purpose" value="academic" class="accent-black"
+                    <?= ($purpose === 'academic') ? 'checked' : '' ?> />
+                  นำเสนอผลงานวิจัย
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="radio" name="purpose" value="training" class="accent-black"
+                    <?= ($purpose === 'training') ? 'checked' : '' ?> />
+                  เข้ารับการฝึกอบรมหลักสูตร
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="radio" name="purpose" value="meeting" class="accent-black"
+                    <?= ($purpose === 'meeting') ? 'checked' : '' ?> />
+                  เข้าร่วมประชุมวิชาการในงาน
+                </label>
+                <label class="flex items-start gap-2">
+                  <input type="radio" name="purpose" value="other" class="accent-black mt-2" id="purposeOtherRadio"
+                    <?= ($purpose === 'other') ? 'checked' : '' ?> />
 
-                <span class="mt-2">อื่น ๆ (ระบุ)</span>
+                  <span class="mt-2">อื่น ๆ (ระบุ)</span>
 
-                <div class="flex flex-col ml-3">
-                  <input type="text" name="purpose_other_detail" id="purposeOtherInput"
-                    data-spell-field="purpose_other_detail"
-                    class="border rounded-md p-2 w-[260px] <?= ($purpose === 'other') ? '' : 'bg-gray-100 text-gray-400' ?>"
-                    placeholder="โปรดระบุ" value="<?= h($purposeOther) ?>"
-                    <?= ($purpose === 'other') ? '' : 'disabled' ?> />
+                  <div class="flex flex-col ml-3">
+                    <input type="text" name="purpose_other_detail" id="purposeOtherInput"
+                      data-spell-field="purpose_other_detail"
+                      class="border rounded-md p-2 w-[260px] <?= ($purpose === 'other') ? '' : 'bg-gray-100 text-gray-400' ?>"
+                      placeholder="โปรดระบุ" value="<?= h($purposeOther) ?>"
+                      <?= ($purpose === 'other') ? '' : 'disabled' ?> />
 
-                  <div id="purposeOtherSpellBox" class="spell-box hidden"></div>
+                    <div id="purposeOtherSpellBox" class="spell-box hidden"></div>
 
-                  <div id="purposeOtherSpellLoading" class="spell-loading hidden">
-                    <div class="spell-loading-row">
-                      <div class="spell-spinner"></div>
-                      <span>กำลังตรวจคำผิด...</span>
+                    <div id="purposeOtherSpellLoading" class="spell-loading hidden">
+                      <div class="spell-loading-row">
+                        <div class="spell-spinner"></div>
+                        <span>กำลังตรวจคำผิด...</span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="<?= ($purpose === 'academic') ? '' : 'hidden' ?>" id="academicExtraWrap">
+
+            <div class="mb-4 flex items-start gap-4">
+              <label class="lbl text-gray-800 whitespace-nowrap pt-2 ml-3" for="memoSubject">
+                เรื่อง :
               </label>
-            </div>
-          </div>
-        </div>
-        <div class="mb-4 flex items-start gap-4 <?= ($purpose === 'academic') ? '' : 'hidden' ?>"
-          id="researchTitleWrap">
-          <label class="lbl text-gray-800 whitespace-nowrap pt-2" for="researchTitle">
-            ชื่อผลงานวิจัย :
-          </label>
-          <div class="w-full">
-            <textarea name="research_title" rows="2" data-spell-field="research_title"
-              class="w-full border rounded-md p-2 shadow-sm" id="researchTitle"><?= h($researchTitle) ?></textarea>
+              <div class="w-full">
+                <textarea name="memo_subject" id="memoSubject" data-spell-field="memo_subject" rows="2"
+                  class="w-full border rounded-md p-2 shadow-sm"
+                  placeholder="ขออนุมัติตัวบุคคลเพื่อไปนำเสนอผลงานวิจัยในงานประชุมวิชาการระดับนานาชาติ ACIE 2025"><?= h($memoSubject) ?></textarea>
 
-            <div id="researchTitleSpellBox" class="spell-box hidden"></div>
-            <div id="researchTitleSpellLoading" class="spell-loading hidden">
-              <div class="spell-loading-row">
-                <div class="spell-spinner"></div>
-                <span>กำลังตรวจคำผิด...</span>
+                <div id="memoSubjectSpellBox" class="spell-box hidden"></div>
+                <div id="memoSubjectSpellLoading" class="spell-loading hidden">
+                  <div class="spell-loading-row">
+                    <div class="spell-spinner"></div>
+                    <span>กำลังตรวจคำผิด...</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-        <div class="mb-4 flex items-start gap-4">
-          <label class="lbl text-gray-800 whitespace-nowrap pt-2" for="eventTitle">
-            4.ชื่อของงานประชุมวิชาการ /<br />ชื่อหลักสูตรอบรม :
-          </label>
-          <div class="w-full">
-            <textarea name="event_title" data-spell-field="event_title" rows="2"
-              class="w-full border rounded-md p-2 shadow-sm" id="eventTitle"><?= h($formData[5] ?? '') ?></textarea>
-            <div id="eventTitleSpellBox" class="spell-box hidden"></div>
-            <div id="eventTitleSpellLoading" class="spell-loading hidden">
-              <div class="spell-loading-row">
-                <div class="spell-spinner"></div>
-                <span>กำลังตรวจคำผิด...</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="mb-6">
-          <label class="lbl text-gray-800 block mb-2" id="dateLabel">5. วันที่เข้าร่วม</label>
-          <div class="space-y-4 ml-6 text-gray-800">
-            <div class="flex items-center gap-2">
-              <input type="radio" name="date_option" value="single" id="optSingle" class="accent-[#11C2B9]"
-                <?= !$isRangeDate ? 'checked' : '' ?> />
-              <span>วันเดียว :</span>
-              <div class="relative">
-                <input type="text" name="single_date" id="singleDate"
-                  class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่"
-                  readonly />
-                <svg class="absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]" xmlns="http://www.w3.org/2000/svg"
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
-                </svg>
-              </div>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-              <input type="radio" name="date_option" value="range" id="optRange" class="accent-[#11C2B9]"
-                <?= $isRangeDate ? 'checked' : '' ?> />
-              <span>หลายวัน :</span>
-              <div class="relative">
-                <input type="text" id="startDate" class="border rounded-md p-2 shadow-sm w-44 pr-10 cursor-pointer"
-                  placeholder="เริ่มต้น" readonly />
-                <svg class="absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]" xmlns="http://www.w3.org/2000/svg"
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <span>ถึง</span>
-              <div class="relative">
-                <input type="text" id="endDate" class="border rounded-md p-2 shadow-sm w-44 pr-10 cursor-pointer"
-                  placeholder="สิ้นสุด" readonly />
-                <svg class="absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]" xmlns="http://www.w3.org/2000/svg"
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <input type="text" id="rangeDisplay" class="border rounded-md p-2 shadow-sm w-64 bg-gray-50 text-gray-600"
-                placeholder="10 - 11 กรกฎาคม 2568" readonly />
-              <input type="hidden" name="join_date" id="joinDate" value="<?= h($formData[6] ?? '') ?>">
-            </div>
-          </div>
-        </div>
-        <div class="mb-6">
-          <label class="lbl text-gray-800 block mb-2">
-            6. ชื่อสถานที่จัดประชุมวิชาการ / สถานที่จัดอบรม / เข้าร่วมรูปแบบออนไลน์
-          </label>
-          <div class="flex items-center ml-6 gap-2 mb-3">
-            <input type="radio" name="is_online" value="1" id="onlineCheckbox" class="accent-black"
-              <?= $isOnline ? 'checked' : '' ?>>
-            <label for="onlineCheckbox">เข้าร่วมในรูปแบบออนไลน์</label>
-          </div>
-          <div class="flex items-start ml-6 gap-2">
-            <input type="radio" name="is_online" value="0" id="onsiteCheckbox" class="accent-black mt-3"
-              <?= !$isOnline ? 'checked' : '' ?>>
 
-            <label for="onsiteCheckbox" class="mt-2">เข้าร่วมในรูปแบบออนไซต์</label>
-            <label class="lbl text-gray-800 ml-4 mr-2 mt-2" for="placeOnsite">ระบุสถานที่ไป :</label>
+          </div>
 
-            <div class="flex flex-col">
-              <input type="text" name="place" id="placeOnsite" data-spell-field="place" class="border rounded-md p-2 w-[400px]
-<?= !$isOnline ? '' : 'bg-gray-100 text-gray-400' ?>" value="<?= !$isOnline ? h($location) : '' ?>"
-                <?= !$isOnline ? '' : 'disabled' ?>>
-
-              <div id="placeOnsiteSpellBox" class="spell-box hidden"></div>
-
-              <div id="placeOnsiteSpellLoading" class="spell-loading hidden">
+          <div class="mb-4 flex items-start gap-4">
+            <label class="lbl text-gray-800 whitespace-nowrap pt-2" for="eventTitle">
+              4.ชื่อของงานประชุมวิชาการ /<br />ชื่อหลักสูตรอบรม :
+            </label>
+            <div class="w-full">
+              <textarea name="event_title" data-spell-field="event_title" rows="2"
+                class="w-full border rounded-md p-2 shadow-sm" id="eventTitle"
+                placeholder="ในงานประชุมวิชาการระดับนานาชาติ The 5th Asia Conference on Information Engineering (ACIE 2025)"><?= h($formData[5] ?? '') ?></textarea>
+              <div id="eventTitleSpellBox" class="spell-box hidden"></div>
+              <div id="eventTitleSpellLoading" class="spell-loading hidden">
                 <div class="spell-loading-row">
                   <div class="spell-spinner"></div>
                   <span>กำลังตรวจคำผิด...</span>
                 </div>
               </div>
+
             </div>
           </div>
-        </div>
-        <div class="mb-6">
-          <div class="flex items-center gap-2 mb-2">
-            <label class="lbl text-gray-800" for="amountInput">7.รวมยอดประมาณการค่าใช้จ่าย :</label>
-            <div class="flex items-center gap-2">
-              <input type="text" name="amount" class="border rounded-md p-2 w-36" id="amountInput"
-                value="<?= h($formData[8] ?? '0.00') ?>" />
-              <span>บาท</span>
+          <div class="<?= ($purpose === 'academic') ? '' : 'hidden' ?>" id="academicDetailWrap">
+
+            <div class="mb-4 flex items-start gap-4">
+              <label class="lbl text-gray-800 whitespace-nowrap pt-2 ml-3" for="academicTopic">
+                หัวข้อ :
+              </label>
+              <div class="w-full">
+                <textarea name="academic_topic" id="academicTopic" data-spell-field="academic_topic" rows="2"
+                  class="w-full border rounded-md p-2 shadow-sm"
+                  placeholder="API-Based Personal Healthcare Application: Securing Data and Ensuring Patient Privacy"><?= h($academicTopic) ?></textarea>
+
+                <div id="academicTopicSpellBox" class="spell-box hidden"></div>
+                <div id="academicTopicSpellLoading" class="spell-loading hidden">
+                  <div class="spell-loading-row">
+                    <div class="spell-spinner"></div>
+                    <span>กำลังตรวจคำผิด...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-4 flex items-start gap-4">
+              <label class="lbl text-gray-800 whitespace-nowrap pt-2 ml-3" for="academicLevel">
+                ระดับวิชาการ :
+              </label>
+              <div class="w-full">
+                <input type="text" name="academic_level" id="academicLevel" data-spell-field="academic_level"
+                  class="w-full border rounded-md p-2 shadow-sm" placeholder="วิชาการระดับนานาชาติ ACIE 2025"
+                  value="<?= h($academicLevel) ?>">
+
+                <div id="academicLevelSpellBox" class="spell-box hidden"></div>
+                <div id="academicLevelSpellLoading" class="spell-loading hidden">
+                  <div class="spell-loading-row">
+                    <div class="spell-spinner"></div>
+                    <span>กำลังตรวจคำผิด...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="mb-6">
+              <label class="lbl text-gray-800 block mb-2 ml-3">วันที่จัด</label>
+              <div class="space-y-4 ml-6 text-gray-800">
+                <div class="flex items-center gap-2">
+                  <input type="radio" name="event_date_option" value="single" id="eventOptSingle"
+                    class="accent-[#11C2B9]" <?= !$isEventRangeDate ? 'checked' : '' ?> />
+                  <span>วันเดียว :</span>
+
+                  <div class="relative">
+                    <input type="text" name="event_single_date" id="eventSingleDate"
+                      class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่"
+                      readonly />
+                    <svg class="absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]" xmlns="http://www.w3.org/2000/svg"
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                  <input type="radio" name="event_date_option" value="range" id="eventOptRange" class="accent-[#11C2B9]"
+                    <?= $isEventRangeDate ? 'checked' : '' ?> />
+                  <span>หลายวัน :</span>
+
+                  <div class="relative">
+                    <input type="text" id="eventStartDate"
+                      class="border rounded-md p-2 shadow-sm w-44 pr-10 cursor-pointer" placeholder="เริ่มต้น"
+                      readonly />
+                    <svg class="absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]" xmlns="http://www.w3.org/2000/svg"
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+
+                  <span>ถึง</span>
+
+                  <div class="relative">
+                    <input type="text" id="eventEndDate"
+                      class="border rounded-md p-2 shadow-sm w-44 pr-10 cursor-pointer" placeholder="สิ้นสุด"
+                      readonly />
+                    <svg class="absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]" xmlns="http://www.w3.org/2000/svg"
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 002 2v11a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+
+                  <input type="hidden" name="event_date" id="eventDate" value="<?= h($eventDate) ?>">
+                </div>
+              </div>
+            </div>
+
+
+          </div>
+          <div class="mb-6">
+            <label class="lbl text-gray-800 block mb-2" id="dateLabel">5. วันที่เข้าร่วม</label>
+            <div class="space-y-4 ml-6 text-gray-800">
+              <div class="flex items-center gap-2">
+                <input type="radio" name="date_option" value="single" id="optSingle" class="accent-[#11C2B9]"
+                  <?= !$isRangeDate ? 'checked' : '' ?> />
+                <span>วันเดียว :</span>
+                <div class="relative">
+                  <input type="text" name="single_date" id="singleDate"
+                    class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่"
+                    readonly />
+                  <svg class="absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]" xmlns="http://www.w3.org/2000/svg"
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <input type="radio" name="date_option" value="range" id="optRange" class="accent-[#11C2B9]"
+                  <?= $isRangeDate ? 'checked' : '' ?> />
+                <span>หลายวัน :</span>
+                <div class="relative">
+                  <input type="text" id="startDate" class="border rounded-md p-2 shadow-sm w-44 pr-10 cursor-pointer"
+                    placeholder="เริ่มต้น" readonly />
+                  <svg class="absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]" xmlns="http://www.w3.org/2000/svg"
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <span>ถึง</span>
+                <div class="relative">
+                  <input type="text" id="endDate" class="border rounded-md p-2 shadow-sm w-44 pr-10 cursor-pointer"
+                    placeholder="สิ้นสุด" readonly />
+                  <svg class="absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]" xmlns="http://www.w3.org/2000/svg"
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <input type="hidden" id="rangeDisplay" value="<?= h($formData[6] ?? '') ?>">
+                <input type="hidden" name="join_date" id="joinDate" value="<?= h($formData[6] ?? '') ?>">
+              </div>
             </div>
           </div>
-          <?php
+          <div class="mb-6">
+            <label class="lbl text-gray-800 block mb-2">
+              6. ชื่อสถานที่จัดประชุมวิชาการ / สถานที่จัดอบรม / เข้าร่วมรูปแบบออนไลน์
+            </label>
+            <div class="flex items-center ml-6 gap-2 mb-3">
+              <input type="radio" name="is_online" value="1" id="onlineCheckbox" class="accent-black"
+                <?= $isOnline ? 'checked' : '' ?>>
+              <label for="onlineCheckbox">เข้าร่วมในรูปแบบออนไลน์</label>
+            </div>
+            <div class="flex items-start ml-6 gap-2">
+              <input type="radio" name="is_online" value="0" id="onsiteCheckbox" class="accent-black mt-3"
+                <?= !$isOnline ? 'checked' : '' ?>>
+
+              <label for="onsiteCheckbox" class="mt-2">เข้าร่วมในรูปแบบออนไซต์</label>
+              <label class="lbl text-gray-800 ml-4 mr-2 mt-2" for="placeOnsite">ระบุสถานที่ไป :</label>
+
+              <div class="flex flex-col">
+                <input type="text" name="place" id="placeOnsite" data-spell-field="place" class="border rounded-md p-2 w-[400px]
+<?= !$isOnline ? '' : 'bg-gray-100 text-gray-400' ?>" value="<?= !$isOnline ? h($location) : '' ?>"
+                  <?= !$isOnline ? '' : 'disabled' ?>>
+
+                <div id="placeOnsiteSpellBox" class="spell-box hidden"></div>
+
+                <div id="placeOnsiteSpellLoading" class="spell-loading hidden">
+                  <div class="spell-loading-row">
+                    <div class="spell-spinner"></div>
+                    <span>กำลังตรวจคำผิด...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mb-6">
+            <div class="flex items-center gap-2 mb-2">
+              <label class="lbl text-gray-800" for="amountInput">7.รวมยอดประมาณการค่าใช้จ่าย :</label>
+
+            </div>
+            <?php
             $noCostValue = $formData[12] ?? '';
             if ($noCostValue !== '') {
                 $noCostChecked = ((string)$noCostValue === '1') ? 'checked' : '';
@@ -679,40 +779,45 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
                 $noCostChecked = ($amountForCheck !== '' && (float)$amountForCheck == 0.0) ? 'checked' : '';
             }
             ?>
-          <label class="flex items-center gap-2 ml-6 mt-2">
-            <input type="hidden" name="no_cost" value="0">
-            <input type="checkbox" name="no_cost" value="1" class="accent-black" id="noCostCheckbox"
-              <?= $noCostChecked ?> />
-            โดยไม่เบิกค่าใช้จ่ายใดๆทั้งสิ้น
-          </label>
-        </div>
-        <div class="mb-6">
-          <label class="lbl block text-gray-800 mb-2" id="carLabel">
-            8. กรณีไปรถยนต์ส่วนบุคคล
-          </label>
-          <div class="flex items-center gap-3 ml-6">
-            <input type="checkbox" id="carCheckbox" name="car_used" class="accent-black"
-              <?= !empty($formData[9]) ? 'checked' : '' ?> />
-            <label for="carCheckbox" class="lbl">ใช้รถยนต์ส่วนบุคคล</label>
-            <input type="text" name="car_plate" id="carPlateInput"
-              class="border rounded-md p-2 w-[260px] bg-gray-100 text-gray-400" placeholder="เช่น กร 1234 กรุงเทพมหานคร"
-              value="<?= h($formData[9] ?? '') ?>" disabled>
+            <label class="flex items-center gap-2 ml-6 mt-2">
+              <input type="hidden" name="no_cost" value="0">
+              <input type="hidden" name="amount" id="amountInput" value="<?= h($formData[8] ?? '0.00') ?>">
+              <input type="checkbox" name="no_cost" value="1" class="accent-black" id="noCostCheckbox"
+                <?= $noCostChecked ?> />
+              โดยไม่เบิกค่าใช้จ่ายใดๆทั้งสิ้น
+            </label>
           </div>
-        </div>
-        <div class="relative mt-20">
-          <div class="absolute right-0 bottom-0 flex gap-3">
-            <button type="button" id="nextBtn"
-              class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md transition">
-              ถัดไป
-            </button>
-            <button type="submit" id="submitBtn"
-              class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md transition hidden">
-              ดำเนินการ
-            </button>
+          <div class="mb-6">
+            <label class="lbl block text-gray-800 mb-2" id="carLabel">
+              8. กรณีไปรถยนต์ส่วนบุคคล
+            </label>
+            <input type="text" name="car_plate" id="carPlateInput"
+              class="border rounded-md p-2 w-[260px] shadow-sm <?= !empty($formData[9]) ? '' : 'bg-gray-100 text-gray-400' ?>"
+              placeholder="ทะเบียนรถ" value="<?= h($formData[9] ?? '') ?>"
+              <?= !empty($formData[9]) ? '' : 'disabled' ?>>
+            <div class="flex items-center gap-3 ml-6">
+              <input type="checkbox" id="carCheckbox" name="car_used" class="accent-black"
+                <?= !empty($formData[9]) ? 'checked' : '' ?> />
+              <label for="carCheckbox" class="lbl">ใช้รถยนต์ส่วนบุคคล</label>
+
+            </div>
+          </div>
+          <div class="relative mt-20">
+            <div class="absolute right-0 bottom-0 flex gap-3">
+              <button type="button" id="nextBtn"
+                class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md transition">
+                ถัดไป
+              </button>
+              <button type="submit" id="submitBtn"
+                class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md transition hidden">
+                ดำเนินการ
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
+
     <div id="step2" class="hidden">
       <div class="w-[900px] mx-auto mt-16 mb-6 bg-white shadow-md rounded-md p-8" style="min-height: 1122px">
         <h1 class="text-center font-bold mb-6 text-black">แบบฟอร์มประมาณการค่าใช้จ่าย</h1>
@@ -919,7 +1024,21 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       suggestions: [],
       errors: []
     },
-    research_title: {
+    memo_subject: {
+      checked: false,
+      hasError: false,
+      ignored: false,
+      suggestions: [],
+      errors: []
+    },
+    academic_topic: {
+      checked: false,
+      hasError: false,
+      ignored: false,
+      suggestions: [],
+      errors: []
+    },
+    academic_level: {
       checked: false,
       hasError: false,
       ignored: false,
@@ -951,10 +1070,23 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     const subCategory = document.getElementById("subCategory");
 
     const purposeOtherInput = document.getElementById("purposeOtherInput");
-    const researchTitleWrap = document.getElementById("researchTitleWrap");
-    const researchTitle = document.getElementById("researchTitle");
+    const academicExtraWrap = document.getElementById("academicExtraWrap");
+    const academicDetailWrap = document.getElementById("academicDetailWrap");
+
+    const memoSubject = document.getElementById("memoSubject");
+    const academicTopic = document.getElementById("academicTopic");
+    const academicLevel = document.getElementById("academicLevel");
+
     const eventTitle = document.getElementById("eventTitle");
     const placeOnsite = document.getElementById("placeOnsite");
+
+    const eventOptSingle = document.getElementById("eventOptSingle");
+    const eventOptRange = document.getElementById("eventOptRange");
+    const eventSingleDate = document.getElementById("eventSingleDate");
+    const eventStartDate = document.getElementById("eventStartDate");
+    const eventEndDate = document.getElementById("eventEndDate");
+    const eventRangeDisplay = null;
+    const eventDate = document.getElementById("eventDate");
 
     const docDateDisplay = document.getElementById("docDateDisplay"); // ไทย พ.ศ.
     const docDateHidden = document.getElementById("docDate"); // YYYY-MM-DD (ส่ง DB)
@@ -964,7 +1096,9 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
     const purposeOtherSpellBox = document.getElementById("purposeOtherSpellBox");
     const eventTitleSpellBox = document.getElementById("eventTitleSpellBox");
-    const researchTitleSpellBox = document.getElementById("researchTitleSpellBox");
+    const memoSubjectSpellBox = document.getElementById("memoSubjectSpellBox");
+    const academicTopicSpellBox = document.getElementById("academicTopicSpellBox");
+    const academicLevelSpellBox = document.getElementById("academicLevelSpellBox");
     const placeOnsiteSpellBox = document.getElementById("placeOnsiteSpellBox");
 
 
@@ -994,7 +1128,9 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       if (!el) return null;
       if (el.id === "purposeOtherInput") return document.getElementById("purposeOtherSpellLoading");
       if (el.id === "eventTitle") return document.getElementById("eventTitleSpellLoading");
-      if (el.id === "researchTitle") return document.getElementById("researchTitleSpellLoading");
+      if (el.id === "memoSubject") return document.getElementById("memoSubjectSpellLoading");
+      if (el.id === "academicTopic") return document.getElementById("academicTopicSpellLoading");
+      if (el.id === "academicLevel") return document.getElementById("academicLevelSpellLoading");
       if (el.id === "placeOnsite") return document.getElementById("placeOnsiteSpellLoading");
       return null;
     }
@@ -1077,22 +1213,36 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       const chosenPurpose = document.querySelector('input[name="purpose"]:checked');
       const isAcademic = chosenPurpose?.value === "academic";
 
-      if (researchTitleWrap) {
-        researchTitleWrap.classList.toggle("hidden", !isAcademic);
+      if (academicExtraWrap) {
+        academicExtraWrap.classList.toggle("hidden", !isAcademic);
       }
 
-      if (!isAcademic && researchTitle) {
-        researchTitle.value = "";
-        clearError(researchTitle);
-        clearSpellResult(researchTitle);
+      if (academicDetailWrap) {
+        academicDetailWrap.classList.toggle("hidden", !isAcademic);
+      }
 
-        spellState.research_title = {
-          checked: false,
-          hasError: false,
-          ignored: false,
-          suggestions: [],
-          errors: []
-        };
+      if (!isAcademic) {
+        [memoSubject, academicTopic, academicLevel].forEach(el => {
+          if (!el) return;
+          el.value = "";
+          clearError(el);
+          clearSpellResult(el);
+        });
+
+        if (eventDate) eventDate.value = "";
+        if (eventSingleDate) eventSingleDate.value = "";
+        if (eventStartDate) eventStartDate.value = "";
+        if (eventEndDate) eventEndDate.value = "";
+
+        ["memo_subject", "academic_topic", "academic_level"].forEach(key => {
+          spellState[key] = {
+            checked: false,
+            hasError: false,
+            ignored: false,
+            suggestions: [],
+            errors: []
+          };
+        });
       }
 
       if (purposeOtherRadio && purposeOtherRadio.checked) {
@@ -1134,6 +1284,8 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       syncPlaceUI);
 
     function syncCostUI() {
+      if (!amountInput) return;
+
       if (noCostCheckbox?.checked) {
         amountInput.value = "0.00";
         amountInput.readOnly = true;
@@ -1225,6 +1377,96 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       rangeDisplay.value = text;
       joinDate.value = text;
     }
+    const eventSinglePicker = flatpickr("#eventSingleDate", {
+      disableMobile: true,
+      allowInput: false,
+      clickOpens: true,
+      onChange: ([d], _, inst) => {
+        if (d) {
+          inst.input.value = toThaiDisplay(d);
+          eventDate.value = toThaiDisplay(d);
+        }
+      }
+    });
+
+    const eventStartPicker = flatpickr("#eventStartDate", {
+      disableMobile: true,
+      allowInput: false,
+      clickOpens: true,
+      onChange: updateEventRangeDisplay
+    });
+
+    const eventEndPicker = flatpickr("#eventEndDate", {
+      disableMobile: true,
+      allowInput: false,
+      clickOpens: true,
+      onChange: updateEventRangeDisplay
+    });
+
+    function updateEventRangeDisplay() {
+      if (!eventStartPicker.selectedDates[0] || !eventEndPicker.selectedDates[0]) return;
+
+      const d1 = eventStartPicker.selectedDates[0];
+      const d2 = eventEndPicker.selectedDates[0];
+
+      const y1 = d1.getFullYear() + 543;
+      const y2 = d2.getFullYear() + 543;
+      const m1 = monthsTH[d1.getMonth()];
+      const m2 = monthsTH[d2.getMonth()];
+
+      let text = "";
+      if (m1 === m2 && y1 === y2) {
+        text = `${d1.getDate()} - ${d2.getDate()} ${m1} ${y1}`;
+      } else {
+        text = `${d1.getDate()} ${m1} ${y1} - ${d2.getDate()} ${m2} ${y2}`;
+      }
+
+
+      eventDate.value = text;
+    }
+
+    function toggleEventDatePickers() {
+      const single = eventOptSingle?.checked;
+
+      if (eventSingleDate) eventSingleDate.disabled = !single;
+      if (eventStartDate) eventStartDate.disabled = single;
+      if (eventEndDate) eventEndDate.disabled = single;
+
+
+      clearError(eventSingleDate);
+      clearError(eventStartDate);
+      clearError(eventEndDate);
+    }
+
+    eventOptSingle?.addEventListener("change", toggleEventDatePickers);
+    eventOptRange?.addEventListener("change", toggleEventDatePickers);
+
+    if (eventDate && eventDate.value.trim()) {
+      const raw = eventDate.value.trim();
+
+      if (raw.includes("-") || raw.includes("ถึง")) {
+        eventOptRange.checked = true;
+        toggleEventDatePickers();
+
+        const dates = parseThaiRange(raw);
+        if (dates) {
+          eventStartPicker.setDate(dates[0], false);
+          eventEndPicker.setDate(dates[1], false);
+
+        }
+      } else {
+        eventOptSingle.checked = true;
+        toggleEventDatePickers();
+
+        const d = parseThaiSingle(raw);
+        if (d) {
+          eventSinglePicker.setDate(d, false);
+          eventSingleDate.value = raw;
+        }
+      }
+    }
+
+    toggleEventDatePickers();
 
     function toggleDatePickers() {
       const single = optSingle.checked;
@@ -1294,6 +1536,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     const finalSubmitBtn = document.getElementById("finalSubmitBtn"); // ปุ่ม submit ใน step2
 
     function showStep1() {
+      if (!step1 || !step2) return;
       step1.classList.remove("hidden");
       step2.classList.add("hidden");
       window.scrollTo({
@@ -1303,6 +1546,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     }
 
     function showStep2() {
+      if (!step1 || !step2) return;
       step1.classList.add("hidden");
       step2.classList.remove("hidden");
       window.scrollTo({
@@ -1333,8 +1577,11 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
     function validateStep1Minimal() {
       [
-        docDateDisplay, fullname, position, researchTitle, eventTitle,
-        singleDate, startDate, endDate, rangeDisplay, placeOnsite, amountInput
+        docDateDisplay, fullname, position,
+        memoSubject, academicTopic, academicLevel,
+        eventSingleDate, eventStartDate, eventEndDate,
+        eventTitle, singleDate, startDate, endDate, rangeDisplay,
+        placeOnsite, amountInput
       ].forEach(clearError);
       let firstError = null;
       const chosenPurpose = document.querySelector('input[name="purpose"]:checked');
@@ -1343,9 +1590,36 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
         firstError = firstError || (purposeOtherRadio || purposeRadios[0]);
         setError((purposeOtherRadio || purposeRadios[0]), "กรุณาเลือกข้อ 3");
       } else if (chosenPurpose.value === "academic") {
-        if (!researchTitle?.value?.trim()) {
-          firstError = firstError || researchTitle;
-          setError(researchTitle, "กรุณากรอกชื่อผลงานวิจัย");
+        if (!memoSubject?.value?.trim()) {
+          firstError = firstError || memoSubject;
+          setError(memoSubject, "กรุณากรอกเรื่อง");
+        }
+
+        if (!academicTopic?.value?.trim()) {
+          firstError = firstError || academicTopic;
+          setError(academicTopic, "กรุณากรอกหัวข้อ");
+        }
+
+        if (!academicLevel?.value?.trim()) {
+          firstError = firstError || academicLevel;
+          setError(academicLevel, "กรุณากรอกระดับวิชาการ");
+        }
+
+        if (eventOptSingle?.checked) {
+          if (!eventSingleDate?.value?.trim()) {
+            firstError = firstError || eventSingleDate;
+            setError(eventSingleDate, "กรุณาเลือกวันที่จัด");
+          } else {
+            eventDate.value = eventSingleDate.value.trim();
+          }
+        } else if (eventOptRange?.checked) {
+          updateEventRangeDisplay();
+
+          if (!eventDate?.value?.trim()) {
+            firstError = firstError || eventStartDate;
+            setError(eventStartDate, "กรุณาเลือกวันที่เริ่มต้น");
+            setError(eventEndDate, "กรุณาเลือกวันที่สิ้นสุด");
+          }
         }
       } else if (chosenPurpose.value === "other") {
         if (!purposeOtherInput?.value?.trim()) {
@@ -1400,16 +1674,9 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
         firstError = firstError || onlineCheckbox;
         setError(onlineCheckbox, "กรุณาเลือก ออนไลน์ หรือ ออนไซต์");
       }
-      amountInput.value = (amountInput.value || "").replace(/,/g, "").trim();
-      if (!noCostCheckbox?.checked) {
-        if (!amountInput.value) {
-          firstError = firstError || amountInput;
-          setError(amountInput, "กรุณากรอกยอดค่าใช้จ่าย");
-        } else if (isNaN(Number(amountInput.value)) || Number(amountInput.value) < 0) {
-          firstError = firstError || amountInput;
-          setError(amountInput, "ยอดค่าใช้จ่ายต้องเป็นตัวเลขที่ถูกต้อง");
-        }
-      } else {
+      // หน้านี้เป็นแค่ Step 1 จึงยังไม่บังคับกรอกยอดค่าใช้จ่าย
+      // ยอดจริงจะถูกคำนวณ/ตรวจตอนกด "ดำเนินการ" ใน Step 2
+      if (noCostCheckbox?.checked && amountInput) {
         amountInput.value = "0.00";
       }
       if (firstError) {
@@ -1422,8 +1689,10 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     async function checkAllSpellFields() {
       const fields = [
         purposeOtherInput,
-        researchTitle,
+        memoSubject,
         eventTitle,
+        academicTopic,
+        academicLevel,
         placeOnsite
       ];
 
@@ -1541,7 +1810,10 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
         [
           mainCategory, subCategory,
           docDateDisplay, fullname, position,
-          purposeOtherInput, researchTitle, eventTitle,
+          purposeOtherInput,
+          memoSubject, academicTopic, academicLevel,
+          eventSingleDate, eventStartDate, eventEndDate,
+          eventTitle,
           singleDate, startDate, endDate, rangeDisplay,
           placeOnsite, amountInput, carPlateInput
         ].forEach(clearError);
@@ -1573,9 +1845,36 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
           firstError = firstError || (purposeOtherRadio || purposeRadios[0]);
           setError((purposeOtherRadio || purposeRadios[0]), "กรุณาเลือกข้อ 3");
         } else if (chosenPurpose.value === "academic") {
-          if (!researchTitle?.value?.trim()) {
-            firstError = firstError || researchTitle;
-            setError(researchTitle, "กรุณากรอกชื่อผลงานวิจัย");
+          if (!memoSubject?.value?.trim()) {
+            firstError = firstError || memoSubject;
+            setError(memoSubject, "กรุณากรอกเรื่อง");
+          }
+
+          if (!academicTopic?.value?.trim()) {
+            firstError = firstError || academicTopic;
+            setError(academicTopic, "กรุณากรอกหัวข้อ");
+          }
+
+          if (!academicLevel?.value?.trim()) {
+            firstError = firstError || academicLevel;
+            setError(academicLevel, "กรุณากรอกระดับวิชาการ");
+          }
+
+          if (eventOptSingle?.checked) {
+            if (!eventSingleDate?.value?.trim()) {
+              firstError = firstError || eventSingleDate;
+              setError(eventSingleDate, "กรุณาเลือกวันที่จัด");
+            } else {
+              eventDate.value = eventSingleDate.value.trim();
+            }
+          } else if (eventOptRange?.checked) {
+            updateEventRangeDisplay();
+
+            if (!eventDate?.value?.trim()) {
+              firstError = firstError || eventStartDate;
+              setError(eventStartDate, "กรุณาเลือกวันที่เริ่มต้น");
+              setError(eventEndDate, "กรุณาเลือกวันที่สิ้นสุด");
+            }
           }
         } else if (chosenPurpose.value === "other") {
           if (!purposeOtherInput?.value?.trim()) {
@@ -2031,7 +2330,9 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       if (!el) return null;
       if (el.id === "purposeOtherInput") return purposeOtherSpellBox;
       if (el.id === "eventTitle") return eventTitleSpellBox;
-      if (el.id === "researchTitle") return researchTitleSpellBox;
+      if (el.id === "memoSubject") return memoSubjectSpellBox;
+      if (el.id === "academicTopic") return academicTopicSpellBox;
+      if (el.id === "academicLevel") return academicLevelSpellBox;
       if (el.id === "placeOnsite") return placeOnsiteSpellBox;
       return null;
     }
@@ -2317,7 +2618,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       showSpellLoading(el);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
       try {
         const response = await fetch("http://127.0.0.1:8001/api/spell-check", {

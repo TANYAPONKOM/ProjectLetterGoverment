@@ -1,4 +1,5 @@
-<?php //หนังสือเรียนเชิญวิทยากร 
+<!-- ขอความอนุเคราะห์ข้อมูลรูปภาพ X-ray กระเป๋าสัมภาระของผู้โดยสารเพื่อใช้ในการจัดทำปริญญานิพนธ์ -->
+<?php
 session_start();
 require_once __DIR__ . '/../functions.php';
 
@@ -106,77 +107,25 @@ $readonly = !$canEdit;
 /* --------------------------------------------------
    ดึงค่า field จาก document_values
 -------------------------------------------------- */
-$q = $pdo->prepare("
-  SELECT 
-    dv.field_id,
-    dv.value_text,
-    tf.field_key
-  FROM document_values dv
-  LEFT JOIN template_fields tf ON tf.field_id = dv.field_id
-  WHERE dv.document_id = :id
-");
+$q = $pdo->prepare("SELECT field_id, value_text FROM document_values WHERE document_id = :id");
 $q->execute([':id' => $docId]);
 
 $valueMap = [];
-$valueMapByKey = [];
-
 foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
-  $fid = (int) ($row['field_id'] ?? 0);
-  $val = (string) ($row['value_text'] ?? '');
-
-  if ($fid > 0) {
-    $valueMap[$fid] = $val;
-  }
-
-  $key = trim((string) ($row['field_key'] ?? ''));
-  if ($key !== '') {
-    $valueMapByKey[$key] = $val;
-  }
+  $valueMap[(int) $row['field_id']] = $row['value_text'];
 }
 
 /* --------------------------------------------------
    ฟังก์ชัน helper
 -------------------------------------------------- */
-// function h($s)
-// {
-//   return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
-// }
 
-function thai_digit($text)
-{
-  return strtr((string) $text, [
-    '0' => '๐',
-    '1' => '๑',
-    '2' => '๒',
-    '3' => '๓',
-    '4' => '๔',
-    '5' => '๕',
-    '6' => '๖',
-    '7' => '๗',
-    '8' => '๘',
-    '9' => '๙',
-  ]);
-}
 
-function arabic_digit($text)
+function thai_date($ymd)
 {
-  return strtr((string) $text, [
-    '๐' => '0',
-    '๑' => '1',
-    '๒' => '2',
-    '๓' => '3',
-    '๔' => '4',
-    '๕' => '5',
-    '๖' => '6',
-    '๗' => '7',
-    '๘' => '8',
-    '๙' => '9',
-  ]);
-}
-
-function thai_months()
-{
-  return [
+  if (!$ymd || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $ymd))
+    return "";
+  [$y, $m, $d] = explode("-", $ymd);
+  $months = [
     1 => "มกราคม",
     2 => "กุมภาพันธ์",
     3 => "มีนาคม",
@@ -188,103 +137,9 @@ function thai_months()
     9 => "กันยายน",
     10 => "ตุลาคม",
     11 => "พฤศจิกายน",
-    12 => "ธันวาคม",
+    12 => "ธันวาคม"
   ];
-}
-
-function thai_date_from_parts($year, $month, $day, $withWeekday = false)
-{
-  $year = (int) $year;
-  $month = (int) $month;
-  $day = (int) $day;
-
-  if ($year > 2400) {
-    $christYear = $year - 543;
-    $thaiYear = $year;
-  } else {
-    $christYear = $year;
-    $thaiYear = $year + 543;
-  }
-
-  if (!checkdate($month, $day, $christYear)) {
-    return "";
-  }
-
-  $months = thai_months();
-  $dateText = thai_digit($day) . " " . $months[$month] . " " . thai_digit($thaiYear);
-
-  if ($withWeekday) {
-    $weekdays = [
-      "อาทิตย์",
-      "จันทร์",
-      "อังคาร",
-      "พุธ",
-      "พฤหัสบดี",
-      "ศุกร์",
-      "เสาร์",
-    ];
-    $w = (int) date('w', strtotime(sprintf('%04d-%02d-%02d', $christYear, $month, $day)));
-    return "วัน" . $weekdays[$w] . "ที่ " . $dateText;
-  }
-
-  return $dateText;
-}
-
-function thai_date($rawDate)
-{
-  return thai_date_any($rawDate, false);
-}
-
-function thai_date_with_weekday($rawDate)
-{
-  return thai_date_any($rawDate, true);
-}
-
-function thai_date_any($rawDate, $withWeekday = false)
-{
-  $rawDate = trim((string) $rawDate);
-  if ($rawDate === '') {
-    return "";
-  }
-
-  if ($withWeekday && preg_match('/^วัน/u', $rawDate)) {
-    return thai_digit($rawDate);
-  }
-
-  $date = arabic_digit($rawDate);
-
-  if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $date, $m)) {
-    return thai_date_from_parts($m[1], $m[2], $m[3], $withWeekday);
-  }
-
-  if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $date, $m)) {
-    return thai_date_from_parts($m[3], $m[2], $m[1], $withWeekday);
-  }
-
-  $months = thai_months();
-  $monthRegex = implode('|', array_map('preg_quote', $months));
-
-  if (preg_match('/(\d{1,2})\s+(' . $monthRegex . ')\s+(\d{4})/u', $date, $m)) {
-    $monthNumber = array_search($m[2], $months, true);
-    if ($monthNumber !== false) {
-      return thai_date_from_parts($m[3], $monthNumber, $m[1], $withWeekday);
-    }
-  }
-
-  return thai_digit($rawDate);
-}
-
-function format_thai_time_range($timeText)
-{
-  $timeText = trim((string) $timeText);
-  if ($timeText === '') {
-    return "";
-  }
-
-  $timeText = str_replace(':', '.', $timeText);
-  $timeText = preg_replace('/\s*-\s*/', ' - ', $timeText);
-
-  return thai_digit($timeText);
+  return intval($d) . " " . $months[intval($m)] . " " . (intval($y) + 543);
 }
 
 /* --------------------------------------------------
@@ -295,21 +150,14 @@ $ownerName = $valueMap[2] ?? "";
 $position = $valueMap[3] ?? "";
 $joinType = $valueMap[4] ?? "";
 $courseName = $valueMap[5] ?? "";
-$projectTitle = $valueMap[5] ?? "";
 $joinDates = $valueMap[6] ?? "";
-$eventDate = $valueMap[6] ?? ($valueMap[16] ?? "");
 $location = $valueMap[7] ?? "";
 $amountStr = $valueMap[8] ?? "";
 $vehicle = $valueMap[9] ?? "";
 $faculty = $valueMap[10] ?? "";
 $department = $valueMap[11] ?? "";
+$eventDate  = $valueMap[12] ?? "";
 $eventPlace = $valueMap[13] ?? "";
-
-$docSubject = $valueMap[14] ?? ($document['subject'] ?? "");
-$objective = $valueMap[25] ?? "";
-$toPerson = $valueMap[26] ?? "";
-$inviteStatement = $valueMapByKey['invite_statement'] ?? "";
-$eventTime = $valueMapByKey['event_time'] ?? "";
 
 /* --------------------------------------------------
    Mapping joinType → purposeCode (รหัส)
@@ -334,27 +182,13 @@ switch (trim($joinType)) {
 
 $header_text = $document["header_text"] ?? "";
 $doc_no = $document["doc_no"] ?? "";
-$subject = $docSubject ?: ($document["subject"] ?? "");
+$subject = $document["subject"] ?? "";
 
 /* --------------------------------------------------
    คำนวณวันที่ไทย, งบประมาณ
 -------------------------------------------------- */
 $thaiDocDate = thai_date($docDate);
-$thaiEventDate = thai_date_with_weekday($eventDate);
-$thaiEventTime = format_thai_time_range($eventTime);
 $prettyAmount = $amountStr !== "" ? number_format((float) $amountStr, 2) : "";
-
-$displayFaculty = $faculty ?: "คณะเทคโนโลยีและการจัดการอุตสาหกรรม";
-$displayDepartment = $department ?: "เทคโนโลยีสารสนเทศ";
-$displayDepartmentFull = "ภาควิชา" . $displayDepartment;
-$displaySubject = $subject ?: "ขอเรียนเชิญเป็นวิทยากรบรรยาย";
-$displayToPerson = $toPerson ?: "คุณ................................................";
-$displayProjectTitle = $projectTitle ?: "................................................";
-$displayInviteStatement = $inviteStatement ?: "เห็นว่าท่านเป็นผู้มีความเชี่ยวชาญและมีประสบการณ์สูง ในสาขาวิชาชีพดังกล่าว ซึ่งจะเป็นประโยชน์แก่นักศึกษาผู้เข้าร่วมโครงการเป็นอย่างดี";
-$displayObjective = $objective ?: "................................................";
-$displayEventDate = $thaiEventDate ?: "วันที่................................................";
-$displayEventTime = $thaiEventTime ?: "................";
-$displayLocation = $location ?: "................................................";
 
 /* --------------------------------------------------
    สร้างข้อความส่วนหัวที่ใช้ในเนื้อหา
@@ -394,8 +228,7 @@ $len = max(20, $len);
   <title>บันทึกข้อความ #<?= h($document['document_id']) ?></title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 
   <style>
   @import url("https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap");
@@ -407,31 +240,15 @@ $len = max(20, $len);
     font-family: "TH SarabunPSK", sans-serif;
   }
 
-  @page {
-    size: A4;
-    margin: 0;
-  }
-
   .page {
     width: 794px;
-    height: 1123px;
     min-height: 1123px;
-
     margin: 40px auto;
-
-    padding: 55px 85px 45px 85px;
-
+    padding: 60px 70px 50px 100px;
     background: #fff;
-
     box-shadow: 0 0 5px rgba(0, 0, 0, .1);
-
     position: relative;
-
     border: 2px solid #fff;
-
-    box-sizing: border-box;
-
-    overflow: visible;
   }
 
   h1 {
@@ -497,15 +314,16 @@ $len = max(20, $len);
   .content-block {
     font-family: "TH SarabunPSK";
     font-size: 16pt;
-    line-height: 1.25;
+    line-height: 1.0;
     margin: 0;
     text-align: justify;
+    text-justify: inter-word;
   }
 
   .content-block.paragraph {
     text-indent: 2.5cm;
-    margin-top: 8px;
-    line-height: 1.25;
+    margin-top: 0.5em;
+    line-height: 1.3;
   }
 
   .content-block.single {
@@ -583,7 +401,7 @@ $len = max(20, $len);
   }
 
   .footer-actions {
-    margin-top: -6px;
+    margin-top: 24px;
     padding-top: 16px;
     display: flex;
     justify-content: flex-end;
@@ -642,18 +460,12 @@ $len = max(20, $len);
     }
 
     .page {
-      width: 794px !important;
-      height: 1123px !important;
-      min-height: 1123px !important;
-
-      margin: 0 auto !important;
-
-      padding: 55px 85px 45px 85px !important;
-
-      box-shadow: none !important;
+      margin: 0;
+      box-shadow: none;
+      padding: 0.5cm 1cm 2cm 2.2cm !important;
+      width: 21cm;
+      min-height: 29.7cm;
       border: 2px solid #fff !important;
-      box-sizing: border-box !important;
-      overflow: visible !important;
     }
 
     .dot-line::after {
@@ -685,11 +497,6 @@ $len = max(20, $len);
       border: none !important;
       background: transparent !important;
       box-shadow: none !important;
-    }
-
-    .header-address {
-      width: 400px !important;
-      letter-spacing: -0.05px !important;
     }
   }
 
@@ -817,7 +624,7 @@ $len = max(20, $len);
 
     // เปลี่ยนข้อความของปุ่มพิมพ์ให้อยู่ในโหมดตัวอย่าง
     const printBtn = document.querySelector("button[onclick='window.print()']");
-    if (printBtn) printBtn.innerText = "พิมพ์/ดูตัวอย่าง";
+    if (printBtn) printBtn.innerText = "พิมพ์/ดูตัวอย่าง (โหมดอ่านอย่างเดียว)";
 
     // แจ้งเตือนแสดง read-only
     Swal.fire({
@@ -878,272 +685,122 @@ $len = max(20, $len);
       <input type="hidden" name="single_date" id="hidden_singleDate" value="">
 
 
-      <!-- หัวหนังสือราชการภายนอก -->
-      <div style="
-  display:grid;
-  grid-template-columns: 31% 22% 47%;
-  align-items:start;
-  margin-top:18px;
-">
+      <!-- หัวบันทึก -->
+      <div style="display:flex; align-items:flex-end; justify-content:flex-start; gap:20px; margin-bottom:0.5em;">
+        <img src="https://i.pinimg.com/474x/bd/55/cc/bd55ccc4416012910a723da8f810658b.jpg"
+          style="height:1.6cm; width:auto; margin-top:0;" />
 
-        <!-- เลขที่ -->
-        <div style="
-    font-size:16pt;
-    padding-top:50px;
-    white-space:nowrap;
-  ">
-          ที่ อว ๗๑๒๐/๗๑๖
-        </div>
-
-        <!-- ครุฑ -->
-        <div style="text-align:center; position:relative; left:32px; top:6px;">
-          <img src="/Pro_letter/assets/img/garuda.jpg" style="
-        width:123px;
-        height:auto;
-        opacity:0.83;
-        filter: grayscale(100%) contrast(65%) brightness(126%);
-        image-rendering:auto;
-        border:none;
-        outline:none;
-        box-shadow:none;
-        background:transparent;
-        transform:scale(1.01);
-      ">
-        </div>
-
-        <!-- ที่อยู่ -->
-        <div style="
-  font-size:15.5pt;
-  line-height:1.28;
-
-  padding-top:58px;
-
-  padding-left:44px;
-
-  width:380px;
-
-  text-align:left;
-">
-
-          <div style="
-      position:relative;
-      top:-5px;
-  ">
-            คณะเทคโนโลยีและการจัดการอุตสาหกรรม
-          </div>
-
-          <div style="
-      position:relative;
-      top:-2px;
-  ">
-            มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
-          </div>
-
-          ๑๒๙ หมู่ ๒๑ ต.เนินหอม อ.เมือง จ.ปราจีนบุรี ๒๕๒๓๐
-
-        </div>
-
+        <h1 class="doc-title" style="font-size:30pt;font-weight:bold;font-family:'TH SarabunPSK';
+      line-height:1.0;margin-bottom:-10px;text-align:center;flex:1;
+      transform: translateX(-0.3cm);">
+          บันทึกข้อความ
+        </h1>
       </div>
 
-      <!-- วันที่ -->
-      <div style="
-  font-size:16pt;
-
-  text-align:center;
-
-  margin-top:17px;
-
-  margin-bottom:16px;
-
-  position:relative;
-
-  left:29px;
-">
-        <?= h($thaiDocDate ?: '๗ ตุลาคม ๒๕๖๘') ?>
+      <!-- ส่วนราชการ -->
+      <div class="doc-row">
+        <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
+        <div class="dot-line">
+          <span class="chip" contenteditable="true" data-target="header_text">
+            <?= h($header_text ?: 'คณะ... ภาค... โทร...') ?>
+          </span>
+        </div>
       </div>
 
-      <div style="
-    font-family:'TH SarabunPSK';
-    font-size:16pt;
-    line-height:1.15;
-    color:#111;
-">
+      <div class="doc-row row-ty-date">
+        <div class="doc-label" style="font-size:20pt;font-weight:bold;">ที่</div>
 
-        <!-- เรื่อง -->
-        <div style="
-    display:grid;
-    grid-template-columns: 1.2cm 1fr;
-    column-gap:0;
-    margin-bottom:2px;
-    line-height:1.38;
-">
-
-          <div style="white-space:nowrap;">
-            เรื่อง
-          </div>
-
-          <div style="
-        text-align:left;
-        line-height:1.38;
-    ">
-            <?= h($displaySubject) ?>
-          </div>
-
+        <div class="dot-line ty-left">
+          <span class="chip" contenteditable="true" data-target="doc_no">
+            <?= h($doc_no ?: 'ทส.486/2568') ?>
+          </span>
         </div>
 
-        <!-- เรียน -->
-        <div style="
-    display:grid;
-    grid-template-columns: 1.2cm 1fr;
-    column-gap:0;
-    margin-bottom:2px;
-    line-height:1.38;
-">
+        <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
 
-          <div style="white-space:nowrap;">
-            เรียน
-          </div>
-
-          <div style="
-        text-align:left;
-        line-height:1.38;
-    ">
-            <?= nl2br(h($displayToPerson)) ?>
-          </div>
-
+        <div class="dot-line ty-right">
+          <span class="chip" contenteditable="true" data-target="doc_date_display">
+            <?= h($thaiDocDate ?: '') ?>
+          </span>
         </div>
-
-        <div style="margin-bottom:8px;">
-
-          <div>
-            <span style="display:inline-block; width:2.2cm;">
-              สิ่งที่ส่งมาด้วย
-            </span>
-
-            <span style="
-        display:inline-block;
-        width:8.3cm;
-        padding-left:0.25cm;
-    ">
-              ๑. รายละเอียดโครงการ
-            </span>
-
-            <span>จำนวน ๑ ชุด</span>
-          </div>
-
-          <div>
-            <span style="display:inline-block; width:2.2cm;"></span>
-
-            <span style="
-        display:inline-block;
-        width:8.3cm;
-        padding-left:0.25cm;
-    ">
-              ๒. แบบตอบรับการเป็นวิทยากร
-            </span>
-
-            <span>จำนวน ๑ ฉบับ</span>
-          </div>
-        </div>
-
-        <!-- ย่อหน้า 1 -->
-        <p style="
-        text-indent:2.5cm;
-        margin:0 0 10px 0;
-        text-align:justify;
-        line-height:1.38;
-        letter-spacing:-0.1px;
-        word-spacing:-1px;
-    ">
-          ด้วย<?= h($displayDepartmentFull) ?> <?= h($displayFaculty) ?>
-          มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
-          ได้ดำเนินการจัด<?= h($displayProjectTitle) ?> ใน<?= h($displayEventDate) ?> เวลา <?= h($displayEventTime) ?>
-          น.
-          ณ <?= h($displayLocation) ?> โดยมีวัตถุประสงค์<?= nl2br(h($displayObjective)) ?>
-          รายละเอียดโครงการตามสิ่งที่ส่งมาด้วย ๑
-        </p>
-
-        <!-- ย่อหน้า 2 -->
-        <p style="
-        text-indent:2.5cm;
-        margin:0 0 10px 0;
-        text-align:justify;
-        line-height:1.38;
-        letter-spacing:-0.1px;
-        word-spacing:-1px;
-    ">
-          <?= h($displayDepartmentFull) ?> <?= nl2br(h($displayInviteStatement)) ?>
-          จึงขอเรียนเชิญท่านเป็นวิทยากรบรรยายเรื่องดังกล่าว ตามวัน เวลา และสถานที่ข้างต้น
-        </p>
-
-        <!-- ย่อหน้า 3 -->
-        <p style="
-        text-indent:2.5cm;
-        margin:0 0 10px 0;
-        line-height:1.38;
-    ">
-          จึงเรียนมาเพื่อโปรดพิจารณาให้ความอนุเคราะห์ จะขอบคุณยิ่ง
-        </p>
-
-        <!-- ขอแสดงความนับถือ -->
-        <div style="
-    text-align:center;
-    margin-top:22px;
-    width:100%;
-">
-          ขอแสดงความนับถือ
-        </div>
-
-        <!-- ลายเซ็น -->
-        <div style="
-    text-align:center;
-    margin-top:52px;
-    width:100%;
-    line-height:1.15;
-    white-space:nowrap;
-">
-
-          <div>
-            (ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์)
-          </div>
-
-          <div>
-            คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม
-          </div>
-
-        </div>
-
-        <!-- footer -->
-        <div style="
-    margin-top:30px;
-    margin-left:0.2cm;
-
-    font-size:16pt;
-
-    line-height:1.32;
-
-    letter-spacing:-0.05px;
-
-    color:#111;
-">
-
-          <?= h($displayDepartmentFull) ?><br>
-
-          โทรศัพท์ ๐-๓๗๒๑-๗๓๔๐-๓ ต่อ ๗๐๖๕-๖<br>
-
-          โทรสาร ๐-๓๗๒๑-๗๓๑๗-๘<br>
-
-          ไปรษณีย์อิเล็กทรอนิกส์ :
-          <a href="mailto:it@itm.kmutnb.ac.th" style="
-         color:#0563c1;
-         text-decoration:underline;
-       ">
-            it@itm.kmutnb.ac.th
-          </a>
-
-        </div>
-
       </div>
+
+
+
+      <!-- บรรทัด “เรียน ...” -->
+      <div class="doc-row">
+        <div class="doc-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
+        <div class="dot-line">
+          <span class="chip" contenteditable="true">
+            ขอความอนุเคราะห์ข้อมูลรูปภาพ X-ray กระเป๋าสัมภาระของผู้โดยสาร
+            เพื่อใช้ในการจัดทำปริญญานิพนธ์
+          </span>
+        </div>
+      </div>
+
+
+      <div class="content-block single">
+        เรียน <span class="chip" contenteditable="true">
+          กรรมการผู้อำนวยการใหญ่ บริษัท ท่าอากาศยานไทย จำกัด (มหาชน)
+        </span>
+      </div>
+
+      <!-- ย่อหน้า 1 -->
+      <div class="content-block paragraph">
+        ด้วยในภาคเรียนที่ ๑ ปีการศึกษา ๒๕๖๗ ภาควิชาเทคโนโลยีสารสนเทศ
+        คณะเทคโนโลยีและการจัดการอุตสาหกรรม
+        มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
+        ได้เปิดทำการสอนรายวิชา ๐๖๐๔๗๓๐๒ โครงงานเทคโนโลยีสารสนเทศ
+        ในหลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาเทคโนโลยีสารสนเทศ
+        โดยหลักสูตรกำหนดให้นักศึกษาปริญญาตรี ชั้นปีที่ ๔
+        จัดทำปริญญานิพนธ์ เรื่อง
+        “ระบบจำแนกวัตถุสิ่งแปลกปลอมในกระเป๋าผู้โดยสารจากภาพเอ็กซ์เรย์”
+        โดยมี ผู้ช่วยศาสตราจารย์ ดร.วัฒน์ ประจวบศักดิ์ เป็นอาจารย์ที่ปรึกษาปริญญานิพนธ์
+      </div>
+
+
+
+      <!-- ย่อหน้า 2 -->
+      <div class="content-block paragraph">
+        ทางคณะเทคโนโลยีและการจัดการอุตสาหกรรม
+        จึงขอความอนุเคราะห์มายังท่านได้โปรดให้ความอนุเคราะห์ข้อมูลภาพ X-ray
+        กระเป๋าสัมภาระของผู้โดยสาร จำนวน ๒๐,๐๐๐ ภาพ
+        เพื่อนำข้อมูลมาประกอบการจัดทำปริญญานิพนธ์หัวข้อดังกล่าวข้างต้น
+        โดยมีรายชื่อนักศึกษาที่ขอความอนุเคราะห์ในครั้งนี้ จำนวน ๑ คน ดังนี้
+      </div>
+
+      <div class="content-block paragraph" style="text-indent:2.5cm;">
+        ๑. นายณภัทร เผือเชื้อ
+        รหัสนักศึกษา ๖๗-๐๖๐๒๐๖-๒๐๒๓-๑
+      </div>
+
+
+      <!-- ย่อหน้า 3 -->
+      <div class="content-block paragraph">
+        จึงเรียนมาเพื่อโปรดพิจารณา หากต้องประการใด กรุณาแจ้งให้ทางคณะเทคโนโลยี
+        และการจัดการอุตสาหกรรม หรือที่ นายณภัทร เผือเชื้อ
+        หมายเลขโทรศัพท์ ๐๘๙-๕๔๘๘๕๕๘ และขอขอบคุณมา ณ โอกาสนี้
+      </div>
+
+      <div class="content-block paragraph" style="text-align:center; transform: translateX(0.8cm);">
+        ขอแสดงความนับถือ
+      </div>
+
+
+      <div class="signature-wrapper">
+        <div class="signature-block" id="signatureBlock">
+          <div class="sig-name">(ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์)</div>
+          <div class="sig-position">คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม</div>
+        </div>
+      </div>
+
+      <div class="content-block single" style="margin-top:1.5cm;">
+        ภาควิชาเทคโนโลยีสารสนเทศ<br>
+        โทร. ๐ ๓๗๒๙ ๓๙๓๓–๓ ต่อ ๑๐๒๕–๑๐๒๖<br>
+        โทรสาร ๐ ๓๗๒๙ ๓๙๓๑<br>
+        ไปรษณีย์อิเล็กทรอนิกส์ ladda.t@itm.kmutnb.ac.th
+      </div>
+
 
       <!-- <div style="font-family:'TH SarabunPSK'; font-size:16pt; line-height:1.2;"> เรียน <?= h($hdr_to) ?> </div>
             <div class="content-block single align-to-dean"> เพื่อโปรดพิจารณาอนุมัติ </div>
@@ -1152,9 +809,9 @@ $len = max(20, $len);
       <div class="footer-actions">
 
         <!-- 🔵 ปุ่มแรก: พิมพ์/ดูตัวอย่าง (ทุก role ต้องมี และอยู่ลำดับแรก) -->
-        <button type="button" onclick="downloadPdf()"
+        <button type="button" onclick="window.print()"
           class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          ดาวน์โหลด PDF
+          พิมพ์/ดูตัวอย่าง
         </button>
 
         <!-- 🟩 USER: ปุ่มยืนยัน -->
@@ -1333,85 +990,7 @@ $len = max(20, $len);
     box.style.width = nameEl.offsetWidth + 'px';
   })();
   </script>
-
-  <script>
-  async function downloadPdf() {
-    try {
-      const {
-        jsPDF
-      } = window.jspdf;
-
-      const pages = document.querySelectorAll(".page");
-      if (!pages.length) {
-        alert("ไม่พบหน้าเอกสาร .page");
-        return;
-      }
-
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4"
-      });
-
-      for (let i = 0; i < pages.length; i++) {
-        const clone = pages[i].cloneNode(true);
-
-        clone.style.position = "fixed";
-        clone.style.left = "-9999px";
-        clone.style.top = "0";
-        clone.style.width = "794px";
-        clone.style.minHeight = "1123px";
-        clone.style.height = "1123px";
-        clone.style.boxSizing = "border-box";
-        clone.style.background = "#ffffff";
-        clone.style.boxShadow = "none";
-        clone.style.margin = "0";
-        clone.style.overflow = "hidden";
-
-        clone.querySelectorAll(".footer-actions").forEach(el => el.remove());
-
-        clone.querySelectorAll("[contenteditable]").forEach(el => {
-          el.setAttribute("contenteditable", "false");
-        });
-
-        const garuda = clone.querySelector('img[src*="g_photo1"], img[src*="garuda"]');
-        if (garuda) {
-          garuda.style.opacity = "0.58";
-          garuda.style.filter = "grayscale(100%) contrast(35%) brightness(165%)";
-        }
-
-        document.body.appendChild(clone);
-
-        const canvas = await html2canvas(clone, {
-          scale: 4,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: "#ffffff",
-          windowWidth: 794,
-          windowHeight: 1123,
-          scrollX: 0,
-          scrollY: 0
-        });
-
-        document.body.removeChild(clone);
-
-        const imgData = canvas.toDataURL("image/png");
-
-        if (i > 0) {
-          pdf.addPage();
-        }
-
-        pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
-      }
-
-      pdf.save("speaker_invitation_<?= (int)$docId ?>.pdf");
-
-    } catch (error) {
-      console.error(error);
-      alert("สร้าง PDF ไม่สำเร็จ กรุณากด F12 ดู Console");
-    }
-  }
-  </script>
 </body>
+
 
 </html>

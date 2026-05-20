@@ -227,6 +227,7 @@ if (!isset($_SESSION['user_id'])) {
 
       return {
         document_id: d.document_id,
+        join_type: d.join_type || "",
         title: d.join_type || "(ไม่มีชื่อเรื่อง)",
         detail: d.course_name || "(ไม่มีรายละเอียด)",
         date: d.doc_date,
@@ -329,18 +330,28 @@ if (!isset($_SESSION['user_id'])) {
       <div class="bg-gray-50 p-4 rounded-xl shadow flex justify-between items-start">
 
         <!-- ซ้าย -->
-        <div>
-          <a href="#" onclick="openDocument(${req.document_id})"
+        <div class="flex-1 min-w-0 pr-4">
+          <a href="#" onclick="openDocument(${req.document_id}, '${String(req.join_type).replace(/'/g, "\\'")}')"
              class="font-semibold text-teal-600 hover:underline text-lg">
             ${req.title}
           </a>
 
-          <div class="text-sm text-gray-500 mt-1 flex items-center space-x-2">
-            <span>${req.detail}</span>
-            <span>| สถานะ:</span>
-            <span class="px-2 py-1 rounded-full text-xs font-semibold ${statusClass}">
-              ${req.status}
-            </span>
+         <div class="text-sm text-gray-500 mt-1">
+
+            <!-- รายละเอียด -->
+            <div class="break-words">
+              ${req.detail}
+            </div>
+
+            <!-- สถานะ -->
+            <div class="mt-2 flex items-center gap-2">
+              <span>สถานะ:</span>
+
+              <span class="px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${statusClass}">
+                ${req.status}
+              </span>
+            </div>
+
           </div>
         </div>
 
@@ -509,7 +520,7 @@ if (!isset($_SESSION['user_id'])) {
     }
   });
 
-  function openDocument(docId) {
+  function openDocument(docId, joinType = "") {
     fetch("../check_view_permission.php?id=" + docId)
 
       .then(r => r.json())
@@ -522,7 +533,11 @@ if (!isset($_SESSION['user_id'])) {
         }
 
         if (res.allowed === true) {
-          window.location.href = "../documents/view_memo.php?id=" + docId;
+          const url = (joinType === "นำเสนอผลงานวิจัย") ?
+            "../form_Memo/form_memo_academic_1.php?id=" + docId :
+            "../documents/view_memo.php?id=" + docId;
+
+          window.location.href = url;
           return;
         }
 

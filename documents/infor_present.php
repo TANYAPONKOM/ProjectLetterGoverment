@@ -487,8 +487,8 @@ $position    = $formData[3]  ?? '';
       <!-- 1. ชื่อ–นามสกุลผู้ยื่นขอ -->
       <div class="mb-4 flex items-center gap-4">
         <label class="lbl text-gray-800 whitespace-nowrap w-56">1. ชื่อ–นามสกุลผู้ยื่นขอ:</label>
-        <input type="text" id="fullName" name="full_name" class="flex border rounded-md p-2" readonly
-          value="<?= htmlspecialchars($ownerName ?: ($_SESSION['fullname'] ?? '')) ?>" />
+        <input type="text" id="fullName" name="full_name" class="flex border rounded-md p-2"
+          value="<?= htmlspecialchars($formData[2] ?? $ownerName ?: ($_SESSION['fullname'] ?? '')) ?>" />
 
       </div>
 
@@ -504,7 +504,7 @@ $position    = $formData[3]  ?? '';
         <div class="flex flex-col">
           <input type="text" name="presenter_name" id="presenterName" data-spell-field="presenter_name"
             class="border rounded-md p-2 w-[330px]" placeholder="เช่น นางสาวสมหญิง ตั้งใจ"
-            value="<?= htmlspecialchars($formData[2] ?? '') ?>">
+            value="<?= htmlspecialchars($formData[14] ?? '') ?>">
 
           <div id="presenterNameSpellBox" class="spell-box hidden"></div>
 
@@ -569,8 +569,9 @@ $position    = $formData[3]  ?? '';
 
         <select name="conference_level" id="conferenceLevel" class="border rounded-md p-2 flex-1">
           <option value="">-- เลือกระดับการประชุม --</option>
-          <option value="ระดับชาติ">ระดับชาติ</option>
-          <option value="ระดับนานาชาติ">ระดับนานาชาติ</option>
+          <option value="ระดับชาติ" <?= (($formData[15] ?? '') === 'ระดับชาติ') ? 'selected' : '' ?>>ระดับชาติ</option>
+          <option value="ระดับนานาชาติ" <?= (($formData[15] ?? '') === 'ระดับนานาชาติ') ? 'selected' : '' ?>>
+            ระดับนานาชาติ</option>
         </select>
       </div>
 
@@ -971,7 +972,7 @@ $position    = $formData[3]  ?? '';
     showSpellLoading(el);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
       const response = await fetch("http://127.0.0.1:8001/api/spell-check", {
@@ -1220,7 +1221,7 @@ $position    = $formData[3]  ?? '';
     const okSpell = await checkAllSpellFields();
     if (!okSpell) return;
 
-    syncPresentFormToSaveMemo();
+
     byId("eventTitleHidden").value = byId("conferenceName")?.value.trim() || "";
     byId("joinDateHidden").value = byId("internPeriod")?.value.trim() || "";
     byId("placeHidden").value = byId("conferencePlace")?.value.trim() || "";

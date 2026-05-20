@@ -1,7 +1,7 @@
-<!-- ขออนุมัติใช้ห้องพักสำหรับบุคลากรบรรจุใหม่ -->
+<!-- ขอความอนุเคราะห์ข้อมูลรูปภาพ X-ray กระเป๋าสัมภาระของผู้โดยสารเพื่อใช้ในการจัดทำปริญญานิพนธ์ -->
 <?php
 session_start();
-require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/../functions.php';
 
 /* --------------------------------------------------
    ตรวจ session
@@ -118,10 +118,10 @@ foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
 /* --------------------------------------------------
    ฟังก์ชัน helper
 -------------------------------------------------- */
-function h($s)
-{
-  return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
-}
+// function h($s)
+// {
+//   return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
+// }
 
 function thai_date($ymd)
 {
@@ -159,7 +159,8 @@ $amountStr = $valueMap[8] ?? "";
 $vehicle = $valueMap[9] ?? "";
 $faculty = $valueMap[10] ?? "";
 $department = $valueMap[11] ?? "";
-$reportDate = $valueMap[12] ?? "";
+$eventDate  = $valueMap[12] ?? "";
+$eventPlace = $valueMap[13] ?? "";
 
 /* --------------------------------------------------
    Mapping joinType → purposeCode (รหัส)
@@ -230,7 +231,8 @@ $len = max(20, $len);
     <title>บันทึกข้อความ #<?= h($document['document_id']) ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
     @import url("https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap");
@@ -462,12 +464,18 @@ $len = max(20, $len);
         }
 
         .page {
-            margin: 0;
-            box-shadow: none;
-            padding: 0.5cm 1cm 2cm 2.2cm !important;
-            width: 21cm;
-            min-height: 29.7cm;
-            border: 2px solid #fff !important;
+        width: 794px !important;
+        height: 1123px !important;
+        min-height: 1123px !important;
+
+        margin: 0 auto !important;
+
+        padding: 55px 85px 45px 85px !important;
+
+        box-shadow: none !important;
+        border: 2px solid #fff !important;
+        box-sizing: border-box !important;
+        overflow: visible !important;
         }
 
         .dot-line::after {
@@ -499,6 +507,11 @@ $len = max(20, $len);
             border: none !important;
             background: transparent !important;
             box-shadow: none !important;
+        }
+
+        .header-address {
+            width: 400px !important;
+            letter-spacing: -0.05px !important;
         }
     }
 
@@ -625,8 +638,8 @@ $len = max(20, $len);
         if (submitBtn) submitBtn.style.display = "none";
 
         // เปลี่ยนข้อความของปุ่มพิมพ์ให้อยู่ในโหมดตัวอย่าง
-        const printBtn = document.querySelector("button[onclick='window.print()']");
-        if (printBtn) printBtn.innerText = "พิมพ์/ดูตัวอย่าง (โหมดอ่านอย่างเดียว)";
+       const printBtn = document.querySelector("button[onclick='window.print()']");
+        if (printBtn) printBtn.innerText = "พิมพ์/ดูตัวอย่าง";
 
         // แจ้งเตือนแสดง read-only
         Swal.fire({
@@ -686,101 +699,243 @@ $len = max(20, $len);
             <input type="hidden" name="date_option" id="hidden_dateOption" value="range">
             <input type="hidden" name="single_date" id="hidden_singleDate" value="">
 
+<!-- หัวหนังสือราชการภายนอก -->
+<div style="
+  display:grid;
+  grid-template-columns: 31% 22% 47%;
+  align-items:start;
+  margin-top:18px;
+">
 
-            <!-- หัวบันทึก -->
-            <div style="display:flex; align-items:flex-end; justify-content:flex-start; gap:20px; margin-bottom:0.5em;">
-                <img src="https://i.pinimg.com/474x/bd/55/cc/bd55ccc4416012910a723da8f810658b.jpg"
-                    style="height:1.6cm; width:auto; margin-top:0;" />
+  <!-- เลขที่ -->
+  <div style="
+    font-size:16pt;
+    padding-top:105px;
+    white-space:nowrap;
+  ">
+    ที่ อว ๗๑๒๐/
+  </div>
 
-                <h1 class="doc-title" style="font-size:30pt;font-weight:bold;font-family:'TH SarabunPSK';
-      line-height:1.0;margin-bottom:-10px;text-align:center;flex:1;
-      transform: translateX(-0.3cm);">
-                    บันทึกข้อความ
-                </h1>
-            </div>
-
-            <!-- ส่วนราชการ -->
-            <div class="doc-row">
-                <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
-                <div class="dot-line">
-                    <span class="chip" contenteditable="true" data-target="header_text">
-                        <?= h($header_text ?: 'คณะ... ภาค... โทร...') ?>
-                    </span>
-                </div>
-            </div>
-
-            <div class="doc-row row-ty-date">
-                <div class="doc-label" style="font-size:20pt;font-weight:bold;">ที่</div>
-
-                <div class="dot-line ty-left">
-                    <span class="chip" contenteditable="true" data-target="doc_no">
-                        <?= h($doc_no ?: 'ทส.486/2568') ?>
-                    </span>
-                </div>
-
-                <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
-
-                <div class="dot-line ty-right">
-                    <span class="chip" contenteditable="true" data-target="doc_date_display">
-                        <?= h($thaiDocDate ?: '') ?>
-                    </span>
-                </div>
-            </div>
+<!-- ครุฑ -->
+<div style="text-align:center; position:relative; left:55px; top:6px;">
+    <img src="/Pro_letter/assets/img/garuda.jpg"
+      style="
+        width:123px;
+        height:auto;
+        opacity:0.83;
+        filter: grayscale(100%) contrast(65%) brightness(126%);
+        image-rendering:auto;
+        border:none;
+        outline:none;
+        box-shadow:none;
+        background:transparent;
+        transform:scale(1.01);
+      ">
+  </div>
 
 
-            <!-- เรื่อง -->
-            <div class="doc-row">
-                <div class="doc-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
-                <div class="dot-line">
-                    <span class="chip" contenteditable="true">
-                        ขออนุมัติใช้ห้องพักสำหรับบุคลากรบรรจุใหม่
-                    </span>
-                </div>
-            </div>
+<!-- ที่อยู่ -->
+<div style="
+  font-size:15.5pt;
+  line-height:1.28;
 
+  padding-top:104px;
 
-            <!-- บรรทัด “เรียน ...” -->
-            <div class="content-block single">
-                เรียน ประธานคณะกรรมการบ้านพัก มจพ.วิทยาเขตปราจีนบุรี
-            </div>
+  padding-left:40px;
 
-            <!-- ย่อหน้า 1 -->
-            <div class="content-block paragraph">
-                ตามที่ ภาควิชาเทคโนโลยีสารสนเทศ คณะเทคโนโลยีและการจัดการอุตสาหกรรม
-                มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
-                ได้บรรจุบุคลากรใหม่ ได้แก่
-                <span class="chip" contenteditable="true">นายกาญจน์ ณ ศรีธะ</span>
-                และโดยเริ่มเข้าปฏิบัติงาน ในวันที่
-                <span class="chip" contenteditable="true">15 พฤษภาคม 2566</span>
-                ณ ภาควิชาเทคโนโลยีสารสนเทศ คณะเทคโนโลยีและการจัดการอุตสาหกรรม
-                มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี นั้น
-            </div>
+  width:380px;
 
-            <!-- ย่อหน้า 2 -->
-            <div class="content-block paragraph">
-                ในการนี้ ภาควิชาเทคโนโลยีสารสนเทศ จึงมีความประสงค์ขออนุมัติใช้ห้องพักสำหรับบุคลากร
-                ให้แก่
-                <span class="chip" contenteditable="true">นายกาญจน์ ณ ศรีธะ</span>
-                ณ อาคารบ้านพักอาจารย์และเจ้าหน้าที่ มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
-                วิทยาเขตปราจีนบุรี ซึ่งอยู่ในเขตปกครองของจังหวัดนครราชสีมา
-                ทั้งนี้เพื่อให้ปฏิบัติงานสอนประจำภาควิชาเทคโนโลยีสารสนเทศต่อไป
-                รายละเอียดตามเอกสารแนบท้าย
-            </div>
+  text-align:left;
+">
 
-            <!-- ย่อหน้า 3 -->
-            <div class="content-block paragraph">
-                จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ
-            </div>
+  <div style="
+      position:relative;
+      top:-5px;
+  ">
+      คณะเทคโนโลยีและการจัดการอุตสาหกรรม
+  </div>
 
+  <div style="
+    position:relative;
+    top:-2px;
+">
+    มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
+</div>
 
+  ๑๒๙ หมู่ ๒๑ ต.เนินหอม อ.เมือง จ.ปราจีนบุรี ๒๕๒๓๐
 
-            <div class="signature-wrapper">
-                <div class="signature-block" id="signatureBlock">
-                    <div class="sig-name">(ผู้ช่วยศาสตราจารย์ ดร.ขนิษฐา นามี)</div>
-                    <div class="sig-position">หัวหน้าภาควิชาเทคโนโลยีสารสนเทศ</div>
-                </div>
-            </div>
+</div>
 
+</div>
+
+<!-- วันที่ -->
+<div style="
+  font-size:16pt;
+
+  text-align:center;
+
+  margin-top:20px;
+
+  margin-bottom:16px;
+
+  position:relative;
+
+  left:55px;
+">
+  ๒ ตุลาคม ๒๕๖๗
+</div>
+
+<div style="
+    font-family:'TH SarabunPSK';
+    font-size:16pt;
+    line-height:1.15;
+    color:#111;
+">
+
+<!-- เรื่อง -->
+<div style="
+  display:grid;
+  grid-template-columns: 1cm 1fr;
+  column-gap:0;
+  margin-bottom:2px;
+  line-height:1.38;
+">
+
+  <div style="white-space:nowrap;">
+    เรื่อง
+  </div>
+
+  <div>
+    ขอความอนุเคราะห์ข้อมูลรูปภาพ X-ray กระเป๋าสัมภาระของผู้โดยสารเพื่อใช้ในการจัดทำปริญญานิพนธ์
+  </div>
+
+</div>
+
+<!-- เรียน -->
+<div style="
+  display:grid;
+  grid-template-columns: 1cm 1fr;
+  column-gap:0;
+  margin-bottom:12px;
+  line-height:1.38;
+">
+
+  <div style="white-space:nowrap;">
+    เรียน
+  </div>
+
+  <div>
+    กรรมการผู้อำนวยการใหญ่ บริษัท ท่าอากาศยานไทย จำกัด (มหาชน)
+  </div>
+
+</div>
+
+<!-- ย่อหน้า 1 -->
+<div style="
+  text-indent:2.5cm;
+  line-height:1.32;
+  text-align:justify;
+  margin-bottom:14px;
+">
+
+  ด้วยในภาคเรียนที่ ๑ ปีการศึกษา ๒๕๖๗ ภาควิชาเทคโนโลยีสารสนเทศ 
+  คณะเทคโนโลยีและการจัดการอุตสาหกรรม 
+  มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี 
+  ได้เปิดทำการสอนรายวิชา ๐๖๐๒๔๓๒๐๒ โครงงานเทคโนโลยีสารสนเทศ ๑ 
+  ในหลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาเทคโนโลยีสารสนเทศ 
+  โดยหลักสูตรกำหนดให้นักศึกษาปริญญาตรี ชั้นปีที่ ๔ จัดทำปริญญานิพนธ์ 
+  เรื่อง “ระบบจำแนกวัตถุมีคมในกระเป๋าผู้โดยสารจากภาพเอ็กซ์เรย์” 
+  โดยมีผู้ช่วยศาสตราจารย์ ดร.วันทนี ประจวบศุภกิจ 
+  เป็นอาจารย์ที่ปรึกษาปริญญานิพนธ์
+
+</div>
+
+<!-- ย่อหน้า 2 -->
+<div style="
+  text-indent:2.5cm;
+  line-height:1.55;
+  text-align:justify;
+  margin-bottom:2px;
+">
+
+  ทางคณะเทคโนโลยีและการจัดการอุตสาหกรรม 
+  จึงขอความอนุเคราะห์มายังท่านได้โปรดให้ความอนุเคราะห์ข้อมูลภาพ X-ray 
+  กระเป๋าสัมภาระของผู้โดยสาร จำนวน ๒๐,๐๐๐ ภาพ 
+  เพื่อนำข้อมูลมาประกอบการจัดทำปริญญานิพนธ์หัวข้อดังกล่าวข้างต้น 
+  โดยมีรายชื่อนักศึกษาที่จะขอความอนุเคราะห์ในครั้งนี้ จำนวน ๑ คน ดังนี้
+
+</div>
+
+<!-- รายชื่อ -->
+<div style="
+  margin-left:2.5cm;
+  line-height:1.55;
+  margin-bottom:6px;
+">
+
+  ๑. นายนภัทร เนื้อเย็น รหัสนักศึกษา ๖๔-๐๖๐๒๑๖-๒๒๐๓-๖
+
+</div>
+
+<!-- ย่อหน้า 3 -->
+<div style="
+  text-indent:2.5cm;
+  line-height:1.32;
+  text-align:justify;
+  margin-bottom:18px;
+">
+
+  จึงเรียนมาเพื่อโปรดพิจารณา หากขัดข้องประการใด 
+  กรุณาแจ้งให้ทางคณะเทคโนโลยีและการจัดการอุตสาหกรรม 
+  หรือที่ นายนภัทร เนื้อเย็น หมายเลขโทรศัพท์ ๐๘๗-๖๕๘๓๕๐๔ 
+  และขอขอบคุณมา ณ โอกาสนี้
+
+</div>
+
+ <div style="
+  text-align:center;
+  margin-top:18px;
+  line-height:1.6;
+">
+
+  ขอแสดงความนับถือ
+
+  <div style="height:58px;"></div>
+
+  <div>
+    (ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์)
+  </div>
+
+  <div>
+    คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม
+  </div>
+
+</div>
+
+<div style="
+  margin-top:34px;
+  margin-left:0.2cm;
+
+  font-size:16pt;
+
+  line-height:1.38;
+
+  color:#111;
+">
+
+  ภาควิชาเทคโนโลยีสารสนเทศ<br>
+
+  โทร. ๐ ๓๗๒๑ ๗๓๔๐-๓ ต่อ ๗๐๖๕-๖<br>
+
+  ไปรษณีย์อิเล็กทรอนิกส์ :
+<span style="
+  color:#111;
+  text-decoration:none;
+">
+    it@itm.kmutnb.ac.th
+  </span>
+
+</div>
             <!-- <div style="font-family:'TH SarabunPSK'; font-size:16pt; line-height:1.2;"> เรียน <?= h($hdr_to) ?> </div>
             <div class="content-block single align-to-dean"> เพื่อโปรดพิจารณาอนุมัติ </div>
             <div class="content-block single align-to-dean" style="margin-top:50px;;"> (ผู้ช่วยศาสตราจารย์ ดร. ขนิษฐา
@@ -788,10 +943,10 @@ $len = max(20, $len);
             <div class="footer-actions">
 
                 <!-- 🔵 ปุ่มแรก: พิมพ์/ดูตัวอย่าง (ทุก role ต้องมี และอยู่ลำดับแรก) -->
-                <button type="button" onclick="window.print()"
-                    class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-                    พิมพ์/ดูตัวอย่าง
-                </button>
+            <button type="button" onclick="downloadPdf()"
+            class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+                ดาวน์โหลด PDF
+            </button>
 
                 <!-- 🟩 USER: ปุ่มยืนยัน -->
                 <?php if ($roleId === 3): ?>
@@ -970,6 +1125,83 @@ $len = max(20, $len);
         box.style.width = nameEl.offsetWidth + 'px';
     })();
     </script>
+
+<script>
+async function downloadPdf() {
+  try {
+    const { jsPDF } = window.jspdf;
+
+    const pages = document.querySelectorAll(".page");
+    if (!pages.length) {
+      alert("ไม่พบหน้าเอกสาร .page");
+      return;
+    }
+
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4"
+    });
+
+    for (let i = 0; i < pages.length; i++) {
+      const clone = pages[i].cloneNode(true);
+
+      clone.style.position = "fixed";
+      clone.style.left = "-9999px";
+      clone.style.top = "0";
+      clone.style.width = "794px";
+      clone.style.minHeight = "1123px";
+      clone.style.height = "1123px";
+      clone.style.boxSizing = "border-box";
+      clone.style.background = "#ffffff";
+      clone.style.boxShadow = "none";
+      clone.style.margin = "0";
+      clone.style.overflow = "hidden";
+
+      clone.querySelectorAll(".footer-actions").forEach(el => el.remove());
+
+      clone.querySelectorAll("[contenteditable]").forEach(el => {
+        el.setAttribute("contenteditable", "false");
+      });
+
+      const garuda = clone.querySelector('img[src*="g_photo1"], img[src*="garuda"]');
+      if (garuda) {
+        garuda.style.opacity = "0.58";
+        garuda.style.filter = "grayscale(100%) contrast(35%) brightness(165%)";
+      }
+
+      document.body.appendChild(clone);
+
+      const canvas = await html2canvas(clone, {
+        scale: 4,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        windowWidth: 794,
+        windowHeight: 1123,
+        scrollX: 0,
+        scrollY: 0
+      });
+
+      document.body.removeChild(clone);
+
+      const imgData = canvas.toDataURL("image/png");
+
+      if (i > 0) {
+        pdf.addPage();
+      }
+
+      pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
+    }
+
+    pdf.save("research_data_<?= (int)$docId ?>.pdf");
+
+  } catch (error) {
+    console.error(error);
+    alert("สร้าง PDF ไม่สำเร็จ กรุณากด F12 ดู Console");
+  }
+}
+</script>
 </body>
 
 

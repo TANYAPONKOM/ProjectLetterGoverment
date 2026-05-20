@@ -102,7 +102,73 @@ $valueMap = [];
 foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
   $valueMap[(int) $row['field_id']] = $row['value_text'];
 }
+function splitSubjectLines($text, $limit = 72)
+{
+  $text = trim(preg_replace('/\s+/u', ' ', (string)$text));
+  $lines = [];
 
+  while (mb_strlen($text, 'UTF-8') > $limit) {
+    $cut = mb_substr($text, 0, $limit, 'UTF-8');
+    $spacePos = mb_strrpos($cut, ' ', 0, 'UTF-8');
+
+    if ($spacePos !== false && $spacePos > 25) {
+      $lines[] = trim(mb_substr($text, 0, $spacePos, 'UTF-8'));
+      $text = trim(mb_substr($text, $spacePos + 1, null, 'UTF-8'));
+    } else {
+      $lines[] = trim($cut);
+      $text = trim(mb_substr($text, $limit, null, 'UTF-8'));
+    }
+  }
+
+  if ($text !== '') {
+    $lines[] = $text;
+  }
+
+  return $lines;
+}
+function thaiBahtText($amount)
+{
+  $amount = number_format((float)$amount, 2, '.', '');
+  [$number, $satang] = explode('.', $amount);
+
+  $txtNumArr = ['ศูนย์','หนึ่ง','สอง','สาม','สี่','ห้า','หก','เจ็ด','แปด','เก้า'];
+  $txtDigitArr = ['','สิบ','ร้อย','พัน','หมื่น','แสน','ล้าน'];
+
+  $convert = function($num) use (&$convert, $txtNumArr, $txtDigitArr) {
+    $num = (string)((int)$num);
+    $len = strlen($num);
+    $result = '';
+
+    for ($i = 0; $i < $len; $i++) {
+      $n = (int)$num[$i];
+      $pos = $len - $i - 1;
+
+      if ($n === 0) continue;
+
+      if ($pos === 0 && $n === 1 && $len > 1) {
+        $result .= 'เอ็ด';
+      } elseif ($pos === 1 && $n === 2) {
+        $result .= 'ยี่';
+      } elseif ($pos === 1 && $n === 1) {
+        $result .= '';
+      } else {
+        $result .= $txtNumArr[$n];
+      }
+
+      $result .= $txtDigitArr[$pos];
+    }
+
+    return $result;
+  };
+
+  $bahtText = ((int)$number === 0) ? 'ศูนย์บาท' : $convert($number) . 'บาท';
+
+  if ((int)$satang === 0) {
+    return $bahtText . 'ถ้วน';
+  }
+
+  return $bahtText . $convert($satang) . 'สตางค์';
+}
 function thai_date($ymd)
 {
   if (!$ymd || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $ymd))
@@ -155,6 +221,7 @@ foreach ($budgetItems as $item) {
   $budgetTotal += (float)$item['amount'];
 }
 $hasExpense = (!$noCost && !empty($budgetItems) && $budgetTotal > 0);
+$hasCar = trim($vehicle) !== '';
 
 $purposeCode = 'other';
 
@@ -176,7 +243,9 @@ $doc_no = $document["doc_no"] ?? "";
 $subject = $document["subject"] ?? "";
 
 $thaiDocDate = thai_date($docDate);
-$prettyAmount = $amountStr !== "" ? number_format((float) $amountStr, 2) : "";
+$displayAmount = $budgetTotal > 0 ? $budgetTotal : (float)str_replace(',', '', $amountStr);
+$displayAmountNumber = number_format($displayAmount, 2);
+$displayAmountThai = thaiBahtText($displayAmount);
 
 $hdr_agency = trim(
   ($faculty ?: "คณะ..................................") . " " .
@@ -302,6 +371,39 @@ $len = max(20, $len);
     text-align: center;
     margin: 0 0 0cm 0;
   }
+
+  .subject-wrap {
+    flex: 1;
+  }
+
+  .subject-line {
+    min-height: 22px;
+    line-height: 1.05;
+    border-bottom: 2px dotted #000;
+    padding-left: 4px;
+    padding-top: 4px;
+    font-family: "TH SarabunPSK";
+    font-size: 16pt;
+    font-weight: 300;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .subject-line.blank-label-line {
+    margin-left: 0;
+  }
+
+  .subject-text {
+    display: inline-block;
+    position: relative;
+    top: 4px;
+  }
+
+  .subject-inline {
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+  }
   </style>
 </head>
 </head>
@@ -370,12 +472,18 @@ $len = max(20, $len);
         </span>
       </div>
     </div>
-    <div class="doc-row">
+    <?php
+      $mainSubjectText = 'ขออนุมัติตัวบุคคลเข้าร่วม' . ($subject ?: 'ขออนุมัติ...');
+      $mainSubjectLine1 = mb_substr($mainSubjectText, 0, 82, 'UTF-8');
+      $mainSubjectLine2 = mb_substr($mainSubjectText, 82, null, 'UTF-8');
+    ?>
+    <div class="doc-row" style="align-items:flex-start;">
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
-      <div class="dot-line">
-        <span class="chip">
-          <?= h($subject ?: 'ขออนุมัติ...') ?>
-        </span>
+      <div class="subject-wrap">
+        <div class="subject-line"><span class="subject-text"><?= h($mainSubjectLine1) ?></span></div>
+        <?php if (trim($mainSubjectLine2) !== ''): ?>
+        <div class="subject-line"><span class="subject-text"><?= h($mainSubjectLine2) ?></span></div>
+        <?php endif; ?>
       </div>
     </div>
     <div class="memo-to-row">
@@ -383,12 +491,12 @@ $len = max(20, $len);
       <div class="memo-to-text">คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม</div>
     </div>
     <div class="content-block paragraph">
-      ตามที่ สมาคมสหกิจศึกษาไทย กำหนดจัดอบรมหลักสูตร
+      ตามที่ กำหนดจัดอบรมหลักสูตร
       <span class="chip"><?= h($courseName ?: 'ชื่อหลักสูตร') ?></span>
       ระหว่างวันที่
       <span class="chip keep"><?= h($joinDates ?: '...') ?></span>
       ณ <span class="chip"><?= h($location ?: '...') ?></span> นั้น
-      ซึ่งหลักสูตรดังกล่าวเป็นประโยชน์ต่อการพัฒนาทั้งกระบวนการจัดการเรียนการสอนในรูปแบบสหกิจศึกษา
+      ซึ่งหลักสูตรดังกล่าวเป็นประโยชน์ต่อการพัฒนาทั้งกระบวนการจัดการเรียนการสอน
     </div>
     <div class="content-block paragraph">
       การนี้ ข้าพเจ้า
@@ -402,7 +510,8 @@ $len = max(20, $len);
       ระหว่างวันที่ <span class="chip"><?= h($joinDates ?: '') ?></span>
       ณ <span class="chip"><?= h($location ?: '') ?></span>
       <?php if ($hasExpense): ?>
-      เป็นเงินจำนวน <span class="chip"><?= h($prettyAmount ?: number_format($budgetTotal, 2)) ?></span> บาท
+      เป็นเงินจำนวน <span class="chip"><?= h($displayAmountNumber) ?></span> บาท
+      (<span class="chip"><?= h($displayAmountThai) ?></span>)
       โดยขอใช้แหล่งเงินจัดสรรให้หน่วยงาน ประจำปีงบประมาณ
       <span class="chip">
         <?= h($thaiYear ? 'พ.ศ. ' . $thaiYear : 'พ.ศ. ....') ?>
@@ -442,7 +551,7 @@ $len = max(20, $len);
         <?= $canEdit
           ? "bg-teal-500 hover:bg-teal-600 text-white"
           : "bg-gray-300 text-gray-600 cursor-not-allowed" ?>">
-        แก้ไข
+        แก้ไขเอกสาร
       </a>
 
       <a href="<?= $homePath ?>"
@@ -452,6 +561,232 @@ $len = max(20, $len);
     </div>
     <?php endif; ?>
   </main>
+
+  <!-- section ค่าใช้จ่าย -->
+  <?php if ($hasExpense): ?>
+  <section class="page">
+    <div class="memo-title-row">
+      <img src="/Pro_letter/assets/img/garuda.jpg" class="garuda-img" />
+      <h1 class="doc-title">บันทึกข้อความ</h1>
+    </div>
+    <div class="doc-row">
+      <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
+      <div class="dot-line">
+        <span class="chip">
+          <?= h($header_text ?: 'คณะ... ภาค... โทร...') ?>
+        </span>
+      </div>
+    </div>
+    <div class="doc-row row-ty-date">
+      <div class="doc-label" style="font-size:20pt;font-weight:bold;">ที่</div>
+      <div class="dot-line ty-left">
+        <span class="chip">
+          <?= h($doc_no ?: 'ทส.486/2568') ?>
+        </span>
+      </div>
+      <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
+      <div class="dot-line ty-right">
+        <span class="chip">
+          <?= h($thaiDocDate ?: '') ?>
+        </span>
+      </div>
+    </div>
+    <?php
+      $expenseSubjectText = 'ขออนุมัติค่าใช้จ่ายในการเข้าร่วม' . ($subject ?: 'ขออนุมัติ...');
+      $expenseSubjectLine1 = mb_substr($expenseSubjectText, 0, 82, 'UTF-8');
+      $expenseSubjectLine2 = mb_substr($expenseSubjectText, 82, null, 'UTF-8');
+    ?>
+    <div class="doc-row" style="align-items:flex-start;">
+      <div class="doc-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
+      <div class="subject-wrap">
+        <div class="subject-line"><span class="subject-text"><?= h($expenseSubjectLine1) ?></span></div>
+        <?php if (trim($expenseSubjectLine2) !== ''): ?>
+        <div class="subject-line"><span class="subject-text"><?= h($expenseSubjectLine2) ?></span></div>
+        <?php endif; ?>
+      </div>
+    </div>
+    <div class="memo-to-row">
+      <div class="memo-to-label">เรียน</div>
+      <div class="memo-to-text">คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม</div>
+    </div>
+
+    <div class="content-block paragraph">
+      การนี้ ข้าพเจ้า
+      <span class="chip"><?= h($ownerName ?: 'ชื่อ-นามสกุล') ?></span>
+      <span class="chip"><?= h($position ?: '') ?></span>
+      สังกัดภาควิชา<span class="chip"><?= h($department ?: '...') ?></span>
+      <span class="chip"><?= h($faculty ?: '...') ?></span>
+      มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
+      จึงมีความประสงค์ขออนุมัติค่าใช้จ่ายในการเข้าร่วม
+      <span class="chip subject-inline"><?= h($subject ?: 'ขออนุมัติ...') ?></span>
+      ระหว่างวันที่ <span class="chip"><?= h($joinDates ?: '') ?></span>
+      ณ <span class="chip"><?= h($location ?: '') ?></span>
+      <?php if ($hasExpense): ?>
+      วงเงินทั้งสิ้น <span class="chip"><?= h($displayAmountNumber) ?></span> บาท
+      (<span class="chip"><?= h($displayAmountThai) ?></span>)
+      โดยขอใช้แหล่งเงินจัดสรรให้หน่วยงาน ประจำปีงบประมาณ
+      <span class="chip">
+        <?= h($thaiYear ? 'พ.ศ. ' . $thaiYear : 'พ.ศ. ....') ?>
+      </span>
+      ในส่วนของภาควิชา
+      เทคโนโลยีสารสนเทศ แผนงานจัดการศึกษาระดับอุดมศึกษา กองทุนพัฒนาบุคลากร หมวดค่าใช้สอย
+      <span class="keep">(รายละเอียดตามเอกสารแนบ)</span>
+      <?php else: ?>
+      โดยไม่เบิกค่าใช้จ่ายใดๆ ทั้งสิ้น
+      <?php endif; ?>
+    </div>
+    <div class="content-block paragraph">
+      จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ
+    </div>
+    <div class="signature-wrapper">
+      <div class="signature-block" id="signatureBlock">
+        <div class="sig-name">(<?= h($ownerName ?: '') ?>)</div>
+        <div class="sig-position"><?= h($position ?: '') ?></div>
+      </div>
+    </div>
+    <div style="font-family:'TH SarabunPSK'; font-size:16pt; line-height:1.2;"> เรียน <?= h($hdr_to) ?> </div>
+    <div class="approve-line">
+      เพื่อโปรดพิจารณาอนุมัติ
+    </div>
+    <div class="signature-area">
+      <div class="signature-name">(ผู้ช่วยศาสตราจารย์ ดร. ขนิษฐา นามี)</div>
+      <div class="signature-position">หัวหน้าภาควิชาเทคโนโลยีสารสนเทศ</div>
+    </div>
+    <?php if (!$hasExpense): ?>
+    <div class="footer-actions">
+      <button type="button" onclick="downloadPdf()"
+        class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+        ดาวน์โหลด PDF
+      </button>
+
+      <a href="/Pro_letter/documents/form_Memo.php?id=<?= $docId ?>" id="editBtn"
+        data-can-edit="<?= $canEdit ? '1' : '0' ?>" class="px-6 py-2 rounded-md text-xl font-bold
+        <?= $canEdit
+          ? "bg-teal-500 hover:bg-teal-600 text-white"
+          : "bg-gray-300 text-gray-600 cursor-not-allowed" ?>">
+        แก้ไขเอกสาร
+      </a>
+
+      <a href="<?= $homePath ?>"
+        class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+        กลับหน้าหลัก
+      </a>
+    </div>
+    <?php endif; ?>
+  </section>
+  <?php endif; ?>
+
+
+  <!-- section รถยนต์ -->
+  <?php if ($hasCar): ?>
+  <section class="page">
+    <div class="memo-title-row">
+      <img src="/Pro_letter/assets/img/garuda.jpg" class="garuda-img" />
+      <h1 class="doc-title">บันทึกข้อความ</h1>
+    </div>
+    <div class="doc-row">
+      <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
+      <div class="dot-line">
+        <span class="chip">
+          <?= h($header_text ?: 'คณะ... ภาค... โทร...') ?>
+        </span>
+      </div>
+    </div>
+    <div class="doc-row row-ty-date">
+      <div class="doc-label" style="font-size:20pt;font-weight:bold;">ที่</div>
+      <div class="dot-line ty-left">
+        <span class="chip">
+          <?= h($doc_no ?: 'ทส.486/2568') ?>
+        </span>
+      </div>
+      <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
+      <div class="dot-line ty-right">
+        <span class="chip">
+          <?= h($thaiDocDate ?: '') ?>
+        </span>
+      </div>
+    </div>
+    <?php
+      $carSubjectText = 'ขออนุมัติใช้รถยนต์ส่วนบุคคลในการเดินทางไปเข้าร่วม' . ($subject ?: 'ขออนุมัติ...');
+      $carSubjectLine1 = mb_substr($carSubjectText, 0, 82, 'UTF-8');
+      $carSubjectLine2 = mb_substr($carSubjectText, 82, null, 'UTF-8');
+    ?>
+    <div class="doc-row" style="align-items:flex-start;">
+      <div class="doc-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
+      <div class="subject-wrap">
+        <div class="subject-line"><span class="subject-text"><?= h($carSubjectLine1) ?></span></div>
+        <?php if (trim($carSubjectLine2) !== ''): ?>
+        <div class="subject-line"><span class="subject-text"><?= h($carSubjectLine2) ?></span></div>
+        <?php endif; ?>
+      </div>
+    </div>
+    <div class="memo-to-row">
+      <div class="memo-to-label">เรียน</div>
+      <div class="memo-to-text">คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม</div>
+    </div>
+
+    <div class="content-block paragraph">
+      ตามที่ ข้าพเจ้า
+      <span class="chip"><?= h($ownerName ?: 'ชื่อ-นามสกุล') ?></span>
+      <span class="chip"><?= h($position ?: '') ?></span>
+      สังกัดภาควิชา<span class="chip"><?= h($department ?: '...') ?></span>
+      <span class="chip"><?= h($faculty ?: '...') ?></span>
+      มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
+      จึงมีความประสงค์ที่จะขออนุมัติ เข้ารับการอบรมหลักสูตร
+      <span class="chip keep"><?= h($courseName ?: 'ชื่อหลักสูตร') ?></span>
+      ระหว่างวันที่ <span class="chip"><?= h($joinDates ?: '') ?></span>
+      ณ <span class="chip"><?= h($location ?: '') ?></span> นั้น
+
+
+    </div>
+    <div class="content-block paragraph">
+      ในการนี้ ข้าพเจ้าจึงขออนุมัติใช้รถยนต์ส่วนบุคคล หมายเลขทะเบียน
+      <span class="chip"><?= h($vehicle ?: '...') ?></span>
+      ในการเดินทางไป<span class="chip subject-inline"><?= h($subject ?: 'ชื่อหลักสูตร') ?></span>
+      ตามวัน เวลา และสถานที่ดังกล่าว ทั้งนี้ โดยให้เป็นไปตามหลักเกณฑ์และวิธีการของมหาวิทยาลัย
+
+
+    </div>
+    <div class="content-block paragraph">
+      จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ
+    </div>
+    <div class="signature-wrapper">
+      <div class="signature-block" id="signatureBlock">
+        <div class="sig-name">(<?= h($ownerName ?: '') ?>)</div>
+        <div class="sig-position"><?= h($position ?: '') ?></div>
+      </div>
+    </div>
+    <div style="font-family:'TH SarabunPSK'; font-size:16pt; line-height:1.2;"> เรียน <?= h($hdr_to) ?> </div>
+    <div class="approve-line">
+      เพื่อโปรดพิจารณาอนุมัติ
+    </div>
+    <div class="signature-area">
+      <div class="signature-name">(ผู้ช่วยศาสตราจารย์ ดร. ขนิษฐา นามี)</div>
+      <div class="signature-position">หัวหน้าภาควิชาเทคโนโลยีสารสนเทศ</div>
+    </div>
+    <?php if (!$hasExpense): ?>
+    <div class="footer-actions">
+      <button type="button" onclick="downloadPdf()"
+        class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+        ดาวน์โหลด PDF
+      </button>
+
+      <a href="/Pro_letter/documents/form_Memo.php?id=<?= $docId ?>" id="editBtn"
+        data-can-edit="<?= $canEdit ? '1' : '0' ?>" class="px-6 py-2 rounded-md text-xl font-bold
+        <?= $canEdit
+          ? "bg-teal-500 hover:bg-teal-600 text-white"
+          : "bg-gray-300 text-gray-600 cursor-not-allowed" ?>">
+        แก้ไขเอกสาร
+      </a>
+
+      <a href="<?= $homePath ?>"
+        class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+        กลับหน้าหลัก
+      </a>
+    </div>
+    <?php endif; ?>
+  </section>
+  <?php endif; ?>
   <?php if ($hasExpense): ?>
   <div class="page">
     <form action="save_expense.php" method="post" id="expenseForm">
@@ -589,6 +924,16 @@ $len = max(20, $len);
         </tr>
       </table>
 
+      <div style="
+        margin-top:8px;
+        text-align:left;
+        font-family:'TH SarabunPSK';
+        font-size:16pt;
+        line-height:1.2;
+      ">
+        <strong>หมายเหตุ</strong> ขอถัวจ่ายทุกรายการ
+      </div>
+
       <input type="hidden" name="doc_id" value="<?= $docId ?>">
       <input type="hidden" name="table_data" id="table_data">
       <div class="footer-actions">
@@ -602,7 +947,7 @@ $len = max(20, $len);
    <?= $canEdit
       ? "bg-teal-500 hover:bg-teal-600 text-white"
       : "bg-gray-300 text-gray-600 cursor-not-allowed" ?>">
-          แก้ไข
+          แก้ไขเอกสาร
         </a>
         <a href="<?= $homePath ?>"
           class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md text-xl font-bold">
@@ -774,13 +1119,40 @@ $len = max(20, $len);
           line.prepend(dot);
         });
 
-        clone.querySelectorAll(".dot-line .chip").forEach(chip => {
-          chip.style.position = "relative";
-          chip.style.zIndex = "3";
-          chip.style.display = "inline";
-          chip.style.background = "transparent";
-          chip.style.paddingLeft = "0";
-          chip.style.paddingRight = "0";
+        // แก้ไขตำแหน่งเส้นประในส่วน "เรื่อง" (ค้นหาบรรทัดประมาณที่ 835)
+        clone.querySelectorAll(".subject-line").forEach(line => {
+          line.querySelectorAll(".pdf-subject-dot-line").forEach(el => el.remove());
+
+          line.style.position = "relative";
+          line.style.height = "auto";
+          line.style.minHeight = "20px"; // เพิ่มความสูงขั้นต่ำเพื่อให้มีพื้นที่ดึงเส้นลงมา
+          line.style.lineHeight = "1.2"; // ปรับระยะบรรทัดให้โปร่งขึ้นเล็กน้อย
+          line.style.paddingLeft = "4px";
+          line.style.paddingTop = "0";
+
+          // --- จุดสำคัญ: ปรับค่า padding-bottom เพื่อดึงเส้นประลงมา ---
+          // ยิ่งเลขเยอะ เส้นประจะยิ่งอยู่ต่ำลง (ลองปรับจาก 10px เป็น 12px หรือ 14px ตามความพอใจ)
+          line.style.paddingBottom = "16px";
+
+          line.style.margin = "0";
+          line.style.borderBottom = "2px dotted #000"; // ใช้สไตล์เส้นประแบบเดิมที่คุณต้องการ
+          line.style.overflow = "visible";
+          line.style.fontSize = "16pt";
+          line.style.fontFamily = "TH SarabunPSK";
+          line.style.backgroundImage = "none";
+
+          line.querySelectorAll(".subject-text").forEach(text => {
+            text.style.display = "inline-block";
+            text.style.position = "relative";
+
+            // --- จุดสำคัญ: ปรับค่า top เพื่อให้ตัวอักษรขยับลงมาวางบนเส้นพอดี ---
+            // ถ้าตัวอักษรลอยจากเส้นประมากไป ให้เพิ่มเลขนี้ (เช่น 8px, 9px)
+            // ถ้าตัวอักษรจมเส้นประ ให้ลดเลขนี้ลง (เช่น 6px, 5px)
+            text.style.top = "8px";
+
+            text.style.zIndex = "3";
+            text.style.background = "transparent";
+          });
         });
         const expenseTable = clone.querySelector("#expenseTable");
 

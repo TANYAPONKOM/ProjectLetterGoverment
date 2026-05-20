@@ -1,4 +1,4 @@
-<?php //หนังสือเรียนเชิญวิทยากร 
+<?php //ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ) Pro_letter/form_Memo/form_memo_coop_evaluation.php
 session_start();
 require_once __DIR__ . '/../functions.php';
 
@@ -106,32 +106,12 @@ $readonly = !$canEdit;
 /* --------------------------------------------------
    ดึงค่า field จาก document_values
 -------------------------------------------------- */
-$q = $pdo->prepare("
-  SELECT 
-    dv.field_id,
-    dv.value_text,
-    tf.field_key
-  FROM document_values dv
-  LEFT JOIN template_fields tf ON tf.field_id = dv.field_id
-  WHERE dv.document_id = :id
-");
+$q = $pdo->prepare("SELECT field_id, value_text FROM document_values WHERE document_id = :id");
 $q->execute([':id' => $docId]);
 
 $valueMap = [];
-$valueMapByKey = [];
-
 foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
-  $fid = (int) ($row['field_id'] ?? 0);
-  $val = (string) ($row['value_text'] ?? '');
-
-  if ($fid > 0) {
-    $valueMap[$fid] = $val;
-  }
-
-  $key = trim((string) ($row['field_key'] ?? ''));
-  if ($key !== '') {
-    $valueMapByKey[$key] = $val;
-  }
+  $valueMap[(int) $row['field_id']] = $row['value_text'];
 }
 
 /* --------------------------------------------------
@@ -142,41 +122,12 @@ foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
 //   return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
 // }
 
-function thai_digit($text)
+function thai_date($ymd)
 {
-  return strtr((string) $text, [
-    '0' => '๐',
-    '1' => '๑',
-    '2' => '๒',
-    '3' => '๓',
-    '4' => '๔',
-    '5' => '๕',
-    '6' => '๖',
-    '7' => '๗',
-    '8' => '๘',
-    '9' => '๙',
-  ]);
-}
-
-function arabic_digit($text)
-{
-  return strtr((string) $text, [
-    '๐' => '0',
-    '๑' => '1',
-    '๒' => '2',
-    '๓' => '3',
-    '๔' => '4',
-    '๕' => '5',
-    '๖' => '6',
-    '๗' => '7',
-    '๘' => '8',
-    '๙' => '9',
-  ]);
-}
-
-function thai_months()
-{
-  return [
+  if (!$ymd || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $ymd))
+    return "";
+  [$y, $m, $d] = explode("-", $ymd);
+  $months = [
     1 => "มกราคม",
     2 => "กุมภาพันธ์",
     3 => "มีนาคม",
@@ -188,103 +139,9 @@ function thai_months()
     9 => "กันยายน",
     10 => "ตุลาคม",
     11 => "พฤศจิกายน",
-    12 => "ธันวาคม",
+    12 => "ธันวาคม"
   ];
-}
-
-function thai_date_from_parts($year, $month, $day, $withWeekday = false)
-{
-  $year = (int) $year;
-  $month = (int) $month;
-  $day = (int) $day;
-
-  if ($year > 2400) {
-    $christYear = $year - 543;
-    $thaiYear = $year;
-  } else {
-    $christYear = $year;
-    $thaiYear = $year + 543;
-  }
-
-  if (!checkdate($month, $day, $christYear)) {
-    return "";
-  }
-
-  $months = thai_months();
-  $dateText = thai_digit($day) . " " . $months[$month] . " " . thai_digit($thaiYear);
-
-  if ($withWeekday) {
-    $weekdays = [
-      "อาทิตย์",
-      "จันทร์",
-      "อังคาร",
-      "พุธ",
-      "พฤหัสบดี",
-      "ศุกร์",
-      "เสาร์",
-    ];
-    $w = (int) date('w', strtotime(sprintf('%04d-%02d-%02d', $christYear, $month, $day)));
-    return "วัน" . $weekdays[$w] . "ที่ " . $dateText;
-  }
-
-  return $dateText;
-}
-
-function thai_date($rawDate)
-{
-  return thai_date_any($rawDate, false);
-}
-
-function thai_date_with_weekday($rawDate)
-{
-  return thai_date_any($rawDate, true);
-}
-
-function thai_date_any($rawDate, $withWeekday = false)
-{
-  $rawDate = trim((string) $rawDate);
-  if ($rawDate === '') {
-    return "";
-  }
-
-  if ($withWeekday && preg_match('/^วัน/u', $rawDate)) {
-    return thai_digit($rawDate);
-  }
-
-  $date = arabic_digit($rawDate);
-
-  if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $date, $m)) {
-    return thai_date_from_parts($m[1], $m[2], $m[3], $withWeekday);
-  }
-
-  if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $date, $m)) {
-    return thai_date_from_parts($m[3], $m[2], $m[1], $withWeekday);
-  }
-
-  $months = thai_months();
-  $monthRegex = implode('|', array_map('preg_quote', $months));
-
-  if (preg_match('/(\d{1,2})\s+(' . $monthRegex . ')\s+(\d{4})/u', $date, $m)) {
-    $monthNumber = array_search($m[2], $months, true);
-    if ($monthNumber !== false) {
-      return thai_date_from_parts($m[3], $monthNumber, $m[1], $withWeekday);
-    }
-  }
-
-  return thai_digit($rawDate);
-}
-
-function format_thai_time_range($timeText)
-{
-  $timeText = trim((string) $timeText);
-  if ($timeText === '') {
-    return "";
-  }
-
-  $timeText = str_replace(':', '.', $timeText);
-  $timeText = preg_replace('/\s*-\s*/', ' - ', $timeText);
-
-  return thai_digit($timeText);
+  return intval($d) . " " . $months[intval($m)] . " " . (intval($y) + 543);
 }
 
 /* --------------------------------------------------
@@ -295,21 +152,14 @@ $ownerName = $valueMap[2] ?? "";
 $position = $valueMap[3] ?? "";
 $joinType = $valueMap[4] ?? "";
 $courseName = $valueMap[5] ?? "";
-$projectTitle = $valueMap[5] ?? "";
 $joinDates = $valueMap[6] ?? "";
-$eventDate = $valueMap[6] ?? ($valueMap[16] ?? "");
 $location = $valueMap[7] ?? "";
 $amountStr = $valueMap[8] ?? "";
 $vehicle = $valueMap[9] ?? "";
 $faculty = $valueMap[10] ?? "";
 $department = $valueMap[11] ?? "";
+$eventDate  = $valueMap[12] ?? "";
 $eventPlace = $valueMap[13] ?? "";
-
-$docSubject = $valueMap[14] ?? ($document['subject'] ?? "");
-$objective = $valueMap[25] ?? "";
-$toPerson = $valueMap[26] ?? "";
-$inviteStatement = $valueMapByKey['invite_statement'] ?? "";
-$eventTime = $valueMapByKey['event_time'] ?? "";
 
 /* --------------------------------------------------
    Mapping joinType → purposeCode (รหัส)
@@ -334,27 +184,13 @@ switch (trim($joinType)) {
 
 $header_text = $document["header_text"] ?? "";
 $doc_no = $document["doc_no"] ?? "";
-$subject = $docSubject ?: ($document["subject"] ?? "");
+$subject = $document["subject"] ?? "";
 
 /* --------------------------------------------------
    คำนวณวันที่ไทย, งบประมาณ
 -------------------------------------------------- */
 $thaiDocDate = thai_date($docDate);
-$thaiEventDate = thai_date_with_weekday($eventDate);
-$thaiEventTime = format_thai_time_range($eventTime);
 $prettyAmount = $amountStr !== "" ? number_format((float) $amountStr, 2) : "";
-
-$displayFaculty = $faculty ?: "คณะเทคโนโลยีและการจัดการอุตสาหกรรม";
-$displayDepartment = $department ?: "เทคโนโลยีสารสนเทศ";
-$displayDepartmentFull = "ภาควิชา" . $displayDepartment;
-$displaySubject = $subject ?: "ขอเรียนเชิญเป็นวิทยากรบรรยาย";
-$displayToPerson = $toPerson ?: "คุณ................................................";
-$displayProjectTitle = $projectTitle ?: "................................................";
-$displayInviteStatement = $inviteStatement ?: "เห็นว่าท่านเป็นผู้มีความเชี่ยวชาญและมีประสบการณ์สูง ในสาขาวิชาชีพดังกล่าว ซึ่งจะเป็นประโยชน์แก่นักศึกษาผู้เข้าร่วมโครงการเป็นอย่างดี";
-$displayObjective = $objective ?: "................................................";
-$displayEventDate = $thaiEventDate ?: "วันที่................................................";
-$displayEventTime = $thaiEventTime ?: "................";
-$displayLocation = $location ?: "................................................";
 
 /* --------------------------------------------------
    สร้างข้อความส่วนหัวที่ใช้ในเนื้อหา
@@ -889,14 +725,14 @@ $len = max(20, $len);
         <!-- เลขที่ -->
         <div style="
     font-size:16pt;
-    padding-top:50px;
+    padding-top:106px;
     white-space:nowrap;
   ">
           ที่ อว ๗๑๒๐/๗๑๖
         </div>
 
         <!-- ครุฑ -->
-        <div style="text-align:center; position:relative; left:32px; top:6px;">
+        <div style="text-align:center; position:relative; left:55px; top:6px;">
           <img src="/Pro_letter/assets/img/garuda.jpg" style="
         width:123px;
         height:auto;
@@ -911,14 +747,15 @@ $len = max(20, $len);
       ">
         </div>
 
+
         <!-- ที่อยู่ -->
         <div style="
   font-size:15.5pt;
   line-height:1.28;
 
-  padding-top:58px;
+  padding-top:107px;
 
-  padding-left:44px;
+  padding-left:40px;
 
   width:380px;
 
@@ -933,9 +770,9 @@ $len = max(20, $len);
           </div>
 
           <div style="
-      position:relative;
-      top:-2px;
-  ">
+    position:relative;
+    top:-2px;
+">
             มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
           </div>
 
@@ -951,196 +788,144 @@ $len = max(20, $len);
 
   text-align:center;
 
-  margin-top:17px;
+  margin-top:20px;
 
   margin-bottom:16px;
 
   position:relative;
 
-  left:29px;
+  left:55px;
 ">
-        <?= h($thaiDocDate ?: '๗ ตุลาคม ๒๕๖๘') ?>
+        ๕ กุมภาพันธ์ ๒๕๖๘
       </div>
 
       <div style="
-    font-family:'TH SarabunPSK';
-    font-size:16pt;
-    line-height:1.15;
-    color:#111;
+  font-family:'TH SarabunPSK';
+  font-size:16pt;
+  line-height:1.15;
+  color:#111;
 ">
 
         <!-- เรื่อง -->
         <div style="
-    display:grid;
-    grid-template-columns: 1.2cm 1fr;
-    column-gap:0;
-    margin-bottom:2px;
-    line-height:1.38;
+    display:flex;
+    margin-bottom:4px;
+    font-size:16pt;
+    line-height:1.25;
 ">
+          <div style="width:55px;">เรื่อง</div>
 
-          <div style="white-space:nowrap;">
-            เรื่อง
+          <div>
+            ขอความอนุเคราะห์ตอบแบบประเมินและแบบสำรวจนักศึกษาปฏิบัติงานสหกิจศึกษา
           </div>
-
-          <div style="
-        text-align:left;
-        line-height:1.38;
-    ">
-            <?= h($displaySubject) ?>
-          </div>
-
         </div>
 
         <!-- เรียน -->
         <div style="
-    display:grid;
-    grid-template-columns: 1.2cm 1fr;
-    column-gap:0;
-    margin-bottom:2px;
-    line-height:1.38;
+    display:flex;
+    margin-bottom:6px;
+    font-size:16pt;
+    line-height:1.25;
 ">
-
-          <div style="white-space:nowrap;">
-            เรียน
-          </div>
-
-          <div style="
-        text-align:left;
-        line-height:1.38;
-    ">
-            <?= nl2br(h($displayToPerson)) ?>
-          </div>
-
-        </div>
-
-        <div style="margin-bottom:8px;">
+          <div style="width:55px;">เรียน</div>
 
           <div>
-            <span style="display:inline-block; width:2.2cm;">
-              สิ่งที่ส่งมาด้วย
-            </span>
-
-            <span style="
-        display:inline-block;
-        width:8.3cm;
-        padding-left:0.25cm;
-    ">
-              ๑. รายละเอียดโครงการ
-            </span>
-
-            <span>จำนวน ๑ ชุด</span>
-          </div>
-
-          <div>
-            <span style="display:inline-block; width:2.2cm;"></span>
-
-            <span style="
-        display:inline-block;
-        width:8.3cm;
-        padding-left:0.25cm;
-    ">
-              ๒. แบบตอบรับการเป็นวิทยากร
-            </span>
-
-            <span>จำนวน ๑ ฉบับ</span>
+            เลขาธิการ สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ (กสมช.)
           </div>
         </div>
 
-        <!-- ย่อหน้า 1 -->
-        <p style="
-        text-indent:2.5cm;
-        margin:0 0 10px 0;
-        text-align:justify;
-        line-height:1.38;
-        letter-spacing:-0.1px;
-        word-spacing:-1px;
-    ">
-          ด้วย<?= h($displayDepartmentFull) ?> <?= h($displayFaculty) ?>
-          มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
-          ได้ดำเนินการจัด<?= h($displayProjectTitle) ?> ใน<?= h($displayEventDate) ?> เวลา <?= h($displayEventTime) ?>
-          น.
-          ณ <?= h($displayLocation) ?> โดยมีวัตถุประสงค์<?= nl2br(h($displayObjective)) ?>
-          รายละเอียดโครงการตามสิ่งที่ส่งมาด้วย ๑
-        </p>
-
-        <!-- ย่อหน้า 2 -->
-        <p style="
-        text-indent:2.5cm;
-        margin:0 0 10px 0;
-        text-align:justify;
-        line-height:1.38;
-        letter-spacing:-0.1px;
-        word-spacing:-1px;
-    ">
-          <?= h($displayDepartmentFull) ?> <?= nl2br(h($displayInviteStatement)) ?>
-          จึงขอเรียนเชิญท่านเป็นวิทยากรบรรยายเรื่องดังกล่าว ตามวัน เวลา และสถานที่ข้างต้น
-        </p>
-
-        <!-- ย่อหน้า 3 -->
-        <p style="
-        text-indent:2.5cm;
-        margin:0 0 10px 0;
-        line-height:1.38;
-    ">
-          จึงเรียนมาเพื่อโปรดพิจารณาให้ความอนุเคราะห์ จะขอบคุณยิ่ง
-        </p>
-
-        <!-- ขอแสดงความนับถือ -->
+        <!-- เนื้อหา -->
         <div style="
-    text-align:center;
-    margin-top:22px;
-    width:100%;
+    font-size:16pt;
+    line-height:1.28;
+    text-align:justify;
 ">
-          ขอแสดงความนับถือ
+
+          <p style="
+        text-indent:2.5cm;
+        margin-bottom:4px;
+    ">
+            ตามที่หน่วยงานของท่านได้ให้ความอนุเคราะห์รับนักศึกษาภาควิชาเทคโนโลยีสารสนเทศ
+            คณะเทคโนโลยีและการจัดการอุตสาหกรรม มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
+            วิทยาเขตปราจีนบุรี ได้แก่
+          </p>
+
+          <p style="
+        margin-left:2.5cm;
+        margin-bottom:4px;
+        line-height:1.35;
+    ">
+            นายปุณนที ปิ่นวิเศษ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            รหัสนักศึกษา&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            ๖๕-๐๖๐๒๑๖-๓๐๐๓-๘
+          </p>
+
+          <p style="
+        text-indent:0.0cm;
+        margin-bottom:4px;
+    ">
+            เข้าปฏิบัติงานสหกิจศึกษาในหน่วยงานของท่าน ตั้งแต่วันที่ ๓ พฤศจิกายน ๒๕๖๘
+            ถึง ๒๗ กุมภาพันธ์ ๒๕๖๙
+          </p>
+
+          <p style="
+        text-indent:2.5cm;
+        margin-bottom:4px;
+    ">
+            ในการนี้ ภาควิชาเทคโนโลยีสารสนเทศ ขอความอนุเคราะห์ตอบแบบประเมินผลรายงาน
+            การปฏิบัติงานของนักศึกษาสหกิจศึกษา และแบบสำรวจคุณลักษณะของนักศึกษาปฏิบัติงาน
+            สหกิจศึกษาที่พึงประสงค์ตามความต้องการของสถานประกอบการ (ในปีถัดไป)
+            โดยภาควิชาขออนุญาตส่งแบบประเมินและแบบสำรวจดังกล่าวให้กับ “พนักงานที่ปรึกษา”
+            ผ่านทางไปรษณีย์อิเล็กทรอนิกส์ it.kmutnb@itm.kmutnb.ac.th
+            ทั้งนี้ ข้อมูลที่ได้จากแบบประเมินและแบบสำรวจจะนำมารวบรวม วิเคราะห์ และสรุปผล
+            ซึ่งภาควิชาจะนำข้อมูลมาเป็นแนวทางสำหรับการดำเนินการครั้งต่อไป
+          </p>
+
+          <p style="
+        text-indent:2.5cm;
+        margin-bottom:4px;
+    ">
+            สุดท้ายนี้ ภาควิชาเทคโนโลยีสารสนเทศ ขอขอบคุณในความอนุเคราะห์ของท่านเป็นอย่างยิ่ง
+            และหวังว่าจะได้รับความอนุเคราะห์จากท่านอีกในโอกาสต่อไป
+          </p>
+
+          <p style="
+        text-indent:2.5cm;
+        margin-bottom:8px;
+    ">
+            จึงเรียนมาเพื่อโปรดอนุญาต และพิจารณาแจ้งผู้เกี่ยวข้องดำเนินการต่อไป
+          </p>
+
         </div>
 
-        <!-- ลายเซ็น -->
+        <!-- ลงชื่อ -->
         <div style="
-    text-align:center;
-    margin-top:52px;
     width:100%;
-    line-height:1.15;
-    white-space:nowrap;
+    text-align:center;
+    margin-top:14px;
+    line-height:1.3;
+    font-size:16pt;
 ">
+          <div>ขอแสดงความนับถือ</div>
 
-          <div>
+          <div style="margin-top:42px;">
             (ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์)
           </div>
 
           <div>
             คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม
           </div>
-
         </div>
 
         <!-- footer -->
         <div style="
-    margin-top:30px;
-    margin-left:0.2cm;
-
-    font-size:16pt;
-
-    line-height:1.32;
-
-    letter-spacing:-0.05px;
-
-    color:#111;
+    margin-top:20px;
+    font-size:14pt;
+    line-height:1.35;
 ">
-
-          <?= h($displayDepartmentFull) ?><br>
-
-          โทรศัพท์ ๐-๓๗๒๑-๗๓๔๐-๓ ต่อ ๗๐๖๕-๖<br>
-
-          โทรสาร ๐-๓๗๒๑-๗๓๑๗-๘<br>
-
-          ไปรษณีย์อิเล็กทรอนิกส์ :
-          <a href="mailto:it@itm.kmutnb.ac.th" style="
-         color:#0563c1;
-         text-decoration:underline;
-       ">
-            it@itm.kmutnb.ac.th
-          </a>
-
+          ภาควิชาเทคโนโลยีสารสนเทศ<br>
+          โทร. ๐ ๓๗๒๑ ๗๓๔๐ ต่อ ๗๐๖๕-๖<br>
+          ไปรษณีย์อิเล็กทรอนิกส์: it.kmutnb@itm.kmutnb.ac.th<br><br>
         </div>
 
       </div>
@@ -1404,7 +1189,7 @@ $len = max(20, $len);
         pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
       }
 
-      pdf.save("speaker_invitation_<?= (int)$docId ?>.pdf");
+      pdf.save("coop_evaluation_<?= (int)$docId ?>.pdf");
 
     } catch (error) {
       console.error(error);

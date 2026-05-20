@@ -1,4 +1,4 @@
-<!--  หนังสือยินยอมให้นำเสนอผลงานวิจัย -->
+<!-- Pro_letter/form_Memo/form_consent_research_presentation หนังสือยินยอมให้นำเสนอผลงานวิจัย -->
 <?php
 session_start();
 require_once __DIR__ . '/../functions.php';
@@ -159,9 +159,45 @@ $amountStr = $valueMap[8] ?? "";
 $vehicle = $valueMap[9] ?? "";
 $faculty = $valueMap[10] ?? "";
 $department = $valueMap[11] ?? "";
-$eventDate  = $valueMap[12] ?? "";
-$eventPlace = $valueMap[13] ?? "";
+$presenterName = $valueMap[14] ?? "";
+$researchTitle = $valueMap[13] ?? "";
+$conferenceLevel = $valueMap[15] ?? "";
+$conferenceName = $valueMap[5] ?? "";
+$conferencePlace = $valueMap[7] ?? "";
+$presentationDate = $valueMap[16] ?? "";
+$signatureAffiliation = $valueMap[17] ?? "";
 
+function dashText($text, $bold = true)
+{
+  $text = (string) $text;
+
+  if ($text === '') {
+    return '';
+  }
+
+  $class = $bold ? 'dash-piece' : 'dash-piece dash-piece-normal';
+
+  // แยกคำ แต่ไม่เอาช่องว่างไปทำเส้นประ
+  // เพราะช่องว่างที่เป็น span จะโดน text-align: justify ถ่างจน layout พัง
+  $parts = preg_split('/(\s+)/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+
+  $html = '';
+
+  foreach ($parts as $part) {
+    if ($part === '') {
+      continue;
+    }
+
+    if (preg_match('/^\s+$/u', $part)) {
+      // ช่องว่างให้เป็นช่องว่างปกติ ห้ามมี border-bottom
+      $html .= ' ';
+    } else {
+      $html .= '<span class="' . $class . '">' . htmlspecialchars($part, ENT_QUOTES, 'UTF-8') . '</span>';
+    }
+  }
+
+  return $html;
+}
 /* --------------------------------------------------
    Mapping joinType → purposeCode (รหัส)
 -------------------------------------------------- */
@@ -231,7 +267,8 @@ $len = max(20, $len);
   <title>บันทึกข้อความ #<?= h($document['document_id']) ?></title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <style>
   @import url("https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap");
@@ -247,7 +284,7 @@ $len = max(20, $len);
     width: 794px;
     min-height: 1123px;
     margin: 40px auto;
-    padding: 60px 70px 50px 100px;
+    padding: 70px 70px 50px 100px;
     background: #fff;
     box-shadow: 0 0 5px rgba(0, 0, 0, .1);
     position: relative;
@@ -324,9 +361,57 @@ $len = max(20, $len);
   }
 
   .content-block.paragraph {
-    text-indent: 2.5cm;
+    /* ลดจาก 2.5cm เพื่อให้คำว่า "ข้าพเจ้า" ขยับไปทางซ้ายอีกนิด */
+    text-indent: 2.15cm;
     margin-top: 0.5em;
     line-height: 1.3;
+  }
+
+  .inline-dash {
+    display: inline;
+    font-weight: bold;
+    padding: 0 1px;
+    background: none !important;
+    border-bottom: none !important;
+    vertical-align: baseline;
+
+    text-decoration-line: underline;
+    text-decoration-style: dashed;
+    text-decoration-color: #111;
+    text-decoration-thickness: 0.45px;
+    text-decoration-skip-ink: none;
+
+    /* ตัวนี้คุมระยะเส้นประของเนื้อหา */
+    text-underline-offset: 1px;
+  }
+
+  .inline-dash-normal {
+    font-weight: normal !important;
+  }
+
+  /* ตัวเส้นประจริง */
+  .dash-piece {
+    display: inline-block;
+    font-weight: bold;
+    line-height: 0.45;
+    padding: 0 1px;
+    margin: 0;
+    border-bottom: 0.45px dashed #111;
+    vertical-align: baseline;
+    box-sizing: border-box;
+    white-space: nowrap;
+  }
+
+  /* ใช้กับคำว่า "ในระหว่างวันที่" ให้มีเส้นประแต่ไม่ตัวหนา */
+  .dash-piece-normal {
+    font-weight: normal !important;
+  }
+
+  /* ช่องว่างระหว่างคำ ให้ยังมีเส้นประต่อเนื่อง */
+  .dash-space {
+    min-width: 0.25em;
+    padding-left: 0;
+    padding-right: 0;
   }
 
   .content-block.single {
@@ -380,27 +465,32 @@ $len = max(20, $len);
 
   .signature-wrapper {
     display: flex;
-    justify-content: center;
-    margin-top: 2em;
+    justify-content: flex-end;
+    margin-top: 3cm;
+    padding-right: -0.25cm;
   }
 
   .signature-block {
-    margin-top: 50px;
-    margin-left: 187px;
+    display: inline-block;
+    width: max-content;
+    min-width: 8.5cm;
     text-align: center;
     font-family: 'TH SarabunPSK';
     font-size: 16pt;
     line-height: 1.2;
+    font-weight: bold;
   }
 
-  .sig-name {
+  .sig-name,
+  .sig-position,
+  .sig-affiliation {
     display: block;
     white-space: nowrap;
+    text-align: center;
   }
 
-  .sig-position {
-    display: block;
-    white-space: nowrap;
+  .sig-dash {
+    font-weight: bold;
   }
 
   .footer-actions {
@@ -448,6 +538,7 @@ $len = max(20, $len);
     top: 3px;
     /* ⭐ กดลงมาอีกนิดเพื่อให้ชิดเส้นมากที่สุด */
   }
+
 
   /* สำหรับ print */
   @media print {
@@ -599,6 +690,50 @@ $len = max(20, $len);
     /* ← เทียบเท่า 16pt จริงใน Word */
     font-weight: 400 !important;
   }
+
+  /* เส้นประในเนื้อหา */
+  .inline-dash {
+    display: inline;
+    font-weight: bold !important;
+    padding: 0 1px;
+    background: none !important;
+    border-bottom: none !important;
+
+    text-decoration-line: underline;
+    text-decoration-style: dashed;
+    text-decoration-color: #111;
+    text-decoration-thickness: 0.45px;
+    text-decoration-skip-ink: none;
+    text-underline-offset: 0px;
+  }
+
+  .inline-dash-normal {
+    font-weight: normal !important;
+  }
+
+  /* ลายเซ็นหน้าเว็บปกติ */
+  .sig-name {
+    display: block;
+    text-align: center;
+    white-space: nowrap;
+    font-weight: bold;
+  }
+
+  .sig-affiliation {
+    display: block;
+    text-align: center;
+    white-space: nowrap;
+    font-weight: bold;
+  }
+
+  .sig-dash-normal {
+    display: inline-block;
+    font-weight: bold;
+    padding: 0 2px;
+    line-height: 0.45;
+    border-bottom: 0.45px dashed #111;
+    vertical-align: baseline;
+  }
   </style>
 </head>
 
@@ -696,50 +831,51 @@ $len = max(20, $len);
 
 
       <div class="content-block paragraph">
-        ข้าพเจ้า Mr. Yanakorn Ruamsuk ได้ยอมให้
-        รองศาสตราจารย์ ดร.ฉัตรชัย มิ่งขจร
+        ข้าพเจ้า <span class="inline-dash"><?= h($ownerName) ?></span> ได้ยอมให้
+        <span class="inline-dash"><?= h($presenterName) ?></span>
         อาจารย์สังกัดภาควิชาเทคโนโลยีสารสนเทศ
         คณะเทคโนโลยีและการจัดการอุตสาหกรรม
         มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
         วิทยาเขตปราจีนบุรี
         ได้นำเสนอผลงานวิจัย เรื่อง
-        Enhancing Retrieval-Augmented Generation Systems
-        by Text-Representing Centroid
-        ในงานการประชุมวิชาการระดับนานาชาติ
-        2024 8th International Conference on Natural Language Processing
-        and Information Retrieval (NLPIR 2024)
+        <span class="inline-dash"><?= h($researchTitle) ?></span>
+        ในงานการประชุมวิชาการ<span><?= h($conferenceLevel) ?></span>
+        <span class="inline-dash"><?= h($conferenceName) ?></span>
         โดยงานการประชุมจัดขึ้นที่
-        Okayama, Japan
-        ในระหว่างวันที่
-        December 13 – 15, 2024
+        <span class="inline-dash"><?= h($conferencePlace) ?></span>
+        <span class="inline-dash inline-dash-normal">ในระหว่างวันที่</span>
+        <span class="inline-dash"><?= h($presentationDate) ?></span>
       </div>
 
 
 
-      <!-- ย่อหน้า 3 -->
-      <div style="margin-top:3cm; text-align:right; font-size:16pt;">
-        (Mr. Yanakorn Ruamsuk)<br>
-        University in Hagen, Germany
+      <!-- ลายเซ็น -->
+      <div class="signature-wrapper">
+        <div id="signatureBlock" class="signature-block">
+          <span class="sig-name">(<span class="sig-dash-normal"><?= h($ownerName) ?></span>)</span>
+          <span class="sig-affiliation"><?= h($signatureAffiliation) ?></span>
+        </div>
       </div>
 
 
-      <!-- <div style="font-family:'TH SarabunPSK'; font-size:16pt; line-height:1.2;"> เรียน <?= h($hdr_to) ?> </div>
-            <div class="content-block single align-to-dean"> เพื่อโปรดพิจารณาอนุมัติ </div>
-            <div class="content-block single align-to-dean" style="margin-top:50px;;"> (ผู้ช่วยศาสตราจารย์ ดร. ขนิษฐา
-                นามี)<br /> หัวหน้าภาควิชาเทคโนโลยีสารสนเทศ </div> -->
+
       <div class="footer-actions">
 
-        <!-- 🔵 ปุ่มแรก: พิมพ์/ดูตัวอย่าง (ทุก role ต้องมี และอยู่ลำดับแรก) -->
-        <button type="button" onclick="window.print()"
+        <!-- 🔵 ปุ่มดาวน์โหลด PDF -->
+        <button type="button" onclick="downloadPdf()"
           class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          พิมพ์/ดูตัวอย่าง
+          ดาวน์โหลด PDF
         </button>
 
-        <!-- 🟩 USER: ปุ่มยืนยัน -->
+        <!-- 🟩 USER: ปุ่มแก้ไขเอกสาร -->
         <?php if ($roleId === 3): ?>
-        <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          ยืนยันการแก้ไข
-        </button>
+        <a href="/Pro_letter/documents/infor_present.php?id=<?= $docId ?>" id="editBtn"
+          data-can-edit="<?= $canEdit ? '1' : '0' ?>" class="px-6 py-2 rounded-md text-xl font-bold
+  <?= $canEdit
+    ? 'bg-teal-500 hover:bg-teal-600 text-white'
+    : 'bg-gray-300 text-gray-600 cursor-not-allowed' ?>">
+          แก้ไขเอกสาร
+        </a>
         <?php endif; ?>
 
         <!-- 🟦 OFFICER & ADMIN -->
@@ -870,7 +1006,26 @@ $len = max(20, $len);
       });
     }
   });
+  document.addEventListener("DOMContentLoaded", () => {
+    const editBtn = document.getElementById("editBtn");
 
+    if (editBtn) {
+      editBtn.addEventListener("click", function(e) {
+        const canEdit = this.dataset.canEdit === "1";
+
+        if (!canEdit) {
+          e.preventDefault();
+
+          Swal.fire({
+            title: "ไม่สามารถแก้ไขได้",
+            text: "คุณไม่มีสิทธิ์แก้ไขเอกสารนี้",
+            icon: "warning",
+            confirmButtonText: "ตกลง"
+          });
+        }
+      });
+    }
+  });
 
   document.addEventListener("DOMContentLoaded", () => {
     if (getQuery("saved") === "1" && getQuery("from") === "update") {
@@ -903,13 +1058,192 @@ $len = max(20, $len);
       document.execCommand('insertText', false, text);
     });
   });
-  (function() {
-    const box = document.getElementById('signatureBlock');
-    if (!box) return;
-    const nameEl = box.querySelector('.sig-name');
-    // กำหนดความกว้างกล่อง = ความกว้างบรรทัดชื่อ -> ตำแหน่งจะกึ่งกลางใต้ชื่อพอดี
-    box.style.width = nameEl.offsetWidth + 'px';
-  })();
+  // ไม่ต้องคำนวณความกว้างลายเซ็นด้วย JS แล้ว
+  // เพราะ .signature-block ใช้ min-width + text-align:center เพื่อให้ชื่ออยู่กลางหน่วยงานเสมอ
+  async function downloadPdf() {
+    try {
+      const {
+        jsPDF
+      } = window.jspdf;
+
+      const pages = document.querySelectorAll(".page");
+
+      if (!pages.length) {
+        alert("ไม่พบหน้าเอกสาร .page");
+        return;
+      }
+
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4"
+      });
+
+      for (let i = 0; i < pages.length; i++) {
+        const clone = pages[i].cloneNode(true);
+
+        clone.classList.add("pdf-export-page");
+
+        clone.style.width = "794px";
+        clone.style.minHeight = "1123px";
+        clone.style.height = "1123px";
+        clone.style.margin = "0";
+        clone.style.boxShadow = "none";
+        clone.style.background = "#ffffff";
+        clone.style.border = "2px solid #ffffff";
+        clone.style.boxSizing = "border-box";
+        const pdfStyle = document.createElement("style");
+        pdfStyle.textContent = `
+          .pdf-export-page .inline-dash {
+            text-decoration: none !important;
+            background: none !important;
+            background-image: none !important;
+            border-bottom: none !important;
+            padding: 0 1px !important;
+            font-weight: bold !important;
+            line-height: 1 !important;
+            vertical-align: baseline !important;
+          }
+
+          .pdf-export-page .inline-dash-normal {
+            font-weight: normal !important;
+          }
+
+          .pdf-export-page .pdf-dash-overlay {
+            position: absolute !important;
+            height: 0 !important;
+            border-bottom: 0.45px dashed #111 !important;
+            pointer-events: none !important;
+            z-index: 99 !important;
+          }
+        `;
+        clone.prepend(pdfStyle);
+
+        const cloneActions = clone.querySelectorAll(".footer-actions");
+        cloneActions.forEach(el => el.remove());
+
+        clone.querySelectorAll("[contenteditable]").forEach(el => {
+          el.removeAttribute("contenteditable");
+          el.removeAttribute("tabindex");
+          el.style.outline = "none";
+          el.style.caretColor = "transparent";
+        });
+
+        clone.querySelectorAll("input[type='hidden']").forEach(el => el.remove());
+        // ===== แก้เส้นประเฉพาะตอน Export PDF เท่านั้น =====
+
+        // 1) เส้นประในเนื้อหาเฉพาะตอน Export PDF
+        // ห้ามใช้ border-bottom กับ inline ตอน html2canvas เพราะบางครั้งเส้นจะหาย
+        // ใช้ background-image แทน และห้ามใส่ background = "none"
+        clone.querySelectorAll(".inline-dash").forEach(el => {
+          const isNormal = el.classList.contains("inline-dash-normal");
+
+          el.style.setProperty("text-decoration", "none", "important");
+          el.style.setProperty("background", "none", "important");
+          el.style.setProperty("background-image", "none", "important");
+          el.style.setProperty("border-bottom", "none", "important");
+          el.style.setProperty("font-weight", isNormal ? "normal" : "bold", "important");
+          el.style.setProperty("padding", "0 1px", "important");
+          el.style.setProperty("line-height", "1", "important");
+          el.style.setProperty("vertical-align", "baseline", "important");
+        });
+
+        // 2) ลายเซ็นตอน PDF ให้เส้นประเป็นเส้นเดียว
+        // ไม่กระทบหน้าปกติ เพราะทำกับ clone เท่านั้น
+        const sigName = clone.querySelector(".sig-name");
+
+        if (sigName) {
+          const rawName = sigName.textContent
+            .replace("(", "")
+            .replace(")", "")
+            .trim();
+
+          sigName.innerHTML = `(<span class="pdf-signature-dash">${rawName}</span>)`;
+
+          const dash = sigName.querySelector(".pdf-signature-dash");
+
+          if (dash) {
+            dash.style.display = "inline-block";
+            dash.style.fontWeight = "bold";
+
+            // ตอนโหลด PDF ห้ามใช้ lineHeight ต่ำแบบหน้าจอ เพราะ html2canvas จะทำให้เส้นลอย
+            dash.style.lineHeight = "1.55";
+            dash.style.padding = "0 2px 1px 2px";
+
+            dash.style.borderBottom = "0.45px dashed #111";
+            dash.style.verticalAlign = "baseline";
+            dash.style.textDecoration = "none";
+            dash.style.background = "none";
+          }
+        }
+        const wrapper = document.createElement("div");
+        wrapper.style.position = "fixed";
+        wrapper.style.left = "-9999px";
+        wrapper.style.top = "0";
+        wrapper.style.width = "794px";
+        wrapper.style.background = "#ffffff";
+        wrapper.style.zIndex = "-1";
+
+        wrapper.appendChild(clone);
+        document.body.appendChild(wrapper);
+
+        // วาดเส้นประใต้ข้อความที่เป็น .inline-dash เท่านั้น
+        // แก้ปัญหา border-bottom ของ inline span ลากไปโดนข้อความปกติ
+        const DASH_Y_OFFSET = 2; // เลขมากขึ้น = เส้นลงต่ำลง
+
+        const pageRect = clone.getBoundingClientRect();
+
+        clone.querySelectorAll(".inline-dash").forEach(el => {
+          const range = document.createRange();
+          range.selectNodeContents(el);
+
+          const rects = Array.from(range.getClientRects()).filter(rect => {
+            return rect.width > 1 && rect.height > 1;
+          });
+
+          rects.forEach(rect => {
+            const dash = document.createElement("span");
+            dash.className = "pdf-dash-overlay";
+
+            dash.style.left = `${rect.left - pageRect.left}px`;
+            dash.style.top = `${rect.bottom - pageRect.top + DASH_Y_OFFSET}px`;
+            dash.style.width = `${rect.width}px`;
+
+            clone.appendChild(dash);
+          });
+
+          range.detach();
+        });
+
+        const canvas = await html2canvas(clone, {
+          scale: 4,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          windowWidth: 794,
+          windowHeight: 1123,
+          scrollX: 0,
+          scrollY: 0
+        });
+
+        document.body.removeChild(wrapper);
+
+        const imgData = canvas.toDataURL("image/png");
+
+        if (i > 0) {
+          pdf.addPage();
+        }
+
+        pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
+      }
+
+      pdf.save("consent_research_presentation_<?= $docId ?>.pdf");
+
+    } catch (error) {
+      console.error(error);
+      alert("สร้าง PDF ไม่สำเร็จ กรุณากด F12 ดู Console");
+    }
+  }
   </script>
 </body>
 

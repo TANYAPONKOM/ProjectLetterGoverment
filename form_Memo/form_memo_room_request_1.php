@@ -1,7 +1,10 @@
-<!-- /Pro_letter/form_Memo/form_memo_speaker.php ขออนุมัติคัตตัวบุคคลเป็นวิทยากรบรรยายในโครงการอบรมเชิงปฏิบัติการ -->
+<!-- Pro_letter/form_Memo/form_memo_room_request_1.php ขออนุมัติใช้ห้องพักรับรอง -->
 <?php
 session_start();
 require_once __DIR__ . '/../functions.php';
+
+$referer = $_SERVER['HTTP_REFERER'] ?? '';
+$referer = trim(str_replace(["\r", "\n"], "", $referer));
 
 /* --------------------------------------------------
    ตรวจ session
@@ -53,6 +56,8 @@ if ($docId <= 0) {
     exit("ยังไม่มีเอกสารของคุณ");
 }
 
+$editFormPath = "/Pro_letter/user/Request_3.php?id=" . $docId;
+
 /* --------------------------------------------------
    โหลดข้อมูลเอกสาร
 -------------------------------------------------- */
@@ -99,7 +104,15 @@ $sql = "
 $st = $pdo->prepare($sql);
 $st->execute([':uid' => $userId]);
 
-$canEdit = $st->fetchColumn() > 0;
+$hasEditPermission = $st->fetchColumn() > 0;
+$docStatus = $document['status'] ?? '';
+
+if ($roleId === 1 || $roleId === 2) {
+  $canEdit = true;
+} else {
+  $canEdit = $hasEditPermission && in_array($docStatus, ['draft', 'rejected'], true);
+}
+
 $readonly = !$canEdit;
 
 
@@ -147,52 +160,35 @@ function thai_date($ymd)
 
 /* --------------------------------------------------
    Mapping ตัวแปรหลักจาก document_values
+   ใช้ field_id จาก Request_3.php / save_memo.php
 -------------------------------------------------- */
-$docDate = trim($valueMap[1] ?? '');
-if ($docDate === '') {
-  $docDate = trim($document['doc_date'] ?? '');
-}
+$docDate = $valueMap[1] ?? ($document['doc_date'] ?? "");
 $ownerName = $valueMap[2] ?? "";
 $position = $valueMap[3] ?? "";
-$joinType = $valueMap[4] ?? "";
 
-// ฟอร์มวิทยากร
-$projectTitle  = $valueMap[5] ?? "";     // 5. ชื่อโครงการอบรม
-$joinDates     = $valueMap[6] ?? "";     // 8. วันที่เริ่ม - วันที่สิ้นสุดโครงการ
-$location      = $valueMap[7] ?? "";     // 7. สถานที่จัดงาน
-$amountStr     = $valueMap[8] ?? "";
-$travelPeriod  = $valueMap[9] ?? "";     // 9. วันที่เดินทางไป - วันที่เดินทางกลับ
-$faculty       = $valueMap[10] ?? "";
-$department    = $valueMap[11] ?? "";
+$faculty = $valueMap[10] ?? "";
+$department = $valueMap[11] ?? "";
 
-$referenceOrg  = $valueMap[18] ?? "";    // 3. หน่วยงานผู้ออกหนังสืออ้างอิง
-$referenceNo   = $valueMap[19] ?? "";    // เลขที่หนังสืออ้างอิง
-$refDate       = $valueMap[21] ?? $docDate; // วันที่หนังสืออ้างอิง
-$eventRange    = $joinDates;
-$eventPlace    = $location;
-$courseName    = $valueMap[23] ?? "";    // 6. ชื่อหลักสูตร
-$travelPeriod  = $valueMap[24] ?? $travelPeriod;
-$intentionText = $valueMap[25] ?? "ขออนุมัติเดินทางไปร่วมเป็นวิทยากรบรรยายในโครงการอบรมเชิงปฏิบัติการ";
+$toPerson = $valueMap[26] ?? "ประธานคณะกรรมการบ้านพัก มจพ. วิทยาเขตปราจีนบุรี";
+$roomRequest = $valueMap[27] ?? "";
+$roomRequestOther = $valueMap[28] ?? "";
+$guestFullname = $valueMap[29] ?? "";
+$personType = $valueMap[30] ?? "";
+$personTypeOther = $valueMap[31] ?? "";
+$reason = $valueMap[32] ?? "";
+$reasonOther = $valueMap[33] ?? "";
+$dateOption = $valueMap[34] ?? "single";
+$singleDate = $valueMap[35] ?? "";
+$rangeDate = $valueMap[36] ?? "";
+$roomType = $valueMap[37] ?? "";
 
-$vehicle = "";
-$referenceDateText = thai_date($refDate) ?: $refDate;
+$roomRequestText = (trim($roomRequest) === "อื่น ๆ" && trim($roomRequestOther) !== "") ? $roomRequestOther : $roomRequest;
+$personTypeText = (trim($personType) === "อื่น ๆ" && trim($personTypeOther) !== "") ? $personTypeOther : $personType;
+$reasonText = (trim($reason) === "อื่น ๆ" && trim($reasonOther) !== "") ? $reasonOther : $reason;
+$stayDateText = (trim($dateOption) === "range" && trim($rangeDate) !== "") ? $rangeDate : $singleDate;
 
-/* --------------------------------------------------
-   Mapping joinType → purposeCode (รหัส)
--------------------------------------------------- */
-$purposeCode = 'other';
-
-switch (trim($joinType)) {
-  case 'นำเสนอผลงานทางวิชาการ':
-    $purposeCode = 'academic';
-    break;
-  case 'เข้าร่วมประชุมวิชาการในงาน':
-    $purposeCode = 'meeting';
-    break;
-  case 'เข้ารับการฝึกอบรมหลักสูตร':
-    $purposeCode = 'training';
-    break;
-}
+$displayFaculty = $faculty ?: "เทคโนโลยีและการจัดการอุตสาหกรรม";
+$displayDepartment = $department ?: "เทคโนโลยีสารสนเทศ";
 
 /* --------------------------------------------------
    ⭐⭐⭐ สำคัญที่สุด — แก้ให้ส่วนหัวขึ้น ⭐⭐⭐
@@ -206,23 +202,15 @@ $subject = $document["subject"] ?? "";
    คำนวณวันที่ไทย, งบประมาณ
 -------------------------------------------------- */
 $thaiDocDate = thai_date($docDate);
-
-// กันกรณีวันที่ถูกบันทึกมาเป็นข้อความไทย หรือรูปแบบอื่น
-if ($thaiDocDate === '' && trim($docDate) !== '') {
-  $thaiDocDate = trim($docDate);
-}
-$prettyAmount = $amountStr !== "" ? number_format((float) $amountStr, 2) : "";
+$prettyAmount = "";
 
 /* --------------------------------------------------
    สร้างข้อความส่วนหัวที่ใช้ในเนื้อหา
 -------------------------------------------------- */
-$hdr_agency = trim(
-  ($faculty ?: "คณะ..................................") . " " .
-  ($department ? "ภาควิชา" . $department : "ภาควิชา........................")
-);
+$hdr_agency = trim("คณะ" . $displayFaculty . " ภาควิชา" . $displayDepartment);
 
-$hdr_subject = $joinType ?: "เข้ารับการฝึกอบรมหลักสูตร";
-$hdr_to = "คณบดี" . ($faculty ?: "คณะ..................................");
+$hdr_subject = "ขออนุมัติใช้ห้องพักรับรอง";
+$hdr_to = $toPerson ?: "ประธานคณะกรรมการบ้านพัก มจพ. วิทยาเขตปราจีนบุรี";
 
 /* --------------------------------------------------
    ปีไทย
@@ -254,6 +242,7 @@ $len = max(20, $len);
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
+
   <style>
   @import url("https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap");
 
@@ -268,50 +257,13 @@ $len = max(20, $len);
     width: 794px;
     min-height: 1123px;
     margin: 40px auto;
-    padding: 60px 70px 50px 100px;
+    /* ให้ขนาด A4 รวม padding แล้ว ไม่บาน/ไม่เพี้ยนตอน html2canvas ทำ PDF */
+    box-sizing: border-box;
+    padding: 60px 70px 50px 115px;
     background: #fff;
     box-shadow: 0 0 5px rgba(0, 0, 0, .1);
     position: relative;
     border: 2px solid #fff;
-  }
-
-
-
-  /* ===== หัวบันทึก + ตราครุฑ: ทำให้เหมือน view_memo.php ===== */
-  .memo-title-row {
-    position: relative;
-    height: 1.65cm;
-    margin-bottom: 0.35em;
-  }
-
-  .memo-title-row .garuda-img {
-    position: absolute;
-    left: 0;
-    top: 0;
-    height: 1.6cm;
-    width: auto;
-  }
-
-  .memo-title-row .doc-title {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0.50cm;
-    margin: 0 !important;
-    padding: 0 !important;
-    font-family: "TH SarabunPSK";
-    font-size: 30pt;
-    font-weight: bold;
-    line-height: 1 !important;
-    text-align: center;
-    transform: translateX(-0.3cm);
-  }
-
-  /* ตอน clone เพื่อทำ PDF ต้องปิด pseudo-line เดิม ไม่งั้น html2canvas จะวาดเส้นซ้อน/ลอย */
-  .print-mode .dot-line::after {
-    content: none !important;
-    display: none !important;
-    background-image: none !important;
   }
 
   h1 {
@@ -422,17 +374,52 @@ $len = max(20, $len);
   }
 
   .chip {
+    display: inline;
+    padding: 0;
+    margin: 0;
     border: none !important;
+    outline: none !important;
     background: transparent !important;
     box-shadow: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    outline: none !important;
+    font-family: "TH SarabunPSK";
+    font-size: 16pt;
+    line-height: 1em;
+    white-space: nowrap;
+    vertical-align: baseline;
   }
-
 
   .keep {
     white-space: nowrap;
+  }
+
+
+  .memo-title-row {
+    position: relative;
+    height: 1.65cm;
+    margin-bottom: 0.35em;
+  }
+
+  .memo-title-row .garuda-img {
+    position: absolute;
+    left: 0;
+    top: 0.10cm;
+    height: 1.6cm;
+    width: auto;
+  }
+
+  .memo-title-row .doc-title {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0.42cm;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: "TH SarabunPSK";
+    font-size: 30pt;
+    font-weight: bold;
+    line-height: 1 !important;
+    text-align: center;
+    transform: translateX(-0.3cm);
   }
 
   .signature-wrapper {
@@ -475,37 +462,39 @@ $len = max(20, $len);
     height: 28px;
     display: flex;
     align-items: flex-end !important;
-    padding-top: 8px;
   }
 
   .dot-line::after {
     content: "";
-
     position: absolute;
     left: 0;
     right: 0;
-
-    bottom: -2px;
-
+    bottom: 4px;
     height: 2px;
-
-    background-image:
-      radial-gradient(circle, #000 0.9px, transparent 1px);
-
+    background-image: radial-gradient(circle, #000 1px, transparent 1px);
     background-size: 6px 2px;
     background-repeat: repeat-x;
   }
 
   /* ระยะว่างหน้าคำ + หลังคำ ตามรูป */
   .dot-line .chip {
-    line-height: 1 !important;
-    padding: 0 6px !important;
-    margin-left: 10px !important;
+    line-height: 0.9 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+
+    margin-left: 14px !important;
     margin-right: 6px !important;
+
     display: inline-flex !important;
     align-items: flex-end !important;
+    /* ดึงข้อความให้แตะเส้น */
     position: relative;
-    top: 5px !important;
+    top: 3px;
+    /* ตำแหน่งพื้นฐานของข้อความบนเส้นประ */
+  }
+
+  .content-block.single .chip {
+    margin-left: 22px;
   }
 
   /* สำหรับ print */
@@ -524,7 +513,7 @@ $len = max(20, $len);
     .page {
       margin: 0;
       box-shadow: none;
-      padding: 0.5cm 1cm 2cm 2.2cm !important;
+      padding: 0.5cm 1cm 2cm 2.45cm !important;
       width: 21cm;
       min-height: 29.7cm;
       border: 2px solid #fff !important;
@@ -535,7 +524,7 @@ $len = max(20, $len);
       position: absolute;
       left: 0;
       right: 0;
-      bottom: 0;
+      bottom: 2px;
       height: 2px;
       background-image: radial-gradient(circle, #000 0.6px, transparent 0.6px);
       background-size: 4px 2px;
@@ -557,13 +546,8 @@ $len = max(20, $len);
 
     .chip {
       border: none !important;
-      background: #fff !important;
+      background: transparent !important;
       box-shadow: none !important;
-
-      position: relative;
-      top: 2px;
-
-      padding: 0 2px;
     }
   }
 
@@ -603,25 +587,23 @@ $len = max(20, $len);
   /* ⭐ ขยับกล่องออกจากคำอีกนิด */
   .doc-row .dot-line .chip {
     margin-left: 14px !important;
-    /* เดิม 10px → เพิ่มออกมาอีก */
     margin-right: 6px !important;
-    /* ขยับปลายด้านหลังให้สวยขึ้น */
     padding-left: 6px !important;
     padding-right: 6px !important;
-    padding-top: 2px !important;
-    padding-bottom: 2px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
     display: inline-flex !important;
-    align-items: flex-end !important;
+    align-items: center !important;
+    position: relative;
+    top: -3px;
   }
 
 
   .doc-row .doc-label {
-    line-height: 1 !important;
-    height: 28px !important;
+    line-height: 1.0 !important;
+    height: 32px !important;
     display: flex;
-    align-items: flex-end !important;
-    padding-bottom: 3px !important;
-    font-weight: bold !important;
+    align-items: flex-end;
   }
 
   /* ★ สำหรับบรรทัด "ที่ – วันที่" ให้เส้นประต่อกันสนิท */
@@ -669,42 +651,16 @@ $len = max(20, $len);
 </head>
 
 <body>
-  <?php if ($readonly): ?>
   <script>
   document.addEventListener("DOMContentLoaded", () => {
-
-    // ปิด contenteditable ทั้งหมด
     document.querySelectorAll("[contenteditable]").forEach(e => {
       e.setAttribute("contenteditable", "false");
-      e.style.background = "#f0f0f0";
-      e.style.cursor = "not-allowed";
-    });
-
-    // ปิด input / select / textarea
-    document.querySelectorAll("input:not([type=hidden]), textarea, select").forEach(e => {
-      e.disabled = true;
-      e.style.background = "#f0f0f0";
-      e.style.cursor = "not-allowed";
-    });
-
-    // ซ่อนปุ่ม submit
-    const submitBtn = document.querySelector("button[type=submit]");
-    if (submitBtn) submitBtn.style.display = "none";
-
-    // เปลี่ยนข้อความของปุ่มดาวน์โหลด PDF ให้อยู่ในโหมดอ่านอย่างเดียว
-    const pdfBtn = document.querySelector("button[onclick='downloadPdf()']");
-    if (pdfBtn) pdfBtn.innerText = "ดาวน์โหลด PDF (โหมดอ่านอย่างเดียว)";
-
-    // แจ้งเตือนแสดง read-only
-    Swal.fire({
-      title: "โหมดอ่านอย่างเดียว",
-      text: "คุณไม่มีสิทธิ์แก้ไขเอกสารนี้",
-      icon: "info",
-      confirmButtonText: "ตกลง"
+      e.removeAttribute("data-target");
+      e.style.background = "transparent";
+      e.style.cursor = "default";
     });
   });
   </script>
-  <?php endif; ?>
 
   <?php if (isset($_GET['saved']) && $_GET['saved'] == '1'): ?>
   <div id="alertBox" class="bg-green-500 text-white px-4 py-2 rounded-md text-center mb-4 shadow-md">
@@ -725,46 +681,11 @@ $len = max(20, $len);
       <input type="hidden" name="header_text" id="hidden_header_text" value="<?= h($header_text) ?>">
       <input type="hidden" name="doc_no" id="hidden_doc_no" value="<?= h($doc_no) ?>">
 
-      <!-- hidden input ครบทุก field_id -->
+      <!-- หน้านี้เป็นหน้าแสดงผลเท่านั้น ถ้าต้องการแก้ไขให้กลับไปหน้าแบบฟอร์ม Request_3.php -->
       <input type="hidden" name="redirect_back" value="<?= htmlspecialchars($referer) ?>">
-
       <input type="hidden" name="document_id" value="<?= h($document['document_id']) ?>">
 
-      <!-- สำคัญ: ให้ doc_date เป็นรูปแบบเดิม (YYYY-MM-DD) ที่ดึงมาจาก DB -->
-      <input type="hidden" name="doc_date" id="hidden_doc_date" value="<?= h($docDate) ?>">
-
-      <input type="hidden" name="fullname" id="hidden_ownerName" value="<?= h($ownerName) ?>">
-      <input type="hidden" name="position" id="hidden_position" value="<?= h($position) ?>">
-
-      <!-- ส่งให้ update_memo.php รู้ว่าเป็นฟอร์มวิทยากร -->
-      <input type="hidden" name="purpose" id="hidden_joinType" value="speaker_workshop">
-      <input type="hidden" name="target_form" value="form_memo_speaker.php">
-      <input type="hidden" name="redirect_back"
-        value="/Pro_letter/form_Memo/form_memo_speaker.php?id=<?= h($document['document_id']) ?>">
-
-      <input type="hidden" name="subject" id="hidden_subject" value="<?= h($subject) ?>">
-      <input type="hidden" name="project_title" id="hidden_projectTitle" value="<?= h($projectTitle) ?>">
-      <input type="hidden" name="course_name" id="hidden_courseName" value="<?= h($courseName) ?>">
-
-      <input type="hidden" name="reference_org" id="hidden_referenceOrg" value="<?= h($referenceOrg) ?>">
-      <input type="hidden" name="reference_no" id="hidden_referenceNo" value="<?= h($referenceNo) ?>">
-      <input type="hidden" name="reference_date" id="hidden_referenceDate" value="<?= h($refDate) ?>">
-
-      <input type="hidden" name="intern_period" id="hidden_joinDates" value="<?= h($eventRange) ?>">
-      <input type="hidden" name="location" id="hidden_location" value="<?= h($eventPlace) ?>">
-      <input type="hidden" name="travel_period" id="hidden_travelPeriod" value="<?= h($travelPeriod) ?>">
-      <input type="hidden" name="intention_text" id="hidden_intentionText" value="<?= h($intentionText) ?>">
-
-      <input type="hidden" name="amount" id="hidden_amountStr" value="<?= h($amountStr) ?>">
-      <input type="hidden" name="faculty" id="hidden_faculty" value="<?= h($faculty) ?>">
-      <input type="hidden" name="department" id="hidden_department" value="<?= h($department) ?>">
-
-      <!-- ตัวเลือกช่วงวันที่: ใช้ range เป็นค่า default ตาม UI ปัจจุบัน -->
-      <input type="hidden" name="date_option" id="hidden_dateOption" value="range">
-      <input type="hidden" name="single_date" id="hidden_singleDate" value="">
-
-
-      <!-- หัวบันทึก: ใช้โครงสร้างเดียวกับ view_memo.php เพื่อให้ html2canvas ดึงตราครุฑติด PDF -->
+      <!-- หัวบันทึก -->
       <div class="memo-title-row">
         <img src="/Pro_letter/assets/img/garuda.jpg" class="garuda-img" />
         <h1 class="doc-title">บันทึกข้อความ</h1>
@@ -772,126 +693,78 @@ $len = max(20, $len);
 
       <!-- ส่วนราชการ -->
       <div class="doc-row">
-        <div class="doc-label" style="font-size:20pt;font-weight:bold;position:relative;top:9px;">
-          ส่วนราชการ
-        </div>
+        <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
         <div class="dot-line">
-          <span class="chip" contenteditable="true" data-target="header_text">
+          <span class="chip" contenteditable="false" data-target="header_text">
             <?= h($header_text ?: 'คณะ... ภาค... โทร...') ?>
           </span>
         </div>
       </div>
 
       <div class="doc-row row-ty-date">
-        <div class="doc-label" style="font-size:20pt;font-weight:bold;position:relative;top:9px;">
-          ที่
-        </div>
+        <div class="doc-label" style="font-size:20pt;font-weight:bold;">ที่</div>
 
         <div class="dot-line ty-left">
-          <span class="chip" contenteditable="true" data-target="doc_no" style="
-  display:inline-block;
-  transform:translateX(26px);
-">
+          <span class="chip" contenteditable="false" data-target="doc_no">
             <?= h($doc_no ?: 'ทส.486/2568') ?>
           </span>
         </div>
 
-        <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;position:relative;top:9px;">
-          วันที่
-        </div>
+        <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
 
         <div class="dot-line ty-right">
-          <span class="chip" contenteditable="true" data-target="doc_date_display">
+          <span class="chip" contenteditable="false" data-target="doc_date_display">
             <?= h($thaiDocDate ?: '') ?>
           </span>
         </div>
       </div>
 
+
       <!-- เรื่อง -->
-      <div class="doc-row subject-row" style="margin-bottom:25px;">
-        <div class="doc-label" style="font-size:20pt;font-weight:bold;position:relative;top:9px;">
-          เรื่อง
-        </div>
-        <div class="dot-line subject-line">
-          <span class="chip" contenteditable="true" data-target="subject"
-            style="display:inline-block; padding-left:28px;">
-            <?= h($subject ?: 'ขออนุมัติตัวบุคคลเป็นวิทยากรบรรยายในโครงการอบรมเชิงปฏิบัติการ') ?>
+      <div class="doc-row">
+        <div class="doc-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
+        <div class="dot-line">
+          <span class="chip" contenteditable="false">
+            ขออนุมัติใช้ห้องพักรับรอง<?= trim($roomRequestText) !== "" ? "สำหรับ" . h($roomRequestText) : "" ?>
           </span>
         </div>
       </div>
 
-      <!-- บรรทัด “เรียน” -->
-      <div class="doc-row" style="
-        margin-top:-8px;
-        margin-bottom:18px;
-        display:flex;
-        align-items:baseline;
-     ">
 
-        <div class="doc-label" style="
-            font-size:16pt !important;
-            font-weight:400 !important;
-            line-height:1.2;
-            padding-top:1px;
-         ">
-          เรียน
-        </div>
-
-        <div style="
-            flex:1;
-            padding-left:28px;
-            font-size:16pt;
-            line-height:1.2;
-         ">
-          คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม
-        </div>
-
+      <!-- บรรทัด “เรียน ...” -->
+      <div class="content-block single">
+        เรียน
+        <span class="chip" contenteditable="false">
+          <?= h($toPerson ?: "ประธานคณะกรรมการบ้านพัก มจพ. วิทยาเขตปราจีนบุรี") ?>
+        </span>
       </div>
 
       <!-- ย่อหน้า 1 -->
       <div class="content-block paragraph">
-        อ้างถึง หนังสือจาก
-        <span class="chip" contenteditable="true"
-          data-target="referenceOrg"><?= h($referenceOrg ?: '................................') ?></span>
-        เลขที่
-        <span class="chip" contenteditable="true"
-          data-target="referenceNo"><?= h($referenceNo ?: '................................') ?></span>
-        ลงวันที่
-        <span class="chip" contenteditable="true"
-          data-target="referenceDate"><?= h($referenceDateText ?: '................................') ?></span>
-        เรื่อง
-        <span class="chip" contenteditable="true"
-          data-target="projectTitle"><?= h($projectTitle ?: '................................') ?></span>
-        หลักสูตร
-        <span class="chip" contenteditable="true"
-          data-target="courseName"><?= h($courseName ?: '................................') ?></span>
+        ตามที่ ภาควิชา<?= h($displayDepartment) ?> คณะ<?= h($displayFaculty) ?>
+        มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
+        มีความประสงค์ขออนุมัติใช้ห้องพักรับรองสำหรับ
+        <?= h($roomRequestText ?: "................................") ?>
+        ให้แก่
+        <?= h($guestFullname ?: "................................") ?>
+        ซึ่งเป็น
+        <?= h($personTypeText ?: "................................") ?>
         ในระหว่างวันที่
-        <span class="chip" contenteditable="true"
-          data-target="joinDates"><?= h($eventRange ?: '................................') ?></span>
-        ณ
-        <span class="chip" contenteditable="true"
-          data-target="location"><?= h($eventPlace ?: '................................') ?></span>
+        <?= h($stayDateText ?: "................................") ?>
         นั้น
       </div>
 
       <!-- ย่อหน้า 2 -->
       <div class="content-block paragraph">
-        ในการนี้ ข้าพเจ้า
-        <span class="chip" contenteditable="true"
-          data-target="ownerName"><?= h($ownerName ?: '................................') ?></span>
-        สังกัดภาควิชา<?= h($department ?: 'เทคโนโลยีสารสนเทศ') ?>
-        คณะ<?= h($faculty ?: 'เทคโนโลยีและการจัดการอุตสาหกรรม') ?>
-        มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
-        ข้าพเจ้ามีความประสงค์
-        <span class="chip" contenteditable="true"
-          data-target="intentionText"><?= h($intentionText ?: 'ขออนุมัติเดินทางไปร่วมเป็นวิทยากรบรรยายในโครงการอบรมเชิงปฏิบัติการ') ?></span>
-        หลักสูตร
-        <span class="chip" contenteditable="true"
-          data-target="courseName"><?= h($courseName ?: '................................') ?></span>
-        ระหว่างวันที่
-        <span class="chip" contenteditable="true"
-          data-target="travelPeriod"><?= h($travelPeriod ?: '................................') ?></span>
-        (รวมระยะเวลาในการเดินทาง) รายละเอียดตามเอกสารแนบ
+        ในการนี้ ภาควิชา<?= h($displayDepartment) ?>
+        จึงมีความประสงค์ขออนุมัติใช้ห้องพักรับรอง
+        ณ
+        <?= h($roomType ?: "................................") ?>
+        ให้แก่
+        <?= h($guestFullname ?: "................................") ?>
+        ทั้งนี้เพื่อ
+        <?= h($reasonText ?: "................................") ?>
+        รายละเอียดตามเอกสารแนบท้าย
       </div>
 
       <!-- ย่อหน้า 3 -->
@@ -899,47 +772,40 @@ $len = max(20, $len);
         จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ
       </div>
 
+
+
       <div class="signature-wrapper">
         <div class="signature-block" id="signatureBlock">
-          <div class="sig-name">(<?= h($ownerName ?: '') ?>)</div>
-          <div class="sig-position"><?= h($position ?: '') ?></div>
+          <div class="sig-name">(ผู้ช่วยศาสตราจารย์ ดร.ขนิษฐา นามี)</div>
+          <div class="sig-position">หัวหน้าภาควิชาเทคโนโลยีสารสนเทศ</div>
         </div>
       </div>
 
 
       <div class="footer-actions">
 
-        <!-- 🔵 ปุ่มแรก: ดาวน์โหลด PDF (ทุก role ต้องมี และอยู่ลำดับแรก) -->
         <button type="button" onclick="downloadPdf()"
           class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
           ดาวน์โหลด PDF
         </button>
 
-        <!-- 🟩 USER: ปุ่มยืนยัน -->
-        <?php if ($roleId === 3): ?>
-        <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+        <a href="<?= h($editFormPath) ?>" id="editBtn" data-can-edit="<?= $canEdit ? '1' : '0' ?>"
+          class="px-6 py-2 rounded-md text-xl font-bold <?= $canEdit ? 'bg-teal-500 hover:bg-teal-600 text-white' : 'bg-gray-300 text-gray-600 cursor-not-allowed' ?>">
           แก้ไขเอกสาร
-        </button>
-        <?php endif; ?>
+        </a>
 
-        <!-- 🟦 OFFICER & ADMIN -->
         <?php if ($isAdmin || $isOfficer): ?>
-
-        <!-- ปุ่มอนุมัติ -->
         <button type="button" onclick="updateStatus('approved')"
           class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
           ผ่านการตรวจสอบ
         </button>
 
-        <!-- ปุ่มไม่ผ่าน -->
         <button type="button" onclick="updateStatus('rejected')"
           class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          ไม่ผ่านการตรวจสอบ
+          ไม่ผ่าน
         </button>
-
         <?php endif; ?>
 
-        <!-- ปุ่มกลับหน้าหลัก (ทุก role มี) -->
         <a href="<?= $homePath ?>"
           class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md text-xl font-bold">
           กลับหน้าหลัก
@@ -949,22 +815,7 @@ $len = max(20, $len);
 
     </form>
   </main>
-  <?php if ($readonly && !($isAdmin || $isOfficer)): ?>
-  <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    document.querySelectorAll("[contenteditable]").forEach(e => {
-      e.setAttribute("contenteditable", "false");
-      e.style.background = "#f0f0f0";
-    });
-    document.querySelectorAll("input, textarea, select").forEach(e => {
-      e.disabled = true;
-      e.style.background = "#f0f0f0";
-    });
-    const submitBtn = document.querySelector("button[type=submit]");
-    if (submitBtn) submitBtn.style.display = "none";
-  });
-  </script>
-  <?php endif; ?>
+
 
   <script>
   const alertBox = document.getElementById('alertBox');
@@ -975,63 +826,6 @@ $len = max(20, $len);
       setTimeout(() => alertBox.remove(), 500);
     }, 3000); // ซ่อนหลัง 3 วินาที
   }
-
-  function parseThaiDate(str) {
-    const monthMap = {
-      "มกราคม": "01",
-      "กุมภาพันธ์": "02",
-      "มีนาคม": "03",
-      "เมษายน": "04",
-      "พฤษภาคม": "05",
-      "มิถุนายน": "06",
-      "กรกฎาคม": "07",
-      "สิงหาคม": "08",
-      "กันยายน": "09",
-      "ตุลาคม": "10",
-      "พฤศจิกายน": "11",
-      "ธันวาคม": "12"
-    };
-    const parts = str.trim().split(" ");
-    if (parts.length !== 3) return null;
-
-    const d = parts[0].replace(/\D/g, ""); // เลขวัน
-    const m = monthMap[parts[1]] || "01"; // เดือน
-    const y = parseInt(parts[2], 10) - 543; // ปี พ.ศ. → ค.ศ.
-
-    if (!d || !m || isNaN(y)) return null;
-    return `${y}-${m}-${d.padStart(2, "0")}`; // YYYY-MM-DD
-  }
-  document.getElementById("updateForm").addEventListener("submit", function() {
-    document.querySelectorAll("[contenteditable][data-target]").forEach(el => {
-      const target = el.dataset.target;
-      const hidden = document.getElementById("hidden_" + target);
-      if (hidden) {
-        let text = el.innerText.trim();
-
-        if (target === "doc_date_display") {
-          const isoDate = parseThaiDate(text);
-          if (isoDate) {
-            document.getElementById("hidden_doc_date").value = isoDate;
-          }
-          return;
-        }
-
-        if (target === "referenceDate") {
-          const isoDate = parseThaiDate(text);
-          if (isoDate) {
-            document.getElementById("hidden_referenceDate").value = isoDate;
-          } else {
-            document.getElementById("hidden_referenceDate").value = text;
-          }
-          return;
-        }
-
-        hidden.value = text;
-
-        hidden.value = text;
-      }
-    });
-  });
 
   function getQuery(name) {
     const url = new URL(window.location.href);
@@ -1059,6 +853,22 @@ $len = max(20, $len);
       }).then((result) => {
         if (result.isConfirmed) {
           window.location.href = "<?= $homePath ?>";
+        }
+      });
+    }
+
+    const editBtn = document.getElementById("editBtn");
+    if (editBtn) {
+      editBtn.addEventListener("click", function(e) {
+        const canEdit = this.dataset.canEdit === "1";
+        if (!canEdit) {
+          e.preventDefault();
+          Swal.fire({
+            title: "ไม่สามารถแก้ไขได้",
+            text: "คุณไม่มีสิทธิ์แก้ไขเอกสารนี้ หรือสถานะเอกสารไม่อนุญาตให้แก้ไข",
+            icon: "warning",
+            confirmButtonText: "ตกลง"
+          });
         }
       });
     }
@@ -1103,16 +913,15 @@ $len = max(20, $len);
     // กำหนดความกว้างกล่อง = ความกว้างบรรทัดชื่อ -> ตำแหน่งจะกึ่งกลางใต้ชื่อพอดี
     box.style.width = nameEl.offsetWidth + 'px';
   })();
-  </script>
 
-  <script>
+
   async function downloadPdf() {
     try {
       const {
         jsPDF
       } = window.jspdf;
-
       const pages = document.querySelectorAll(".page");
+
       if (!pages.length) {
         alert("ไม่พบหน้าเอกสาร .page");
         return;
@@ -1135,70 +944,45 @@ $len = max(20, $len);
         clone.style.minHeight = "1123px";
         clone.style.boxSizing = "border-box";
         clone.style.background = "#ffffff";
+        clone.style.boxShadow = "none";
+        clone.style.margin = "0";
 
-        // ไม่เอาปุ่มต่าง ๆ ติดไปใน PDF
-        const cloneActions = clone.querySelectorAll(".footer-actions");
-        cloneActions.forEach(el => el.remove());
+        clone.querySelectorAll(".footer-actions").forEach(el => el.remove());
+        clone.querySelectorAll("input[type='hidden']").forEach(el => el.remove());
 
-        // ล็อกข้อความแก้ไขได้ให้เป็นข้อความนิ่งตอนแปลง PDF
-        clone.querySelectorAll("[contenteditable]").forEach(el => {
-          el.setAttribute("contenteditable", "false");
-        });
-
-        // ใส่ style ลงใน clone เพื่อปิด .dot-line::after เดิมของหน้า form_memo_speaker
-        // ถ้าไม่ปิด ตัว pseudo-line จะยังถูก html2canvas วาด ทำให้เส้นประลอย/ซ้อนผิดตำแหน่ง
-        const pdfStyle = document.createElement("style");
-        pdfStyle.textContent = `
-          .print-mode .dot-line::after {
-            content: none !important;
-            display: none !important;
-            background-image: none !important;
-          }
-        `;
-        clone.prepend(pdfStyle);
-
-        // ปรับตราครุฑและหัวเรื่องให้เหมือน view_memo.php ตอนแปลง PDF
+        // ห้ามขยับหัวเอกสารตอน export PDF เพราะจะทำให้ตำแหน่ง
+        // "บันทึกข้อความ" ไม่ตรงกับหน้าปกติ
         const cloneGaruda = clone.querySelector(".garuda-img");
         if (cloneGaruda) {
-          cloneGaruda.style.transform = "translateY(-0.65cm)";
-        }
-        const cloneTitle = clone.querySelector(".doc-title");
-        if (cloneTitle) {
-          cloneTitle.style.top = "-0.85cm";
-        }
-        const cloneTitleRow = clone.querySelector(".memo-title-row");
-        if (cloneTitleRow) {
-          cloneTitleRow.style.height = "0.8cm";
-          cloneTitleRow.style.marginBottom = "0.1cm";
+          cloneGaruda.style.transform = "none";
+          cloneGaruda.style.top = "0.10cm";
         }
 
-        // ทำเส้นประใหม่เฉพาะตอน clone แบบเดียวกับ view_memo.php
+        const cloneTitle = clone.querySelector(".doc-title");
+        if (cloneTitle) {
+          cloneTitle.style.top = "0.42cm";
+          cloneTitle.style.transform = "translateX(-0.3cm)";
+        }
+
+        const cloneTitleRow = clone.querySelector(".memo-title-row");
+        if (cloneTitleRow) {
+          cloneTitleRow.style.height = "1.65cm";
+          cloneTitleRow.style.marginBottom = "0.35em";
+        }
+
         clone.querySelectorAll(".dot-line").forEach(line => {
           line.querySelectorAll(".pdf-real-dot-line").forEach(el => el.remove());
 
           line.style.position = "relative";
           line.style.overflow = "visible";
           line.style.backgroundImage = "none";
-          line.style.borderBottom = "none";
-
-          // ดึงเฉพาะตัวอักษรลงให้ชิดเส้นประมากขึ้น
-          // ไม่ขยับเส้นประ
-          line.querySelectorAll(".chip").forEach(chip => {
-            chip.style.setProperty("transform", "translateY(4.5px)", "important");
-            chip.style.setProperty("line-height", "1", "important");
-            chip.style.setProperty("display", "inline-block", "important");
-            chip.style.setProperty("vertical-align", "bottom", "important");
-          });
 
           const dot = document.createElement("div");
           dot.className = "pdf-real-dot-line";
           dot.style.position = "absolute";
           dot.style.left = "0";
           dot.style.right = "0";
-
-          // เส้นถูกแล้ว ห้ามแก้ตรงนี้
-          dot.style.bottom = "-18px";
-
+          dot.style.bottom = "-12px";
           dot.style.height = "0";
           dot.style.zIndex = "1";
           dot.style.pointerEvents = "none";
@@ -1206,6 +990,15 @@ $len = max(20, $len);
 
           line.prepend(dot);
         });
+
+        clone.querySelectorAll(".dot-line .chip").forEach(chip => {
+          chip.style.position = "relative";
+          chip.style.zIndex = "3";
+          chip.style.background = "transparent";
+          // ขยับข้อความขึ้นจากเส้นประเล็กน้อย เส้นประยังอยู่ตำแหน่งเดิม
+          chip.style.top = "0px";
+        });
+
         document.body.appendChild(clone);
 
         const canvas = await html2canvas(clone, {
@@ -1230,8 +1023,7 @@ $len = max(20, $len);
         pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
       }
 
-      pdf.save("memo_speaker_<?= $docId ?>.pdf");
-
+      pdf.save("room_request_<?= $docId ?>.pdf");
     } catch (error) {
       console.error(error);
       alert("สร้าง PDF ไม่สำเร็จ กรุณากด F12 ดู Console");
