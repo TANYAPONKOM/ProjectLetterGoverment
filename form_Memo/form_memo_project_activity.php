@@ -977,12 +977,8 @@ $len = max(20, $len);
 ">
           ภาควิชาเทคโนโลยีสารสนเทศ<br>
           โทรศัพท์ ๐-๓๗๒๑-๗๓๔๐-๓ ต่อ ๗๐๖๕-๖<br>
-          โทรสาร ๐-๓๗๒๑-๗๓๑๗-๘<br>
-          E-mail :
-          E-mail :
-          <a href="mailto:IT@itm.kmutnb.ac.th" style="color:#2563eb; text-decoration:underline;">
-            IT@itm.kmutnb.ac.th
-          </a>
+          ไปรษณีย์อิเล็กทรอนิกส์  :
+          <span style="color:#000; text-decoration:none;">IT@itm.kmutnb.ac.th</span>
         </div>
 
       </div>

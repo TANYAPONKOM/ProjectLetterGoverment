@@ -352,8 +352,16 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     </div>
   </header>
 
-  <form method="post" action="save_calcu.php" id="memoForm">
+ <form method="post" action="/ProjectLetterGoverment/ProjectLetterGoverment/documents/EXP_Presentation.php" id="memoForm">
+    <?php
+    $skipPassFields = ['expense_json', 'amount', 'total_amount'];
 
+    foreach ($_POST as $key => $value) {
+        if (in_array($key, $skipPassFields, true)) continue;
+        if (is_array($value)) continue;
+        echo '<input type="hidden" name="' . h($key) . '" value="' . h($value) . '">' . "\n";
+    }
+    ?>
     <?php if ($isEdit): ?>
     <input type="hidden" name="document_id" value="<?= (int)$docId ?>">
     <input type="hidden" name="mode" value="update">
@@ -437,67 +445,92 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
           </div>
         </div>
 
-        <!-- 2.2 ค่าที่พัก -->
-        <div class="p-4 rounded-[20px] border-2 mb-4" style="border-color:#11c2b9;background:#f7fffe;">
-          <div class="flex items-center justify-between">
-            <label class="font-bold text-gray-800 flex items-center gap-2">
-              <input type="checkbox" id="lodEnabled" class="accent-black">
-              2.2 ค่าที่พักค้างคืน
-            </label>
-            <div class="text-gray-800 font-bold">
-              <span id="lodTotal">0.00</span> บาท
-            </div>
-          </div>
+<!-- 2.2 ค่าที่พัก -->
+<div class="p-4 rounded-[20px] border-2 mb-4" style="border-color:#11c2b9;background:#f7fffe;">
+  <div class="flex items-center justify-between">
+    <label class="font-bold text-gray-800 flex items-center gap-2">
+      <input type="checkbox" id="lodEnabled" class="accent-black">
+      2.2 ค่าที่พักค้างคืน
+    </label>
 
-          <div id="lodForm" class="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div class="md:col-span-2">
-              <label class="text-gray-700 block mb-2">ช่วงวันที่เข้าพัก</label>
+    <div class="text-gray-800 font-bold">
+      <span id="lodTotal">0.00</span> บาท
+    </div>
+  </div>
 
-              <div class="space-y-3 text-gray-800">
-                <label class="flex items-center gap-2">
-                  <input type="radio" name="lod_date_option" value="single" id="lodOptSingle" class="accent-[#11C2B9]"
-                    checked>
-                  <span>วันเดียว :</span>
-                  <div class="relative">
-                    <input type="text" id="lodSingleDate"
-                      class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่"
-                      readonly>
-                  </div>
-                </label>
+  <div id="lodForm" class="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3">
+    <!-- ช่วงวันที่เข้าพัก -->
+    <div class="md:col-span-4">
+      <label class="text-gray-700 block mb-2">ช่วงวันที่เข้าพัก</label>
 
-                <div class="flex flex-wrap items-center gap-2">
-                  <input type="radio" name="lod_date_option" value="range" id="lodOptRange" class="accent-[#11C2B9]">
-                  <span>หลายวัน :</span>
+      <div class="space-y-3 text-gray-800">
+        <!-- วันเดียว -->
+        <div id="lodSingleWrap" class="flex items-center gap-2">
+          <input type="radio" name="lod_date_option" value="single" id="lodOptSingle" class="accent-[#11C2B9]" checked>
+          <label for="lodOptSingle" class="whitespace-nowrap">วันเดียว :</label>
 
-                  <input type="text" id="lodStartDate" class="border rounded-md p-2 shadow-sm w-40 cursor-pointer"
-                    placeholder="เริ่มต้น" readonly>
-
-                  <span>ถึง</span>
-
-                  <input type="text" id="lodEndDate" class="border rounded-md p-2 shadow-sm w-40 cursor-pointer"
-                    placeholder="สิ้นสุด" readonly>
-                </div>
-
-                <input type="hidden" id="lodDateText">
-              </div>
-            </div>
-            <div>
-              <label class="text-gray-700">ราคา/คืน</label>
-              <input type="number" id="lodUnit" class="w-full border rounded-md p-2" min="0" step="0.01" value="0">
-            </div>
-            <div>
-              <label class="text-gray-700">จำนวนคืน</label>
-              <input type="number" id="lodNights" class="w-full border rounded-md p-2" min="1" step="1" value="1">
-            </div>
-            <div>
-              <label class="text-gray-700">จำนวนคน</label>
-              <input type="number" id="lodPeople" class="w-full border rounded-md p-2" min="1" step="1" value="1">
-            </div>
-            <div class="text-gray-600 md:col-span-4">
-              <span>(ราคา/คืน × คืน × คน)</span>
-            </div>
-          </div>
+          <input type="text" id="lodSingleDate"
+            class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer"
+            placeholder="เลือกวันที่"
+            readonly>
         </div>
+
+        <!-- หลายวัน -->
+        <div id="lodRangeWrap" class="flex flex-wrap items-center gap-2">
+          <input type="radio" name="lod_date_option" value="range" id="lodOptRange" class="accent-[#11C2B9]">
+          <label for="lodOptRange" class="whitespace-nowrap">หลายวัน :</label>
+
+          <input type="text" id="lodStartDate"
+            class="border rounded-md p-2 shadow-sm w-40 cursor-pointer"
+            placeholder="เริ่มต้น"
+            readonly>
+
+          <span>ถึง</span>
+
+          <input type="text" id="lodEndDate"
+            class="border rounded-md p-2 shadow-sm w-40 cursor-pointer"
+            placeholder="สิ้นสุด"
+            readonly>
+        </div>
+
+        <input type="hidden" id="lodDateText">
+      </div>
+    </div>
+
+    <!-- ราคา/คืน จำนวนคืน จำนวนคน -->
+    <div class="md:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
+      <div>
+        <label class="text-gray-700">ราคา/คืน</label>
+        <input type="text" id="lodUnit"
+          class="w-full border rounded-md p-2 bg-gray-100 text-gray-500"
+          value="0"
+          readonly>
+      </div>
+
+      <div>
+        <label class="text-gray-700">จำนวนคืน</label>
+        <input type="number" id="lodNights"
+          class="w-full border rounded-md p-2"
+          min="0"
+          step="1"
+          value="0">
+      </div>
+
+      <div>
+        <label class="text-gray-700">จำนวนคน</label>
+        <input type="number" id="lodPeople"
+          class="w-full border rounded-md p-2"
+          min="0"
+          step="1"
+          value="0">
+      </div>
+    </div>
+
+    <div class="text-gray-600 md:col-span-4">
+      <span>(ราคา/คืน × คืน × คน)</span>
+    </div>
+  </div>
+</div>
 
         <!-- 2.3 ค่าเบี้ยเลี้ยง -->
         <div class="p-4 rounded-[20px] border-2 mb-4" style="border-color:#11c2b9;background:#f7fffe;">
@@ -514,15 +547,15 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
           <div id="perForm" class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <label class="text-gray-700">ราคา/มื้อ</label>
-              <input type="number" id="perUnit" class="w-full border rounded-md p-2" min="0" step="0.01" value="0">
+           <input type="number" id="perUnit" class="w-full border rounded-md p-2" min="0" step="0.01" value="0">
             </div>
             <div>
               <label class="text-gray-700">จำนวนมื้อ</label>
-              <input type="number" id="perMeals" class="w-full border rounded-md p-2" min="1" step="1" value="1">
+            <input type="number" id="perMeals" class="w-full border rounded-md p-2" min="0" step="1" value="0">
             </div>
             <div>
               <label class="text-gray-700">จำนวนคน</label>
-              <input type="number" id="perPeople" class="w-full border rounded-md p-2" min="1" step="1" value="1">
+              <input type="number" id="perPeople" class="w-full border rounded-md p-2" min="0" step="1" value="0">
             </div>
             <div class="text-gray-600 md:col-span-3">
               <span>(ราคา/มื้อ × มื้อ × คน)</span>
@@ -530,32 +563,32 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
           </div>
         </div>
 
-        <!-- 2.4 ค่าพาหนะ -->
-        <div class="p-4 rounded-[20px] border-2 mb-4" style="border-color:#11c2b9;background:#f7fffe;">
-          <div class="flex items-center justify-between">
-            <label class="font-bold text-gray-800 flex items-center gap-2">
-              <input type="checkbox" id="trEnabled" class="accent-black">
-              2.4 ค่าพาหนะ
-            </label>
-            <div class="text-gray-800 font-bold">
-              <span id="trTotal">0.00</span> บาท
-            </div>
-          </div>
+<!-- 2.4 ค่าพาหนะ -->
+<div class="p-4 rounded-[20px] border-2 mb-4" style="border-color:#11c2b9;background:#f7fffe;">
+  <div class="flex items-center justify-between">
+    <label class="font-bold text-gray-800 flex items-center gap-2">
+      <input type="checkbox" id="trEnabled" class="accent-black">
+      2.4 ค่าพาหนะ
+    </label>
 
-          <div class="mt-3">
-            <button type="button" id="addTrItemBtn"
-              class="bg-white border-2 border-[#11C2B9] text-[#0f766e] font-bold px-4 py-2 rounded-md hover:bg-gray-50 transition">
-              + เพิ่มรายการย่อยพาหนะ
-            </button>
-          </div>
+    <div class="text-gray-800 font-bold">
+      <span id="trTotal">0.00</span> บาท
+    </div>
+  </div>
 
-          <div id="trList" class="mt-3 space-y-3"></div>
+  <div class="mt-3">
+    <button type="button" id="addTrItemBtn"
+      class="bg-white border-2 border-[#11C2B9] text-[#0f766e] font-bold px-4 py-2 rounded-md hover:bg-gray-50 transition">
+      + เพิ่มรายการพาหนะ
+    </button>
+  </div>
 
-          <div id="trEmpty" class="mt-3 text-gray-500">
-            - ไม่มีรายการพาหนะ — 0.00 บาท
-          </div>
-        </div>
-      </div>
+  <div id="trList" class="mt-3 space-y-4"></div>
+
+  <div id="trEmpty" class="mt-3 text-gray-500">
+    - ไม่มีรายการพาหนะ — 0.00 บาท
+  </div>
+</div>
 
       <!-- =========================
               3) ค่าวัสดุ
@@ -590,7 +623,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       <!-- ปุ่ม -->
       <div class="relative mt-20">
         <div class="absolute right-0 bottom-0">
-          <button type="submit" id="submitBtn"
+          <button type="button" id="submitBtn"
             class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md transition">
             ดำเนินการ
           </button>
@@ -631,8 +664,8 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
         perdiem: {
           enabled: false,
           unit_price: 0,
-          meals: 1,
-          people: 1
+          meals: 0,
+          people: 0
         },
         transport: {
           enabled: false,
@@ -644,15 +677,24 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     };
 
     // ====== helpers ======
-    const fmt = (n) => (Number(n || 0)).toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    });
-    const num = (v) => {
-      const x = Number(String(v ?? "").replace(/,/g, ""));
-      return Number.isFinite(x) ? x : 0;
-    };
-    const TH_MONTH_SHORT = [
+// ====== helpers ======
+const fmt = (n) => (Number(n || 0)).toLocaleString("en-US", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+});
+
+const num = (v) => {
+  const x = Number(String(v ?? "").replace(/,/g, ""));
+  return Number.isFinite(x) ? x : 0;
+};
+
+const fmtNoDecimal = (n) => {
+  return Number(n || 0).toLocaleString("en-US", {
+    maximumFractionDigits: 0
+  });
+};
+
+const TH_MONTH_SHORT = [
       "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
       "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
     ];
@@ -665,50 +707,104 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       return `${d} ${m} ${y}`;
     }
 
-    function updateLodDateText() {
-      if (!lodDateText) return;
+    function parseThaiShortDate(text) {
+  const m = String(text || "").trim().match(/^(\d{1,2})\s+([ก-ฮ.]+)\s+(\d{2})$/);
+  if (!m) return null;
 
-      if (lodOptSingle?.checked) {
-        lodDateText.value = lodSingleDate?.value || "";
-      } else {
-        const s = lodStartDate?.value || "";
-        const e = lodEndDate?.value || "";
-        lodDateText.value = (s && e) ? `${s} – ${e}` : "";
-      }
+  const day = parseInt(m[1], 10);
+  const monthIndex = TH_MONTH_SHORT.indexOf(m[2]);
+  const buddhistYearShort = parseInt(m[3], 10);
 
-      state.allowance.lodging.date_text = lodDateText.value;
-      calc();
-    }
-    flatpickr(lodSingleDate, {
-      locale: "th",
-      dateFormat: "Y-m-d",
-      onChange: function(selectedDates) {
-        lodSingleDate.value = selectedDates[0] ? thaiShortDate(selectedDates[0]) : "";
-        updateLodDateText();
-      }
-    });
+  if (monthIndex === -1) return null;
 
-    flatpickr(lodStartDate, {
-      locale: "th",
-      dateFormat: "Y-m-d",
-      onChange: function(selectedDates) {
-        lodStartDate.value = selectedDates[0] ? thaiShortDate(selectedDates[0]) : "";
-        updateLodDateText();
-      }
-    });
+  const christianYear = 2500 + buddhistYearShort - 543;
+  return new Date(christianYear, monthIndex, day);
+}
 
-    flatpickr(lodEndDate, {
-      locale: "th",
-      dateFormat: "Y-m-d",
-      onChange: function(selectedDates) {
-        lodEndDate.value = selectedDates[0] ? thaiShortDate(selectedDates[0]) : "";
-        updateLodDateText();
-      }
-    });
+function diffNights(startText, endText) {
+  const start = parseThaiShortDate(startText);
+  const end = parseThaiShortDate(endText);
 
-    [lodOptSingle, lodOptRange].forEach(el => {
-      el?.addEventListener("change", updateLodDateText);
-    });
+  if (!start || !end) return 0;
+
+  const oneDay = 1000 * 60 * 60 * 24;
+  const diff = Math.round((end - start) / oneDay);
+
+  return diff > 0 ? diff : 0;
+}
+
+function syncLodgingAutoCalc(autoSetPeople = false) {
+  const isSingle = lodOptSingle.checked;
+
+  let hasDate = false;
+  let nights = 0;
+
+  if (isSingle) {
+    hasDate = !!lodSingleDate.value;
+    nights = hasDate ? 1 : 0;
+  } else {
+    hasDate = !!lodStartDate.value && !!lodEndDate.value;
+    nights = hasDate ? diffNights(lodStartDate.value, lodEndDate.value) : 0;
+  }
+
+  if (!hasDate || nights <= 0) {
+    lodUnit.value = "0";
+    lodNights.value = "0";
+    lodPeople.value = "0";
+
+    state.allowance.lodging.unit_price = 0;
+    state.allowance.lodging.nights = 0;
+    state.allowance.lodging.people = 0;
+
+    calc();
+    return;
+  }
+
+  lodNights.value = nights;
+
+  let people = num(lodPeople.value);
+
+  if (autoSetPeople && people <= 0) {
+    people = 1;
+    lodPeople.value = "1";
+  }
+
+  let unitPrice = 0;
+
+  if (people > 0) {
+    unitPrice = people === 1 ? 1500 : 1000;
+
+    lodEnabled.checked = true;
+    state.allowance.lodging.enabled = true;
+  }
+
+  lodUnit.value = fmtNoDecimal(unitPrice);
+
+  state.allowance.lodging.unit_price = unitPrice;
+  state.allowance.lodging.nights = nights;
+  state.allowance.lodging.people = people;
+
+  calc();
+}
+
+
+function updateLodDateText() {
+  if (!lodDateText) return;
+
+  if (lodOptSingle?.checked) {
+    lodDateText.value = lodSingleDate?.value || "";
+  } else {
+    const s = lodStartDate?.value || "";
+    const e = lodEndDate?.value || "";
+    lodDateText.value = (s && e) ? `${s} – ${e}` : "";
+  }
+
+  state.allowance.lodging.date_text = lodDateText.value;
+
+  // เลือกวันที่แล้วให้ระบบเริ่มจำนวนคนเป็น 1 อัตโนมัติ
+  syncLodgingAutoCalc(true);
+}
+   
 
     function calc() {
       // 1 compensation
@@ -732,9 +828,18 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
           .perdiem.people);
       }
       if (state.allowance.transport.enabled) {
-        tr = (state.allowance.transport.items || []).reduce((s, it) => s + (num(it.unit_price) * num(it.trips) *
-          num(it.people)), 0);
+        tr = (state.allowance.transport.items || []).reduce((s, it) => {
+          if (it.type === "fuel") {
+            return s + (num(it.distance) * num(it.rate || 4) * num(it.trips));
       }
+
+    if (it.type === "flight") {
+      return s + (num(it.ticket_price) * num(it.people) * num(it.trips));
+    }
+
+    return s + (num(it.unit_price) * num(it.trips) * num(it.people));
+  }, 0);
+}
 
       const allowSum = reg + lod + per + tr;
 
@@ -888,85 +993,477 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     const trEmpty = document.getElementById("trEmpty");
     const addTrItemBtn = document.getElementById("addTrItemBtn");
 
-    function syncAllowUI() {
-      regForm.style.opacity = regEnabled.checked ? "1" : "0.5";
-      regPrice.disabled = regPeople.disabled = !regEnabled.checked;
+    const lodSingleWrap = document.getElementById("lodSingleWrap");
+    const lodRangeWrap = document.getElementById("lodRangeWrap");
+    
+    
+let lodStartDateObj = null;
+let lodEndDateObj = null;
+let lodSingleDateObj = null;
 
-      lodForm.style.opacity = lodEnabled.checked ? "1" : "0.5";
-      [lodDateText, lodOptSingle, lodOptRange, lodSingleDate, lodStartDate, lodEndDate, lodUnit, lodNights,
-        lodPeople
-      ]
-      .forEach(el => {
-        if (el) el.disabled = !lodEnabled.checked;
+const lodSinglePicker = flatpickr(lodSingleDate, {
+  locale: "th",
+  dateFormat: "Y-m-d",
+  disableMobile: true,
+  allowInput: false,
+  clickOpens: true,
+  onChange: function(selectedDates) {
+    lodSingleDateObj = selectedDates[0] || null;
+    lodSingleDate.value = lodSingleDateObj ? thaiShortDate(lodSingleDateObj) : "";
+    updateLodDateText();
+  }
+});
+
+const lodStartPicker = flatpickr(lodStartDate, {
+  locale: "th",
+  dateFormat: "Y-m-d",
+  disableMobile: true,
+  allowInput: false,
+  clickOpens: true,
+  onChange: function(selectedDates) {
+    lodStartDateObj = selectedDates[0] || null;
+    lodStartDate.value = lodStartDateObj ? thaiShortDate(lodStartDateObj) : "";
+    updateLodDateText();
+  }
+});
+
+const lodEndPicker = flatpickr(lodEndDate, {
+  locale: "th",
+  dateFormat: "Y-m-d",
+  disableMobile: true,
+  allowInput: false,
+  clickOpens: true,
+  onChange: function(selectedDates) {
+    lodEndDateObj = selectedDates[0] || null;
+    lodEndDate.value = lodEndDateObj ? thaiShortDate(lodEndDateObj) : "";
+    updateLodDateText();
+  }
+});
+
+    function setLodGroupDisabled(wrapper, inputs, disabled) {
+      if (!wrapper) return;
+
+      wrapper.classList.toggle("opacity-50", disabled);
+      wrapper.classList.toggle("text-gray-400", disabled);
+
+      inputs.forEach(input => {
+        if (!input) return;
+
+        input.disabled = disabled;
+        input.classList.toggle("bg-gray-100", disabled);
+        input.classList.toggle("text-gray-400", disabled);
+        input.classList.toggle("cursor-not-allowed", disabled);
+        input.classList.toggle("cursor-pointer", !disabled);
       });
-
-      perForm.style.opacity = perEnabled.checked ? "1" : "0.5";
-      [perUnit, perMeals, perPeople].forEach(el => el.disabled = !perEnabled.checked);
-
-      trList.style.opacity = trEnabled.checked ? "1" : "0.5";
-      addTrItemBtn.disabled = !trEnabled.checked;
-      trEmpty.style.display = (trEnabled.checked && (state.allowance.transport.items || []).length === 0) ?
-        "block" : "none";
     }
 
-    function renderTransport() {
-      trList.innerHTML = "";
-      const items = state.allowance.transport.items || [];
-      trEmpty.style.display = (trEnabled.checked && items.length === 0) ? "block" : "none";
+  function applyLodDateModeStyle() {
+  const isSingle = lodOptSingle.checked;
 
-      items.forEach((it, idx) => {
-        const wrap = document.createElement("div");
-        wrap.className = "p-4 bg-white rounded-xl border";
-        wrap.innerHTML = `
+  setLodGroupDisabled(lodSingleWrap, [lodSingleDate], !isSingle);
+  setLodGroupDisabled(lodRangeWrap, [lodStartDate, lodEndDate], isSingle);
+}
+
+function syncLodDateModeUI() {
+  const isSingle = lodOptSingle.checked;
+
+  applyLodDateModeStyle();
+
+  if (isSingle) {
+    lodStartDate.value = "";
+    lodEndDate.value = "";
+    lodStartDateObj = null;
+    lodEndDateObj = null;
+  } else {
+    lodSingleDate.value = "";
+    lodSingleDateObj = null;
+  }
+
+  lodUnit.value = "0";
+  lodNights.value = "0";
+  lodPeople.value = "0";
+
+  state.allowance.lodging.unit_price = 0;
+  state.allowance.lodging.nights = 0;
+  state.allowance.lodging.people = 0;
+
+  updateLodDateText();
+  calc();
+}
+
+    [lodOptSingle, lodOptRange].forEach(el => {
+      el.addEventListener("change", syncLodDateModeUI);
+    });
+
+function syncPerdiemDefault() {
+  if (perEnabled.checked) {
+    // เมื่อติ๊ก 2.3 ค่อยเติมค่าอัตโนมัติ
+    perUnit.value = 120;
+    perMeals.value = 3;
+
+    if (num(perPeople.value) <= 0) {
+      perPeople.value = 1;
+    }
+
+    state.allowance.perdiem.enabled = true;
+    state.allowance.perdiem.unit_price = 120;
+    state.allowance.perdiem.meals = 3;
+    state.allowance.perdiem.people = num(perPeople.value);
+  } else {
+    // ยังไม่ติ๊ก / เอาติ๊กออก ให้โชว์ 0
+    perUnit.value = 0;
+    perMeals.value = 0;
+    perPeople.value = 0;
+
+    state.allowance.perdiem.enabled = false;
+    state.allowance.perdiem.unit_price = 0;
+    state.allowance.perdiem.meals = 0;
+    state.allowance.perdiem.people = 0;
+  }
+
+  calc();
+}
+
+    function syncAllowUI() {
+  // ไม่ทำให้หัวข้อ 2.1, 2.2, 2.3 เป็นสีเทาก่อนเลือก checkbox แล้ว
+  // checkbox ใช้คุมแค่ว่าจะเอายอดไปคำนวณหรือไม่
+
+    regPrice.disabled = false;
+    regPeople.disabled = false;
+
+    lodDateText.disabled = false;
+    lodOptSingle.disabled = false;
+    lodOptRange.disabled = false;
+    lodUnit.disabled = false;
+    lodNights.disabled = false;
+    lodPeople.disabled = false;
+
+    perUnit.disabled = false;
+    perMeals.disabled = false;
+    perPeople.disabled = false;
+
+  // ให้สีเทาเฉพาะช่องวันที่ของ 2.2 ตามที่เลือก วันเดียว / หลายวัน
+  applyLodDateModeStyle();
+
+  // ส่วนค่าพาหนะ จะให้ปุ่มเพิ่มรายการเปิดตาม checkbox เหมือนเดิม
+  trList.style.opacity = trEnabled.checked ? "1" : "0.5";
+  addTrItemBtn.disabled = !trEnabled.checked;
+  trEmpty.style.display = (trEnabled.checked && (state.allowance.transport.items || []).length === 0)
+    ? "block"
+    : "none";
+}
+
+function renderTransport() {
+  trList.innerHTML = "";
+
+  const items = state.allowance.transport.items || [];
+  trEmpty.style.display = (trEnabled.checked && items.length === 0) ? "block" : "none";
+
+  items.forEach((it, idx) => {
+    const type = it.type || "fuel";
+
+    let amount = 0;
+    if (type === "fuel") {
+      amount = num(it.distance) * num(it.rate || 4) * num(it.trips);
+    } else if (type === "flight") {
+      amount = num(it.ticket_price) * num(it.people) * num(it.trips);
+    } else {
+      amount = num(it.unit_price) * num(it.trips) * num(it.people);
+    }
+
+    const wrap = document.createElement("div");
+    wrap.className = "p-4 bg-white rounded-xl border border-gray-200 shadow-sm";
+
+    wrap.innerHTML = `
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+        <div class="md:col-span-4">
+          <label class="text-gray-700">ประเภทพาหนะ</label>
+          <select class="w-full border rounded-md p-2 custom-select" data-k="type" data-i="${idx}">
+            <option value="fuel" ${type === "fuel" ? "selected" : ""}>รถยนต์ / ค่าน้ำมันในประเทศ</option>
+            <option value="flight" ${type === "flight" ? "selected" : ""}>เครื่องบิน</option>
+            <option value="other" ${type === "other" ? "selected" : ""}>อื่น ๆ / รถโดยสาร / รถไฟ / แท็กซี่</option>
+          </select>
+        </div>
+
+        <div class="md:col-span-7">
+          <label class="text-gray-700">รายละเอียดรายการ</label>
+          <input type="text" class="w-full border rounded-md p-2"
+            value="${it.desc ?? ""}"
+            data-k="desc"
+            data-i="${idx}"
+            placeholder="เช่น เดินทางจากมหาวิทยาลัยไปกรุงเทพฯ">
+        </div>
+
+        <div class="md:col-span-1">
+          <button type="button"
+            class="w-full bg-red-50 text-red-600 border border-red-200 rounded-md px-3 py-2 font-bold hover:bg-red-100"
+            data-del="${idx}">
+            ลบ
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-4 transport-detail"></div>
+
+      <div class="mt-3 text-gray-700 bg-gray-50 border rounded-lg p-3">
+        รวมรายการนี้:
+        <span class="font-bold text-[#0f766e] tr-item-total">${fmt(amount)}</span>
+        บาท
+      </div>
+    `;
+
+    const detail = wrap.querySelector(".transport-detail");
+
+    if (type === "fuel") {
+      detail.innerHTML = `
         <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-          <div class="md:col-span-6">
-            <label class="text-gray-700">รายละเอียดเส้นทาง/รายการ</label>
-            <input type="text" class="w-full border rounded-md p-2" value="${it.desc ?? ""}" data-k="desc" data-i="${idx}">
+          <div class="md:col-span-3">
+            <label class="text-gray-700">ต้นทาง</label>
+            <input type="text" class="w-full border rounded-md p-2"
+              value="${it.origin ?? ""}"
+              data-k="origin"
+              data-i="${idx}"
+              placeholder="เช่น มจพ. ปราจีนบุรี">
           </div>
+
+          <div class="md:col-span-3">
+            <label class="text-gray-700">ปลายทาง</label>
+            <input type="text" class="w-full border rounded-md p-2"
+              value="${it.destination ?? ""}"
+              data-k="destination"
+              data-i="${idx}"
+              placeholder="เช่น กรุงเทพฯ">
+          </div>
+
           <div class="md:col-span-2">
-            <label class="text-gray-700">ราคา/เที่ยว</label>
-            <input type="number" class="w-full border rounded-md p-2" min="0" step="0.01" value="${num(it.unit_price)}" data-k="unit_price" data-i="${idx}">
+            <label class="text-gray-700">ระยะทาง (กม.)</label>
+            <input type="number" class="w-full border rounded-md p-2"
+              min="0"
+              step="0.01"
+              value="${num(it.distance)}"
+              data-k="distance"
+              data-i="${idx}">
           </div>
+
           <div class="md:col-span-2">
             <label class="text-gray-700">จำนวนเที่ยว</label>
-            <input type="number" class="w-full border rounded-md p-2" min="1" step="1" value="${num(it.trips)||1}" data-k="trips" data-i="${idx}">
+            <input type="number" class="w-full border rounded-md p-2"
+              min="1"
+              step="1"
+              value="${num(it.trips) || 1}"
+              data-k="trips"
+              data-i="${idx}">
           </div>
-          <div class="md:col-span-1">
-            <label class="text-gray-700">คน</label>
-            <input type="number" class="w-full border rounded-md p-2" min="1" step="1" value="${num(it.people)||1}" data-k="people" data-i="${idx}">
+
+          <div class="md:col-span-2">
+            <label class="text-gray-700">อัตรา บาท/กม.</label>
+            <input type="number" class="w-full border rounded-md p-2 bg-gray-100 text-gray-500"
+              min="0"
+              step="0.01"
+              value="${num(it.rate || 4)}"
+              data-k="rate"
+              data-i="${idx}"
+              readonly>
           </div>
-          <div class="md:col-span-1">
-            <button type="button" class="w-full bg-red-50 text-red-600 border border-red-200 rounded-md px-3 py-2 font-bold hover:bg-red-100"
-              data-del="${idx}">ลบ</button>
-          </div>
+
           <div class="md:col-span-12 text-gray-600">
-            (ราคา/เที่ยว × เที่ยว × คน) = <span class="font-bold">${fmt(num(it.unit_price)*num(it.trips)*num(it.people))}</span> บาท
+            สูตร: ระยะทาง × 4 บาท × จำนวนเที่ยว
           </div>
         </div>
       `;
-
-        wrap.addEventListener("input", (e) => {
-          const t = e.target;
-          if (!t.dataset || t.dataset.i === undefined) return;
-          const i = Number(t.dataset.i);
-          const k = t.dataset.k;
-          if (["unit_price", "trips", "people"].includes(k)) state.allowance.transport.items[i][k] = num(t
-            .value);
-          else state.allowance.transport.items[i][k] = t.value;
-
-          renderTransport(); // อัปเดตบรรทัด = ... บาท
-          calc();
-        });
-
-        wrap.querySelector(`[data-del="${idx}"]`).addEventListener("click", () => {
-          state.allowance.transport.items.splice(idx, 1);
-          renderTransport();
-          calc();
-        });
-
-        trList.appendChild(wrap);
-      });
     }
+
+    if (type === "flight") {
+      detail.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+          <div class="md:col-span-3">
+            <label class="text-gray-700">สายการบิน</label>
+            <input type="text" class="w-full border rounded-md p-2"
+              value="${it.airline ?? ""}"
+              data-k="airline"
+              data-i="${idx}"
+              placeholder="เช่น Thai AirAsia">
+          </div>
+
+          <div class="md:col-span-3">
+            <label class="text-gray-700">เส้นทาง</label>
+            <input type="text" class="w-full border rounded-md p-2"
+              value="${it.route ?? ""}"
+              data-k="route"
+              data-i="${idx}"
+              placeholder="เช่น กรุงเทพฯ - เชียงใหม่">
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="text-gray-700">ชั้นโดยสาร</label>
+            <input type="text" class="w-full border rounded-md p-2 bg-gray-100 text-gray-500"
+              value="ชั้นประหยัด"
+              data-k="seat_class"
+              data-i="${idx}"
+              readonly>
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="text-gray-700">ราคาตั๋วชั้นประหยัด/คน</label>
+            <input type="number" class="w-full border rounded-md p-2"
+              min="0"
+              step="0.01"
+              value="${num(it.ticket_price)}"
+              data-k="ticket_price"
+              data-i="${idx}"
+              placeholder="กรอกราคาตามจริง">
+          </div>
+
+          <div class="md:col-span-1">
+            <label class="text-gray-700">จำนวนเที่ยว</label>
+            <input type="number" class="w-full border rounded-md p-2"
+              min="1"
+              step="1"
+              value="${num(it.trips) || 1}"
+              data-k="trips"
+              data-i="${idx}">
+          </div>
+
+          <div class="md:col-span-1">
+            <label class="text-gray-700">คน</label>
+            <input type="number" class="w-full border rounded-md p-2"
+              min="1"
+              step="1"
+              value="${num(it.people) || 1}"
+              data-k="people"
+              data-i="${idx}">
+          </div>
+
+          <div class="md:col-span-12 text-gray-600">
+            สูตร: ราคาตั๋วชั้นประหยัด/คนตามจริง × จำนวนเที่ยว × จำนวนคน
+            <br>
+            <span class="text-red-500">* เครื่องบินต้องเป็นชั้นประหยัดเท่านั้น และต้องกรอกราคาตามหลักฐานจริง</span>
+          </div>
+        </div>
+      `;
+    }
+
+    if (type === "other") {
+      detail.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+          <div class="md:col-span-5">
+            <label class="text-gray-700">รายการ/เส้นทาง</label>
+            <input type="text" class="w-full border rounded-md p-2"
+              value="${it.route ?? ""}"
+              data-k="route"
+              data-i="${idx}"
+              placeholder="เช่น รถโดยสาร กรุงเทพฯ - ปราจีนบุรี">
+          </div>
+
+          <div class="md:col-span-3">
+            <label class="text-gray-700">ราคา/เที่ยว</label>
+            <input type="number" class="w-full border rounded-md p-2"
+              min="0"
+              step="0.01"
+              value="${num(it.unit_price)}"
+              data-k="unit_price"
+              data-i="${idx}">
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="text-gray-700">จำนวนเที่ยว</label>
+            <input type="number" class="w-full border rounded-md p-2"
+              min="1"
+              step="1"
+              value="${num(it.trips) || 1}"
+              data-k="trips"
+              data-i="${idx}">
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="text-gray-700">จำนวนคน</label>
+            <input type="number" class="w-full border rounded-md p-2"
+              min="1"
+              step="1"
+              value="${num(it.people) || 1}"
+              data-k="people"
+              data-i="${idx}">
+          </div>
+
+          <label class="text-gray-700">จำนวนเที่ยว <span class="text-xs text-gray-500">(เที่ยวเดียว=1, ไป-กลับ=2)</span></label>
+        </div>
+      `;
+    }
+
+    wrap.addEventListener("input", (e) => {
+      const t = e.target;
+      if (!t.dataset || t.dataset.i === undefined) return;
+
+      const i = Number(t.dataset.i);
+      const k = t.dataset.k;
+
+      if (["distance", "rate", "trips", "people", "ticket_price", "unit_price"].includes(k)) {
+        state.allowance.transport.items[i][k] = num(t.value);
+      } else {
+        state.allowance.transport.items[i][k] = t.value;
+      }
+
+      const item = state.allowance.transport.items[i];
+      let amount = 0;
+
+      if (item.type === "fuel") {
+        amount = num(item.distance) * num(item.rate || 4) * num(item.trips);
+      } else if (item.type === "flight") {
+        amount = num(item.ticket_price) * num(item.people) * num(item.trips);
+      } else {
+        amount = num(item.unit_price) * num(item.trips) * num(item.people);
+      }
+
+      const totalEl = wrap.querySelector(".tr-item-total");
+      if (totalEl) {
+        totalEl.innerText = fmt(amount);
+      }
+
+      calc();
+    });
+
+    wrap.addEventListener("change", (e) => {
+      const t = e.target;
+      if (!t.dataset || t.dataset.i === undefined) return;
+
+      const i = Number(t.dataset.i);
+      const k = t.dataset.k;
+
+      if (k === "type") {
+        state.allowance.transport.items[i] = {
+          type: t.value,
+          desc: "",
+          origin: "",
+          destination: "",
+          distance: 0,
+          rate: 4,
+          airline: "",
+          route: "",
+          seat_class: "economy",
+          ticket_price: 0,
+          unit_price: 0,
+          trips: 1,
+          people: 1
+        };
+      } else if (["distance", "rate", "trips", "people", "ticket_price", "unit_price"].includes(k)) {
+        state.allowance.transport.items[i][k] = num(t.value);
+      } else {
+        state.allowance.transport.items[i][k] = t.value;
+      }
+
+      renderTransport();
+      calc();
+    });
+
+    wrap.querySelector(`[data-del="${idx}"]`).addEventListener("click", () => {
+      state.allowance.transport.items.splice(idx, 1);
+      renderTransport();
+      calc();
+    });
+
+    trList.appendChild(wrap);
+  });
+}
 
     // enable toggles
     regEnabled.addEventListener("change", () => {
@@ -982,7 +1479,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     perEnabled.addEventListener("change", () => {
       state.allowance.perdiem.enabled = perEnabled.checked;
       syncAllowUI();
-      calc();
+      syncPerdiemDefault();
     });
     trEnabled.addEventListener("change", () => {
       state.allowance.transport.enabled = trEnabled.checked;
@@ -997,32 +1494,54 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       calc();
     }));
 
-    [lodUnit, lodNights, lodPeople].forEach(el => el.addEventListener("input", () => {
-      updateLodDateText();
-      state.allowance.lodging.unit_price = num(lodUnit.value);
-      state.allowance.lodging.nights = num(lodNights.value) || 1;
-      state.allowance.lodging.people = num(lodPeople.value) || 1;
-      calc();
-    }));
+[lodNights, lodPeople].forEach(el => {
+  el.addEventListener("input", () => syncLodgingAutoCalc(false));
+  el.addEventListener("change", () => syncLodgingAutoCalc(false));
+  el.addEventListener("keyup", () => syncLodgingAutoCalc(false));
+});
 
-    [perUnit, perMeals, perPeople].forEach(el => el.addEventListener("input", () => {
-      state.allowance.perdiem.unit_price = num(perUnit.value);
-      state.allowance.perdiem.meals = num(perMeals.value) || 1;
-      state.allowance.perdiem.people = num(perPeople.value) || 1;
-      calc();
-    }));
+[perUnit, perMeals, perPeople].forEach(el => {
+  el.addEventListener("input", () => {
+    state.allowance.perdiem.unit_price = num(perUnit.value);
+    state.allowance.perdiem.meals = num(perMeals.value);
+    state.allowance.perdiem.people = num(perPeople.value);
+    calc();
+  });
 
-    addTrItemBtn.addEventListener("click", () => {
-      state.allowance.transport.items = state.allowance.transport.items || [];
-      state.allowance.transport.items.push({
-        desc: "",
-        unit_price: 0,
-        trips: 1,
-        people: 1
-      });
-      renderTransport();
-      calc();
-    });
+  el.addEventListener("change", () => {
+    state.allowance.perdiem.unit_price = num(perUnit.value);
+    state.allowance.perdiem.meals = num(perMeals.value);
+    state.allowance.perdiem.people = num(perPeople.value);
+    calc();
+  });
+});
+
+addTrItemBtn.addEventListener("click", () => {
+  state.allowance.transport.items = state.allowance.transport.items || [];
+
+  state.allowance.transport.items.push({
+    type: "fuel",
+    desc: "",
+    origin: "",
+    destination: "",
+    distance: 0,
+    rate: 4,
+    trips: 1,
+    people: 1,
+    airline: "",
+    route: "",
+    seat_class: "economy",
+    ticket_price: 0,
+    unit_price: 0
+  });
+
+  trEnabled.checked = true;
+  state.allowance.transport.enabled = true;
+
+  syncAllowUI();
+  renderTransport();
+  calc();
+});
 
     // ====== restore from state to UI ======
     function hydrate() {
@@ -1050,9 +1569,16 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       lodPeople.value = num(state.allowance.lodging.people) || 1;
 
       perEnabled.checked = !!state.allowance.perdiem.enabled;
-      perUnit.value = num(state.allowance.perdiem.unit_price);
-      perMeals.value = num(state.allowance.perdiem.meals) || 1;
-      perPeople.value = num(state.allowance.perdiem.people) || 1;
+
+      if (perEnabled.checked) {
+        perUnit.value = num(state.allowance.perdiem.unit_price) || 120;
+        perMeals.value = num(state.allowance.perdiem.meals) || 3;
+        perPeople.value = num(state.allowance.perdiem.people) || 1;
+      } else {
+        perUnit.value = 0;
+        perMeals.value = 0;
+        perPeople.value = 0;
+      }
 
       trEnabled.checked = !!state.allowance.transport.enabled;
 
@@ -1060,35 +1586,91 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       renderComp();
       renderMat();
       renderTransport();
+      applyLodDateModeStyle();
+      syncLodgingAutoCalc();
       calc();
     }
     hydrate();
 
-    // ====== submit => pack JSON ======
-    const memoForm = document.getElementById("memoForm");
-    memoForm.addEventListener("submit", (e) => {
-      // กัน submit โดยไม่ได้เปิด checkbox แต่มีค่าค้าง (เราไม่บังคับ แต่ทำให้สอดคล้อง)
-      if (!regEnabled.checked) {
-        state.allowance.registration.price = 0;
-      }
-      if (!lodEnabled.checked) {
-        state.allowance.lodging.unit_price = 0;
-      }
-      if (!perEnabled.checked) {
-        state.allowance.perdiem.unit_price = 0;
-      }
-      if (!trEnabled.checked) {
-        state.allowance.transport.items = [];
-      }
+// ====== pack JSON before real submit ======
+function packExpenseJsonBeforeSubmit() {
+  // ตรวจสอบค่าพาหนะประเภทเครื่องบิน
+  if (trEnabled.checked) {
+    const flightItems = state.allowance.transport.items || [];
 
-      expenseJsonInput.value = JSON.stringify(state);
-    });
+    for (let i = 0; i < flightItems.length; i++) {
+      const item = flightItems[i];
+
+      if (item.type === "flight") {
+        if (num(item.ticket_price) <= 0) {
+          alert("กรุณากรอกราคาตั๋วเครื่องบินชั้นประหยัดตามจริง ในรายการพาหนะลำดับที่ " + (i + 1));
+          return false;
+        }
+
+        if (num(item.trips) <= 0) {
+          alert("กรุณากรอกจำนวนเที่ยวของเครื่องบิน ในรายการพาหนะลำดับที่ " + (i + 1));
+          return false;
+        }
+
+        if (num(item.people) <= 0) {
+          alert("กรุณากรอกจำนวนคนของเครื่องบิน ในรายการพาหนะลำดับที่ " + (i + 1));
+          return false;
+        }
+
+        item.seat_class = "economy";
+      }
+    }
+  }
+
+  // ถ้าไม่ได้ติ๊ก checkbox ให้ล้างค่าหมวดนั้นก่อนส่ง
+  if (!regEnabled.checked) {
+    state.allowance.registration.price = 0;
+    state.allowance.registration.people = 0;
+  }
+
+  if (!lodEnabled.checked) {
+    state.allowance.lodging.unit_price = 0;
+    state.allowance.lodging.nights = 0;
+    state.allowance.lodging.people = 0;
+  }
+
+  if (!perEnabled.checked) {
+    state.allowance.perdiem.unit_price = 0;
+    state.allowance.perdiem.meals = 0;
+    state.allowance.perdiem.people = 0;
+  }
+
+  if (!trEnabled.checked) {
+    state.allowance.transport.items = [];
+  }
+
+  expenseJsonInput.value = JSON.stringify(state);
+
+  const totalValue = Number(String(totalAmount.value || "0").replace(/,/g, "")) || 0;
+  amountHidden.value = totalValue.toFixed(2);
+
+  const amountInput = document.getElementById("amountInput");
+  if (amountInput) {
+    amountInput.value = totalValue.toFixed(2);
+  }
+
+  return true;
+}
+
+const memoForm = document.getElementById("memoForm");
+const submitBtn = document.getElementById("submitBtn");
+
+submitBtn?.addEventListener("click", () => {
+  const okExpense = packExpenseJsonBeforeSubmit();
+
+  if (!okExpense) {
+    return;
+  }
+
+  memoForm.submit();
+});
   });
   </script>
-
-
-
-
 
 
 </body>

@@ -766,10 +766,6 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
             </div>
           </div>
           <div class="mb-6">
-            <div class="flex items-center gap-2 mb-2">
-              <label class="lbl text-gray-800" for="amountInput">7.รวมยอดประมาณการค่าใช้จ่าย :</label>
-
-            </div>
             <?php
             $noCostValue = $formData[12] ?? '';
             if ($noCostValue !== '') {
@@ -778,42 +774,85 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
                 $amountForCheck = str_replace(',', '', $formData[8] ?? '');
                 $noCostChecked = ($amountForCheck !== '' && (float)$amountForCheck == 0.0) ? 'checked' : '';
             }
+
+            $amountDisplay = $formData[8] ?? '0.00';
+            if ($amountDisplay === '') {
+                $amountDisplay = '0.00';
+            }
             ?>
-            <label class="flex items-center gap-2 ml-6 mt-2">
+
+            <div class="flex items-center gap-3 mb-2">
+              <label class="lbl text-gray-800 whitespace-nowrap" for="amountInput">
+                7.รวมยอดประมาณการค่าใช้จ่าย :
+              </label>
+
+              <input
+                type="text"
+                name="amount"
+                id="amountInput"
+                class="border rounded-md p-2 shadow-sm w-32 text-right"
+                value="<?= h($amountDisplay) ?>"
+                inputmode="decimal"
+              >
+
+              <span class="text-gray-800">บาท</span>
+            </div>
+
+            <label class="flex items-center gap-3 ml-6 mt-2">
               <input type="hidden" name="no_cost" value="0">
-              <input type="hidden" name="amount" id="amountInput" value="<?= h($formData[8] ?? '0.00') ?>">
-              <input type="checkbox" name="no_cost" value="1" class="accent-black" id="noCostCheckbox"
-                <?= $noCostChecked ?> />
+              <input
+                type="checkbox"
+                name="no_cost"
+                value="1"
+                class="accent-black"
+                id="noCostCheckbox"
+                <?= $noCostChecked ?>
+              />
               โดยไม่เบิกค่าใช้จ่ายใดๆทั้งสิ้น
             </label>
           </div>
-          <div class="mb-6">
-            <label class="lbl block text-gray-800 mb-2" id="carLabel">
-              8. กรณีไปรถยนต์ส่วนบุคคล
-            </label>
-            <input type="text" name="car_plate" id="carPlateInput"
-              class="border rounded-md p-2 w-[260px] shadow-sm <?= !empty($formData[9]) ? '' : 'bg-gray-100 text-gray-400' ?>"
-              placeholder="ทะเบียนรถ" value="<?= h($formData[9] ?? '') ?>"
-              <?= !empty($formData[9]) ? '' : 'disabled' ?>>
-            <div class="flex items-center gap-3 ml-6">
-              <input type="checkbox" id="carCheckbox" name="car_used" class="accent-black"
-                <?= !empty($formData[9]) ? 'checked' : '' ?> />
-              <label for="carCheckbox" class="lbl">ใช้รถยนต์ส่วนบุคคล</label>
+        <div class="mb-6">
+        <label class="lbl block text-gray-800 mb-2" id="carLabel">
+          8. กรณีไปรถยนต์ส่วนบุคคล
+        </label>
 
-            </div>
-          </div>
-          <div class="relative mt-20">
-            <div class="absolute right-0 bottom-0 flex gap-3">
-              <button type="button" id="nextBtn"
-                class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md transition">
-                ถัดไป
-              </button>
-              <button type="submit" id="submitBtn"
-                class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md transition hidden">
-                ดำเนินการ
-              </button>
-            </div>
-          </div>
+        <div class="flex items-center gap-3 ml-6">
+          
+          <input
+            type="checkbox"
+            id="carCheckbox"
+            name="car_used"
+            class="accent-black"
+            <?= !empty($formData[9]) ? 'checked' : '' ?>
+          />
+
+          <label for="carCheckbox" class="lbl whitespace-nowrap">
+            ใช้รถยนต์ส่วนบุคคล
+          </label>
+
+          <input
+            type="text"
+            name="car_plate"
+            id="carPlateInput"
+            class="border rounded-md p-2 w-[260px] shadow-sm <?= !empty($formData[9]) ? '' : 'bg-gray-100 text-gray-400' ?>"
+            placeholder="เช่น กธ 1234 กรุงเทพมหานคร"
+            value="<?= h($formData[9] ?? '') ?>"
+            <?= !empty($formData[9]) ? '' : 'disabled' ?>
+          >
+          
+        </div>
+      </div>
+        <div class="mt-24 flex justify-end gap-3">
+          <button type="submit" id="nextBtn"
+            class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md transition">
+            ถัดไป
+          </button>
+
+          <button type="submit" id="submitBtn"
+            class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md transition">
+            ดำเนินการ
+          </button>
+        </div>
         </div>
       </div>
     </div>
@@ -1764,28 +1803,28 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       return true;
     }
 
-    nextBtn?.addEventListener("click", async () => {
-      if (noCostCheckbox?.checked) return;
+/*
+nextBtn?.addEventListener("click", async () => {
+  if (noCostCheckbox?.checked) return;
 
+  try {
+    if (optSingle?.checked && singleDate?.value?.trim()) {
+      joinDate.value = singleDate.value.trim();
+    }
 
+    if (optRange?.checked && rangeDisplay?.value?.trim()) {
+      joinDate.value = rangeDisplay.value.trim();
+    }
 
-      try {
-        if (optSingle?.checked && singleDate?.value?.trim()) {
-          joinDate.value = singleDate.value.trim();
-        }
+    const okSpell = await checkAllSpellFields();
+    if (!okSpell) return;
 
-        if (optRange?.checked && rangeDisplay?.value?.trim()) {
-          joinDate.value = rangeDisplay.value.trim();
-        }
+    if (!validateStep1Minimal()) return;
 
-        const okSpell = await checkAllSpellFields();
-        if (!okSpell) return;
-
-        if (!validateStep1Minimal()) return;
-
-        showStep2();
-      } finally {}
-    });
+    showStep2();
+  } finally {}
+});
+*/
 
     backBtn?.addEventListener("click", () => {
       showStep1();
@@ -1919,18 +1958,15 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
           setError((onlineCheckbox || onsiteCheckbox), "กรุณาเลือก ออนไลน์ หรือ ออนไซต์");
         }
 
-        amountInput.value = (amountInput.value || "").replace(/,/g, "").trim();
-        if (!noCostCheckbox?.checked) {
-          if (!amountInput.value) {
-            firstError = firstError || amountInput;
-            setError(amountInput, "กรุณากรอกยอดค่าใช้จ่าย");
-          } else if (isNaN(Number(amountInput.value)) || Number(amountInput.value) < 0) {
-            firstError = firstError || amountInput;
-            setError(amountInput, "ยอดค่าใช้จ่ายต้องเป็นตัวเลขที่ถูกต้อง");
+          amountInput.value = (amountInput.value || "").replace(/,/g, "").trim();
+
+          if (noCostCheckbox?.checked) {
+            amountInput.value = "0.00";
+          } else {
+            // ไม่ต้องบังคับกรอกยอดใน form_Memo.php
+            // เพราะจะไปคำนวณจริงใน form_Calcu.php
+            amountInput.value = amountInput.value || "0.00";
           }
-        } else {
-          amountInput.value = "0.00";
-        }
 
         if (carCheckbox?.checked) {
           if (!carPlateInput?.value?.trim()) {
@@ -1946,6 +1982,14 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
         const okSpell = await checkAllSpellFields();
         if (!okSpell) return;
+
+        // เลือกปลายทางตามการติ๊ก "ไม่เบิกค่าใช้จ่าย"
+        if (noCostCheckbox?.checked) {
+          memoForm.action = "save_memo.php";
+          amountInput.value = "0.00";
+        } else {
+          memoForm.action = "form_Calcu.php";
+        }
 
         // ผ่านทุกอย่างแล้วค่อย submit จริง
         memoForm.submit();

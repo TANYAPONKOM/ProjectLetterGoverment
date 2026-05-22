@@ -4,7 +4,7 @@ session_start();
 
 $CURRENT_MAIN = "internal";
 $CURRENT_SUB  = "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ";
-require_once __DIR__ . '/../functions.php';
+require_once dirname(__DIR__, 2) . '/functions.php';
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.html");
     exit;

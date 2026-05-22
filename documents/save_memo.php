@@ -1078,7 +1078,7 @@ if ($isProjectActivity) {
 } elseif ($purpose === 'academic') {
     $redirectUrl = '/Pro_letter/form_Memo/form_memo_academic_1.php?id=' . $documentId;
 } else {
-    $redirectUrl = '/Pro_letter/documents/view_memo.php?id=' . $documentId;
+    $redirectUrl = '/ProjectLetterGoverment/ProjectLetterGoverment/form_Memo/view_memo.php?id=' . $documentId;
 }
 
 header('Location: ' . $redirectUrl . '&saved=1&from=' . $mode);

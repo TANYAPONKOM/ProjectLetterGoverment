@@ -275,7 +275,7 @@ $len = max(20, $len);
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <link rel="stylesheet" href="/Pro_letter/documents/memo-styles.css">
+<link rel="stylesheet" href="../documents/memo-styles.css">
 
   <style>
   .memo-title-row {
@@ -404,6 +404,52 @@ $len = max(20, $len);
     word-break: normal !important;
     overflow-wrap: break-word !important;
   }
+
+/* ===== เนื้อหาเอกสาร: กระจายเต็มบรรทัด แต่คำไม่ห่างเกิน ===== */
+.content-block.paragraph {
+  font-family: "TH SarabunPSK";
+  font-size: 16pt;
+  font-weight: 400;
+
+  line-height: 1.06 !important;
+  margin-top: 0 !important;
+  margin-bottom: 1px !important;
+
+  text-indent: 2.5cm;
+
+  /* ให้กระจายเต็มบรรทัด */
+  text-align: justify !important;
+  text-align-last: left !important;
+
+  /* สำคัญ: ลดการยืดช่องไฟระหว่างคำ */
+  word-spacing: -1.2px !important;
+  letter-spacing: -0.05px !important;
+
+  white-space: normal;
+  text-justify: inter-character;
+  overflow-wrap: normal;
+}
+
+.content-block.paragraph .chip,
+.content-block.paragraph .keep {
+  display: inline !important;
+  margin: 0 !important;
+  padding: 0 !important;
+
+  line-height: inherit !important;
+  word-spacing: -1.2px !important;
+  letter-spacing: -0.05px !important;
+  background: transparent !important;
+
+  /* กันข้อมูลที่ดึงมาแตกห่างจากคำรอบข้าง */
+  white-space: normal !important;
+}
+
+/* บล็อก "จึงเรียนมา..." ไม่ต้องห่างจากย่อหน้าก่อนหน้าเกินไป */
+.content-block.paragraph + .content-block.paragraph {
+  margin-top: 0 !important;
+}
+
   </style>
 </head>
 </head>
@@ -447,7 +493,7 @@ $len = max(20, $len);
 
   <main class="page">
     <div class="memo-title-row">
-      <img src="/Pro_letter/assets/img/garuda.jpg" class="garuda-img" />
+      <img src="/ProjectLetterGoverment/ProjectLetterGoverment/assets/img/garuda.jpg" class="garuda-img" />
       <h1 class="doc-title">บันทึกข้อความ</h1>
     </div>
     <div class="doc-row">
@@ -963,7 +1009,17 @@ $len = max(20, $len);
     const url = new URL(window.location.href);
     return url.searchParams.get(name);
   }
-  document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", () => {
+
+    // ===== จัดช่องว่างในเนื้อหาไม่ให้คำห่างเกินตอนใช้ justify =====
+    document.querySelectorAll(".content-block.paragraph").forEach(block => {
+      block.childNodes.forEach(node => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          node.textContent = node.textContent.replace(/\s+/g, " ");
+        }
+      });
+    });
+
     document.querySelectorAll(".view-document .chip").forEach(el => {
       el.removeAttribute("contenteditable");
       el.removeAttribute("tabindex");
@@ -1084,6 +1140,31 @@ $len = max(20, $len);
 
         const cloneActions = clone.querySelectorAll(".footer-actions");
         cloneActions.forEach(el => el.remove());
+
+                // ===== จัดช่องว่างใน clone ก่อนแปลงเป็น PDF =====
+        clone.querySelectorAll(".content-block.paragraph").forEach(block => {
+          block.childNodes.forEach(node => {
+            if (node.nodeType === Node.TEXT_NODE) {
+              node.textContent = node.textContent.replace(/\s+/g, " ");
+            }
+          });
+
+          block.style.setProperty("text-align", "justify", "important");
+          block.style.setProperty("text-align-last", "left", "important");
+          block.style.setProperty("text-justify", "inter-character", "important");
+          block.style.setProperty("word-spacing", "-1.2px", "important");
+          block.style.setProperty("letter-spacing", "-0.05px", "important");
+          block.style.setProperty("line-height", "1.06", "important");
+        });
+
+        clone.querySelectorAll(".content-block.paragraph .chip, .content-block.paragraph .keep").forEach(el => {
+          el.style.setProperty("display", "inline", "important");
+          el.style.setProperty("margin", "0", "important");
+          el.style.setProperty("padding", "0", "important");
+          el.style.setProperty("word-spacing", "-1.2px", "important");
+          el.style.setProperty("letter-spacing", "-0.05px", "important");
+          el.style.setProperty("background", "transparent", "important");
+        });
 
         const cloneGaruda = clone.querySelector(".garuda-img");
         if (cloneGaruda) {
