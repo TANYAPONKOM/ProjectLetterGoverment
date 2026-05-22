@@ -1270,7 +1270,7 @@ if (!isset($_SESSION['user_id'])) {
 
   const redirectSub = {
     "ขอใช้อาคารวันหยุดราชการ": "Request_2.php",
-    "ขอห้องพักรับรอง": "Request_3.php",
+    "ขอห้องพักรับรอง": "infor_room_request.php",
     "ขออนุมัติตัวบุคคลเป็นวิทยากร": "Request_4.php",
     "ขออนุมัติไม่เข้าร่วมโครงการ": "Request_5.php",
     "การเผยแพร่งานวิจัยและเบิกค่าตอบแทนการตีพิมพ์": "Request_6.php",
@@ -1369,7 +1369,7 @@ if (!isset($_SESSION['user_id'])) {
       "ขอสอบนอกตาราง (ของอาจารย์)": "/Pro_letter/form_Memo/Request/infor_extra_exam.php",
       "ขอใช้อาคารวันหยุดราชการ (ของอาจารย์)": "/Pro_letter/user/Request_2.php",
       "ขอสอนชดเชย (ของอาจารย์)": "#",
-      "ขอห้องพักรับรอง (ของอาจารย์)": "/Pro_letter/user/Request_3.php",
+      "ขอห้องพักรับรอง (ของอาจารย์)": "/Pro_letter/documents/infor_room_request.php",
       "ขออนุมัติตัวบุคคลเป็นวิทยากร (ของอาจารย์)": "/Pro_letter/user/Request_4.php",
       "ขออนุมัติไม่เข้าร่วมโครงการ (ของอาจารย์)": "/Pro_letter/user/Request_5.php",
       "การเผยแพร่งานวิจัยและเบิกค่าตอบแทนการตีพิมพ์ (ของอาจารย์)": "/Pro_letter/user/Request_6.php",

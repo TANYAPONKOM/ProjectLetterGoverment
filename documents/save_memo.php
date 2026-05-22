@@ -38,8 +38,8 @@ $isSpeakerMemo = (
 );
 $isRoomRequest = (
     $purpose === 'room_request'
-    || $redirectTo === 'Request_3.php'
-    || $targetForm === 'Request_3.php'
+    || $redirectTo === 'infor_room_request.php'
+    || $targetForm === 'infor_room_request.php'
     || isset($_POST['room_request'])
 );
 $isInviteMemo = (
@@ -732,9 +732,9 @@ if (!empty($errors)) {
     } elseif ($isResearchData) {
         header('Location: /Pro_letter/documents/infor_research_data.php?err=validate');
     } elseif ($isInviteMemo) {
-        header('Location: /Pro_letter/form_Memo/Request/infor_invite.php?err=validate');
+        header('Location: /Pro_letter/documents/infor_invite.php?err=validate');
     } elseif ($isRoomRequest) {
-        header('Location: /Pro_letter/user/Request_3.php?err=validate');
+        header('Location: /Pro_letter/documents/infor_room_request.php?err=validate');
     } elseif ($isSpeakerMemo) {
         header('Location: /Pro_letter/documents/infor_speaker_workshop.php?err=validate');
     } elseif ($isStudyVisit) {
@@ -1234,7 +1234,7 @@ if ($isCoopEvaluation) {
 } elseif ($purpose === 'academic') {
     $redirectUrl = '/Pro_letter/form_Memo/form_memo_academic_1.php?id=' . $documentId;
 } else {
-    $redirectUrl = '/ProjectLetterGoverment/ProjectLetterGoverment/form_Memo/view_memo.php?id=' . $documentId;
+    $redirectUrl = '/Pro_letter/documents/view_memo.php?id=' . $documentId;
 }
 
 header('Location: ' . $redirectUrl . '&saved=1&from=' . $mode);

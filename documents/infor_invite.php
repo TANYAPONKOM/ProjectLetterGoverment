@@ -1,8 +1,12 @@
 <?php 
 // ต้องวางตรงนี้! บรรทัดแรกของไฟล์
-$CURRENT_MAIN = "external";
-$CURRENT_SUB  = "หนังสือเรียนเชิญวิทยากร (ของนักศึกษา)";
-           // ถ้าไม่มีหมวดย่อย ให้เว้นว่าง
+$CURRENT_MAIN = $_GET['main'] ?? 'internal';
+$CURRENT_SUB  = $_GET['sub']  ?? 'หนังสือเรียนเชิญวิทยากร';
+
+$ALLOWED_MAIN = ['external', 'internal'];
+if (!in_array($CURRENT_MAIN, $ALLOWED_MAIN, true)) {
+    $CURRENT_MAIN = 'internal';
+}
 ?>
 <!--หนังสือเรียนเชิญวิทยากร Pro_letter/documents/infor_invite.php  -->
 <?php
@@ -434,12 +438,8 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
           <div class="relative w-full">
             <select name="main_category" class="custom-select w-full" id="mainCategory">
               <option value="">-- เลือกหมวดหลัก --</option>
-              <option value="train" <?= ($CURRENT_MAIN=="train"?"selected":"") ?>>ฝึกอบรม</option>
-              <option value="academic" <?= ($CURRENT_MAIN=="academic"?"selected":"") ?>>
-                ประชุมวิชาการ/ศึกษาดูงาน/สัมมนาวิชาการ</option>
               <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
-              <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>
-                ภายใน(บันทึกข้อความ)</option>
+              <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>ภายใน</option>
             </select>
 
           </div>
@@ -1345,63 +1345,52 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
 
     const SUB_OPTIONS = {
       external: [
-        "ระบบขอความอนุเคราะห์หนังสือฝึกงาน (ของนักศึกษา)",
-        "ส่งตัวหนังสือขอออกฝึกงาน(ของนักศึกษา)",
-        "หนังสือเรียนเชิญวิทยากร (ของนักศึกษา)",
-        "หนังสือขอบคุณ (ของนักศึกษา)",
-        "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์ (ของนักศึกษา)",
-        "หนังสือเรียนเชิญปริญญา(ของนักศึกษา)",
+        "ฝึกอบรม",
+        "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย",
+        "ขออนุมัติตัวบุคคลเป็นวิทยากร",
+        "ขอห้องพักรับรอง",
+        "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ",
       ],
       internal: [
-        "ขอเปลี่ยนแปลงตารางสอน (ของอาจารย์)",
-        "ขอเปลี่ยนแปลงตารางสอบ (ของอาจารย์)",
-        "ขอสอบนอกตาราง (ของอาจารย์)",
-        "ขอใช้อาคารวันหยุดราชการ (ของอาจารย์)",
-        "ขอสอนชดเชย (ของอาจารย์)",
-        "ขอห้องพักรับรอง (ของอาจารย์)",
-        "ขออนุมัติตัวบุคคลเป็นวิทยากร (ของอาจารย์)",
-        "ขออนุมัติไม่เข้าร่วมโครงการ (ของอาจารย์)",
-        "การเผยแพร่งานวิจัยและเบิกค่าตอบแทนการตีพิมพ์ (ของอาจารย์)",
-        "ขออนุมัติจัดทำโครงการ (ของอาจารย์)",
-        "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ (ของอาจารย์)",
-        "ขอแจ้งเรียนการเป็นผู้ร่วมวิจัย (ของอาจารย์)",
+        "หนังสือเรียนเชิญวิทยากร",
+        "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์",
+        "ขอเข้าเยี่ยมศึกษาดูงาน",
+        "ขอเข้าไปจัดกิจกรรมโครงการ",
+        "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)",
       ],
-    };
-
-    const ROUTE_MAIN = {
-      train: "/Pro_letter/documents/form_Memo.php",
-      academic: "/Pro_letter/form_Memo/Request/infor_approve_pro.php",
     };
 
     const ROUTE_SUB = {
-      "ระบบขอความอนุเคราะห์หนังสือฝึกงาน (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_intership.php",
-      "หนังสือเรียนเชิญวิทยากร (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_invite.php",
-      "ส่งตัวหนังสือขอออกฝึกงาน(ของนักศึกษา)": "#",
-      "หนังสือขอบคุณ (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_thankyou.php",
-      "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์ (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_research_data.php",
-      "หนังสือเรียนเชิญปริญญา(ของนักศึกษา)": "#",
+      "ฝึกอบรม": "/Pro_letter/documents/form_Memo.php",
+      "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย": "/Pro_letter/documents/infor_academic_presentation.php",
+      "ขออนุมัติตัวบุคคลเป็นวิทยากร": "/Pro_letter/documents/infor_speaker_workshop.php",
+      "ขอห้องพักรับรอง": "/Pro_letter/documents/infor_room_request.php",
+      "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ": "/Pro_letter/documents/infor_present.php",
 
-      "ขอเปลี่ยนแปลงตารางสอน (ของอาจารย์)": "#",
-      "ขอเปลี่ยนแปลงตารางสอบ (ของอาจารย์)": "/Pro_letter/form_Memo/Request/infor_change_exam.php",
-      "ขอสอบนอกตาราง (ของอาจารย์)": "/Pro_letter/form_Memo/Request/infor_extra_exam.php",
-      "ขอใช้อาคารวันหยุดราชการ (ของอาจารย์)": "/Pro_letter/user/Request_2.php",
-      "ขอสอนชดเชย (ของอาจารย์)": "#",
-      "ขอห้องพักรับรอง (ของอาจารย์)": "/Pro_letter/user/Request_3.php",
-      "ขออนุมัติตัวบุคคลเป็นวิทยากร (ของอาจารย์)": "/Pro_letter/user/Request_4.php",
-      "ขออนุมัติไม่เข้าร่วมโครงการ (ของอาจารย์)": "/Pro_letter/user/Request_5.php",
-      "การเผยแพร่งานวิจัยและเบิกค่าตอบแทนการตีพิมพ์ (ของอาจารย์)": "#",
-      "ขออนุมัติจัดทำโครงการ (ของอาจารย์)": "#",
-      "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ (ของอาจารย์)": "#",
-      "ขอแจ้งเรียนการเป็นผู้ร่วมวิจัย (ของอาจารย์)": "/Pro_letter/user/Request_7.php",
+      "หนังสือเรียนเชิญวิทยากร": "/Pro_letter/documents/infor_invite.php",
+      "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์": "/Pro_letter/documents/infor_research_data.php",
+      "ขอเข้าเยี่ยมศึกษาดูงาน": "/Pro_letter/documents/infor_study_visit.php",
+      "ขอเข้าไปจัดกิจกรรมโครงการ": "/Pro_letter/documents/infor_project_activity.php",
+      "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)": "/Pro_letter/documents/infor_coop_evaluation.php",
     };
 
+    function withSelection(url, mainVal, subVal = "") {
+      if (!url || url === "#") return "#";
+      const targetUrl = new URL(url, window.location.origin);
+      if (mainVal) targetUrl.searchParams.set("main", mainVal);
+      if (subVal) targetUrl.searchParams.set("sub", subVal);
+      return targetUrl.toString();
+    }
+
     function renderSubOptions(list, selectedValue = "") {
+      const selected = String(selectedValue || "").trim();
       sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
       list.forEach(text => {
+        const cleanText = String(text || "").trim();
         const opt = document.createElement("option");
-        opt.value = text;
-        opt.textContent = text;
-        if (text === selectedValue) opt.selected = true;
+        opt.value = cleanText;
+        opt.textContent = cleanText;
+        if (cleanText === selected) opt.selected = true;
         sub.appendChild(opt);
       });
     }
@@ -1410,28 +1399,31 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
       const mainVal = (main.value || "").trim();
       const currentSub = (sub.dataset.current || "").trim();
 
-      if (mainVal === "train" || mainVal === "academic" || mainVal === "") {
+      if (mainVal === "external" || mainVal === "internal") {
+        sub.disabled = false;
+        renderSubOptions(SUB_OPTIONS[mainVal] || [], currentSub);
+      } else {
         sub.disabled = true;
         sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
-        return;
       }
-
-      sub.disabled = false;
-      renderSubOptions(SUB_OPTIONS[mainVal] || [], currentSub);
     }
 
     function goMain() {
       const mainVal = (main.value || "").trim();
-      const target = ROUTE_MAIN[mainVal];
-      if (target && target !== "#") window.location.href = target;
+      const firstSub = (SUB_OPTIONS[mainVal] || [""])[0] || "";
+      const target = ROUTE_SUB[firstSub];
+      if (!target || target === "#") return;
+      window.location.href = withSelection(target, mainVal, firstSub);
     }
 
     function goSub() {
+      const mainVal = (main.value || "").trim();
       const subVal = (sub.value || "").trim();
-      sub.dataset.current = subVal; // ✅ เก็บไว้ให้พรีเซเลคได้
+      sub.dataset.current = subVal;
+
       const target = ROUTE_SUB[subVal];
       if (!target || target === "#") return;
-      window.location.href = target;
+      window.location.href = withSelection(target, mainVal, subVal);
     }
 
     main.addEventListener("change", () => {
@@ -1441,7 +1433,6 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
     });
 
     sub.addEventListener("change", goSub);
-
     syncUI();
   });
   </script>

@@ -1,7 +1,12 @@
 <?php
-// pro_letter/documents/form_Memo.php
-$CURRENT_MAIN = "external";
-$CURRENT_SUB  = "ฝึกอบรม ";
+// pro_letter/documents/infor_academic_presentation.php
+$CURRENT_MAIN = trim($_GET['main'] ?? 'external');
+$CURRENT_SUB  = trim($_GET['sub']  ?? 'ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย');
+
+$ALLOWED_MAIN = ['external', 'internal'];
+if (!in_array($CURRENT_MAIN, $ALLOWED_MAIN, true)) {
+    $CURRENT_MAIN = 'external';
+}
 
 session_start();
 require_once __DIR__ . '/../functions.php';
@@ -14,7 +19,6 @@ if (!isset($_SESSION['user_id'])) {
 $docId  = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $isEdit = $docId > 0;
 $formData = [];
-$budgetItems = [];
 
 if ($isEdit) {
     $pdo = db();
@@ -52,20 +56,6 @@ if ($isEdit) {
     foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $formData[(int)$row['field_id']] = $row['value_text'];
     }
-
-    // โหลดรายการค่าใช้จ่ายเดิมกลับมาใช้ตอนแก้ไข
-    try {
-        $bq = $pdo->prepare("
-            SELECT item_type, description, amount
-            FROM budget_items
-            WHERE document_id = :id
-            ORDER BY item_id ASC
-        ");
-        $bq->execute([':id' => $docId]);
-        $budgetItems = $bq->fetchAll(PDO::FETCH_ASSOC);
-    } catch (Throwable $e) {
-        $budgetItems = [];
-    }
 }
 
 $docDate     = $formData[1]  ?? '';
@@ -97,6 +87,18 @@ if ($joinType === 'นำเสนอผลงานวิจัย') {
 } elseif ($joinType === 'เข้ารับการฝึกอบรมหลักสูตร') {
     $purpose = 'training';
 }
+
+// ถ้าเป็นเอกสารใหม่และผู้ใช้เลือกจาก dropdown หมวดย่อย ให้ติ๊กข้อ 3 ให้ตรงอัตโนมัติ
+if (!$isEdit) {
+    if ($CURRENT_SUB === 'ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย') {
+        $purpose = 'academic';
+        $joinType = 'นำเสนอผลงานวิจัย';
+    } elseif ($CURRENT_SUB === 'ฝึกอบรม') {
+        $purpose = 'training';
+        $joinType = 'เข้ารับการฝึกอบรมหลักสูตร';
+    }
+}
+
 $purposeOther = ($purpose === 'other') ? $joinType : '';
 
 
@@ -107,7 +109,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>แบบฟอร์มบันทึกข้อความ</title>
+  <title>แบบฟอร์มนำเสนอผลงานวิจัย</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/airbnb.css" />
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -449,7 +451,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     <div id="step1">
       <div class="w-[900px] mx-auto mt-16 mb-6 bg-white shadow-md rounded-md p-8" style="min-height: 1122px">
         <h1 class="text-center font-bold mb-6 text-black">
-          แบบฟอร์มบันทึกข้อความ
+          แบบฟอร์มขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย
         </h1>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 p-6 rounded-[25px] border-2" style="
             background-color: #e3f9f8;
@@ -461,8 +463,8 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
             <div class="relative w-full">
               <select name="main_category" class="custom-select w-full" id="mainCategory">
                 <option value="">-- เลือกหมวดหลัก --</option>
-                <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายใน(บันทึกข้อความ)</option>
-                <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>ภายนอก</option>
+                <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
+                <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>ภายใน</option>
               </select>
             </div>
           </div>
@@ -526,37 +528,8 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
               </label>
               <div class="space-y-1 text-gray-800" id="purposeGroup" role="radiogroup" aria-labelledby="purposeLabel">
                 <label class="flex items-center gap-2">
-                  <input type="radio" name="purpose" value="training" class="accent-black"
-                    <?= ($purpose === 'training') ? 'checked' : '' ?> />
-                  เข้ารับการฝึกอบรมหลักสูตร
-                </label>
-                <label class="flex items-center gap-2">
-                  <input type="radio" name="purpose" value="meeting" class="accent-black"
-                    <?= ($purpose === 'meeting') ? 'checked' : '' ?> />
-                  เข้าร่วมประชุมวิชาการในงาน
-                </label>
-                <label class="flex items-start gap-2">
-                  <input type="radio" name="purpose" value="other" class="accent-black mt-2" id="purposeOtherRadio"
-                    <?= ($purpose === 'other') ? 'checked' : '' ?> />
-
-                  <span class="mt-2">อื่น ๆ (ระบุ)</span>
-
-                  <div class="flex flex-col ml-3">
-                    <input type="text" name="purpose_other_detail" id="purposeOtherInput"
-                      data-spell-field="purpose_other_detail"
-                      class="border rounded-md p-2 w-[260px] <?= ($purpose === 'other') ? '' : 'bg-gray-100 text-gray-400' ?>"
-                      placeholder="โปรดระบุ" value="<?= h($purposeOther) ?>"
-                      <?= ($purpose === 'other') ? '' : 'disabled' ?> />
-
-                    <div id="purposeOtherSpellBox" class="spell-box hidden"></div>
-
-                    <div id="purposeOtherSpellLoading" class="spell-loading hidden">
-                      <div class="spell-loading-row">
-                        <div class="spell-spinner"></div>
-                        <span>กำลังตรวจคำผิด...</span>
-                      </div>
-                    </div>
-                  </div>
+                  <input type="radio" name="purpose" value="academic" class="accent-black" checked />
+                  นำเสนอผลงานวิจัย
                 </label>
               </div>
             </div>
@@ -831,7 +804,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
             </div>
           </div>
           <div class="mt-24 flex justify-end gap-3">
-            <button type="button" id="nextBtn"
+            <button type="submit" id="nextBtn"
               class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md transition">
               ถัดไป
             </button>
@@ -1036,7 +1009,6 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
   </form>
   <script>
   const byId = (id) => document.getElementById(id);
-  const initialBudgetItems = <?= json_encode($budgetItems ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
   const spellState = {
     purpose_other_detail: {
       checked: false,
@@ -1537,43 +1509,20 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
 
     function parseThaiRange(raw) {
-      const thaiDigits = "๐๑๒๓๔๕๖๗๘๙";
+      const match = (raw || "").match(/(\d+)\s+([^\s]+)\s+(\d{4})\s*-\s*(\d+)\s+([^\s]+)\s+(\d{4})/);
+      if (!match) return null;
 
-      const text = String(raw || "")
-        .trim()
-        .replace(/[๐-๙]/g, ch => String(thaiDigits.indexOf(ch)))
-        .replace(/ถึง/g, "-")
-        .replace(/–/g, "-")
-        .replace(/—/g, "-");
+      const d1 = parseInt(match[1], 10);
+      const m1 = monthsTH.indexOf(match[2]);
+      const y1 = parseInt(match[3], 10) - 543;
 
-      // แบบเต็ม: 1 มกราคม 2568 - 3 กุมภาพันธ์ 2568
-      let match = text.match(/(\d+)\s+([^\s]+)\s+(\d{4})\s*-\s*(\d+)\s+([^\s]+)\s+(\d{4})/);
-      if (match) {
-        const d1 = parseInt(match[1], 10);
-        const m1 = monthsTH.indexOf(match[2]);
-        const y1 = parseInt(match[3], 10) - 543;
+      const d2 = parseInt(match[4], 10);
+      const m2 = monthsTH.indexOf(match[5]);
+      const y2 = parseInt(match[6], 10) - 543;
 
-        const d2 = parseInt(match[4], 10);
-        const m2 = monthsTH.indexOf(match[5]);
-        const y2 = parseInt(match[6], 10) - 543;
+      if (m1 === -1 || m2 === -1) return null;
 
-        if (m1 === -1 || m2 === -1) return null;
-        return [new Date(y1, m1, d1), new Date(y2, m2, d2)];
-      }
-
-      // แบบย่อ: 1 - 3 มกราคม 2568
-      match = text.match(/(\d+)\s*-\s*(\d+)\s+([^\s]+)\s+(\d{4})/);
-      if (match) {
-        const d1 = parseInt(match[1], 10);
-        const d2 = parseInt(match[2], 10);
-        const m = monthsTH.indexOf(match[3]);
-        const y = parseInt(match[4], 10) - 543;
-
-        if (m === -1) return null;
-        return [new Date(y, m, d1), new Date(y, m, d2)];
-      }
-
-      return null;
+      return [new Date(y1, m1, d1), new Date(y2, m2, d2)];
     }
 
     const step1 = document.getElementById("step1");
@@ -1815,29 +1764,28 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       return true;
     }
 
-    nextBtn?.addEventListener("click", async (event) => {
-      event.preventDefault();
-
+    /*
+    nextBtn?.addEventListener("click", async () => {
       if (noCostCheckbox?.checked) return;
 
-      if (optSingle?.checked && singleDate?.value?.trim()) {
-        joinDate.value = singleDate.value.trim();
-      }
+      try {
+        if (optSingle?.checked && singleDate?.value?.trim()) {
+          joinDate.value = singleDate.value.trim();
+        }
 
-      if (optRange?.checked) {
-        updateRangeDisplay();
-        if (rangeDisplay?.value?.trim()) {
+        if (optRange?.checked && rangeDisplay?.value?.trim()) {
           joinDate.value = rangeDisplay.value.trim();
         }
-      }
 
-      const okSpell = await checkAllSpellFields();
-      if (!okSpell) return;
+        const okSpell = await checkAllSpellFields();
+        if (!okSpell) return;
 
-      if (!validateStep1Minimal()) return;
+        if (!validateStep1Minimal()) return;
 
-      showStep2();
+        showStep2();
+      } finally {}
     });
+    */
 
     backBtn?.addEventListener("click", () => {
       showStep1();
@@ -1977,7 +1925,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
           amountInput.value = "0.00";
         } else {
           // ไม่ต้องบังคับกรอกยอดใน form_Memo.php
-          // เพราะจะไปคำนวณจริงในหน้าประมาณการค่าใช้จ่าย
+          // เพราะจะไปคำนวณจริงใน form_Calcu.php
           amountInput.value = amountInput.value || "0.00";
         }
 
@@ -1996,15 +1944,13 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
         const okSpell = await checkAllSpellFields();
         if (!okSpell) return;
 
-        // ส่งเข้าระบบบันทึกเดิมเสมอ ให้ save_memo.php เป็นคน redirect ไปหน้าเอกสาร
+        // เลือกปลายทางตามการติ๊ก "ไม่เบิกค่าใช้จ่าย"
         if (noCostCheckbox?.checked) {
+          memoForm.action = "save_memo.php";
           amountInput.value = "0.00";
         } else {
-          calcAll();
-          syncExpenseJsonForPresentation();
+          memoForm.action = "form_Calcu.php";
         }
-
-        memoForm.action = "save_memo.php";
 
         // ผ่านทุกอย่างแล้วค่อย submit จริง
         memoForm.submit();
@@ -2123,69 +2069,20 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       return `${d} ${m} ${y}`;
     }
 
-    function normalizeThaiNumber(value) {
-      const thaiDigits = "๐๑๒๓๔๕๖๗๘๙";
-      return String(value || "").replace(/[๐-๙]/g, ch => {
-        const index = thaiDigits.indexOf(ch);
-        return index >= 0 ? String(index) : ch;
-      });
-    }
-
-    function parseLodThaiShortDate(raw) {
-      const text = normalizeThaiNumber(String(raw || "").trim());
-      const match = text.match(/(\d+)\s+([^\s]+)\s+(\d{2}|\d{4})/);
-      if (!match) return null;
-
-      const day = parseInt(match[1], 10);
-      const monthIndex = lodMonthsTH.indexOf(match[2]);
-      let year = parseInt(match[3], 10);
-      if (monthIndex === -1) return null;
-      if (year < 100) year = 2500 + year;
-      if (year > 2400) year -= 543;
-
-      return new Date(year, monthIndex, day);
-    }
-
-    function diffLodNights(startDateObj, endDateObj) {
-      if (!startDateObj || !endDateObj) return 1;
-      const start = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), startDateObj.getDate());
-      const end = new Date(endDateObj.getFullYear(), endDateObj.getMonth(), endDateObj.getDate());
-      const diff = Math.round((end - start) / (1000 * 60 * 60 * 24));
-      return diff > 0 ? diff : 1;
-    }
-
-    function syncLodNightsFromDates() {
-      if (!lodNights) return;
-
-      if (lodOptSingle?.checked) {
-        lodNights.value = 1;
-        return;
-      }
-
-      const start = lodStartPicker?.selectedDates?. [0] || parseLodThaiShortDate(lodStartDate?.value || "");
-      const end = lodEndPicker?.selectedDates?. [0] || parseLodThaiShortDate(lodEndDate?.value || "");
-      if (start && end) {
-        lodNights.value = diffLodNights(start, end);
-      }
-    }
-
     function updateLodDateText() {
       if (!lodDateText) return;
 
       if (lodOptSingle?.checked) {
         lodDateText.value = lodSingleDate?.value || "";
-        if (lodNights) lodNights.value = 1;
       } else {
         const start = lodStartDate?.value || "";
         const end = lodEndDate?.value || "";
         lodDateText.value = (start && end) ? `${start} – ${end}` : "";
-        syncLodNightsFromDates();
       }
 
       calcAll();
     }
-
-    const lodSinglePicker = flatpickr(lodSingleDate, {
+    flatpickr(lodSingleDate, {
       locale: "th",
       disableMobile: true,
       allowInput: false,
@@ -2195,7 +2092,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       }
     });
 
-    const lodStartPicker = flatpickr(lodStartDate, {
+    flatpickr(lodStartDate, {
       locale: "th",
       disableMobile: true,
       allowInput: false,
@@ -2205,7 +2102,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       }
     });
 
-    const lodEndPicker = flatpickr(lodEndDate, {
+    flatpickr(lodEndDate, {
       locale: "th",
       disableMobile: true,
       allowInput: false,
@@ -2263,288 +2160,6 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       calcAll();
     }
 
-    function makeTransportRow(data = {}) {
-      const row = document.createElement("div");
-      row.className = "p-4 rounded-[18px] border-2 bg-white";
-      row.style.borderColor = "#11c2b9";
-
-      row.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end mb-4">
-          <div class="md:col-span-4">
-            <label class="text-gray-800 font-bold block mb-1">ประเภทพาหนะ</label>
-            <select class="w-full border-2 border-[#11C2B9] bg-[#e3f9f8] rounded-md p-2 font-bold js-tr-type">
-              <option value="fuel">ค่าน้ำมันรถยนต์</option>
-              <option value="flight">เครื่องบิน</option>
-              <option value="other">อื่น ๆ</option>
-            </select>
-          </div>
-
-          <div class="md:col-span-5 text-gray-500 text-sm pb-2 js-tr-hint">
-            ค่าน้ำมัน = ระยะทาง × บาท/กม. × จำนวนเที่ยว
-          </div>
-
-          <div class="md:col-span-3 flex md:justify-end">
-            <button type="button"
-              class="js-tr-del bg-white border-2 border-red-400 text-red-600 font-bold px-4 py-2 rounded-md hover:bg-red-50">
-              ลบรายการ
-            </button>
-          </div>
-        </div>
-
-        <div class="js-tr-section js-tr-fuel space-y-3">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label class="text-gray-700 block mb-1">ต้นทาง</label>
-              <input type="text" class="w-full border rounded-md p-2 js-tr-origin" placeholder="เช่น ปราจีนบุรี">
-            </div>
-            <div>
-              <label class="text-gray-700 block mb-1">ปลายทาง</label>
-              <input type="text" class="w-full border rounded-md p-2 js-tr-destination" placeholder="เช่น กรุงเทพฯ">
-            </div>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div>
-              <label class="text-gray-700 block mb-1">ระยะทาง (กม.)</label>
-              <input type="number" class="w-full border rounded-md p-2 js-tr-distance" min="0" step="0.01" value="0">
-            </div>
-            <div>
-              <label class="text-gray-700 block mb-1">บาท/กม.</label>
-              <input type="number" class="w-full border rounded-md p-2 js-tr-rate" min="0" step="0.01" value="4">
-            </div>
-            <div>
-              <label class="text-gray-700 block mb-1">จำนวนเที่ยว</label>
-              <input type="number" class="w-full border rounded-md p-2 js-tr-trips" min="1" step="1" value="1">
-            </div>
-          </div>
-        </div>
-
-        <div class="js-tr-section js-tr-flight hidden space-y-3">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label class="text-gray-700 block mb-1">สายการบิน</label>
-              <input type="text" class="w-full border rounded-md p-2 js-tr-airline" placeholder="เช่น Thai Airways">
-            </div>
-            <div>
-              <label class="text-gray-700 block mb-1">เส้นทางบิน</label>
-              <input type="text" class="w-full border rounded-md p-2 js-tr-route-flight" placeholder="เช่น BKK - CNX">
-            </div>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div>
-              <label class="text-gray-700 block mb-1">ราคาตั๋ว/คน</label>
-              <input type="number" class="w-full border rounded-md p-2 js-tr-ticket" min="0" step="0.01" value="0">
-            </div>
-            <div>
-              <label class="text-gray-700 block mb-1">จำนวนเที่ยว</label>
-              <input type="number" class="w-full border rounded-md p-2 js-tr-flight-trips" min="1" step="1" value="1">
-            </div>
-            <div>
-              <label class="text-gray-700 block mb-1">จำนวนคน</label>
-              <input type="number" class="w-full border rounded-md p-2 js-tr-flight-people" min="1" step="1" value="1">
-            </div>
-          </div>
-        </div>
-
-        <div class="js-tr-section js-tr-other hidden space-y-3">
-          <div>
-            <label class="text-gray-700 block mb-1">รายละเอียด/เส้นทาง</label>
-            <input type="text" class="w-full border rounded-md p-2 js-tr-route-other" placeholder="เช่น รถตู้ / แท็กซี่ / ค่าเดินทางอื่น ๆ">
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div>
-              <label class="text-gray-700 block mb-1">ราคา/เที่ยว/คน</label>
-              <input type="number" class="w-full border rounded-md p-2 js-tr-unit" min="0" step="0.01" value="0">
-            </div>
-            <div>
-              <label class="text-gray-700 block mb-1">จำนวนเที่ยว</label>
-              <input type="number" class="w-full border rounded-md p-2 js-tr-other-trips" min="1" step="1" value="1">
-            </div>
-            <div>
-              <label class="text-gray-700 block mb-1">จำนวนคน</label>
-              <input type="number" class="w-full border rounded-md p-2 js-tr-other-people" min="1" step="1" value="1">
-            </div>
-          </div>
-        </div>
-
-        <div class="mt-4 flex justify-end">
-          <div class="bg-gray-50 border rounded-md px-4 py-2 text-gray-800 font-bold">
-            รวมรายการนี้: <span class="js-tr-row-total ml-1">0.00</span> บาท
-          </div>
-        </div>
-        <input type="hidden" class="js-type" value="transport">
-      `;
-
-      const typeSelect = row.querySelector(".js-tr-type");
-
-      function setVal(selector, value) {
-        const el = row.querySelector(selector);
-        if (el && value !== undefined && value !== null && value !== "") el.value = value;
-      }
-
-      if (data.type) typeSelect.value = data.type;
-      setVal(".js-tr-origin", data.origin);
-      setVal(".js-tr-destination", data.destination);
-      setVal(".js-tr-distance", data.distance);
-      setVal(".js-tr-rate", data.rate ?? 4);
-      setVal(".js-tr-trips", data.trips ?? 1);
-
-      setVal(".js-tr-airline", data.airline);
-      setVal(".js-tr-route-flight", data.route);
-      setVal(".js-tr-ticket", data.ticket_price);
-      setVal(".js-tr-flight-trips", data.trips ?? 1);
-      setVal(".js-tr-flight-people", data.people ?? 1);
-
-      setVal(".js-tr-route-other", data.route || data.desc);
-      setVal(".js-tr-unit", data.unit_price);
-      setVal(".js-tr-other-trips", data.trips ?? 1);
-      setVal(".js-tr-other-people", data.people ?? 1);
-
-      function syncTransportTypeUI() {
-        const type = typeSelect.value;
-        row.querySelector(".js-tr-fuel").classList.toggle("hidden", type !== "fuel");
-        row.querySelector(".js-tr-flight").classList.toggle("hidden", type !== "flight");
-        row.querySelector(".js-tr-other").classList.toggle("hidden", type !== "other");
-
-        const hint = row.querySelector(".js-tr-hint");
-        if (hint) {
-          if (type === "fuel") hint.textContent = "ค่าน้ำมัน = ระยะทาง × บาท/กม. × จำนวนเที่ยว";
-          else if (type === "flight") hint.textContent = "เครื่องบิน = ราคาตั๋ว/คน × จำนวนเที่ยว × จำนวนคน";
-          else hint.textContent = "อื่น ๆ = ราคา/เที่ยว/คน × จำนวนเที่ยว × จำนวนคน";
-        }
-        calcAll();
-      }
-
-      row.querySelector(".js-tr-del").addEventListener("click", () => {
-        row.remove();
-        syncEmpty(trList, trEmpty);
-        calcAll();
-      });
-
-      row.querySelectorAll("input, select").forEach(el => {
-        el.addEventListener("input", calcAll);
-        el.addEventListener("change", calcAll);
-      });
-      typeSelect.addEventListener("change", syncTransportTypeUI);
-
-      trList.appendChild(row);
-      syncTransportTypeUI();
-      syncEmpty(trList, trEmpty);
-      calcAll();
-      return row;
-    }
-
-    function getTransportRowData(row) {
-      const type = row.querySelector(".js-tr-type")?.value || "other";
-
-      if (type === "fuel") {
-        const distance = n(row.querySelector(".js-tr-distance")?.value);
-        const rate = n(row.querySelector(".js-tr-rate")?.value);
-        const trips = n(row.querySelector(".js-tr-trips")?.value || 1);
-        return {
-          type: "fuel",
-          origin: (row.querySelector(".js-tr-origin")?.value || "").trim(),
-          destination: (row.querySelector(".js-tr-destination")?.value || "").trim(),
-          distance,
-          rate,
-          trips,
-          amount: distance * rate * trips
-        };
-      }
-
-      if (type === "flight") {
-        const ticket = n(row.querySelector(".js-tr-ticket")?.value);
-        const trips = n(row.querySelector(".js-tr-flight-trips")?.value || 1);
-        const people = n(row.querySelector(".js-tr-flight-people")?.value || 1);
-        return {
-          type: "flight",
-          airline: (row.querySelector(".js-tr-airline")?.value || "").trim(),
-          route: (row.querySelector(".js-tr-route-flight")?.value || "").trim(),
-          ticket_price: ticket,
-          trips,
-          people,
-          amount: ticket * trips * people
-        };
-      }
-
-      const unit = n(row.querySelector(".js-tr-unit")?.value);
-      const trips = n(row.querySelector(".js-tr-other-trips")?.value || 1);
-      const people = n(row.querySelector(".js-tr-other-people")?.value || 1);
-      return {
-        type: "other",
-        route: (row.querySelector(".js-tr-route-other")?.value || "").trim(),
-        unit_price: unit,
-        trips,
-        people,
-        amount: unit * trips * people
-      };
-    }
-
-    function formatTransportDesc(data) {
-      if (!data) return "ค่าพาหนะ";
-      if (data.type === "fuel") {
-        return `ค่าพาหนะ\n- ค่าน้ำมันรถยนต์ ${data.origin || ""} ไป ${data.destination || ""}\n- ระยะทาง ${n(data.distance)} กม. × ${n(data.rate)} บาท × ${n(data.trips || 1)} เที่ยว`;
-      }
-      if (data.type === "flight") {
-        return `ค่าพาหนะ\n- ค่าโดยสารตั๋วเครื่องบิน ไป-กลับ ชั้นประหยัด\n- ${data.airline || ""} ${data.route || ""}\n- ${money(n(data.ticket_price))} บาท × ${n(data.trips || 1)} เที่ยว × ${n(data.people || 1)} คน`;
-      }
-      return `ค่าพาหนะ\n- ${data.route || "ค่าพาหนะ"}\n- ${money(n(data.unit_price))} บาท × ${n(data.trips || 1)} เที่ยว × ${n(data.people || 1)} คน`;
-    }
-
-    function calcTransportTotal() {
-      let sum = 0;
-      [...(trList?.children || [])].forEach(row => {
-        const data = getTransportRowData(row);
-        sum += n(data.amount);
-        const totalEl = row.querySelector(".js-tr-row-total");
-        if (totalEl) totalEl.textContent = money(data.amount);
-      });
-      return sum;
-    }
-
-    function parseTransportDescToData(desc, amount = 0) {
-      const clean = normalizeThaiNumber(String(desc || ""));
-
-      if (clean.includes("ค่าน้ำมันรถยนต์")) {
-        const routeMatch = clean.match(/ค่าน้ำมันรถยนต์\s*(.*?)\s*ไป\s*(.*?)(?:\n|- ระยะทาง|$)/);
-        const formulaMatch = clean.match(
-          /ระยะทาง\s*([\d.]+)\s*กม\.\s*[×x]\s*([\d.]+)\s*บาท\s*[×x]\s*([\d.]+)\s*เที่ยว/);
-        return {
-          type: "fuel",
-          origin: routeMatch?. [1]?.trim() || "",
-          destination: routeMatch?. [2]?.trim() || "",
-          distance: formulaMatch ? Number(formulaMatch[1]) : 0,
-          rate: formulaMatch ? Number(formulaMatch[2]) : 4,
-          trips: formulaMatch ? Number(formulaMatch[3]) : 1
-        };
-      }
-
-      if (clean.includes("เครื่องบิน") || clean.includes("ตั๋วเครื่องบิน")) {
-        const lines = clean.split(/\n+/).map(s => s.replace(/^-+\s*/, "").trim()).filter(Boolean);
-        const routeLine = lines.find(line => !line.includes("ค่าพาหนะ") && !line.includes("ตั๋วเครื่องบิน") && !line
-          .includes("บาท ×")) || "";
-        const formulaMatch = clean.match(/([\d,.]+)\s*บาท\s*[×x]\s*([\d.]+)\s*เที่ยว\s*[×x]\s*([\d.]+)\s*คน/);
-        return {
-          type: "flight",
-          airline: "",
-          route: routeLine,
-          ticket_price: formulaMatch ? Number(String(formulaMatch[1]).replace(/,/g, "")) : n(amount),
-          trips: formulaMatch ? Number(formulaMatch[2]) : 1,
-          people: formulaMatch ? Number(formulaMatch[3]) : 1
-        };
-      }
-
-      const lines = clean.split(/\n+/).map(s => s.replace(/^-+\s*/, "").trim()).filter(Boolean);
-      const routeLine = lines.find(line => line && !line.includes("ค่าพาหนะ") && !line.includes("บาท ×")) || "";
-      const formulaMatch = clean.match(/([\d,.]+)\s*บาท\s*[×x]\s*([\d.]+)\s*เที่ยว\s*[×x]\s*([\d.]+)\s*คน/);
-      return {
-        type: "other",
-        route: routeLine || clean,
-        unit_price: formulaMatch ? Number(String(formulaMatch[1]).replace(/,/g, "")) : n(amount),
-        trips: formulaMatch ? Number(formulaMatch[2]) : 1,
-        people: formulaMatch ? Number(formulaMatch[3]) : 1
-      };
-    }
-
     function syncEmpty(container, emptyEl) {
       if (!container || !emptyEl) return;
       emptyEl.style.display = container.children.length ? "none" : "block";
@@ -2567,7 +2182,13 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     });
 
     addTrItemBtn?.addEventListener("click", () => {
-      makeTransportRow();
+      // transport รองรับใน enum ตรง ๆ
+      makeRow({
+        type: "transport",
+        container: trList,
+        emptyEl: trEmpty,
+        placeholder: "เช่น รถตู้/แท็กซี่/น้ำมัน"
+      });
     });
     regEnabled?.addEventListener("change", () => {
       calcAll();
@@ -2618,7 +2239,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       const perSum = calcPer();
 
       let trSum = 0;
-      if (trEnabled?.checked) trSum = calcTransportTotal();
+      if (trEnabled?.checked) trSum = calcDynamic(trList, "transport");
       regTotal.textContent = money(regSum);
       lodTotal.textContent = money(lodSum);
       perTotal.textContent = money(perSum);
@@ -2649,99 +2270,6 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       input.value = value;
       input.setAttribute("data-budget", "1");
       memoForm.appendChild(input);
-    }
-
-    function setNamedHidden(name, value) {
-      let input = memoForm.querySelector(`input[name="${name}"]`);
-      if (!input) {
-        input = document.createElement("input");
-        input.type = "hidden";
-        input.name = name;
-        memoForm.appendChild(input);
-      }
-      input.value = value;
-    }
-
-    function collectRows(container) {
-      return [...(container?.children || [])].map(row => ({
-        desc: (row.querySelector(".js-desc")?.value || "").trim(),
-        amount: n(row.querySelector(".js-amt")?.value)
-      })).filter(item => item.desc || item.amount > 0);
-    }
-
-    function buildExpenseJsonForPresentation() {
-      const compensation = collectRows(compList);
-      const materials = collectRows(matList);
-
-      const transportItems = [...(trList?.children || [])].map(row => {
-        const data = getTransportRowData(row);
-        if (!data || n(data.amount) <= 0) return null;
-
-        if (data.type === "fuel") {
-          return {
-            type: "fuel",
-            origin: data.origin,
-            destination: data.destination,
-            distance: n(data.distance),
-            rate: n(data.rate),
-            trips: n(data.trips || 1)
-          };
-        }
-
-        if (data.type === "flight") {
-          return {
-            type: "flight",
-            airline: data.airline,
-            route: data.route,
-            ticket_price: n(data.ticket_price),
-            trips: n(data.trips || 1),
-            people: n(data.people || 1)
-          };
-        }
-
-        return {
-          type: "other",
-          route: data.route || "ค่าพาหนะ",
-          unit_price: n(data.unit_price),
-          trips: n(data.trips || 1),
-          people: n(data.people || 1)
-        };
-      }).filter(Boolean);
-
-      return {
-        compensation,
-        allowance: {
-          registration: {
-            enabled: !!regEnabled?.checked,
-            price: n(regPrice?.value),
-            people: n(regPeople?.value || 1)
-          },
-          lodging: {
-            enabled: !!lodEnabled?.checked,
-            date_text: lodDateText?.value || "",
-            unit_price: n(lodUnit?.value),
-            nights: n(lodNights?.value || 1),
-            people: n(lodPeople?.value || 1)
-          },
-          perdiem: {
-            enabled: !!perEnabled?.checked,
-            unit_price: n(perUnit?.value),
-            meals: n(perMeals?.value || 1),
-            people: n(perPeople?.value || 1)
-          },
-          transport: {
-            enabled: !!trEnabled?.checked,
-            items: transportItems
-          }
-        },
-        materials
-      };
-    }
-
-    function syncExpenseJsonForPresentation() {
-      const expenseData = buildExpenseJsonForPresentation();
-      setNamedHidden("expense_json", JSON.stringify(expenseData));
-      setNamedHidden("amount", totalAmountHidden?.value || totalAmountEl?.value || "0.00");
     }
 
     function buildBudgetHiddenInputs() {
@@ -2776,11 +2304,11 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       }
       if (trEnabled?.checked) {
         [...(trList?.children || [])].forEach(row => {
-          const data = getTransportRowData(row);
-          const amt = money(n(data?.amount));
-          if (amt === "0.00") return;
+          const desc = (row.querySelector(".js-desc")?.value || "").trim();
+          const amt = money(n(row.querySelector(".js-amt")?.value));
+          if (!desc && amt === "0.00") return;
           addHidden("budget_type[]", "transport");
-          addHidden("budget_desc[]", formatTransportDesc(data));
+          addHidden("budget_desc[]", desc || "ค่าพาหนะ");
           addHidden("budget_amount[]", amt);
         });
       }
@@ -2793,159 +2321,6 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
         addHidden("budget_amount[]", amt);
       });
     }
-
-    function makePresetBudgetRow({
-      type,
-      container,
-      emptyEl,
-      desc,
-      amount
-    }) {
-      const row = document.createElement("div");
-      row.className = "p-3 rounded-[16px] border-2 flex flex-wrap gap-3 items-end";
-      row.style.borderColor = "#11c2b9";
-      row.style.background = "#ffffff";
-      row.innerHTML = `
-    <div class="flex-1 min-w-[260px]">
-      <label class="text-gray-700">รายละเอียด</label>
-      <input type="text" class="w-full border rounded-md p-2 js-desc" placeholder="รายละเอียด" value="${escapeHtml(desc || "")}">
-    </div>
-    <div class="w-[180px]">
-      <label class="text-gray-700">จำนวนเงิน (บาท)</label>
-      <input type="number" class="w-full border rounded-md p-2 js-amt" min="0" step="0.01" value="${money(n(amount))}">
-    </div>
-    <div>
-      <button type="button" class="js-del bg-white border-2 border-red-400 text-red-600 font-bold px-3 py-2 rounded-md hover:bg-red-50">
-        ลบ
-      </button>
-    </div>
-    <input type="hidden" class="js-type" value="${type}">
-  `;
-      row.querySelector(".js-del").addEventListener("click", () => {
-        row.remove();
-        syncEmpty(container, emptyEl);
-        calcAll();
-      });
-      row.querySelector(".js-desc").addEventListener("input", calcAll);
-      row.querySelector(".js-amt").addEventListener("input", calcAll);
-      container.appendChild(row);
-      syncEmpty(container, emptyEl);
-    }
-
-    function parseBudgetFormula(desc, keys = []) {
-      const clean = normalizeThaiNumber(String(desc || ""));
-      const bracket = clean.match(/\(([^)]*)\)/);
-      const source = bracket ? bracket[1] : clean;
-      const nums = (source.match(/\d+(?:\.\d+)?/g) || []).map(Number);
-
-      const result = {};
-      keys.forEach((key, i) => {
-        if (typeof nums[i] !== "undefined" && Number.isFinite(nums[i])) {
-          result[key] = nums[i];
-        }
-      });
-      return result;
-    }
-
-    function extractLodDateTextFromDesc(desc) {
-      const clean = String(desc || "").trim();
-      const match = clean.match(/ค่าที่พัก\s*(.*?)\s*\(/);
-      if (match && match[1]) return match[1].trim();
-      return "";
-    }
-
-    function prefillLodDateFromDescription(desc) {
-      const dateText = extractLodDateTextFromDesc(desc);
-      if (!dateText) return false;
-
-      if (dateText.includes("–") || dateText.includes("-") || dateText.includes("ถึง")) {
-        const parts = dateText.split(/\s*(?:–|-|ถึง)\s*/).filter(Boolean);
-        if (parts.length >= 2) {
-          const startObj = parseLodThaiShortDate(parts[0]);
-          const endObj = parseLodThaiShortDate(parts[1]);
-
-          if (lodOptRange) lodOptRange.checked = true;
-          if (lodOptSingle) lodOptSingle.checked = false;
-
-          if (lodStartDate) lodStartDate.value = parts[0];
-          if (lodEndDate) lodEndDate.value = parts[1];
-
-          if (startObj && lodStartPicker) lodStartPicker.setDate(startObj, false);
-          if (endObj && lodEndPicker) lodEndPicker.setDate(endObj, false);
-
-          updateLodDateText();
-          return true;
-        }
-      }
-
-      const singleObj = parseLodThaiShortDate(dateText);
-      if (lodOptSingle) lodOptSingle.checked = true;
-      if (lodOptRange) lodOptRange.checked = false;
-      if (lodSingleDate) lodSingleDate.value = dateText;
-      if (singleObj && lodSinglePicker) lodSinglePicker.setDate(singleObj, false);
-
-      updateLodDateText();
-      return true;
-    }
-
-    function preloadBudgetItems() {
-      if (!Array.isArray(initialBudgetItems) || initialBudgetItems.length === 0) return;
-
-      initialBudgetItems.forEach(item => {
-        const type = String(item.item_type || item.type || "other");
-        const desc = String(item.description || "");
-        const amt = money(n(item.amount));
-
-        if (type === "registration") {
-          const f = parseBudgetFormula(desc, ["price", "people"]);
-          if (regEnabled) regEnabled.checked = true;
-          if (regPrice) regPrice.value = typeof f.price !== "undefined" ? f.price : amt;
-          if (regPeople) regPeople.value = typeof f.people !== "undefined" ? f.people : 1;
-          return;
-        }
-
-        if (type === "accommodation") {
-          const f = parseBudgetFormula(desc, ["unit", "nights", "people"]);
-          const hasPrefilledDate = prefillLodDateFromDescription(desc);
-
-          if (lodEnabled) lodEnabled.checked = true;
-          if (lodUnit) lodUnit.value = typeof f.unit !== "undefined" ? f.unit : amt;
-          if (lodPeople) lodPeople.value = typeof f.people !== "undefined" ? f.people : 1;
-          if (!hasPrefilledDate && lodNights) {
-            lodNights.value = typeof f.nights !== "undefined" ? f.nights : 1;
-          }
-
-          updateLodDateText();
-          return;
-        }
-
-        if (type === "per_diem") {
-          const f = parseBudgetFormula(desc, ["unit", "meals", "people"]);
-          if (perEnabled) perEnabled.checked = true;
-          if (perUnit) perUnit.value = typeof f.unit !== "undefined" ? f.unit : amt;
-          if (perMeals) perMeals.value = typeof f.meals !== "undefined" ? f.meals : 1;
-          if (perPeople) perPeople.value = typeof f.people !== "undefined" ? f.people : 1;
-          return;
-        }
-
-        if (type === "transport") {
-          if (trEnabled) trEnabled.checked = true;
-          makeTransportRow(parseTransportDescToData(desc, amt));
-          return;
-        }
-
-        const targetIsComp = /ค่าตอบแทน|วิทยากร/.test(desc);
-        makePresetBudgetRow({
-          type: "other",
-          container: targetIsComp ? compList : matList,
-          emptyEl: targetIsComp ? compEmpty : matEmpty,
-          desc,
-          amount: amt
-        });
-      });
-    }
-
-    preloadBudgetItems();
     syncEmpty(compList, compEmpty);
     syncEmpty(matList, matEmpty);
     syncEmpty(trList, trEmpty);
@@ -2953,7 +2328,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
     finalSubmitBtn?.addEventListener("click", () => {
       calcAll();
-      syncExpenseJsonForPresentation();
+
     });
 
     function getSpellBoxByField(el) {
@@ -3339,47 +2714,46 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
     const SUB_OPTIONS = {
       external: [
-        "ฝึกอบรม ",
-        "ประชุมวิชาการ/ศึกษาดูงาน/สัมมนาวิชาการ ",
-        "ขออนุมัติตัวบุคคลเป็นวิทยากร ",
-        "ขอห้องพักรับรอง ",
+        "ฝึกอบรม",
+        "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย",
+        "ขออนุมัติตัวบุคคลเป็นวิทยากร",
+        "ขอห้องพักรับรอง",
         "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ",
       ],
       internal: [
         "หนังสือเรียนเชิญวิทยากร",
-        "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์ ",
-        "ขอเข้าเยี่ยมศึกษาดูงาน ",
+        "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์",
+        "ขอเข้าเยี่ยมศึกษาดูงาน",
         "ขอเข้าไปจัดกิจกรรมโครงการ",
-        "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ) ",
+        "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)",
       ],
     };
 
-    const ROUTE_MAIN = {
-      train: "/Pro_letter/documents/form_Memo.php",
-      academic: "/Pro_letter/form_Memo/Request/infor_approve_pro.php",
-    };
-
+    // ลิงก์เฉพาะไฟล์คำถาม / หน้ากรอกข้อมูลเท่านั้น
+    // ไฟล์ใน form_Memo ที่เป็นหน้าเจนเอกสาร ไม่ใส่ใน ROUTE_SUB นี้
     const ROUTE_SUB = {
-      "ระบบขอความอนุเคราะห์หนังสือฝึกงาน (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_intership.php",
-      "หนังสือเรียนเชิญวิทยากร (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_invite.php",
-      "ส่งตัวหนังสือขอออกฝึกงาน(ของนักศึกษา)": "#",
-      "หนังสือขอบคุณ (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_thankyou.php",
-      "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์ (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_research_data.php",
-      "หนังสือเรียนเชิญปริญญา(ของนักศึกษา)": "#",
+      "ฝึกอบรม": "/Pro_letter/documents/form_Memo.php",
+      "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย": "/Pro_letter/documents/infor_academic_presentation.php",
+      "ขออนุมัติตัวบุคคลเป็นวิทยากร": "/Pro_letter/documents/infor_speaker_workshop.php",
+      "ขอห้องพักรับรอง": "/Pro_letter/documents/infor_room_request.php",
+      "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ": "/Pro_letter/documents/infor_present.php",
 
-      "ขอเปลี่ยนแปลงตารางสอน (ของอาจารย์)": "#",
-      "ขอเปลี่ยนแปลงตารางสอบ (ของอาจารย์)": "/Pro_letter/form_Memo/Request/infor_change_exam.php",
-      "ขอสอบนอกตาราง (ของอาจารย์)": "/Pro_letter/form_Memo/Request/infor_extra_exam.php",
-      "ขอใช้อาคารวันหยุดราชการ (ของอาจารย์)": "/Pro_letter/user/Request_2.php",
-      "ขอสอนชดเชย (ของอาจารย์)": "#",
-      "ขอห้องพักรับรอง (ของอาจารย์)": "/Pro_letter/user/Request_3.php",
-      "ขออนุมัติตัวบุคคลเป็นวิทยากร (ของอาจารย์)": "/Pro_letter/user/Request_4.php",
-      "ขออนุมัติไม่เข้าร่วมโครงการ (ของอาจารย์)": "/Pro_letter/user/Request_5.php",
-      "การเผยแพร่งานวิจัยและเบิกค่าตอบแทนการตีพิมพ์ (ของอาจารย์)": "#",
-      "ขออนุมัติจัดทำโครงการ (ของอาจารย์)": "#",
-      "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ (ของอาจารย์)": "#",
-      "ขอแจ้งเรียนการเป็นผู้ร่วมวิจัย (ของอาจารย์)": "/Pro_letter/user/Request_7.php",
+      "หนังสือเรียนเชิญวิทยากร": "/Pro_letter/documents/infor_invite.php",
+      "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์": "/Pro_letter/documents/infor_research_data.php",
+      "ขอเข้าเยี่ยมศึกษาดูงาน": "/Pro_letter/documents/infor_study_visit.php",
+      "ขอเข้าไปจัดกิจกรรมโครงการ": "/Pro_letter/documents/infor_project_activity.php",
+      "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)": "/Pro_letter/documents/infor_coop_evaluation.php",
     };
+
+    function withSelection(url, mainVal, subVal = "") {
+      if (!url || url === "#") return "#";
+
+      const targetUrl = new URL(url, window.location.origin);
+      if (mainVal) targetUrl.searchParams.set("main", mainVal);
+      if (subVal) targetUrl.searchParams.set("sub", subVal);
+
+      return targetUrl.toString();
+    }
 
     function renderSubOptions(list, selectedValue = "") {
       sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
@@ -3387,7 +2761,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
         const opt = document.createElement("option");
         opt.value = text;
         opt.textContent = text;
-        if (text === selectedValue) opt.selected = true;
+        if (text.trim() === String(selectedValue || "").trim()) opt.selected = true;
         sub.appendChild(opt);
       });
     }
@@ -3406,16 +2780,22 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
     function goMain() {
       const mainVal = (main.value || "").trim();
-      const target = ROUTE_MAIN[mainVal];
-      if (target && target !== "#") window.location.href = target;
+      const firstSub = (SUB_OPTIONS[mainVal] || [""])[0] || "";
+      const target = ROUTE_SUB[firstSub];
+
+      if (!target || target === "#") return;
+      window.location.href = withSelection(target, mainVal, firstSub);
     }
 
     function goSub() {
+      const mainVal = (main.value || "").trim();
       const subVal = (sub.value || "").trim();
       sub.dataset.current = subVal;
+
       const target = ROUTE_SUB[subVal];
       if (!target || target === "#") return;
-      window.location.href = target;
+
+      window.location.href = withSelection(target, mainVal, subVal);
     }
     main.addEventListener("change", () => {
       sub.dataset.current = "";

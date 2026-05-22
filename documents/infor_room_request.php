@@ -1,15 +1,81 @@
 <?php
-// ต้องวางตรงนี้! บรรทัดแรกของไฟล์
-$CURRENT_MAIN = "internal";
-$CURRENT_SUB = "ขออนุมัติตัวบุคคลเป็นวิทยากร (ของอาจารย์)"; // ถ้าไม่มีหมวดย่อย ให้เว้นว่าง
+$CURRENT_MAIN = $_GET['main'] ?? 'external';
+$CURRENT_SUB  = $_GET['sub']  ?? 'ขอห้องพักรับรอง';
+
+$ALLOWED_MAIN = ['external', 'internal'];
+if (!in_array($CURRENT_MAIN, $ALLOWED_MAIN, true)) {
+    $CURRENT_MAIN = 'external';
+}
 ?>
-<!-- ขออนุมัติตัวบุคคลเป็นวิทยากร (ของอาจารย์) Pro_letter/documents/Request_4.php -->
+<!-- ขอห้องพักรับรอง (ของอาจารย์) Pro_letter/documents/infor_room_request.php-->
 <?php
 session_start();
 require_once __DIR__ . '/../functions.php';
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.html");
     exit;
+}
+$docId  = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$isEdit = $docId > 0;
+$formData = [];
+
+if ($isEdit) {
+    $pdo = db();
+    $stmt = $pdo->prepare("
+        SELECT document_id, owner_id, status
+        FROM documents
+        WHERE document_id = :id
+        LIMIT 1
+    ");
+    $stmt->execute([':id' => $docId]);
+    $doc = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$doc) exit("ไม่พบเอกสาร");
+   $roleId = (int)($_SESSION['role_id'] ?? 0);
+    $isAdmin   = ($roleId === 1);
+    $isOfficer = ($roleId === 2);
+    if (!$isAdmin && !$isOfficer) {
+        if ($doc['owner_id'] != $_SESSION['user_id']) {
+            header("Location: view_memo.php?id={$docId}&err=no_permission");
+            exit;
+
+        }
+        if (!in_array($doc['status'], ['draft','rejected'])) {
+           header("Location: view_memo.php?id={$docId}&err=no_permission");
+          exit;
+
+        }
+    }
+    $q = $pdo->prepare("
+        SELECT field_id, value_text
+        FROM document_values
+        WHERE document_id = :id
+    ");
+    $q->execute([':id' => $docId]);
+
+    foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $formData[(int)$row['field_id']] = $row['value_text'];
+    }
+}
+
+$docDate     = $formData[1]  ?? '';
+$ownerName   = $formData[2]  ?? '';
+$position    = $formData[3]  ?? '';
+
+$toPerson           = $formData[26] ?? '';
+$roomRequest        = $formData[27] ?? '';
+$roomRequestOther   = $formData[28] ?? '';
+$guestFullname      = $formData[29] ?? '';
+$personType         = $formData[30] ?? '';
+$personTypeOther    = $formData[31] ?? '';
+$reason             = $formData[32] ?? '';
+$reasonOther        = $formData[33] ?? '';
+$dateOption         = $formData[34] ?? 'single';
+$singleDateValue    = $formData[35] ?? '';
+$rangeDateValue     = $formData[36] ?? '';
+$roomTypeValue      = $formData[37] ?? '';
+
+function checked_value($a, $b) {
+    return ((string)$a === (string)$b) ? 'checked' : '';
 }
 ?>
 
@@ -292,7 +358,7 @@ if (!isset($_SESSION['user_id'])) {
                 }
             ?>
 
-      <a href="/Pro_letter/user/Request_4.php">
+      <a href="/Pro_letter/documents/infor_room_request.php">
         <div class="px-4 py-2 rounded-[11px] font-bold transition bg-white text-teal-500 shadow">
           แบบฟอร์มบันทึกข้อความ
         </div>
@@ -331,6 +397,13 @@ if (!isset($_SESSION['user_id'])) {
   </header>
 
   <form method="post" action="save_memo.php" id="memoForm">
+    <input type="hidden" name="template_id" value="1">
+    <input type="hidden" name="department_id" value="1">
+    <input type="hidden" name="purpose" value="room_request">
+    <input type="hidden" name="target_form" value="infor_room_request.php">
+    <input type="hidden" name="redirect_to" value="infor_room_request.php">
+    <input type="hidden" name="mode" value="<?= $isEdit ? 'update' : 'create' ?>">
+    <input type="hidden" name="document_id" value="<?= (int)$docId ?>">
     <!-- กล่องเนื้อหา -->
     <div class="w-[900px] mx-auto mt-16 mb-6 bg-white shadow-md rounded-md p-8" style="min-height: 1122px">
       <h1 class="text-center font-bold mb-6 text-black">
@@ -350,13 +423,8 @@ if (!isset($_SESSION['user_id'])) {
           <div class="relative w-full">
             <select name="main_category" class="custom-select w-full" id="mainCategory">
               <option value="">-- เลือกหมวดหลัก --</option>
-              <option value="train" <?= ($CURRENT_MAIN=="train"?"selected":"") ?>>ฝึกอบรม</option>
-              <option value="academic" <?= ($CURRENT_MAIN=="academic"?"selected":"") ?>>
-                ประชุมวิชาการ/ศึกษาดูงาน/สัมมนาวิชาการ</option>
               <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
-              <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>
-                ภายใน(บันทึกข้อความ)
-              </option>
+              <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>ภายใน</option>
             </select>
 
           </div>
@@ -392,94 +460,285 @@ if (!isset($_SESSION['user_id'])) {
         </div>
       </div>
 
-
       <!-- ข้อ 1 -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 items-end">
         <div class="flex items-center gap-3">
-          <label class="lbl text-gray-800 whitespace-nowrap" for="docDateDisplay">1.วัน เดือน ปี :</label>
+          <label class="lbl text-gray-800 whitespace-nowrap" for="docDate">1. วันที่บนบันทึกข้อความ :</label>
+          <div class="flex-1">
+            <div class="relative">
+              <input type="text" id="docDateDisplay" class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer"
+                placeholder="เลือกวันที่" readonly value="<?= htmlspecialchars($docDate) ?>" />
 
-          <div class="relative">
-            <input type="text" id="docDateDisplay" class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer"
-              placeholder="เลือกวันที่" readonly />
+              <input type="hidden" name="doc_date" id="docDate" value="<?= htmlspecialchars($docDate) ?>" />
 
-            <input type="hidden" name="doc_date" id="docDate" />
-
-            <svg class="pointer-events-none absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]"
-              xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
-            </svg>
+              <svg class="absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9] pointer-events-none"
+                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
+              </svg>
+            </div>
           </div>
-
-          <label class="lbl text-gray-800 whitespace-nowrap">ที่ต้องการให้ปรากฎบนบันทึกข้อความ</label>
         </div>
       </div>
 
       <!-- ข้อ 2 -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 items-end">
-        <div class="flex items-center gap-3">
-          <label class="lbl text-gray-800 whitespace-nowrap" for="fullname">2.ชื่อ - นามสกุล :</label>
-          <select name="fullname" class="flex-1 border rounded-md p-2" id="fullname">
-            <option>อาจารย์ ดร.พิทย์พิมล ชูรอด</option>
-          </select>
-        </div>
-        <div class="flex items-center gap-3">
-          <label class="lbl text-gray-800 whitespace-nowrap" for="position">ตำแหน่ง :</label>
-          <input type="text" name="position" class="flex-1 border rounded-md p-2" id="position"
-            value="อาจารย์ประจำภาควิชาเทคโนโลยีสารสนเทศ" />
-        </div>
-      </div>
-
-
-      <!-- ข้อ 3 -->
       <div class="mb-4 flex items-start gap-4">
-        <label class="lbl text-gray-800 whitespace-nowrap pt-2" for="eventTitle">
-          3.ชื่อโครงการอบรม / หลักสูตร :
-        </label>
+        <label class="lbl text-gray-800 whitespace-nowrap pt-2" for="toPerson">2. เรียน :</label>
+
         <div class="w-full">
-          <textarea name="event_title" rows="2" class="w-full border rounded-md p-2 shadow-sm" id="eventTitle"
-            data-spell-field="event_title"></textarea>
-          <div id="eventTitleSpellBox" class="spell-box hidden"></div>
-          <div id="eventTitleSpellLoading" class="spell-loading hidden">
+          <input type="text" name="to_person" id="toPerson" data-spell-field="to_person"
+            class="w-full border rounded-md p-2 shadow-sm"
+            placeholder="เช่น ประธานคณะกรรมการบ้านพัก มจพ. วิทยาเขตปราจีนบุรี"
+            value="<?= htmlspecialchars($toPerson) ?>" />
+
+          <div id="toPersonSpellBox" class="spell-box hidden"></div>
+
+          <div id="toPersonSpellLoading" class="spell-loading hidden">
             <div class="spell-loading-row">
               <div class="spell-spinner"></div>
               <span>กำลังตรวจคำผิด...</span>
             </div>
           </div>
+        </div>
+      </div>
 
+      <!-- ข้อ 3 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 items-end">
+        <div class="flex items-center gap-3">
+          <label class="lbl text-gray-800 whitespace-nowrap" for="fullname">3. ชื่อ - นามสกุลผู้ขอ :</label>
+          <input type="text" name="fullname" class="flex-1 border rounded-md p-2" id="fullname"
+            value="<?= htmlspecialchars($ownerName ?: ($_SESSION['fullname'] ?? '')) ?>" />
+        </div>
+
+        <div class="flex items-center gap-3">
+          <label class="lbl text-gray-800 whitespace-nowrap" for="position">ตำแหน่ง :</label>
+          <input type="text" name="position" class="flex-1 border rounded-md p-2" id="position"
+            value="<?= htmlspecialchars($position ?: 'อาจารย์ประจำภาควิชาเทคโนโลยีสารสนเทศ') ?>" />
         </div>
       </div>
 
       <!-- ข้อ 4 -->
-      <div class="mb-4 flex items-start gap-4">
-        <label class="lbl text-gray-800 whitespace-nowrap pt-2" for="researchTitle">
-          4. ชื่อหัวข้อหลักสูตร :
-        </label>
-        <div class="w-full">
-          <textarea name="research_title" rows="2" class="w-full border rounded-md p-2 shadow-sm" id="researchTitle"
-            data-spell-field="research_title"></textarea>
-          <div id="researchTitleSpellBox" class="spell-box hidden"></div>
-          <div id="researchTitleSpellLoading" class="spell-loading hidden">
-            <div class="spell-loading-row">
-              <div class="spell-spinner"></div>
-              <span>กำลังตรวจคำผิด...</span>
+      <div class="mb-4">
+        <label class="lbl text-gray-800 block mb-2">4. ขออนุมัติใช้ห้องพักรับรองสำหรับ :</label>
+
+        <div class="ml-6 space-y-2 text-gray-800" id="roomRequestGroup">
+          <label class="flex items-center gap-2">
+            <input type="radio" name="room_request" value="วิทยากร" class="accent-black"
+              <?= checked_value($roomRequest, 'วิทยากร') ?>>
+            วิทยากร
+          </label>
+
+          <label class="flex items-center gap-2">
+            <input type="radio" name="room_request" value="ผู้ทรงคุณวุฒิ" class="accent-black"
+              <?= checked_value($roomRequest, 'ผู้ทรงคุณวุฒิ') ?>>
+            ผู้ทรงคุณวุฒิ
+          </label>
+
+          <label class="flex items-center gap-2">
+            <input type="radio" name="room_request" value="แขกของมหาวิทยาลัย" class="accent-black"
+              <?= checked_value($roomRequest, 'แขกของมหาวิทยาลัย') ?>>
+            แขกของมหาวิทยาลัย
+          </label>
+
+          <label class="flex items-center gap-2">
+            <input type="radio" name="room_request" value="บุคลากรภายนอก" class="accent-black"
+              <?= checked_value($roomRequest, 'บุคลากรภายนอก') ?>>
+            บุคลากรภายนอก
+          </label>
+
+          <label class="flex items-center gap-2">
+            <input type="radio" name="room_request" value="บุคลากรบรรจุใหม่" class="accent-black"
+              <?= checked_value($roomRequest, 'บุคลากรบรรจุใหม่') ?>>
+            บุคลากรบรรจุใหม่
+          </label>
+
+          <div class="flex items-start gap-3">
+            <div class="flex items-center gap-2 h-[42px]">
+              <input type="radio" name="room_request" value="อื่น ๆ" id="roomRequestOtherRadio" class="accent-black"
+                <?= checked_value($roomRequest, 'อื่น ๆ') ?>>
+              <span class="whitespace-nowrap">อื่น ๆ (ระบุ)</span>
+            </div>
+
+            <div class="flex flex-col">
+              <input type="text" name="room_request_other" id="roomRequestOtherInput"
+                data-spell-field="room_request_other" class="border rounded-md p-2 w-[300px] bg-gray-100 text-gray-400"
+                placeholder="โปรดระบุ เช่น ผู้เข้าร่วมโครงการ" value="<?= htmlspecialchars($roomRequestOther) ?>"
+                disabled>
+
+              <div id="roomRequestOtherSpellBox" class="spell-box hidden"></div>
+
+              <div id="roomRequestOtherSpellLoading" class="spell-loading hidden">
+                <div class="spell-loading-row">
+                  <div class="spell-spinner"></div>
+                  <span>กำลังตรวจคำผิด...</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       <!-- ข้อ 5 -->
+      <div class="mb-4 flex items-start gap-4">
+        <label class="lbl text-gray-800 whitespace-nowrap pt-2">5. ชื่อ - นามสกุลผู้เข้าพัก :</label>
+        <div class="w-full">
+          <input type="text" name="guest_fullname" id="guestFullname" data-spell-field="guest_fullname"
+            class="w-full border rounded-md p-2 shadow-sm" placeholder="กรอกชื่อผู้ที่จะเข้าพัก เช่น นายสมชาย ใจดี"
+            value="<?= htmlspecialchars($guestFullname) ?>" />
+
+          <div id="guestFullnameSpellBox" class="spell-box hidden"></div>
+
+          <div id="guestFullnameSpellLoading" class="spell-loading hidden">
+            <div class="spell-loading-row">
+              <div class="spell-spinner"></div>
+              <span>กำลังตรวจคำผิด...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ข้อ 6 -->
+      <div class="mb-4">
+        <label class="lbl text-gray-800 block mb-2">6. ประเภทผู้เข้าพัก :</label>
+
+        <div class="ml-6 space-y-2 text-gray-800" id="personTypeGroup">
+          <label class="flex items-center gap-2">
+            <input type="radio" name="person_type" value="อาจารย์" class="accent-black"
+              <?= checked_value($personType, 'อาจารย์') ?>>
+            อาจารย์
+          </label>
+
+          <label class="flex items-center gap-2">
+            <input type="radio" name="person_type" value="เจ้าหน้าที่" class="accent-black"
+              <?= checked_value($personType, 'เจ้าหน้าที่') ?>>
+            เจ้าหน้าที่
+          </label>
+
+          <label class="flex items-center gap-2">
+            <input type="radio" name="person_type" value="วิทยากร" class="accent-black"
+              <?= checked_value($personType, 'วิทยากร') ?>>
+            วิทยากร
+          </label>
+
+          <label class="flex items-center gap-2">
+            <input type="radio" name="person_type" value="ผู้ทรงคุณวุฒิ" class="accent-black"
+              <?= checked_value($personType, 'ผู้ทรงคุณวุฒิ') ?>>
+            ผู้ทรงคุณวุฒิ
+          </label>
+
+          <label class="flex items-center gap-2">
+            <input type="radio" name="person_type" value="บุคลากรภายนอก" class="accent-black"
+              <?= checked_value($personType, 'บุคลากรภายนอก') ?>>
+            บุคลากรภายนอก
+          </label>
+
+          <label class="flex items-center gap-2">
+            <input type="radio" name="person_type" value="แขกของมหาวิทยาลัย" class="accent-black"
+              <?= checked_value($personType, 'แขกของมหาวิทยาลัย') ?>>
+            แขกของมหาวิทยาลัย
+          </label>
+
+          <div class="flex items-start gap-3">
+            <div class="flex items-center gap-2 h-[42px]">
+              <input type="radio" name="person_type" value="อื่น ๆ" id="otherTypeRadio" class="accent-black"
+                <?= checked_value($personType, 'อื่น ๆ') ?>>
+              <span class="whitespace-nowrap">อื่น ๆ (ระบุ)</span>
+            </div>
+
+            <div class="flex flex-col">
+              <input type="text" name="person_type_other" id="otherTypeInput" data-spell-field="person_type_other"
+                class="border rounded-md p-2 w-[260px] bg-gray-100 text-gray-400" placeholder="โปรดระบุ"
+                value="<?= htmlspecialchars($personTypeOther) ?>" disabled>
+
+              <div id="personTypeOtherSpellBox" class="spell-box hidden"></div>
+
+              <div id="personTypeOtherSpellLoading" class="spell-loading hidden">
+                <div class="spell-loading-row">
+                  <div class="spell-spinner"></div>
+                  <span>กำลังตรวจคำผิด...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ข้อ 7 -->
+      <div class="mb-4">
+        <label class="lbl text-gray-800 block mb-2">7. เหตุผลในการขอใช้ห้องพักรับรอง :</label>
+
+        <div class="ml-6 space-y-2 text-gray-800">
+          <label class="flex items-center gap-2">
+            <input type="radio" name="reason" value="เพื่อปฏิบัติงาน" class="accent-black"
+              <?= checked_value($reason, 'เพื่อปฏิบัติงาน') ?>>
+            เพื่อปฏิบัติงาน
+          </label>
+
+          <label class="flex items-center gap-2">
+            <input type="radio" name="reason" value="เพื่อเป็นวิทยากร" class="accent-black"
+              <?= checked_value($reason, 'เพื่อเป็นวิทยากร') ?>>
+            เพื่อเป็นวิทยากร
+          </label>
+
+          <label class="flex items-center gap-2">
+            <input type="radio" name="reason" value="เพื่อเข้าร่วมโครงการ" class="accent-black"
+              <?= checked_value($reason, 'เพื่อเข้าร่วมโครงการ') ?>>
+            เพื่อเข้าร่วมโครงการ
+          </label>
+
+          <label class="flex items-center gap-2">
+            <input type="radio" name="reason" value="เพื่อปฏิบัติภารกิจราชการ" class="accent-black"
+              <?= checked_value($reason, 'เพื่อปฏิบัติภารกิจราชการ') ?>>
+            เพื่อปฏิบัติภารกิจราชการ
+          </label>
+
+          <label class="flex items-center gap-2">
+            <input type="radio" name="reason" value="เพื่อรับรองแขกของมหาวิทยาลัย" class="accent-black"
+              <?= checked_value($reason, 'เพื่อรับรองแขกของมหาวิทยาลัย') ?>>
+            เพื่อรับรองแขกของมหาวิทยาลัย
+          </label>
+
+          <div class="flex items-start gap-3">
+            <div class="flex items-center gap-2 h-[42px]">
+              <input type="radio" name="reason" value="อื่น ๆ" id="reasonOtherRadio" class="accent-black"
+                <?= checked_value($reason, 'อื่น ๆ') ?>>
+              <span class="whitespace-nowrap">อื่น ๆ (ระบุ)</span>
+            </div>
+
+            <div class="flex flex-col">
+              <input type="text" name="reason_other" id="reasonOtherInput" data-spell-field="reason_other"
+                class="border rounded-md p-2 w-[300px] bg-gray-100 text-gray-400" placeholder="โปรดระบุ"
+                value="<?= htmlspecialchars($reasonOther) ?>" disabled>
+
+              <div id="reasonOtherSpellBox" class="spell-box hidden"></div>
+
+              <div id="reasonOtherSpellLoading" class="spell-loading hidden">
+                <div class="spell-loading-row">
+                  <div class="spell-spinner"></div>
+                  <span>กำลังตรวจคำผิด...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ข้อ 8 -->
       <div class="mb-6">
-        <label class="lbl text-gray-800 block mb-2" id="dateLabel">5. วันที่เข้าร่วม</label>
+        <label class="lbl text-gray-800 block mb-2" id="dateLabel">8. วันที่เข้าพัก :</label>
 
         <div class="space-y-4 ml-6 text-gray-800">
-          <!-- 🔹 วันเดียว -->
+          <!-- วันเดียว -->
           <div class="flex items-center gap-2">
-            <input type="radio" name="date_option" value="single" id="optSingle" class="accent-[#11C2B9]" checked />
+            <input type="radio" name="date_option" value="single" id="optSingle" class="accent-[#11C2B9]"
+              <?= checked_value($dateOption, 'single') ?> />
             <span>วันเดียว :</span>
+
             <div class="relative">
               <input type="text" name="single_date" id="singleDate"
-                class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่" readonly />
+                class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่" readonly
+                value="<?= htmlspecialchars($singleDateValue) ?>" />
+
               <svg class="absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]" xmlns="http://www.w3.org/2000/svg"
                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -488,15 +747,16 @@ if (!isset($_SESSION['user_id'])) {
             </div>
           </div>
 
-          <!-- 🔹 หลายวัน -->
+          <!-- หลายวัน -->
           <div class="flex flex-wrap items-center gap-2">
-            <input type="radio" name="date_option" value="range" id="optRange" class="accent-[#11C2B9]" />
+            <input type="radio" name="date_option" value="range" id="optRange" class="accent-[#11C2B9]"
+              <?= checked_value($dateOption, 'range') ?> />
             <span>หลายวัน :</span>
 
-            <!-- วันที่เริ่มต้น -->
             <div class="relative">
               <input type="text" id="startDate" class="border rounded-md p-2 shadow-sm w-44 pr-10 cursor-pointer"
-                placeholder="เริ่มต้น" readonly />
+                placeholder="วันที่เริ่มต้น" readonly />
+
               <svg class="absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]" xmlns="http://www.w3.org/2000/svg"
                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -506,10 +766,10 @@ if (!isset($_SESSION['user_id'])) {
 
             <span>ถึง</span>
 
-            <!-- วันที่สิ้นสุด -->
             <div class="relative">
               <input type="text" id="endDate" class="border rounded-md p-2 shadow-sm w-44 pr-10 cursor-pointer"
-                placeholder="สิ้นสุด" readonly />
+                placeholder="วันที่สิ้นสุด" readonly />
+
               <svg class="absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]" xmlns="http://www.w3.org/2000/svg"
                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -517,85 +777,31 @@ if (!isset($_SESSION['user_id'])) {
               </svg>
             </div>
 
-            <!-- 🔹 แสดงผลรูปแบบวันที่ -->
-            <input type="text" id="rangeDisplay" class="border rounded-md p-2 shadow-sm w-64 bg-gray-50 text-gray-600"
-              placeholder="10 - 11 กรกฎาคม 2568" readonly />
-
-            <!-- ซ่อนค่ารวมเพื่อส่งข้อมูล -->
-            <input type="hidden" name="range_date" id="rangeDate" value="" />
+            <input type="hidden" name="range_date" id="rangeDate" value="<?= htmlspecialchars($rangeDateValue) ?>" />
           </div>
         </div>
       </div>
 
-      <!-- ข้อ 6 -->
-      <div class="mb-4">
-        <label class="lbl text-gray-800 block mb-2">
-          6. ชื่อสถานที่จัดประชุมวิชาการ / สถานที่จัดอบรม / เข้าร่วมรูปแบบออนไลน์
-        </label>
+      <!-- ข้อ 9 -->
+      <div class="mb-4 flex items-start gap-4">
+        <label class="lbl text-gray-800 whitespace-nowrap pt-2">9. ห้องพัก/สถานที่ที่ต้องการใช้ :</label>
 
-        <div class="ml-7 space-y-2">
+        <div class="w-full">
+          <input type="text" name="room_type" id="roomType" data-spell-field="room_type"
+            class="w-full border rounded-md p-2 shadow-sm"
+            placeholder="เช่น อาคารบ้านพักรับรอง ห้อง VIP, ห้องพักรับรองชั้น 3, ห้องปกติ เป็นต้น"
+            value="<?= htmlspecialchars($roomTypeValue) ?>">
 
-          <label class="flex items-center gap-2">
-            <input type="radio" id="onlineCheckbox" name="is_online" value="1" class="accent-black">
-            เข้าร่วมรูปแบบออนไลน์
-          </label>
+          <div id="roomTypeOtherSpellBox" class="spell-box hidden"></div>
 
-          <div class="flex items-start gap-2">
-            <div class="flex items-center gap-2 h-[42px]">
-              <input type="radio" id="onsiteCheckbox" name="is_online" value="0" class="accent-black">
-              <span class="whitespace-nowrap">ออนไซต์ ณ</span>
-            </div>
-
-            <div class="flex flex-col">
-              <input type="text" name="place" id="placeInput" data-spell-field="place"
-                class="border rounded-md p-2 w-[350px] shadow-sm bg-gray-100 text-gray-400"
-                placeholder="เช่น โรงแรม Best Western จังหวัดนนทบุรี" disabled>
-
-              <div id="placeInputSpellBox" class="spell-box hidden"></div>
-
-              <div id="placeInputSpellLoading" class="spell-loading hidden">
-                <div class="spell-loading-row">
-                  <div class="spell-spinner"></div>
-                  <span>กำลังตรวจคำผิด...</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      <!-- ข้อ 7 -->
-      <div class="mb-6">
-        <div class="flex items-center gap-2 mb-2">
-          <label class="lbl text-gray-800" for="amountInput">7.รวมยอดประมาณการค่าใช้จ่าย :</label>
-          <div class="flex flex-col">
-            <div class="flex items-center gap-2">
-              <input type="text" name="amount" class="border rounded-md p-2 w-36" id="amountInput" value="0.00" />
-              <span>บาท</span>
+          <div id="roomTypeOtherSpellLoading" class="spell-loading hidden">
+            <div class="spell-loading-row">
+              <div class="spell-spinner"></div>
+              <span>กำลังตรวจคำผิด...</span>
             </div>
           </div>
         </div>
-        <label class="flex items-center gap-2 ml-6 mt-2">
-          <input type="checkbox" name="no_cost" value="1" class="accent-black" id="noCostCheckbox" />
-          โดยไม่เบิกค่าใช้จ่ายใดๆทั้งสิ้น
-        </label>
       </div>
-
-
-      <!-- ข้อ 8 -->
-      <div class="mb-6">
-        <label class="lbl block text-gray-800 mb-2" id="carLabel">8.กรณีไปรถยนต์ส่วนตัว</label>
-        <div class="flex items-center gap-2 ml-6">
-          <input type="checkbox" name="car_used" value="1" class="accent-black" id="carCheckbox" />
-          <label for="carPlateInput" class="lbl">ระบุหมายเลขทะเบียนรถยนต์ :</label>
-          <div class="flex flex-col">
-            <input type="text" name="car_plate" class="border rounded-md p-2 w-[250px]" id="carPlateInput"
-              placeholder="เช่น กร 1906 พัทลุง" disabled />
-          </div>
-        </div>
-      </div>
-
 
       <!-- ปุ่ม -->
       <div class="relative mt-20">
@@ -604,28 +810,76 @@ if (!isset($_SESSION['user_id'])) {
             class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md flex items-center justify-center transition">
             ดำเนินการ
           </button>
-        </div>
 
+        </div>
       </div>
     </div>
   </form>
+
   <script>
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
+  const byId = (id) => document.getElementById(id);
+
+  const form = byId("memoForm");
+  const docDate = byId("docDate");
+  const docDateDisplay = byId("docDateDisplay");
+  const roomRequestOtherInput = byId("roomRequestOtherInput");
+  const roomRequestOtherRadio = byId("roomRequestOtherRadio");
+  const guestFullname = byId("guestFullname");
+  const toPerson = byId("toPerson");
+  const otherTypeInput = byId("otherTypeInput");
+  const otherTypeRadio = byId("otherTypeRadio");
+  const reasonOtherInput = byId("reasonOtherInput");
+  const reasonOtherRadio = byId("reasonOtherRadio");
+  const roomType = byId("roomType");
+
+  const personTypeRadios = $$('input[name="person_type"]');
+  const reasonRadios = $$('input[name="reason"]');
+
+  const optSingle = byId("optSingle");
+  const singleDate = byId("singleDate");
+  const optRange = byId("optRange");
+  const rangeDate = byId("rangeDate");
+  const dateLabel = byId("dateLabel");
+
   const spellState = {
-    event_title: {
+    to_person: {
       checked: false,
       hasError: false,
       ignored: false,
       errors: [],
       lastText: ""
     },
-    research_title: {
+    room_request_other: {
       checked: false,
       hasError: false,
       ignored: false,
       errors: [],
       lastText: ""
     },
-    place: {
+    guest_fullname: {
+      checked: false,
+      hasError: false,
+      ignored: false,
+      errors: [],
+      lastText: ""
+    },
+    person_type_other: {
+      checked: false,
+      hasError: false,
+      ignored: false,
+      errors: [],
+      lastText: ""
+    },
+    reason_other: {
+      checked: false,
+      hasError: false,
+      ignored: false,
+      errors: [],
+      lastText: ""
+    },
+    room_type: {
       checked: false,
       hasError: false,
       ignored: false,
@@ -641,17 +895,23 @@ if (!isset($_SESSION['user_id'])) {
 
   function getSpellBoxByField(el) {
     if (!el) return null;
-    if (el.id === "eventTitle") return document.getElementById("eventTitleSpellBox");
-    if (el.id === "researchTitle") return document.getElementById("researchTitleSpellBox");
-    if (el.id === "placeInput") return document.getElementById("placeInputSpellBox");
+    if (el.id === "toPerson") return byId("toPersonSpellBox");
+    if (el.id === "roomRequestOtherInput") return byId("roomRequestOtherSpellBox");
+    if (el.id === "guestFullname") return byId("guestFullnameSpellBox");
+    if (el.id === "otherTypeInput") return byId("personTypeOtherSpellBox");
+    if (el.id === "reasonOtherInput") return byId("reasonOtherSpellBox");
+    if (el.id === "roomType") return byId("roomTypeOtherSpellBox");
     return null;
   }
 
   function getSpellLoadingByField(el) {
     if (!el) return null;
-    if (el.id === "eventTitle") return document.getElementById("eventTitleSpellLoading");
-    if (el.id === "researchTitle") return document.getElementById("researchTitleSpellLoading");
-    if (el.id === "placeInput") return document.getElementById("placeInputSpellLoading");
+    if (el.id === "toPerson") return byId("toPersonSpellLoading");
+    if (el.id === "roomRequestOtherInput") return byId("roomRequestOtherSpellLoading");
+    if (el.id === "guestFullname") return byId("guestFullnameSpellLoading");
+    if (el.id === "otherTypeInput") return byId("personTypeOtherSpellLoading");
+    if (el.id === "reasonOtherInput") return byId("reasonOtherSpellLoading");
+    if (el.id === "roomType") return byId("roomTypeOtherSpellLoading");
     return null;
   }
 
@@ -744,10 +1004,7 @@ if (!isset($_SESSION['user_id'])) {
     if (!fieldName || !cleanText) return;
 
     approvedTexts[fieldName] = cleanText;
-
-    extractThaiWords(cleanText).forEach(word => {
-      approvedWords.add(word);
-    });
+    extractThaiWords(cleanText).forEach(word => approvedWords.add(word));
   }
 
   function isApprovedText(fieldName, text) {
@@ -764,9 +1021,7 @@ if (!isset($_SESSION['user_id'])) {
   }
 
   function setSpellPassed(el, fieldName, text, remember = false) {
-    if (remember) {
-      rememberApprovedText(fieldName, text);
-    }
+    if (remember) rememberApprovedText(fieldName, text);
 
     spellState[fieldName] = {
       checked: true,
@@ -787,8 +1042,16 @@ if (!isset($_SESSION['user_id'])) {
     if (!el) return false;
     if (el.disabled || el.readOnly) return false;
 
-    if (el.id === "placeInput") {
-      return !!document.getElementById("onsiteCheckbox")?.checked;
+    if (el.id === "roomRequestOtherInput") {
+      return !!roomRequestOtherRadio?.checked;
+    }
+
+    if (el.id === "otherTypeInput") {
+      return !!otherTypeRadio?.checked;
+    }
+
+    if (el.id === "reasonOtherInput") {
+      return !!reasonOtherRadio?.checked;
     }
 
     return true;
@@ -845,26 +1108,28 @@ if (!isset($_SESSION['user_id'])) {
   `;
 
     html += `</div>`;
-
     box.innerHTML = html;
     box.classList.remove("hidden");
   }
 
   async function checkSpellField(el) {
-    if (!el) return;
+    if (!el) return true;
 
     clearSpellResult(el);
-    if (!shouldCheckSpell(el)) return;
+
+    if (!shouldCheckSpell(el)) return true;
 
     const text = (el.value || "").trim();
-    if (!text) return;
+    if (!text) return true;
 
     const fieldName = el.dataset.spellField || "";
+    if (!fieldName) return true;
+
     const cacheKey = `${fieldName}::${text}`;
 
     if (isApprovedText(fieldName, text) || correctedTexts[fieldName] === text) {
       setSpellPassed(el, fieldName, text, false);
-      return;
+      return true;
     }
 
     if (spellCache[cacheKey]) {
@@ -879,26 +1144,25 @@ if (!isset($_SESSION['user_id'])) {
           errors: normalizedErrors,
           lastText: text
         };
+
         showSpellError(el, normalizedErrors);
-      } else {
-        spellState[fieldName] = {
-          checked: true,
-          hasError: false,
-          ignored: false,
-          errors: [],
-          lastText: text
-        };
-        showSpellOk(el);
+        return false;
       }
 
-      return;
+      spellState[fieldName] = {
+        checked: true,
+        hasError: false,
+        ignored: false,
+        errors: [],
+        lastText: text
+      };
+
+      showSpellOk(el);
+      return true;
     }
 
     el.classList.add("opacity-50");
     showSpellLoading(el);
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
       const response = await fetch("http://127.0.0.1:8001/api/spell-check", {
@@ -909,13 +1173,12 @@ if (!isset($_SESSION['user_id'])) {
         body: JSON.stringify({
           field: fieldName,
           text
-        }),
-        signal: controller.signal
+        })
       });
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
 
       const result = await response.json();
       spellCache[cacheKey] = result;
@@ -930,20 +1193,25 @@ if (!isset($_SESSION['user_id'])) {
           errors: normalizedErrors,
           lastText: text
         };
+
         showSpellError(el, normalizedErrors);
-      } else {
-        spellState[fieldName] = {
-          checked: true,
-          hasError: false,
-          ignored: false,
-          errors: [],
-          lastText: text
-        };
-        showSpellOk(el);
+        return false;
       }
+
+      spellState[fieldName] = {
+        checked: true,
+        hasError: false,
+        ignored: false,
+        errors: [],
+        lastText: text
+      };
+
+      showSpellOk(el);
+      return true;
     } catch (error) {
-      clearTimeout(timeoutId);
       console.error("Spell check API error:", error);
+      alert("เชื่อมต่อระบบตรวจคำผิดไม่ได้ หรือระบบตรวจคำผิดตอบกลับช้าเกินไป กรุณาตรวจสอบ FastAPI");
+      return false;
     } finally {
       el.classList.remove("opacity-50");
       hideSpellLoading(el);
@@ -952,9 +1220,12 @@ if (!isset($_SESSION['user_id'])) {
 
   async function checkAllSpellFields() {
     const fields = [
-      document.getElementById("eventTitle"),
-      document.getElementById("researchTitle"),
-      document.getElementById("placeInput")
+      toPerson,
+      roomRequestOtherInput,
+      guestFullname,
+      otherTypeInput,
+      reasonOtherInput,
+      roomType
     ];
 
     for (const el of fields) {
@@ -996,7 +1267,7 @@ if (!isset($_SESSION['user_id'])) {
     const ignoreBtn = e.target.closest(".spell-ignore-btn");
     if (!ignoreBtn) return;
 
-    const target = document.getElementById(ignoreBtn.dataset.target);
+    const target = byId(ignoreBtn.dataset.target);
     if (!target) return;
 
     const fieldName = target.dataset.spellField || "";
@@ -1009,7 +1280,7 @@ if (!isset($_SESSION['user_id'])) {
     const btn = e.target.closest(".spell-suggestion-btn");
     if (!btn) return;
 
-    const target = document.getElementById(btn.dataset.target);
+    const target = byId(btn.dataset.target);
     const word = btn.dataset.word;
     const wrongWord = btn.dataset.wrongWord;
 
@@ -1025,138 +1296,84 @@ if (!isset($_SESSION['user_id'])) {
 
     setSpellPassed(target, fieldName, currentText, false);
   });
-  </script>
-  <script>
-  /* ====== Helpers ====== */
-  const $ = (s) => document.querySelector(s);
-  const $$ = (s) => Array.from(document.querySelectorAll(s));
-  const byId = (id) => document.getElementById(id);
-  const labelFor = (id) => document.querySelector(`label[for="${id}"]`);
-  const setErr = (el, on = true) => {
-    if (!el) return;
-    el.classList.toggle("error", on);
-    if (on) {
-      el.classList.add("shake");
-      setTimeout(() => el.classList.remove("shake"), 250);
+
+  function syncOtherInput(radio, input, stateKey) {
+    if (radio?.checked) {
+      input.disabled = false;
+      input.classList.remove("bg-gray-100", "text-gray-400");
+    } else {
+      input.value = "";
+      input.disabled = true;
+      input.classList.add("bg-gray-100", "text-gray-400");
+      clearSpellResult(input);
+      spellState[stateKey] = {
+        checked: false,
+        hasError: false,
+        ignored: false,
+        errors: [],
+        lastText: ""
+      };
     }
-    el.setAttribute("aria-invalid", on ? "true" : "false");
-  };
-  const setStar = (labelEl, on = true) => {
-    if (labelEl) labelEl.classList.toggle("asterisk", on);
-  };
+  }
+  const roomRequestRadios = $$('input[name="room_request"]');
 
-  /* ====== Elements ====== */
-  const form = byId("memoForm");
-  const docDate = byId("docDate");
-  const docDateDisplay = byId("docDateDisplay");
-  const eventTitle = byId("eventTitle");
-  const researchTitle = byId("researchTitle");
-  const onlineCheckbox = byId("onlineCheckbox");
-  const onsiteCheckbox = byId("onsiteCheckbox");
-  const placeInput = byId("placeInput");
+  roomRequestRadios.forEach(radio => {
+    radio.addEventListener("change", () => {
+      syncOtherInput(roomRequestOtherRadio, roomRequestOtherInput, "room_request_other");
+    });
+  });
+  personTypeRadios.forEach(radio => {
+    radio.addEventListener("change", () => {
+      syncOtherInput(otherTypeRadio, otherTypeInput, "person_type_other");
+    });
+  });
 
+  reasonRadios.forEach(radio => {
+    radio.addEventListener("change", () => {
+      syncOtherInput(reasonOtherRadio, reasonOtherInput, "reason_other");
+    });
+  });
 
-
-  const optSingle = byId("optSingle");
-  const singleDate = byId("singleDate");
-  const optRange = byId("optRange");
-  const rangeDate = byId("rangeDate");
-  const dateLabel = byId("dateLabel");
-
-  const amountInput = byId("amountInput");
-  const noCostCheckbox = byId("noCostCheckbox");
-
-  const carCheckbox = byId("carCheckbox");
-  const carPlateInput = byId("carPlateInput");
-
-  /* ====== Sync UI (ไม่สร้าง/ลบ element) ====== */
   function syncDateOptionUI() {
     if (optSingle.checked) {
       singleDate.disabled = false;
-      rangeDate.disabled = true;
-      setErr(rangeDate, false);
     } else {
       singleDate.disabled = true;
-      setErr(singleDate, false);
-      rangeDate.disabled = false;
-    }
-  }
-
-  function syncOnlineUI() {
-    if (onlineCheckbox.checked) {
-      placeInput.value = "เข้าร่วมรูปแบบออนไลน์";
-      placeInput.disabled = false;
-      placeInput.readOnly = true;
-      placeInput.classList.add("bg-gray-100", "text-gray-400");
-      setErr(placeInput, false);
-      clearSpellResult(placeInput);
-    } else if (onsiteCheckbox.checked) {
-      if (placeInput.value === "เข้าร่วมรูปแบบออนไลน์") {
-        placeInput.value = "";
-      }
-      placeInput.disabled = false;
-      placeInput.readOnly = false;
-      placeInput.classList.remove("bg-gray-100", "text-gray-400");
-    } else {
-      placeInput.value = "";
-      placeInput.disabled = true;
-      placeInput.readOnly = false;
-      placeInput.classList.add("bg-gray-100", "text-gray-400");
-      setErr(placeInput, false);
-      clearSpellResult(placeInput);
-    }
-  }
-
-  function syncCostUI() {
-    if (noCostCheckbox.checked) {
-      amountInput.value = "0.00";
-      amountInput.disabled = true;
-      setErr(amountInput, false);
-    } else {
-      amountInput.disabled = false;
-    }
-  }
-
-  function syncCarUI() {
-    if (carCheckbox.checked) {
-      carPlateInput.disabled = false;
-    } else {
-      carPlateInput.value = "";
-      carPlateInput.disabled = true;
-      setErr(carPlateInput, false);
     }
   }
 
   optSingle.addEventListener("change", syncDateOptionUI);
   optRange.addEventListener("change", syncDateOptionUI);
-  onlineCheckbox.addEventListener("change", syncOnlineUI);
-  noCostCheckbox.addEventListener("change", syncCostUI);
-  carCheckbox.addEventListener("change", syncCarUI);
 
-  onsiteCheckbox.addEventListener("change", syncOnlineUI);
-
+  syncOtherInput(roomRequestOtherRadio, roomRequestOtherInput, "room_request_other");
+  syncOtherInput(otherTypeRadio, otherTypeInput, "person_type_other");
+  syncOtherInput(reasonOtherRadio, reasonOtherInput, "reason_other");
   syncDateOptionUI();
-  syncOnlineUI();
-  syncCostUI();
-  syncCarUI();
 
-  /* เคลียร์ error เมื่อมีการแก้ไข */
   [
-    docDate,
-    eventTitle,
-    researchTitle,
+    docDateDisplay,
+    toPerson,
+    roomRequestOtherInput,
+    guestFullname,
+    otherTypeInput,
+    reasonOtherInput,
     singleDate,
     rangeDate,
-    placeInput,
-    amountInput,
-    carPlateInput,
+    roomType
   ].forEach((el) => {
+    if (!el) return;
     el.addEventListener("input", () => setErr(el, false));
     el.addEventListener("change", () => setErr(el, false));
   });
 
+  function setErr(el, isError) {
+    if (!el) return;
 
-  /* ====== Validate (ใส่กรอบแดง + ดอกจันเท่านั้น) ====== */
+    el.classList.toggle("border-red-500", !!isError);
+    el.classList.toggle("ring-2", !!isError);
+    el.classList.toggle("ring-red-300", !!isError);
+  }
+
   function scrollFocus(el) {
     if (!el) return;
     el.scrollIntoView({
@@ -1168,82 +1385,78 @@ if (!isset($_SESSION['user_id'])) {
 
   function validate() {
     let firstInvalid = null;
-    // ล้างดอกจันทั้งหมด
-    $$(".lbl").forEach((l) => setStar(l, false));
 
     if (!docDate.value) {
       setErr(docDateDisplay, true);
       firstInvalid = firstInvalid || docDateDisplay;
     }
-
-    // 3) วัตถุประสงค์
-
-
-    // 4) ชื่องาน/หลักสูตร
-    if (!eventTitle.value.trim()) {
-      setErr(eventTitle, true);
-      setStar(labelFor("eventTitle"), true);
-      firstInvalid = firstInvalid || eventTitle;
-    }
-    if (!researchTitle.value.trim()) {
-      setErr(researchTitle, true);
-      setStar(labelFor("researchTitle"), true);
-      firstInvalid = firstInvalid || researchTitle;
+    if (!toPerson.value.trim()) {
+      setErr(toPerson, true);
+      firstInvalid = firstInvalid || toPerson;
     }
 
-    // 5) วันที่เข้าร่วม
+    const roomRequestRadios = $$('input[name="room_request"]');
+    const hasRoomRequest = roomRequestRadios.some(r => r.checked);
+
+    if (!hasRoomRequest) {
+      firstInvalid = firstInvalid || roomRequestRadios[0];
+    }
+
+    if (roomRequestOtherRadio.checked && !roomRequestOtherInput.value.trim()) {
+      setErr(roomRequestOtherInput, true);
+      firstInvalid = firstInvalid || roomRequestOtherInput;
+    }
+
+    if (!guestFullname.value.trim()) {
+      setErr(guestFullname, true);
+      firstInvalid = firstInvalid || guestFullname;
+    }
+
+    const hasPersonType = personTypeRadios.some(r => r.checked);
+    if (!hasPersonType) {
+      firstInvalid = firstInvalid || personTypeRadios[0];
+    }
+
+    if (otherTypeRadio.checked && !otherTypeInput.value.trim()) {
+      setErr(otherTypeInput, true);
+      firstInvalid = firstInvalid || otherTypeInput;
+    }
+
+    const hasReason = reasonRadios.some(r => r.checked);
+    if (!hasReason) {
+      firstInvalid = firstInvalid || reasonRadios[0];
+    }
+
+    if (reasonOtherRadio.checked && !reasonOtherInput.value.trim()) {
+      setErr(reasonOtherInput, true);
+      firstInvalid = firstInvalid || reasonOtherInput;
+    }
+
     if (optSingle.checked) {
       if (!singleDate.value.trim()) {
         setErr(singleDate, true);
-        setStar(dateLabel, true);
         firstInvalid = firstInvalid || singleDate;
       }
     } else if (optRange.checked) {
       if (!rangeDate.value.trim()) {
         setErr(rangeDate, true);
-        setStar(dateLabel, true);
         firstInvalid = firstInvalid || rangeDate;
       }
-    } else {
-      setStar(dateLabel, true);
-      firstInvalid = firstInvalid || optRange;
     }
 
-    // 6) สถานที่ (เฉพาะกรณีไม่ออนไลน์)
-    if (!onlineCheckbox.checked && !onsiteCheckbox.checked) {
-      setErr(onlineCheckbox, true);
-      firstInvalid = firstInvalid || onlineCheckbox;
-    } else if (onsiteCheckbox.checked && !placeInput.value.trim()) {
-      setErr(placeInput, true);
-      firstInvalid = firstInvalid || placeInput;
-    }
-
-    // 7) จำนวนเงิน (ถ้าไม่ได้ติ๊กไม่เบิก)
-    if (!noCostCheckbox.checked) {
-      const raw = amountInput.value.replace(/,/g, "").trim();
-      const val = Number(raw);
-      if (raw === "" || isNaN(val)) {
-        setErr(amountInput, true);
-        setStar(labelFor("amountInput"), true);
-        firstInvalid = firstInvalid || amountInput;
-      }
-    }
-
-    // 8) ทะเบียนรถ (เมื่อเลือกใช้รถ)
-    if (carCheckbox.checked && !carPlateInput.value.trim()) {
-      setErr(carPlateInput, true);
-      setStar(byId("carLabel"), true);
-      firstInvalid = firstInvalid || carPlateInput;
+    if (!roomType.value.trim()) {
+      setErr(roomType, true);
+      firstInvalid = firstInvalid || roomType;
     }
 
     if (firstInvalid) {
       scrollFocus(firstInvalid);
       return false;
     }
+
     return true;
   }
 
-  /* ====== Submit แบบปกติ ====== */
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -1290,11 +1503,10 @@ if (!isset($_SESSION['user_id'])) {
       const d = selectedDates[0];
       if (!d) return;
 
-      document.getElementById("docDateDisplay").value = toThaiDisplay(d);
-      document.getElementById("docDate").value = instance.formatDate(d, "Y-m-d");
-    },
+      byId("docDateDisplay").value = toThaiDisplay(d);
+      byId("docDate").value = instance.formatDate(d, "Y-m-d");
+    }
   });
-
   // ✅ ปฏิทินวันเดียว
   flatpickr("#singleDate", {
     dateFormat: "d/m/Y",
@@ -1368,7 +1580,6 @@ if (!isset($_SESSION['user_id'])) {
       }
 
       // ✅ แสดงผลในช่องรูปแบบและช่องซ่อน
-      document.getElementById("rangeDisplay").value = displayText;
       document.getElementById("rangeDate").value = displayText;
     }
   }
@@ -1385,18 +1596,18 @@ if (!isset($_SESSION['user_id'])) {
     const single = document.getElementById("singleDate");
     const start = document.getElementById("startDate");
     const end = document.getElementById("endDate");
-    const display = document.getElementById("rangeDisplay");
+    const display = null;
 
     if (document.getElementById("optSingle").checked) {
       single.disabled = false;
       start.disabled = true;
       end.disabled = true;
-      display.disabled = true;
+      if (display) display.disabled = true;
     } else {
       single.disabled = true;
       start.disabled = false;
       end.disabled = false;
-      display.disabled = false;
+      if (display) display.disabled = false;
     }
   }
   // เรียกครั้งแรกให้ตรงตามค่า checked เริ่มต้น
@@ -1427,7 +1638,6 @@ if (!isset($_SESSION['user_id'])) {
   }
   </script>
 
-
   <script>
   document.addEventListener("DOMContentLoaded", () => {
     const main = document.getElementById("mainCategory");
@@ -1436,63 +1646,51 @@ if (!isset($_SESSION['user_id'])) {
 
     const SUB_OPTIONS = {
       external: [
-        "ระบบขอความอนุเคราะห์หนังสือฝึกงาน (ของนักศึกษา)",
-        "ส่งตัวหนังสือขอออกฝึกงาน(ของนักศึกษา)",
-        "หนังสือเรียนเชิญวิทยากร (ของนักศึกษา)",
-        "หนังสือขอบคุณ (ของนักศึกษา)",
-        "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์ (ของนักศึกษา)",
-        "หนังสือเรียนเชิญปริญญา(ของนักศึกษา)",
+        "ฝึกอบรม",
+        "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย",
+        "ขออนุมัติตัวบุคคลเป็นวิทยากร",
+        "ขอห้องพักรับรอง",
+        "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ",
       ],
       internal: [
-        "ขอเปลี่ยนแปลงตารางสอน (ของอาจารย์)",
-        "ขอเปลี่ยนแปลงตารางสอบ (ของอาจารย์)",
-        "ขอสอบนอกตาราง (ของอาจารย์)",
-        "ขอใช้อาคารวันหยุดราชการ (ของอาจารย์)",
-        "ขอสอนชดเชย (ของอาจารย์)",
-        "ขอห้องพักรับรอง (ของอาจารย์)",
-        "ขออนุมัติตัวบุคคลเป็นวิทยากร (ของอาจารย์)",
-        "ขออนุมัติไม่เข้าร่วมโครงการ (ของอาจารย์)",
-        "การเผยแพร่งานวิจัยและเบิกค่าตอบแทนการตีพิมพ์ (ของอาจารย์)",
-        "ขออนุมัติจัดทำโครงการ (ของอาจารย์)",
-        "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ (ของอาจารย์)",
-        "ขอแจ้งเรียนการเป็นผู้ร่วมวิจัย (ของอาจารย์)",
+        "หนังสือเรียนเชิญวิทยากร",
+        "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์",
+        "ขอเข้าเยี่ยมศึกษาดูงาน",
+        "ขอเข้าไปจัดกิจกรรมโครงการ",
+        "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)",
       ],
-    };
-
-    const ROUTE_MAIN = {
-      train: "/Pro_letter/documents/form_Memo.php",
-      academic: "/Pro_letter/form_Memo/Request/infor_approve_pro.php",
     };
 
     const ROUTE_SUB = {
-      "ระบบขอความอนุเคราะห์หนังสือฝึกงาน (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_intership.php",
-      "หนังสือเรียนเชิญวิทยากร (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_invite.php",
-      "ส่งตัวหนังสือขอออกฝึกงาน(ของนักศึกษา)": "#",
-      "หนังสือขอบคุณ (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_thankyou.php",
-      "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์ (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_research_data.php",
-      "หนังสือเรียนเชิญปริญญา(ของนักศึกษา)": "#",
+      "ฝึกอบรม": "/Pro_letter/documents/form_Memo.php",
+      "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย": "/Pro_letter/documents/infor_academic_presentation.php",
+      "ขออนุมัติตัวบุคคลเป็นวิทยากร": "/Pro_letter/documents/infor_speaker_workshop.php",
+      "ขอห้องพักรับรอง": "/Pro_letter/documents/infor_room_request.php",
+      "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ": "/Pro_letter/documents/infor_present.php",
 
-      "ขอเปลี่ยนแปลงตารางสอน (ของอาจารย์)": "#",
-      "ขอเปลี่ยนแปลงตารางสอบ (ของอาจารย์)": "/Pro_letter/form_Memo/Request/infor_change_exam.php",
-      "ขอสอบนอกตาราง (ของอาจารย์)": "/Pro_letter/form_Memo/Request/infor_extra_exam.php",
-      "ขอใช้อาคารวันหยุดราชการ (ของอาจารย์)": "/Pro_letter/user/Request_2.php",
-      "ขอสอนชดเชย (ของอาจารย์)": "#",
-      "ขอห้องพักรับรอง (ของอาจารย์)": "/Pro_letter/user/Request_3.php",
-      "ขออนุมัติตัวบุคคลเป็นวิทยากร (ของอาจารย์)": "/Pro_letter/user/Request_4.php",
-      "ขออนุมัติไม่เข้าร่วมโครงการ (ของอาจารย์)": "/Pro_letter/user/Request_5.php",
-      "การเผยแพร่งานวิจัยและเบิกค่าตอบแทนการตีพิมพ์ (ของอาจารย์)": "/Pro_letter/user/Request_6.php",
-      "ขออนุมัติจัดทำโครงการ (ของอาจารย์)": "#",
-      "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ (ของอาจารย์)": "#",
-      "ขอแจ้งเรียนการเป็นผู้ร่วมวิจัย (ของอาจารย์)": "/Pro_letter/user/Request_7.php",
+      "หนังสือเรียนเชิญวิทยากร": "/Pro_letter/documents/infor_invite.php",
+      "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์": "/Pro_letter/documents/infor_research_data.php",
+      "ขอเข้าเยี่ยมศึกษาดูงาน": "/Pro_letter/documents/infor_study_visit.php",
+      "ขอเข้าไปจัดกิจกรรมโครงการ": "/Pro_letter/documents/infor_project_activity.php",
+      "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)": "/Pro_letter/documents/infor_coop_evaluation.php",
     };
 
+    function withSelection(url, mainVal, subVal = "") {
+      if (!url || url === "#") return "#";
+      const targetUrl = new URL(url, window.location.origin);
+      if (mainVal) targetUrl.searchParams.set("main", mainVal);
+      if (subVal) targetUrl.searchParams.set("sub", subVal);
+      return targetUrl.toString();
+    }
+
     function renderSubOptions(list, selectedValue = "") {
+      const selected = String(selectedValue || "").trim();
       sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
       list.forEach(text => {
         const opt = document.createElement("option");
         opt.value = text;
         opt.textContent = text;
-        if (text === selectedValue) opt.selected = true;
+        if (text.trim() === selected) opt.selected = true;
         sub.appendChild(opt);
       });
     }
@@ -1501,28 +1699,33 @@ if (!isset($_SESSION['user_id'])) {
       const mainVal = (main.value || "").trim();
       const currentSub = (sub.dataset.current || "").trim();
 
-      if (mainVal === "train" || mainVal === "academic" || mainVal === "") {
+      if (mainVal === "external" || mainVal === "internal") {
+        sub.disabled = false;
+        renderSubOptions(SUB_OPTIONS[mainVal] || [], currentSub);
+      } else {
         sub.disabled = true;
         sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
-        return;
       }
+    }
 
-      sub.disabled = false;
-      renderSubOptions(SUB_OPTIONS[mainVal] || [], currentSub);
+    function goToSub(mainVal, subVal) {
+      const cleanSub = String(subVal || "").trim();
+      const target = ROUTE_SUB[cleanSub];
+      if (!target || target === "#") return;
+      window.location.href = withSelection(target, mainVal, cleanSub);
     }
 
     function goMain() {
       const mainVal = (main.value || "").trim();
-      const target = ROUTE_MAIN[mainVal];
-      if (target && target !== "#") window.location.href = target;
+      const firstSub = (SUB_OPTIONS[mainVal] || [])[0] || "";
+      if (firstSub) goToSub(mainVal, firstSub);
     }
 
     function goSub() {
+      const mainVal = (main.value || "").trim();
       const subVal = (sub.value || "").trim();
-      sub.dataset.current = subVal; // ✅ เก็บไว้ให้พรีเซเลคได้
-      const target = ROUTE_SUB[subVal];
-      if (!target || target === "#") return;
-      window.location.href = target;
+      sub.dataset.current = subVal;
+      goToSub(mainVal, subVal);
     }
 
     main.addEventListener("change", () => {
@@ -1532,7 +1735,6 @@ if (!isset($_SESSION['user_id'])) {
     });
 
     sub.addEventListener("change", goSub);
-
     syncUI();
   });
   </script>

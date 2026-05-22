@@ -9,7 +9,7 @@ if ($DEV_AUTO_LOGIN && empty($_SESSION['user_id'])) {
   $_SESSION['user_id'] = 1;
 }
 
-require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/../functions.php';
 
 try {
   if (empty($_SESSION['user_id'])) {
@@ -51,8 +51,8 @@ try {
   );
   $isRoomRequest = (
     $purpose === 'room_request'
-    || $redirectTo === 'Request_3.php'
-    || $targetForm === 'Request_3.php'
+    || $redirectTo === 'infor_room_request.php'
+    || $targetForm === 'infor_room_request.php'
     || isset($_POST['room_request'])
 );
 
@@ -580,7 +580,7 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
     } elseif ($isInviteMemo) {
         header('Location: /Pro_letter/form_Memo/Request/infor_invite.php?id=' . $documentId . '&err=validate');
     } elseif ($isRoomRequest) {
-        header('Location: /Pro_letter/user/Request_3.php?id=' . $documentId . '&err=validate');
+        header('Location: /Pro_letter/documents/infor_room_request.php?id=' . $documentId . '&err=validate');
     } elseif ($isSpeakerMemo) {
         header('Location: /Pro_letter/documents/infor_speaker_workshop.php?id=' . $documentId . '&err=validate');
     } elseif ($isStudyVisit) {
@@ -961,9 +961,46 @@ if ($isCoopEvaluation) {
     ]);
   }
 
-  if ($noCost) {
-    $pdo->prepare("DELETE FROM budget_items WHERE document_id = :id")
-      ->execute([':id' => $documentId]);
+  // บันทึก/อัปเดตรายการค่าใช้จ่ายจากหน้าประมาณการ
+  // ถ้าไม่เบิกค่าใช้จ่าย ให้ลบรายการเดิมทั้งหมด
+  // ถ้ามีค่าใช้จ่าย ให้ลบรายการเก่าแล้ว insert รายการใหม่จาก budget_type[] / budget_desc[] / budget_amount[]
+  $pdo->prepare("DELETE FROM budget_items WHERE document_id = :id")
+    ->execute([':id' => $documentId]);
+
+  if (!$noCost) {
+    $types   = $_POST['budget_type'] ?? [];
+    $descs   = $_POST['budget_desc'] ?? [];
+    $amounts = $_POST['budget_amount'] ?? [];
+
+    if (is_array($types) && is_array($descs) && is_array($amounts)) {
+      $insB = $pdo->prepare("
+        INSERT INTO budget_items (document_id, item_type, description, amount)
+        VALUES (:doc, :type, :desc, :amt)
+      ");
+
+      $count = min(count($types), count($descs), count($amounts));
+      for ($i = 0; $i < $count; $i++) {
+        $t = (string)($types[$i] ?? 'other');
+        $d = trim((string)($descs[$i] ?? ''));
+        $aRaw = str_replace(',', '', (string)($amounts[$i] ?? '0'));
+        $a = is_numeric($aRaw) ? (float)$aRaw : 0.0;
+
+        if (!in_array($t, ['registration', 'transport', 'accommodation', 'per_diem', 'other'], true)) {
+          $t = 'other';
+        }
+
+        if ($d === '' && $a == 0.0) {
+          continue;
+        }
+
+        $insB->execute([
+          ':doc'  => $documentId,
+          ':type' => $t,
+          ':desc' => $d,
+          ':amt'  => number_format($a, 2, '.', '')
+        ]);
+      }
+    }
   }
 
 
@@ -991,7 +1028,7 @@ if ($redirectBack !== '') {
 } elseif ($isInviteMemo) {
     $redirectUrl = "/Pro_letter/form_Memo/form_memo_invite.php?id={$documentId}";
 } elseif ($isRoomRequest) {
-    $redirectUrl = "/Pro_letter/user/Request_3.php?id={$documentId}";
+    $redirectUrl = "/Pro_letter/documents/infor_room_request.php?id={$documentId}";
 } elseif ($isSpeakerMemo) {
     $redirectUrl = "/Pro_letter/form_Memo/form_memo_speaker.php?id={$documentId}";
 } elseif ($isStudyVisit) {
@@ -1031,7 +1068,7 @@ if ($isInviteMemo) {
 }
 
 if ($isRoomRequest) {
-    header("Location: /Pro_letter/user/Request_3.php?id={$documentId}&saved=1&from=update");
+    header("Location: /Pro_letter/documents/infor_room_request.php?id={$documentId}&saved=1&from=update");
     exit;
 }
 

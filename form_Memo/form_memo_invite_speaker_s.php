@@ -822,7 +822,6 @@ $len = max(20, $len);
       <div class="content-block single" style="margin-top:1.5cm;">
         ภาควิชาเทคโนโลยีสารสนเทศ<br>
         โทร. ๐ ๓๗๒๙ ๓๙๓๓–๓ ต่อ ๑๐๒๕–๑๐๒๖<br>
-        โทรสาร ๐ ๓๗๒๙ ๓๙๓๑<br>
         ไปรษณีย์อิเล็กทรอนิกส์ ladda.t@itm.kmutnb.ac.th
       </div>
 

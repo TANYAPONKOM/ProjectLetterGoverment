@@ -102,6 +102,7 @@ $st->execute([':uid' => $userId]);
 $canEdit = $st->fetchColumn() > 0;
 $readonly = !$canEdit;
 
+$editQuestionUrl = "/Pro_letter/documents/infor_research_data.php?id=" . (int)$docId . "&edit=1";
 
 
 /* --------------------------------------------------
@@ -1127,28 +1128,12 @@ $len = max(20, $len);
             ดาวน์โหลด PDF
           </button>
 
-          <!-- 🟩 USER: ปุ่มยืนยัน -->
-          <?php if ($roleId === 3): ?>
-          <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-            ยืนยันการแก้ไข
-          </button>
-          <?php endif; ?>
-
-          <!-- 🟦 OFFICER & ADMIN -->
-          <?php if ($isAdmin || $isOfficer): ?>
-
-          <!-- ปุ่มอนุมัติ -->
-          <button type="button" onclick="updateStatus('approved')"
-            class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-            ยืนยันการแก้ไข
-          </button>
-
-          <!-- ปุ่มไม่ผ่าน -->
-          <button type="button" onclick="updateStatus('rejected')"
-            class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-            ไม่ผ่าน
-          </button>
-
+          <!-- ปุ่มแก้ไขเอกสาร: กลับไปหน้าแบบฟอร์มคำถามและดึงข้อมูลเดิมขึ้นมาแก้ -->
+          <?php if ($canEdit || $roleId === 3 || $isAdmin || $isOfficer): ?>
+          <a href="<?= h($editQuestionUrl) ?>"
+            class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-flex items-center justify-center">
+            แก้ไขเอกสาร
+          </a>
           <?php endif; ?>
 
           <!-- ปุ่มกลับหน้าหลัก (ทุก role มี) -->

@@ -414,66 +414,66 @@ if (!empty($expenseData['materials'])) {
   <div class="page">
     <form action="save_expense.php" method="post" id="expenseForm">
 
-     <!-- ส่วนข้อมูลผู้ขอ -->
-<div class="mt-4 mb-8">
+      <!-- ส่วนข้อมูลผู้ขอ -->
+      <div class="mt-4 mb-8">
 
-  <div class="exp-title">
-    ประมาณการค่าใช้จ่าย<br>
-    การนำเสนอผลงานวิจัยในการประชุมวิชาการระดับนานาชาติ
-  </div>
+        <div class="exp-title">
+          ประมาณการค่าใช้จ่าย<br>
+          การนำเสนอผลงานวิจัยในการประชุมวิชาการระดับนานาชาติ
+        </div>
 
-  <div class="exp-info">
+        <div class="exp-info">
 
-    <div class="exp-row">
-      <div class="exp-label">ชื่อ-สกุล</div>
-      <div class="exp-value">ผู้ช่วยศาสตราจารย์ ดร.ธนัฐชา นามี</div>
-    </div>
+          <div class="exp-row">
+            <div class="exp-label">ชื่อ-สกุล</div>
+            <div class="exp-value">ผู้ช่วยศาสตราจารย์ ดร.ธนัฐชา นามี</div>
+          </div>
 
-    <div class="exp-row">
-      <div class="exp-label">มหาวิทยาลัยต้นสังกัด</div>
-      <div class="exp-value">
-        ภาควิชาเทคโนโลยีสารสนเทศ คณะเทคโนโลยีและการจัดการอุตสาหกรรม<br>
-        มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
+          <div class="exp-row">
+            <div class="exp-label">มหาวิทยาลัยต้นสังกัด</div>
+            <div class="exp-value">
+              ภาควิชาเทคโนโลยีสารสนเทศ คณะเทคโนโลยีและการจัดการอุตสาหกรรม<br>
+              มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
+            </div>
+          </div>
+
+          <div class="exp-row">
+            <div class="exp-label">ชื่อการประชุมวิชาการ</div>
+            <div class="exp-value">
+              The 6th International Conference on Computational Intelligence and<br>
+              Intelligent Systems (CIIS 2023)
+            </div>
+          </div>
+
+          <div class="exp-row">
+            <div class="exp-label">วันที่</div>
+            <div class="exp-value">24 - 28 พฤศจิกายน 2566</div>
+          </div>
+
+          <div class="exp-row">
+            <div class="exp-label">สถานที่</div>
+            <div class="exp-value">Waseda University, Tokyo ประเทศญี่ปุ่น</div>
+          </div>
+
+          <div class="exp-row">
+            <div class="exp-label">ชื่อผลงานวิจัย</div>
+            <div class="exp-value">
+              Enhancing Indoor Positioning Accuracy: A Comprehensive Study on<br>
+              Euclidean Distance, Trilateration, Wi-Fi RTT and FTM Protocol<br>
+              Integration
+            </div>
+          </div>
+
+        </div>
       </div>
-    </div>
 
-    <div class="exp-row">
-      <div class="exp-label">ชื่อการประชุมวิชาการ</div>
-      <div class="exp-value">
-        The 6th International Conference on Computational Intelligence and<br>
-        Intelligent Systems (CIIS 2023)
+      <div class="exp-section-title">
+        ตารางสรุปค่าใช้จ่ายในการไปนำเสนอผลงานวิจัย
       </div>
-    </div>
 
-    <div class="exp-row">
-      <div class="exp-label">วันที่</div>
-      <div class="exp-value">24 - 28 พฤศจิกายน 2566</div>
-    </div>
-
-    <div class="exp-row">
-      <div class="exp-label">สถานที่</div>
-      <div class="exp-value">Waseda University, Tokyo ประเทศญี่ปุ่น</div>
-    </div>
-
-    <div class="exp-row">
-      <div class="exp-label">ชื่อผลงานวิจัย</div>
-      <div class="exp-value">
-        Enhancing Indoor Positioning Accuracy: A Comprehensive Study on<br>
-        Euclidean Distance, Trilateration, Wi-Fi RTT and FTM Protocol<br>
-        Integration
-      </div>
-    </div>
-
-  </div>
-</div>
-
-<div class="exp-section-title">
-  ตารางสรุปค่าใช้จ่ายในการไปนำเสนอผลงานวิจัย
-</div>
-
-  <table id="expenseTable">
-  <tr>
-    <th style="
+      <table id="expenseTable">
+        <tr>
+          <th style="
       width:48px;
       border:1px solid #000;
       padding:3px 4px;
@@ -481,10 +481,10 @@ if (!empty($expenseData['materials'])) {
       font-weight:bold;
       vertical-align:middle;
     ">
-      ลำดับ<br>ที่
-    </th>
+            ลำดับ<br>ที่
+          </th>
 
-    <th style="
+          <th style="
       width:340px;
       border:1px solid #000;
       padding:3px 6px;
@@ -492,10 +492,10 @@ if (!empty($expenseData['materials'])) {
       font-weight:bold;
       vertical-align:middle;
     ">
-      รายการ
-    </th>
+            รายการ
+          </th>
 
-    <th style="
+          <th style="
       width:112px;
       border:1px solid #000;
       padding:3px 4px;
@@ -503,89 +503,89 @@ if (!empty($expenseData['materials'])) {
       font-weight:bold;
       vertical-align:middle;
     ">
-      จำนวนเงิน (บาท)
-    </th>
-  </tr>
+            จำนวนเงิน (บาท)
+          </th>
+        </tr>
 
-  <?php if (!empty($expenseRows)): ?>
-    <?php foreach ($expenseRows as $index => $row): ?>
-      <tr>
-        <td style="
+        <?php if (!empty($expenseRows)): ?>
+        <?php foreach ($expenseRows as $index => $row): ?>
+        <tr>
+          <td style="
           border:1px solid #000;
           padding:3px 4px;
           text-align:center;
           vertical-align:top;
           <?= in_array($index + 1, [1,2,4,5]) ? 'color:red;' : '' ?>
         ">
-          <?= $index + 1 ?>
-        </td>
+            <?= $index + 1 ?>
+          </td>
 
-        <td style="
+          <td style="
           border:1px solid #000;
           padding:3px 6px;
           text-align:left;
           vertical-align:top;
           <?= in_array($index + 1, [1,2,4,5]) ? 'color:red;' : '' ?>
         ">
-          <?= nl2br(h($row['desc'])) ?>
-        </td>
+            <?= nl2br(h($row['desc'])) ?>
+          </td>
 
-        <td style="
+          <td style="
           border:1px solid #000;
           padding:3px 4px;
           text-align:right;
           vertical-align:top;
           <?= in_array($index + 1, [1,2,4,5]) ? 'color:red;' : '' ?>
         ">
-          <?= number_format((float)$row['amount'], 2) ?>
-        </td>
-      </tr>
-    <?php endforeach; ?>
+            <?= number_format((float)$row['amount'], 2) ?>
+          </td>
+        </tr>
+        <?php endforeach; ?>
 
-    <tr>
-      <td style="
+        <tr>
+          <td style="
         border:1px solid #000;
         padding:3px 4px;
         background:#ffffff;
       "></td>
 
-      <td style="
+          <td style="
         border:1px solid #000;
         padding:3px 6px;
         text-align:right;
         font-weight:normal;
         background:#ffffff;
       ">
-        รวมเป็นเงิน
-      </td>
+            รวมเป็นเงิน
+          </td>
 
-      <td style="
+          <td style="
         border:1px solid #000;
         padding:3px 4px;
         text-align:right;
         font-weight:normal;
         background:#ffffff;
       ">
-        <?= number_format((float)$expenseTotal, 2) ?>
-      </td>
-    </tr>
+            <?= number_format((float)$expenseTotal, 2) ?>
+          </td>
+        </tr>
 
-  <?php else: ?>
-    <tr>
-      <td colspan="3" style="
+        <?php else: ?>
+        <tr>
+          <td colspan="3" style="
         border:1px solid #000;
         padding:8px;
         text-align:center;
       ">
-        ไม่พบข้อมูลประมาณค่าใช้จ่าย
-      </td>
-    </tr>
-  <?php endif; ?>
-</table>
+            ไม่พบข้อมูลประมาณค่าใช้จ่าย
+          </td>
+        </tr>
+        <?php endif; ?>
+      </table>
 
-<div class="exp-note">
-  <b>หมายเหตุ</b> ขอถัวจ่ายทุกรายการ
-</div>
+      <div class="exp-note">
+        <b>หมายเหตุ</b> ขอถัวจ่ายทุกรายการ
+      </div>
 
       <!-- Hidden -->
       <input type="hidden" name="doc_id" value="<?= $docId ?>">

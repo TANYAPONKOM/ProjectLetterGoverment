@@ -230,8 +230,8 @@ $len = max(20, $len);
   <title>บันทึกข้อความ #<?= h($document['document_id']) ?></title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <style>
   @import url("https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap");
@@ -243,32 +243,32 @@ $len = max(20, $len);
     font-family: "TH SarabunPSK", sans-serif;
   }
 
-@page {
-  size: A4;
-  margin: 0;
-}
+  @page {
+    size: A4;
+    margin: 0;
+  }
 
-.page {
-  width: 794px;
-  height: 1123px;
-  min-height: 1123px;
+  .page {
+    width: 794px;
+    height: 1123px;
+    min-height: 1123px;
 
-  margin: 40px auto;
+    margin: 40px auto;
 
-  padding: 55px 85px 45px 85px;
+    padding: 55px 85px 45px 85px;
 
-  background: #fff;
+    background: #fff;
 
-  box-shadow: 0 0 5px rgba(0,0,0,.1);
+    box-shadow: 0 0 5px rgba(0, 0, 0, .1);
 
-  position: relative;
+    position: relative;
 
-  border: 2px solid #fff;
+    border: 2px solid #fff;
 
-  box-sizing: border-box;
+    box-sizing: border-box;
 
-  overflow: visible;
-}
+    overflow: visible;
+  }
 
   h1 {
     font-family: "TH SarabunPSK";
@@ -330,19 +330,19 @@ $len = max(20, $len);
     box-sizing: border-box;
   }
 
-.content-block {
-  font-family: "TH SarabunPSK";
-  font-size: 16pt;
-  line-height: 1.25;
-  margin: 0;
-  text-align: justify;
-}
+  .content-block {
+    font-family: "TH SarabunPSK";
+    font-size: 16pt;
+    line-height: 1.25;
+    margin: 0;
+    text-align: justify;
+  }
 
-.content-block.paragraph {
-  text-indent: 2.5cm;
-  margin-top: 8px;
-  line-height: 1.25;
-}
+  .content-block.paragraph {
+    text-indent: 2.5cm;
+    margin-top: 8px;
+    line-height: 1.25;
+  }
 
   .content-block.single {
     line-height: 1.0;
@@ -477,20 +477,20 @@ $len = max(20, $len);
       print-color-adjust: exact !important;
     }
 
-  .page {
-    width: 794px !important;
-    height: 1123px !important;
-    min-height: 1123px !important;
+    .page {
+      width: 794px !important;
+      height: 1123px !important;
+      min-height: 1123px !important;
 
-    margin: 0 auto !important;
+      margin: 0 auto !important;
 
-    padding: 55px 85px 45px 85px !important;
+      padding: 55px 85px 45px 85px !important;
 
-    box-shadow: none !important;
-    border: 2px solid #fff !important;
-    box-sizing: border-box !important;
-    overflow: visible !important;
-  }
+      box-shadow: none !important;
+      border: 2px solid #fff !important;
+      box-sizing: border-box !important;
+      overflow: visible !important;
+    }
 
     .dot-line::after {
       content: "";
@@ -714,21 +714,20 @@ $len = max(20, $len);
       <input type="hidden" name="single_date" id="hidden_singleDate" value="">
 
 
-<!-- หัวหนังสือราชการภายนอก -->
-<div style="
+      <!-- หัวหนังสือราชการภายนอก -->
+      <div style="
   display:grid;
   grid-template-columns: 31% 22% 47%;
   align-items:start;
   margin-top:18px;
 ">
 
-  <div style="font-size:16pt; padding-top:107px; white-space:nowrap;">
-    ที่ อว ๗๑๐๑.๑๕/
-  </div>
+        <div style="font-size:16pt; padding-top:107px; white-space:nowrap;">
+          ที่ อว ๗๑๐๑.๑๕/
+        </div>
 
-  <div style="text-align:center; position:relative; left:55px; top:6px;">
-    <img src="/Pro_letter/assets/img/garuda.jpg"
-      style="
+        <div style="text-align:center; position:relative; left:55px; top:6px;">
+          <img src="/Pro_letter/assets/img/garuda.jpg" style="
         width:123px;
         height:auto;
         opacity:0.83;
@@ -740,9 +739,9 @@ $len = max(20, $len);
         background:transparent;
         transform:scale(1.01);
       ">
-  </div>
+        </div>
 
-  <div style="
+        <div style="
     font-size:15.5pt;
     line-height:1.28;
     padding-top:115px;
@@ -750,18 +749,18 @@ $len = max(20, $len);
     width:380px;
     text-align:left;
   ">
-    <div style="position:relative; top:-5px;">
-      มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
-    </div>
+          <div style="position:relative; top:-5px;">
+            มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
+          </div>
 
-    <div style="position:relative; top:-2px;">
-      ๑๒๙ หมู่ ๒๑ ต.เนินหอม อ.เมือง จ.ปราจีนบุรี ๒๕๒๓๐
-    </div>
-  </div>
-</div>
+          <div style="position:relative; top:-2px;">
+            ๑๒๙ หมู่ ๒๑ ต.เนินหอม อ.เมือง จ.ปราจีนบุรี ๒๕๒๓๐
+          </div>
+        </div>
+      </div>
 
-<!-- วันที่ -->
-<div style="
+      <!-- วันที่ -->
+      <div style="
   font-size:16pt;
   text-align:center;
   margin-top:20px;
@@ -769,46 +768,46 @@ $len = max(20, $len);
   position:relative;
   left:60px;
 ">
-  มิถุนายน ๒๕๖๘
-</div>
+        มิถุนายน ๒๕๖๘
+      </div>
 
-<div style="
+      <div style="
   font-family:'TH SarabunPSK';
   font-size:16pt;
   line-height:1.15;
   color:#111;
 ">
 
-  <!-- เรื่อง -->
-  <div style="
+        <!-- เรื่อง -->
+        <div style="
     display:grid;
     grid-template-columns: 1.2cm 1fr;
     column-gap:0;
     margin-bottom:2px;
     line-height:1.38;
   ">
-    <div style="white-space:nowrap;">เรื่อง</div>
-    <div style="text-align:left; line-height:1.38;">
-      ขออนุญาตเข้าเยี่ยมชมศึกษาดูงาน SUT Wellness Academy
-    </div>
-  </div>
+          <div style="white-space:nowrap;">เรื่อง</div>
+          <div style="text-align:left; line-height:1.38;">
+            ขออนุญาตเข้าเยี่ยมชมศึกษาดูงาน SUT Wellness Academy
+          </div>
+        </div>
 
-  <!-- เรียน -->
-  <div style="
+        <!-- เรียน -->
+        <div style="
     display:grid;
     grid-template-columns: 1.2cm 1fr;
     column-gap:0;
     margin-bottom:8px;
     line-height:1.38;
   ">
-    <div style="white-space:nowrap;">เรียน</div>
-    <div style="text-align:left; line-height:1.38;">
-      อธิการบดีมหาวิทยาลัยเทคโนโลยีสุรนารี (มทส.)
-    </div>
-  </div>
+          <div style="white-space:nowrap;">เรียน</div>
+          <div style="text-align:left; line-height:1.38;">
+            อธิการบดีมหาวิทยาลัยเทคโนโลยีสุรนารี (มทส.)
+          </div>
+        </div>
 
-  <!-- ย่อหน้า 1 -->
-  <p style="
+        <!-- ย่อหน้า 1 -->
+        <p style="
     text-indent:2.5cm;
     margin:0 0 10px 0;
     text-align:justify;
@@ -816,70 +815,70 @@ $len = max(20, $len);
     letter-spacing:-0.1px;
     word-spacing:-1px;
   ">
-    ด้วย รองศาสตราจารย์ ดร.ยุพิน สรรพคุณ บุคลากรสังกัด ภาควิชาเทคโนโลยีสารสนเทศ
-    คณะเทคโนโลยีและการจัดการอุตสาหกรรม มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
-    วิทยาเขตปราจีนบุรี มีความประสงค์จะขออนุญาตเข้าเยี่ยมชม SUT Wellness Academy
-    ศูนย์สุขภาพเพื่อการป้องกัน รักษา และฟื้นฟูสุขภาพด้วยแผนไทยประยุกต์ แบบครบวงจร
-    ในวันศุกร์ที่ ๔ กรกฎาคม ๒๕๖๘ เวลา ๑๓.๐๐ น. เป็นต้นไป
-    เพื่อนำข้อมูลและความรู้ที่ได้รับมาพัฒนาให้เกิดประโยชน์กับ การจัดการเรียนการสอน
-    งานวิจัย และการพัฒนานวัตกรรม โดยมีรายชื่อคณาจารย์ที่จะเข้าเยี่ยมชมศึกษาดูงาน
-    จำนวน ๔ คน ดังรายชื่อต่อไปนี้
-  </p>
+          ด้วย รองศาสตราจารย์ ดร.ยุพิน สรรพคุณ บุคลากรสังกัด ภาควิชาเทคโนโลยีสารสนเทศ
+          คณะเทคโนโลยีและการจัดการอุตสาหกรรม มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
+          วิทยาเขตปราจีนบุรี มีความประสงค์จะขออนุญาตเข้าเยี่ยมชม SUT Wellness Academy
+          ศูนย์สุขภาพเพื่อการป้องกัน รักษา และฟื้นฟูสุขภาพด้วยแผนไทยประยุกต์ แบบครบวงจร
+          ในวันศุกร์ที่ ๔ กรกฎาคม ๒๕๖๘ เวลา ๑๓.๐๐ น. เป็นต้นไป
+          เพื่อนำข้อมูลและความรู้ที่ได้รับมาพัฒนาให้เกิดประโยชน์กับ การจัดการเรียนการสอน
+          งานวิจัย และการพัฒนานวัตกรรม โดยมีรายชื่อคณาจารย์ที่จะเข้าเยี่ยมชมศึกษาดูงาน
+          จำนวน ๔ คน ดังรายชื่อต่อไปนี้
+        </p>
 
-  <!-- รายชื่อ -->
-  <div style="
+        <!-- รายชื่อ -->
+        <div style="
     margin-left:2.5cm;
     margin-top:0;
     margin-bottom:12px;
     line-height:1.38;
   ">
-    <div style="display:grid; grid-template-columns: 7.2cm 1fr;">
-      <div>๑. รองศาสตราจารย์ ดร.ยุพิน สรรพคุณ</div>
-      <div>คณะเทคโนโลยีและการจัดการอุตสาหกรรม</div>
-    </div>
+          <div style="display:grid; grid-template-columns: 7.2cm 1fr;">
+            <div>๑. รองศาสตราจารย์ ดร.ยุพิน สรรพคุณ</div>
+            <div>คณะเทคโนโลยีและการจัดการอุตสาหกรรม</div>
+          </div>
 
-    <div style="display:grid; grid-template-columns: 7.2cm 1fr;">
-      <div>๒. ผู้ช่วยศาสตราจารย์ จ่าสิบตรี นพเก้า ทองใบ</div>
-      <div>คณะเทคโนโลยีและการจัดการอุตสาหกรรม</div>
-    </div>
+          <div style="display:grid; grid-template-columns: 7.2cm 1fr;">
+            <div>๒. ผู้ช่วยศาสตราจารย์ จ่าสิบตรี นพเก้า ทองใบ</div>
+            <div>คณะเทคโนโลยีและการจัดการอุตสาหกรรม</div>
+          </div>
 
-    <div style="display:grid; grid-template-columns: 7.2cm 1fr;">
-      <div>๓. อาจารย์ ดร.พิทย์พิมล ชูรอด</div>
-      <div>คณะเทคโนโลยีและการจัดการอุตสาหกรรม</div>
-    </div>
+          <div style="display:grid; grid-template-columns: 7.2cm 1fr;">
+            <div>๓. อาจารย์ ดร.พิทย์พิมล ชูรอด</div>
+            <div>คณะเทคโนโลยีและการจัดการอุตสาหกรรม</div>
+          </div>
 
-    <div style="display:grid; grid-template-columns: 7.2cm 1fr;">
-      <div>๔. รองศาสตราจารย์ ดร. ทิชากร เกษรบัว</div>
-      <div>คณะบริหารธุรกิจและอุตสาหกรรมบริการ</div>
-    </div>
-  </div>
+          <div style="display:grid; grid-template-columns: 7.2cm 1fr;">
+            <div>๔. รองศาสตราจารย์ ดร. ทิชากร เกษรบัว</div>
+            <div>คณะบริหารธุรกิจและอุตสาหกรรมบริการ</div>
+          </div>
+        </div>
 
-  <!-- ย่อหน้าปิด -->
-  <p style="
+        <!-- ย่อหน้าปิด -->
+        <p style="
     text-indent:2.5cm;
     margin:0 0 10px 0;
     line-height:1.38;
   ">
-    จึงเรียนมาเพื่อโปรดพิจารณาอนุญาตให้เข้าเยี่ยมชมศึกษาดูงาน และขอขอบคุณมา ณ โอกาสนี้
-  </p>
+          จึงเรียนมาเพื่อโปรดพิจารณาอนุญาตให้เข้าเยี่ยมชมศึกษาดูงาน และขอขอบคุณมา ณ โอกาสนี้
+        </p>
 
-  <div style="text-align:center; margin-top:22px; width:100%;">
-    ขอแสดงความนับถือ
-  </div>
+        <div style="text-align:center; margin-top:22px; width:100%;">
+          ขอแสดงความนับถือ
+        </div>
 
-  <div style="
+        <div style="
     text-align:center;
     margin-top:52px;
     width:100%;
     line-height:1.15;
     white-space:nowrap;
   ">
-    <div>(ผู้ช่วยศาสตราจารย์พีระศักดิ์ เสรีกุล)</div>
-    <div>รองอธิการบดีประจำ มจพ.วิทยาเขตปราจีนบุรี</div>
-  </div>
+          <div>(ผู้ช่วยศาสตราจารย์พีระศักดิ์ เสรีกุล)</div>
+          <div>รองอธิการบดีประจำ มจพ.วิทยาเขตปราจีนบุรี</div>
+        </div>
 
-  <!-- footer -->
-  <div style="
+        <!-- footer -->
+        <div style="
     margin-top:30px;
     margin-left:0.2cm;
     font-size:16pt;
@@ -887,13 +886,12 @@ $len = max(20, $len);
     letter-spacing:-0.05px;
     color:#111;
   ">
-    ภาควิชาเทคโนโลยีสารสนเทศ<br>
-    โทรศัพท์ ๐-๓๗๒๑-๗๓๔๐-๓ ต่อ ๗๐๖๕-๖<br>
-    โทรสาร ๐-๓๗๒๑-๗๓๑๗-๘<br>
-    ไปรษณีย์อิเล็กทรอนิกส์ Ladda.t@fitm.kmutnb.ac.th
-  </div>
+          ภาควิชาเทคโนโลยีสารสนเทศ<br>
+          โทรศัพท์ ๐-๓๗๒๑-๗๓๔๐-๓ ต่อ ๗๐๖๕-๖<br>
+          ไปรษณีย์อิเล็กทรอนิกส์ Ladda.t@fitm.kmutnb.ac.th
+        </div>
 
-</div>
+      </div>
 
       <!-- <div style="font-family:'TH SarabunPSK'; font-size:16pt; line-height:1.2;"> เรียน <?= h($hdr_to) ?> </div>
             <div class="content-block single align-to-dean"> เพื่อโปรดพิจารณาอนุมัติ </div>
@@ -902,10 +900,10 @@ $len = max(20, $len);
       <div class="footer-actions">
 
         <!-- 🔵 ปุ่มแรก: พิมพ์/ดูตัวอย่าง (ทุก role ต้องมี และอยู่ลำดับแรก) -->
-      <button type="button" onclick="downloadPdf()"
-        class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-        ดาวน์โหลด PDF
-      </button>
+        <button type="button" onclick="downloadPdf()"
+          class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+          ดาวน์โหลด PDF
+        </button>
 
         <!-- 🟩 USER: ปุ่มยืนยัน -->
         <?php if ($roleId === 3): ?>
@@ -1084,82 +1082,84 @@ $len = max(20, $len);
   })();
   </script>
 
-<script>
-async function downloadPdf() {
-  try {
-    const { jsPDF } = window.jspdf;
+  <script>
+  async function downloadPdf() {
+    try {
+      const {
+        jsPDF
+      } = window.jspdf;
 
-    const pages = document.querySelectorAll(".page");
-    if (!pages.length) {
-      alert("ไม่พบหน้าเอกสาร .page");
-      return;
-    }
-
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4"
-    });
-
-    for (let i = 0; i < pages.length; i++) {
-      const clone = pages[i].cloneNode(true);
-
-      clone.style.position = "fixed";
-      clone.style.left = "-9999px";
-      clone.style.top = "0";
-      clone.style.width = "794px";
-      clone.style.minHeight = "1123px";
-      clone.style.height = "1123px";
-      clone.style.boxSizing = "border-box";
-      clone.style.background = "#ffffff";
-      clone.style.boxShadow = "none";
-      clone.style.margin = "0";
-      clone.style.overflow = "hidden";
-
-      clone.querySelectorAll(".footer-actions").forEach(el => el.remove());
-
-      clone.querySelectorAll("[contenteditable]").forEach(el => {
-        el.setAttribute("contenteditable", "false");
-      });
-
-      const garuda = clone.querySelector('img[src*="g_photo1"], img[src*="garuda"]');
-      if (garuda) {
-        garuda.style.opacity = "0.58";
-        garuda.style.filter = "grayscale(100%) contrast(35%) brightness(165%)";
+      const pages = document.querySelectorAll(".page");
+      if (!pages.length) {
+        alert("ไม่พบหน้าเอกสาร .page");
+        return;
       }
 
-      document.body.appendChild(clone);
-
-      const canvas = await html2canvas(clone, {
-        scale: 4,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        windowWidth: 794,
-        windowHeight: 1123,
-        scrollX: 0,
-        scrollY: 0
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4"
       });
 
-      document.body.removeChild(clone);
+      for (let i = 0; i < pages.length; i++) {
+        const clone = pages[i].cloneNode(true);
 
-      const imgData = canvas.toDataURL("image/png");
+        clone.style.position = "fixed";
+        clone.style.left = "-9999px";
+        clone.style.top = "0";
+        clone.style.width = "794px";
+        clone.style.minHeight = "1123px";
+        clone.style.height = "1123px";
+        clone.style.boxSizing = "border-box";
+        clone.style.background = "#ffffff";
+        clone.style.boxShadow = "none";
+        clone.style.margin = "0";
+        clone.style.overflow = "hidden";
 
-      if (i > 0) {
-        pdf.addPage();
+        clone.querySelectorAll(".footer-actions").forEach(el => el.remove());
+
+        clone.querySelectorAll("[contenteditable]").forEach(el => {
+          el.setAttribute("contenteditable", "false");
+        });
+
+        const garuda = clone.querySelector('img[src*="g_photo1"], img[src*="garuda"]');
+        if (garuda) {
+          garuda.style.opacity = "0.58";
+          garuda.style.filter = "grayscale(100%) contrast(35%) brightness(165%)";
+        }
+
+        document.body.appendChild(clone);
+
+        const canvas = await html2canvas(clone, {
+          scale: 4,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          windowWidth: 794,
+          windowHeight: 1123,
+          scrollX: 0,
+          scrollY: 0
+        });
+
+        document.body.removeChild(clone);
+
+        const imgData = canvas.toDataURL("image/png");
+
+        if (i > 0) {
+          pdf.addPage();
+        }
+
+        pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
       }
 
-      pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
+      pdf.save("sut_wellness_<?= (int)$docId ?>.pdf");
+
+    } catch (error) {
+      console.error(error);
+      alert("สร้าง PDF ไม่สำเร็จ กรุณากด F12 ดู Console");
     }
-
-    pdf.save("sut_wellness_<?= (int)$docId ?>.pdf");
-
-  } catch (error) {
-    console.error(error);
-    alert("สร้าง PDF ไม่สำเร็จ กรุณากด F12 ดู Console");
   }
-}
-</script>
+  </script>
 </body>
 
 </html>

@@ -1,7 +1,12 @@
 <?php 
 // ต้องวางตรงนี้! บรรทัดแรกของไฟล์
-$CURRENT_MAIN = "internal";
-$CURRENT_SUB  = "ขออนุมัติตัวบุคคลเป็นวิทยากร";           // ถ้าไม่มีหมวดย่อย ให้เว้นว่าง
+$CURRENT_MAIN = $_GET['main'] ?? 'external';
+$CURRENT_SUB  = $_GET['sub']  ?? 'ขออนุมัติตัวบุคคลเป็นวิทยากร';
+
+$ALLOWED_MAIN = ['external', 'internal'];
+if (!in_array($CURRENT_MAIN, $ALLOWED_MAIN, true)) {
+    $CURRENT_MAIN = 'external';
+}
 ?>
 <!--Pro_letter/documents/infor_speaker_workshop.php  ขออนุมัติตัวบุคคลเป็นวิทยากรบรรยายในโครงการอบรมเชิงปฏิบัติการ -->
 <?php
@@ -445,14 +450,9 @@ $oldIntentionText = $valueMap[25] ?? '';
           <div class="relative w-full">
             <select name="main_category" class="custom-select w-full" id="mainCategory">
               <option value="">-- เลือกหมวดหลัก --</option>
-              <option value="train" <?= ($CURRENT_MAIN=="train"?"selected":"") ?>>ฝึกอบรม</option>
-              <option value="academic" <?= ($CURRENT_MAIN=="academic"?"selected":"") ?>>
-                ประชุมวิชาการ/ศึกษาดูงาน/สัมมนาวิชาการ</option>
               <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
-              <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>
-                ภายใน(บันทึกข้อความ)</option>
+              <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>ภายใน</option>
             </select>
-
           </div>
         </div>
 
@@ -460,40 +460,9 @@ $oldIntentionText = $valueMap[25] ?? '';
           <label class="lbl text-gray-800 w-28 text-right">หมวดย่อย:</label>
           <div class="relative w-full">
             <select name="sub_category" class="custom-select w-full" id="subCategory"
-              <?= ($CURRENT_MAIN!="internal"?"disabled":"") ?>>
+              data-current="<?= htmlspecialchars($CURRENT_SUB ?? '', ENT_QUOTES, 'UTF-8') ?>" disabled>
               <option value="">-- เลือกหมวดย่อย --</option>
-
-              <?php if ($CURRENT_MAIN == "internal"): ?>
-              <option value="ขอใช้อาคารวันหยุดราชการ" <?= ($CURRENT_SUB=="ขอใช้อาคารวันหยุดราชการ"?"selected":"") ?>>
-                ขอใช้อาคารวันหยุดราชการ
-              </option>
-
-              <option value="ขอห้องพักรับรอง" <?= ($CURRENT_SUB=="ขอห้องพักรับรอง"?"selected":"") ?>>
-                ขอห้องพักรับรอง
-              </option>
-
-              <option value="ขออนุมัติตัวบุคคลเป็นวิทยากร"
-                <?= ($CURRENT_SUB=="ขออนุมัติตัวบุคคลเป็นวิทยากร"?"selected":"") ?>>
-                ขออนุมัติตัวบุคคลเป็นวิทยากร
-              </option>
-
-              <option value="ขออนุมัติไม่เข้าร่วมโครงการ"
-                <?= ($CURRENT_SUB=="ขออนุมัติไม่เข้าร่วมโครงการ"?"selected":"") ?>>
-                ขออนุมัติไม่เข้าร่วมโครงการ
-              </option>
-
-              <option value="การเผยแพร่งานวิจัยและเบิกค่าตอบแทนการตีพิมพ์"
-                <?= ($CURRENT_SUB=="การเผยแพร่งานวิจัยและเบิกค่าตอบแทนการตีพิมพ์"?"selected":"") ?>>
-                การเผยแพร่งานวิจัยและเบิกค่าตอบแทนการตีพิมพ์
-              </option>
-
-              <option value="ขอแจ้งเรียนการเป็นผู้ร่วมวิจัย"
-                <?= ($CURRENT_SUB=="ขอแจ้งเรียนการเป็นผู้ร่วมวิจัย"?"selected":"") ?>>
-                ขอแจ้งเรียนการเป็นผู้ร่วมวิจัย
-              </option>
-              <?php endif; ?>
             </select>
-
           </div>
         </div>
 
@@ -1477,66 +1446,114 @@ $oldIntentionText = $valueMap[25] ?? '';
     profileMenu.classList.add("hidden");
   }
 
-  const main = document.getElementById("mainCategory");
-  const sub = document.getElementById("subCategory");
+  document.addEventListener("DOMContentLoaded", () => {
+    const main = document.getElementById("mainCategory");
+    const sub = document.getElementById("subCategory");
+    if (!main || !sub) return;
 
-  // Mapping ไฟล์สำหรับ redirect
-  const redirectMain = {
-    train: "form_Memo.php",
-    academic: "Request_1.php",
-    external: null, // ยังไม่มีฟอร์ม
-    internal: null // ให้เลือกหมวดย่อยแทน
-  };
+    const SUB_OPTIONS = {
+      external: [
+        "ฝึกอบรม",
+        "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย",
+        "ขออนุมัติตัวบุคคลเป็นวิทยากร",
+        "ขอห้องพักรับรอง",
+        "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ",
+      ],
+      internal: [
+        "หนังสือเรียนเชิญวิทยากร",
+        "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์",
+        "ขอเข้าเยี่ยมศึกษาดูงาน",
+        "ขอเข้าไปจัดกิจกรรมโครงการ",
+        "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)",
+      ],
+    };
 
-  const redirectSub = {
-    "ขอใช้อาคารวันหยุดราชการ": "Request_2.php",
-    "ขอห้องพักรับรอง": "Request_3.php",
-    "ขออนุมัติตัวบุคคลเป็นวิทยากร": "Request_4.php",
-    "ขออนุมัติไม่เข้าร่วมโครงการ": "Request_5.php",
-    "การเผยแพร่งานวิจัยและเบิกค่าตอบแทนการตีพิมพ์": "Request_6.php",
-    "ขอแจ้งเรียนการเป็นผู้ร่วมวิจัย": "Request_7.php"
-  };
+    const ROUTE_SUB = {
+      "ฝึกอบรม": "/Pro_letter/documents/form_Memo.php",
+      "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย": "/Pro_letter/documents/infor_academic_presentation.php",
+      "ขออนุมัติตัวบุคคลเป็นวิทยากร": "/Pro_letter/documents/infor_speaker_workshop.php",
+      "ขอห้องพักรับรอง": "/Pro_letter/documents/infor_room_request.php",
+      "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ": "/Pro_letter/documents/infor_present.php",
 
-  // หมวดย่อยของ "ภายใน"
-  const subInternal = Object.keys(redirectSub);
+      "หนังสือเรียนเชิญวิทยากร": "/Pro_letter/documents/infor_invite.php",
+      "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์": "/Pro_letter/documents/infor_research_data.php",
+      "ขอเข้าเยี่ยมศึกษาดูงาน": "/Pro_letter/documents/infor_study_visit.php",
+      "ขอเข้าไปจัดกิจกรรมโครงการ": "/Pro_letter/documents/infor_project_activity.php",
+      "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)": "/Pro_letter/documents/infor_coop_evaluation.php",
+    };
 
-  // เมื่อเลือก "หมวดหลัก"
-  main.addEventListener("change", () => {
-    const value = main.value;
+    function withSelection(url, mainVal, subVal = "") {
+      if (!url || url === "#") return "#";
 
-    // เคลียร์หมวดย่อยก่อน
-    sub.innerHTML = `<option value="">-- เลือกหมวดย่อย --</option>`;
-    sub.disabled = true;
+      const targetUrl = new URL(url, window.location.origin);
+      if (mainVal) targetUrl.searchParams.set("main", mainVal);
+      if (subVal) targetUrl.searchParams.set("sub", subVal);
 
-    // ถ้าเลือกหมวดที่มี redirect ทันที เช่น ฝึกอบรม, ประชุมฯ
-    if (redirectMain[value]) {
-      window.location.href = redirectMain[value];
-      return;
+      return targetUrl.toString();
     }
 
-    // ถ้าเลือก "ภายนอก" → ไม่ redirect, ไม่เปิดหมวดย่อย
-    if (value === "external") {
-      return;
-    }
+    function renderSubOptions(list, selectedValue = "") {
+      const cleanSelected = String(selectedValue || "").trim();
 
-    // ถ้าเลือก "ภายใน" → เปิดหมวดย่อย
-    if (value === "internal") {
-      sub.disabled = false;
-      subInternal.forEach(text => {
+      sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
+
+      list.forEach(text => {
+        const cleanText = String(text || "").trim();
         const opt = document.createElement("option");
-        opt.value = text;
-        opt.textContent = text;
+        opt.value = cleanText;
+        opt.textContent = cleanText;
+
+        if (cleanText === cleanSelected) {
+          opt.selected = true;
+        }
+
         sub.appendChild(opt);
       });
     }
-  });
 
-  // เมื่อเลือกหมวดย่อยของภายใน → redirect
-  sub.addEventListener("change", () => {
-    const value = sub.value;
-    if (redirectSub[value]) {
-      window.location.href = redirectSub[value];
+    function syncUI() {
+      const mainVal = (main.value || "").trim();
+      const currentSub = (sub.dataset.current || "").trim();
+
+      if (mainVal === "external" || mainVal === "internal") {
+        sub.disabled = false;
+        renderSubOptions(SUB_OPTIONS[mainVal] || [], currentSub);
+      } else {
+        sub.disabled = true;
+        sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
+      }
     }
+
+    function goMain() {
+      const mainVal = (main.value || "").trim();
+      const firstSub = (SUB_OPTIONS[mainVal] || [])[0] || "";
+      const target = ROUTE_SUB[firstSub];
+
+      if (!target || target === "#") return;
+
+      window.location.href = withSelection(target, mainVal, firstSub);
+    }
+
+    function goSub() {
+      const mainVal = (main.value || "").trim();
+      const subVal = (sub.value || "").trim();
+      sub.dataset.current = subVal;
+
+      const target = ROUTE_SUB[subVal];
+      if (!target || target === "#") return;
+
+      window.location.href = withSelection(target, mainVal, subVal);
+    }
+
+    main.addEventListener("change", () => {
+      sub.dataset.current = "";
+      syncUI();
+      goMain();
+    });
+
+    sub.addEventListener("change", goSub);
+
+    syncUI();
   });
   </script>
 

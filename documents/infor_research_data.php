@@ -1,7 +1,12 @@
 <?php 
 // ต้องวางตรงนี้! บรรทัดแรกของไฟล์
-$CURRENT_MAIN = "external";     
-$CURRENT_SUB  = "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์ (ของนักศึกษา)";           // ถ้าไม่มีหมวดย่อย ให้เว้นว่าง
+$CURRENT_MAIN = $_GET['main'] ?? 'internal';
+$CURRENT_SUB  = $_GET['sub']  ?? 'หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์';
+
+$ALLOWED_MAIN = ['external', 'internal'];
+if (!in_array($CURRENT_MAIN, $ALLOWED_MAIN, true)) {
+    $CURRENT_MAIN = 'internal';
+}
 ?>
 <!--หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์ (ของนักศึกษา) /Pro_letter/documents/infor_research_data.php-->
 <?php
@@ -11,6 +16,91 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: login.html");
     exit;
 }
+
+
+// ✅ โหมดแก้ไขเอกสาร: รับ id จาก URL แล้วดึงข้อมูลเดิมมาแสดงในฟอร์ม
+$editDocId  = (int)($_GET['id'] ?? $_POST['document_id'] ?? 0);
+$isEditMode = $editDocId > 0;
+
+$editDoc = [];
+$editValuesByKey = [];
+$editValuesByFieldId = [];
+$editStudents = [];
+
+if (!function_exists('h')) {
+    function h($value) {
+        return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+    }
+}
+
+if ($isEditMode) {
+    try {
+        $pdo = db();
+
+        $docStmt = $pdo->prepare("SELECT * FROM documents WHERE document_id = :id LIMIT 1");
+        $docStmt->execute([':id' => $editDocId]);
+        $editDoc = $docStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        if (!$editDoc) {
+            header('Location: /Pro_letter/user/home.php?err=notfound');
+            exit;
+        }
+
+        $valStmt = $pdo->prepare("\n            SELECT dv.field_id, dv.value_text, tf.field_key\n            FROM document_values dv\n            LEFT JOIN template_fields tf ON tf.field_id = dv.field_id\n            WHERE dv.document_id = :id\n        ");
+        $valStmt->execute([':id' => $editDocId]);
+
+        while ($row = $valStmt->fetch(PDO::FETCH_ASSOC)) {
+            $fieldId = (int)($row['field_id'] ?? 0);
+            $fieldKey = (string)($row['field_key'] ?? '');
+            $valueText = (string)($row['value_text'] ?? '');
+
+            if ($fieldId > 0) {
+                $editValuesByFieldId[$fieldId] = $valueText;
+            }
+            if ($fieldKey !== '') {
+                $editValuesByKey[$fieldKey] = $valueText;
+            }
+        }
+
+        $studentsJson = trim($editValuesByKey['research_students_json'] ?? '');
+        if ($studentsJson !== '') {
+            $decodedStudents = json_decode($studentsJson, true);
+            if (is_array($decodedStudents)) {
+                foreach ($decodedStudents as $student) {
+                    $editStudents[] = [
+                        'name' => (string)($student['name'] ?? ''),
+                        'id' => (string)($student['student_id'] ?? ($student['id'] ?? '')),
+                        'phone' => (string)($student['phone'] ?? ''),
+                        'checked' => !empty($student['is_contact']),
+                    ];
+                }
+            }
+        }
+    } catch (Throwable $e) {
+        header('Location: /Pro_letter/user/home.php?err=loadfail');
+        exit;
+    }
+}
+
+function edit_value(string $key, int $fieldId = 0, string $default = ''): string {
+    global $editValuesByKey, $editValuesByFieldId;
+
+    if ($key !== '' && array_key_exists($key, $editValuesByKey)) {
+        return (string)$editValuesByKey[$key];
+    }
+    if ($fieldId > 0 && array_key_exists($fieldId, $editValuesByFieldId)) {
+        return (string)$editValuesByFieldId[$fieldId];
+    }
+    return $default;
+}
+
+$editSubject = $isEditMode
+    ? (string)($editDoc['subject'] ?? edit_value('research_subject', 14))
+    : '';
+$editDocDate = $isEditMode
+    ? (string)($editDoc['doc_date'] ?? edit_value('doc_date', 1, date('Y-m-d')))
+    : date('Y-m-d');
+$editStudentsJsonForJs = json_encode($editStudents, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
 ?>
 
 <!DOCTYPE html>
@@ -367,13 +457,18 @@ if (!isset($_SESSION['user_id'])) {
     </div>
   </header>
 
-  <form method="post" action="save_memo.php" id="memoForm">
+  <form method="post"
+    action="<?= $isEditMode ? '/Pro_letter/documents/update_memo.php' : '/Pro_letter/save_memo.php' ?>" id="memoForm">
+    <?php if ($isEditMode): ?>
+    <input type="hidden" name="document_id" value="<?= (int)$editDocId ?>">
+    <input type="hidden" name="edit" value="1">
+    <?php endif; ?>
     <input type="hidden" name="purpose" value="research_data">
     <input type="hidden" name="target_form" value="infor_research_data.php">
     <input type="hidden" name="redirect_to" value="form_memo_request_research_data.php">
     <input type="hidden" name="template_id" value="1">
     <input type="hidden" name="department_id" value="1">
-    <input type="hidden" name="doc_date" value="<?= date('Y-m-d') ?>">
+    <input type="hidden" name="doc_date" value="<?= h($editDocDate) ?>">
 
     <!-- กล่องเนื้อหา -->
     <div class="w-[900px] mx-auto mt-16 mb-6 bg-white shadow-md rounded-md p-8" style="min-height: 1122px">
@@ -392,12 +487,8 @@ if (!isset($_SESSION['user_id'])) {
           <div class="relative w-full">
             <select name="main_category" class="custom-select w-full" id="mainCategory">
               <option value="">-- เลือกหมวดหลัก --</option>
-              <option value="train" <?= ($CURRENT_MAIN=="train"?"selected":"") ?>>ฝึกอบรม</option>
-              <option value="academic" <?= ($CURRENT_MAIN=="academic"?"selected":"") ?>>
-                ประชุมวิชาการ/ศึกษาดูงาน/สัมมนาวิชาการ</option>
               <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
-              <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>
-                ภายใน(บันทึกข้อความ)</option>
+              <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>ภายใน</option>
             </select>
           </div>
         </div>
@@ -435,7 +526,8 @@ if (!isset($_SESSION['user_id'])) {
         <label class="lbl whitespace-nowrap w-56 pt-2">1. เรื่อง :</label>
         <div class="flex-1">
           <input type="text" name="subject" id="subjectInput" data-spell-field="research_subject"
-            class="w-full border rounded-md p-2" placeholder="เช่น ขอความอนุเคราะห์ข้อมูลเพื่อจัดทำปริญญานิพนธ์">
+            class="w-full border rounded-md p-2" value="<?= h($editSubject) ?>"
+            placeholder="เช่น ขอความอนุเคราะห์ข้อมูลเพื่อจัดทำปริญญานิพนธ์">
           <div id="subjectInputSpellBox" class="spell-box hidden"></div>
           <div id="subjectInputSpellLoading" class="spell-loading hidden">
             <div class="spell-loading-row">
@@ -450,7 +542,8 @@ if (!isset($_SESSION['user_id'])) {
         <label class="lbl whitespace-nowrap w-56 pt-2">2. เรียนถึง :</label>
         <div class="flex-1">
           <input type="text" name="to_person" id="toPerson" data-spell-field="research_to_person"
-            class="w-full border rounded-md p-2" placeholder="เช่น ผู้อำนวยการโรงพยาบาล...">
+            class="w-full border rounded-md p-2" value="<?= h(edit_value('research_to_person', 26)) ?>"
+            placeholder="เช่น ผู้อำนวยการโรงพยาบาล...">
           <div id="toPersonSpellBox" class="spell-box hidden"></div>
           <div id="toPersonSpellLoading" class="spell-loading hidden">
             <div class="spell-loading-row">
@@ -467,15 +560,16 @@ if (!isset($_SESSION['user_id'])) {
           <div>
             <select name="semester" id="semesterInput" class="w-full border rounded-md p-2">
               <option value="">-- เลือกภาคเรียน --</option>
-              <option value="1">ภาคเรียนที่ 1</option>
-              <option value="2">ภาคเรียนที่ 2</option>
-              <option value="summer">ภาคฤดูร้อน</option>
+              <option value="1" <?= edit_value('research_semester') === '1' ? 'selected' : '' ?>>ภาคเรียนที่ 1</option>
+              <option value="2" <?= edit_value('research_semester') === '2' ? 'selected' : '' ?>>ภาคเรียนที่ 2</option>
+              <option value="summer" <?= edit_value('research_semester') === 'summer' ? 'selected' : '' ?>>ภาคฤดูร้อน
+              </option>
             </select>
           </div>
           <div>
             <input type="text" name="academic_year" id="academicYearInput" class="w-full border rounded-md p-2"
-              placeholder="เช่น 2568" inputmode="numeric" maxlength="4"
-              oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4)">
+              value="<?= h(edit_value('research_academic_year')) ?>" placeholder="เช่น 2568" inputmode="numeric"
+              maxlength="4" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 4)">
           </div>
         </div>
       </div>
@@ -485,10 +579,11 @@ if (!isset($_SESSION['user_id'])) {
         <label class="lbl whitespace-nowrap w-56 pt-2">4. รายวิชา :</label>
         <div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
           <input type="text" name="course_code" id="courseCodeInput" class="w-full border rounded-md p-2"
-            placeholder="รหัสวิชา เช่น 060243202">
+            value="<?= h(edit_value('research_course_code')) ?>" placeholder="รหัสวิชา เช่น 060243202">
           <div class="md:col-span-2">
             <input type="text" name="course_name" id="courseNameInput" data-spell-field="research_course_name"
-              class="w-full border rounded-md p-2" placeholder="ชื่อรายวิชา เช่น โครงงานเทคโนโลยีสารสนเทศ 1">
+              class="w-full border rounded-md p-2" value="<?= h(edit_value('research_course_name')) ?>"
+              placeholder="ชื่อรายวิชา เช่น โครงงานเทคโนโลยีสารสนเทศ 1">
             <div id="courseNameInputSpellBox" class="spell-box hidden"></div>
             <div id="courseNameInputSpellLoading" class="spell-loading hidden">
               <div class="spell-loading-row">
@@ -506,7 +601,7 @@ if (!isset($_SESSION['user_id'])) {
           <div>
             <input type="text" name="curriculum_name" id="curriculumNameInput"
               data-spell-field="research_curriculum_name" class="w-full border rounded-md p-2"
-              placeholder="เช่น วิทยาศาสตรบัณฑิต">
+              value="<?= h(edit_value('research_curriculum_name')) ?>" placeholder="เช่น วิทยาศาสตรบัณฑิต">
             <div id="curriculumNameInputSpellBox" class="spell-box hidden"></div>
             <div id="curriculumNameInputSpellLoading" class="spell-loading hidden">
               <div class="spell-loading-row">
@@ -517,7 +612,8 @@ if (!isset($_SESSION['user_id'])) {
 
           <div>
             <input type="text" name="major_name" id="majorNameInput" data-spell-field="research_major_name"
-              class="w-full border rounded-md p-2" placeholder="เช่น เทคโนโลยีสารสนเทศ">
+              class="w-full border rounded-md p-2" value="<?= h(edit_value('research_major_name')) ?>"
+              placeholder="เช่น เทคโนโลยีสารสนเทศ">
             <div id="majorNameInputSpellBox" class="spell-box hidden"></div>
             <div id="majorNameInputSpellLoading" class="spell-loading hidden">
               <div class="spell-loading-row">
@@ -533,7 +629,7 @@ if (!isset($_SESSION['user_id'])) {
         <label class="lbl whitespace-nowrap w-56 pt-2">6. ชั้นปีนักศึกษา :</label>
         <div class="flex-1">
           <input type="text" name="student_year" id="studentYearInput" class="w-full border rounded-md p-2"
-            placeholder="เช่น 4" inputmode="numeric" maxlength="1"
+            value="<?= h(edit_value('research_student_year')) ?>" placeholder="เช่น 4" inputmode="numeric" maxlength="1"
             oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 1)">
         </div>
       </div>
@@ -543,7 +639,8 @@ if (!isset($_SESSION['user_id'])) {
         <label class="lbl whitespace-nowrap w-56 pt-2">7. ชื่อเรื่องปริญญานิพนธ์ :</label>
         <div class="flex-1">
           <textarea name="thesis_title" id="thesisTitle" data-spell-field="research_thesis_title" rows="2"
-            class="w-full border rounded-md p-2" placeholder="ระบุชื่อเรื่องปริญญานิพนธ์"></textarea>
+            class="w-full border rounded-md p-2"
+            placeholder="ระบุชื่อเรื่องปริญญานิพนธ์"><?= h(edit_value('research_thesis_title')) ?></textarea>
           <div id="thesisTitleSpellBox" class="spell-box hidden"></div>
           <div id="thesisTitleSpellLoading" class="spell-loading hidden">
             <div class="spell-loading-row">
@@ -558,7 +655,7 @@ if (!isset($_SESSION['user_id'])) {
         <label class="lbl whitespace-nowrap w-56 pt-2">8. อาจารย์ที่ปรึกษา :</label>
         <div class="flex-1">
           <input type="text" name="advisor_name" id="advisorNameInput" class="w-full border rounded-md p-2"
-            placeholder="เช่น ผู้ช่วยศาสตราจารย์ ดร. ...">
+            value="<?= h(edit_value('research_advisor_name')) ?>" placeholder="เช่น ผู้ช่วยศาสตราจารย์ ดร. ...">
         </div>
       </div>
 
@@ -568,7 +665,7 @@ if (!isset($_SESSION['user_id'])) {
         <div class="flex-1">
           <textarea name="project_detail" id="projectDetail" data-spell-field="research_project_detail" rows="3"
             class="w-full border rounded-md p-2 shadow-sm"
-            placeholder="ระบุวัตถุประสงค์ของการขอข้อมูลเพื่อจัดทำปริญญานิพนธ์"></textarea>
+            placeholder="ระบุวัตถุประสงค์ของการขอข้อมูลเพื่อจัดทำปริญญานิพนธ์"><?= h(edit_value('research_project_detail')) ?></textarea>
           <div id="projectDetailSpellBox" class="spell-box hidden"></div>
           <div id="projectDetailSpellLoading" class="spell-loading hidden">
             <div class="spell-loading-row">
@@ -583,15 +680,18 @@ if (!isset($_SESSION['user_id'])) {
         <label class="lbl text-gray-800 whitespace-nowrap w-56 pt-2">10. ประเภทข้อมูลที่ขอ :</label>
         <div class="flex-1 space-y-1 mt-2" id="presentationType">
           <label class="flex items-center gap-2">
-            <input type="radio" name="support_type" value="ข้อมูลรูปภาพ" class="accent-black">
+            <input type="radio" name="support_type" value="ข้อมูลรูปภาพ" class="accent-black"
+              <?= edit_value('research_support_type') === 'ข้อมูลรูปภาพ' ? 'checked' : '' ?>>
             ข้อมูลรูปภาพ
           </label>
           <label class="flex items-center gap-2">
-            <input type="radio" name="support_type" value="ข้อมูลเอกสาร / ข้อความ" class="accent-black">
+            <input type="radio" name="support_type" value="ข้อมูลเอกสาร / ข้อความ" class="accent-black"
+              <?= edit_value('research_support_type') === 'ข้อมูลเอกสาร / ข้อความ' ? 'checked' : '' ?>>
             ข้อมูลเอกสาร / ข้อความ
           </label>
           <label class="flex items-center gap-2">
-            <input type="radio" name="support_type" value="ข้อมูลเชิงฐานข้อมูล" class="accent-black">
+            <input type="radio" name="support_type" value="ข้อมูลเชิงฐานข้อมูล" class="accent-black"
+              <?= edit_value('research_support_type') === 'ข้อมูลเชิงฐานข้อมูล' ? 'checked' : '' ?>>
             ข้อมูลเชิงฐานข้อมูล
           </label>
         </div>
@@ -603,7 +703,7 @@ if (!isset($_SESSION['user_id'])) {
         <div class="flex-1">
           <textarea name="data_detail" id="dataDetail" data-spell-field="research_data_detail" rows="3"
             class="w-full border rounded-md p-2"
-            placeholder="เช่น ภาพ X-ray, ข้อมูลผู้โดยสาร, ข้อมูลสถิติ ฯลฯ"></textarea>
+            placeholder="เช่น ภาพ X-ray, ข้อมูลผู้โดยสาร, ข้อมูลสถิติ ฯลฯ"><?= h(edit_value('research_data_detail')) ?></textarea>
           <div id="dataDetailSpellBox" class="spell-box hidden"></div>
           <div id="dataDetailSpellLoading" class="spell-loading hidden">
             <div class="spell-loading-row">
@@ -618,7 +718,8 @@ if (!isset($_SESSION['user_id'])) {
         <label class="lbl whitespace-nowrap w-56 pt-2">12. จำนวนข้อมูลที่ต้องการ :</label>
         <div class="flex-1">
           <input type="text" name="data_amount" id="dataAmount" data-spell-field="research_data_amount"
-            class="w-full border rounded-md p-2" placeholder="เช่น 500 ภาพ / 3 ชุดข้อมูล">
+            class="w-full border rounded-md p-2" value="<?= h(edit_value('research_data_amount')) ?>"
+            placeholder="เช่น 500 ภาพ / 3 ชุดข้อมูล">
           <div id="dataAmountSpellBox" class="spell-box hidden"></div>
           <div id="dataAmountSpellLoading" class="spell-loading hidden">
             <div class="spell-loading-row">
@@ -649,7 +750,7 @@ if (!isset($_SESSION['user_id'])) {
       <div class="relative mt-20 h-[45px]">
         <div class="absolute right-0 bottom-0">
           <button type="submit" id="submitBtn"
-            class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md flex items-center justify-center transition">
+            class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[150px] h-[35px] rounded-md flex items-center justify-center transition">
             ดำเนินการ
           </button>
         </div>
@@ -1097,6 +1198,11 @@ if (!isset($_SESSION['user_id'])) {
     `;
 
     studentList.appendChild(row);
+
+    if (values.checked) {
+      row.querySelector(".contact-radio").checked = true;
+    }
+
     refreshStudentRows();
 
     const idInput = row.querySelector(".student-id");
@@ -1108,10 +1214,6 @@ if (!isset($_SESSION['user_id'])) {
       phoneInput.value = phoneInput.value.replace(/[^0-9]/g, "").slice(0, 10);
     });
 
-    if (values.checked) {
-      row.querySelector(".contact-radio").checked = true;
-      refreshStudentRows();
-    }
   }
 
   function refreshStudentRows() {
@@ -1329,9 +1431,15 @@ if (!isset($_SESSION['user_id'])) {
     form.submit();
   });
 
-  createStudentRow({
-    checked: true
-  });
+  const EDIT_STUDENTS = <?= $editStudentsJsonForJs ?: '[]' ?>;
+
+  if (Array.isArray(EDIT_STUDENTS) && EDIT_STUDENTS.length > 0) {
+    EDIT_STUDENTS.forEach(student => createStudentRow(student));
+  } else {
+    createStudentRow({
+      checked: true
+    });
+  }
   </script>
   <script>
   // ✅ ระบบเปิด/ปิดเมนูโปรไฟล์
@@ -1356,68 +1464,6 @@ if (!isset($_SESSION['user_id'])) {
   function closeMenu() {
     profileMenu.classList.add("hidden");
   }
-
-  const main = document.getElementById("mainCategory");
-  const sub = document.getElementById("subCategory");
-
-  // Mapping ไฟล์สำหรับ redirect
-  const redirectMain = {
-    train: "form_Memo.php",
-    academic: "Request_1.php",
-    external: null, // ยังไม่มีฟอร์ม
-    internal: null // ให้เลือกหมวดย่อยแทน
-  };
-
-  const redirectSub = {
-    "ขอใช้อาคารวันหยุดราชการ": "Request_2.php",
-    "ขอห้องพักรับรอง": "Request_3.php",
-    "ขออนุมัติตัวบุคคลเป็นวิทยากร": "Request_4.php",
-    "ขออนุมัติไม่เข้าร่วมโครงการ": "Request_5.php",
-    "การเผยแพร่งานวิจัยและเบิกค่าตอบแทนการตีพิมพ์": "Request_6.php",
-    "ขอแจ้งเรียนการเป็นผู้ร่วมวิจัย": "Request_7.php"
-  };
-
-  // หมวดย่อยของ "ภายใน"
-  const subInternal = Object.keys(redirectSub);
-
-  // เมื่อเลือก "หมวดหลัก"
-  main.addEventListener("change", () => {
-    const value = main.value;
-
-    // เคลียร์หมวดย่อยก่อน
-    sub.innerHTML = `<option value="">-- เลือกหมวดย่อย --</option>`;
-    sub.disabled = true;
-
-    // ถ้าเลือกหมวดที่มี redirect ทันที เช่น ฝึกอบรม, ประชุมฯ
-    if (redirectMain[value]) {
-      window.location.href = redirectMain[value];
-      return;
-    }
-
-    // ถ้าเลือก "ภายนอก" → ไม่ redirect, ไม่เปิดหมวดย่อย
-    if (value === "external") {
-      return;
-    }
-
-    // ถ้าเลือก "ภายใน" → เปิดหมวดย่อย
-    if (value === "internal") {
-      sub.disabled = false;
-      subInternal.forEach(text => {
-        const opt = document.createElement("option");
-        opt.value = text;
-        opt.textContent = text;
-        sub.appendChild(opt);
-      });
-    }
-  });
-
-  // เมื่อเลือกหมวดย่อยของภายใน → redirect
-  sub.addEventListener("change", () => {
-    const value = sub.value;
-    if (redirectSub[value]) {
-      window.location.href = redirectSub[value];
-    }
-  });
   </script>
 
   <script>
@@ -1428,63 +1474,58 @@ if (!isset($_SESSION['user_id'])) {
 
     const SUB_OPTIONS = {
       external: [
-        "ระบบขอความอนุเคราะห์หนังสือฝึกงาน (ของนักศึกษา)",
-        "ส่งตัวหนังสือขอออกฝึกงาน(ของนักศึกษา)",
-        "หนังสือเรียนเชิญวิทยากร (ของนักศึกษา)",
-        "หนังสือขอบคุณ (ของนักศึกษา)",
-        "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์ (ของนักศึกษา)",
-        "หนังสือเรียนเชิญปริญญา(ของนักศึกษา)",
+        "ฝึกอบรม",
+        "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย",
+        "ขออนุมัติตัวบุคคลเป็นวิทยากร",
+        "ขอห้องพักรับรอง",
+        "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ",
       ],
       internal: [
-        "ขอเปลี่ยนแปลงตารางสอน (ของอาจารย์)",
-        "ขอเปลี่ยนแปลงตารางสอบ (ของอาจารย์)",
-        "ขอสอบนอกตาราง (ของอาจารย์)",
-        "ขอใช้อาคารวันหยุดราชการ (ของอาจารย์)",
-        "ขอสอนชดเชย (ของอาจารย์)",
-        "ขอห้องพักรับรอง (ของอาจารย์)",
-        "ขออนุมัติตัวบุคคลเป็นวิทยากร (ของอาจารย์)",
-        "ขออนุมัติไม่เข้าร่วมโครงการ (ของอาจารย์)",
-        "การเผยแพร่งานวิจัยและเบิกค่าตอบแทนการตีพิมพ์ (ของอาจารย์)",
-        "ขออนุมัติจัดทำโครงการ (ของอาจารย์)",
-        "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ (ของอาจารย์)",
-        "ขอแจ้งเรียนการเป็นผู้ร่วมวิจัย (ของอาจารย์)",
+        "หนังสือเรียนเชิญวิทยากร",
+        "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์",
+        "ขอเข้าเยี่ยมศึกษาดูงาน",
+        "ขอเข้าไปจัดกิจกรรมโครงการ",
+        "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)",
       ],
-    };
-
-    const ROUTE_MAIN = {
-      train: "/Pro_letter/documents/form_Memo.php",
-      academic: "/Pro_letter/form_Memo/Request/infor_approve_pro.php",
     };
 
     const ROUTE_SUB = {
-      "ระบบขอความอนุเคราะห์หนังสือฝึกงาน (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_intership.php",
-      "หนังสือเรียนเชิญวิทยากร (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_invite.php",
-      "ส่งตัวหนังสือขอออกฝึกงาน(ของนักศึกษา)": "#",
-      "หนังสือขอบคุณ (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_thankyou.php",
-      "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์ (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_research_data.php",
-      "หนังสือเรียนเชิญปริญญา(ของนักศึกษา)": "#",
+      "ฝึกอบรม": "/Pro_letter/documents/form_Memo.php",
+      "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย": "/Pro_letter/documents/infor_academic_presentation.php",
+      "ขออนุมัติตัวบุคคลเป็นวิทยากร": "/Pro_letter/documents/infor_speaker_workshop.php",
+      "ขอห้องพักรับรอง": "/Pro_letter/documents/infor_room_request.php",
+      "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ": "/Pro_letter/documents/infor_present.php",
 
-      "ขอเปลี่ยนแปลงตารางสอน (ของอาจารย์)": "#",
-      "ขอเปลี่ยนแปลงตารางสอบ (ของอาจารย์)": "/Pro_letter/form_Memo/Request/infor_change_exam.php",
-      "ขอสอบนอกตาราง (ของอาจารย์)": "/Pro_letter/form_Memo/Request/infor_extra_exam.php",
-      "ขอใช้อาคารวันหยุดราชการ (ของอาจารย์)": "/Pro_letter/user/Request_2.php",
-      "ขอสอนชดเชย (ของอาจารย์)": "#",
-      "ขอห้องพักรับรอง (ของอาจารย์)": "/Pro_letter/user/Request_3.php",
-      "ขออนุมัติตัวบุคคลเป็นวิทยากร (ของอาจารย์)": "/Pro_letter/user/Request_4.php",
-      "ขออนุมัติไม่เข้าร่วมโครงการ (ของอาจารย์)": "/Pro_letter/user/Request_5.php",
-      "การเผยแพร่งานวิจัยและเบิกค่าตอบแทนการตีพิมพ์ (ของอาจารย์)": "/Pro_letter/user/Request_6.php",
-      "ขออนุมัติจัดทำโครงการ (ของอาจารย์)": "#",
-      "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ (ของอาจารย์)": "#",
-      "ขอแจ้งเรียนการเป็นผู้ร่วมวิจัย (ของอาจารย์)": "/Pro_letter/user/Request_7.php",
+      "หนังสือเรียนเชิญวิทยากร": "/Pro_letter/documents/infor_invite.php",
+      "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์": "/Pro_letter/documents/infor_research_data.php",
+      "ขอเข้าเยี่ยมศึกษาดูงาน": "/Pro_letter/documents/infor_study_visit.php",
+      "ขอเข้าไปจัดกิจกรรมโครงการ": "/Pro_letter/documents/infor_project_activity.php",
+      "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)": "/Pro_letter/documents/infor_coop_evaluation.php",
     };
+
+    function withSelection(url, mainVal, subVal = "") {
+      if (!url || url === "#") return "#";
+      const params = new URLSearchParams();
+      if (mainVal) params.set("main", mainVal);
+      if (subVal) params.set("sub", subVal);
+      const query = params.toString();
+      if (!query) return url;
+      const glue = url.includes("?") ? "&" : "?";
+      return `${url}${glue}${query}`;
+    }
 
     function renderSubOptions(list, selectedValue = "") {
       sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
+
       list.forEach(text => {
         const opt = document.createElement("option");
         opt.value = text;
         opt.textContent = text;
-        if (text === selectedValue) opt.selected = true;
+
+        if (text.trim() === String(selectedValue || "").trim()) {
+          opt.selected = true;
+        }
+
         sub.appendChild(opt);
       });
     }
@@ -1493,28 +1534,37 @@ if (!isset($_SESSION['user_id'])) {
       const mainVal = (main.value || "").trim();
       const currentSub = (sub.dataset.current || "").trim();
 
-      if (mainVal === "train" || mainVal === "academic" || mainVal === "") {
+      if (mainVal === "external" || mainVal === "internal") {
+        sub.disabled = false;
+        renderSubOptions(SUB_OPTIONS[mainVal] || [], currentSub);
+      } else {
         sub.disabled = true;
         sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
-        return;
       }
-
-      sub.disabled = false;
-      renderSubOptions(SUB_OPTIONS[mainVal] || [], currentSub);
     }
 
     function goMain() {
       const mainVal = (main.value || "").trim();
-      const target = ROUTE_MAIN[mainVal];
-      if (target && target !== "#") window.location.href = target;
+      const firstSub = (SUB_OPTIONS[mainVal] || [])[0] || "";
+      const target = ROUTE_SUB[firstSub];
+
+      sub.dataset.current = firstSub;
+
+      if (!target || target === "#") return;
+
+      window.location.href = withSelection(target, mainVal, firstSub);
     }
 
     function goSub() {
+      const mainVal = (main.value || "").trim();
       const subVal = (sub.value || "").trim();
-      sub.dataset.current = subVal; // ✅ เก็บไว้ให้พรีเซเลคได้
+
+      sub.dataset.current = subVal;
+
       const target = ROUTE_SUB[subVal];
       if (!target || target === "#") return;
-      window.location.href = target;
+
+      window.location.href = withSelection(target, mainVal, subVal);
     }
 
     main.addEventListener("change", () => {

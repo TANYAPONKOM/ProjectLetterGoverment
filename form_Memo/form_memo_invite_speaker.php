@@ -896,8 +896,8 @@ $len = max(20, $len);
         </div>
 
         <!-- ครุฑ -->
-  <div style="text-align:center; position:relative; left:32px; top:6px;">
-    <img src="/ProjectLetterGoverment/ProjectLetterGoverment/assets/img/garuda.jpg" style="
+        <div style="text-align:center; position:relative; left:32px; top:6px;">
+          <img src="/Pro_letter/assets/img/garuda.jpg" style="
       width:123px;
       height:auto;
       opacity:0.83;
@@ -909,7 +909,7 @@ $len = max(20, $len);
       background:transparent;
       transform:scale(1.01);
     ">
-  </div>
+        </div>
 
         <!-- ที่อยู่ -->
         <div style="
@@ -1133,12 +1133,12 @@ $len = max(20, $len);
 
 
           ไปรษณีย์อิเล็กทรอนิกส์ :
-        <a href="mailto:it@itm.kmutnb.ac.th" style="
+          <a href="mailto:it@itm.kmutnb.ac.th" style="
           color:#111;
           text-decoration:none;
         ">
-          it@itm.kmutnb.ac.th
-        </a>
+            it@itm.kmutnb.ac.th
+          </a>
 
         </div>
 

@@ -56,7 +56,7 @@ if ($docId <= 0) {
     exit("ยังไม่มีเอกสารของคุณ");
 }
 
-$editFormPath = "/Pro_letter/user/Request_3.php?id=" . $docId;
+$editFormPath = "/Pro_letter/documents/infor_room_request.php?id=" . $docId;
 
 /* --------------------------------------------------
    โหลดข้อมูลเอกสาร

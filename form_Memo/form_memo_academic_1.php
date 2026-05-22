@@ -907,7 +907,7 @@ $len = max(20, $len);
 
       <!-- หัวบันทึก -->
       <div class="memo-title-row">
-        <img src="/ProjectLetterGoverment/ProjectLetterGoverment/assets/img/garuda.jpg" class="garuda-img" />
+        <img src="/Pro_letter/assets/img/garuda.jpg" class="garuda-img" />
         <h1 class="doc-title">บันทึกข้อความ</h1>
       </div>
 
@@ -958,15 +958,15 @@ $len = max(20, $len);
       </div>
 
 
-    <!-- บรรทัด “เรียน ...” -->
-    <div class="content-block single" style="
+      <!-- บรรทัด “เรียน ...” -->
+      <div class="content-block single" style="
       display:flex;
       align-items:baseline;
       font-size:16pt;
       font-weight:400;
       line-height:1.05;
     ">
-      <span style="
+        <span style="
         display:inline-block;
         font-size:16pt;
         font-weight:400;
@@ -975,14 +975,14 @@ $len = max(20, $len);
         line-height:1.05;
       ">เรียน</span>
 
-      <span style="
+        <span style="
         display:inline-block;
         margin-left:0.35cm;
         font-size:16pt;
         font-weight:400;
         line-height:1.05;
       ">คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม</span>
-    </div>
+      </div>
 
 
       <!-- ย่อหน้า 1 -->
