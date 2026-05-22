@@ -795,6 +795,9 @@ $len = max(20, $len);
     display: inline-block;
     position: relative;
     top: 4px;
+
+    /* ขยับเฉพาะตัวอักษรชื่อเรื่อง เส้นประไม่ขยับ */
+    margin-left: 0.35cm;
   }
 
   .subject-inline {
@@ -904,7 +907,7 @@ $len = max(20, $len);
 
       <!-- หัวบันทึก -->
       <div class="memo-title-row">
-        <img src="/Pro_letter/assets/img/garuda.jpg" class="garuda-img" />
+        <img src="/ProjectLetterGoverment/ProjectLetterGoverment/assets/img/garuda.jpg" class="garuda-img" />
         <h1 class="doc-title">บันทึกข้อความ</h1>
       </div>
 
@@ -955,11 +958,31 @@ $len = max(20, $len);
       </div>
 
 
+    <!-- บรรทัด “เรียน ...” -->
+    <div class="content-block single" style="
+      display:flex;
+      align-items:baseline;
+      font-size:16pt;
+      font-weight:400;
+      line-height:1.05;
+    ">
+      <span style="
+        display:inline-block;
+        font-size:16pt;
+        font-weight:400;
+        width:1.05cm;
+        flex:0 0 1.05cm;
+        line-height:1.05;
+      ">เรียน</span>
 
-      <!-- บรรทัด “เรียน ...” -->
-      <div class="content-block single">
-        เรียน คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม
-      </div>
+      <span style="
+        display:inline-block;
+        margin-left:0.35cm;
+        font-size:16pt;
+        font-weight:400;
+        line-height:1.05;
+      ">คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม</span>
+    </div>
 
 
       <!-- ย่อหน้า 1 -->

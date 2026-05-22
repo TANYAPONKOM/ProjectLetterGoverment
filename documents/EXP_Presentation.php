@@ -33,15 +33,195 @@ if ($docId > 0) {
 // }
 
 // Map fields
-$name = $valueMap[1] ?? '';
-$position = $valueMap[2] ?? '';
-$faculty = $valueMap[3] ?? '';
-$department = $valueMap[4] ?? '';
-$conference = $valueMap[5] ?? '';
-$country = $valueMap[6] ?? '';
-$paper_title = $valueMap[7] ?? '';
-$date_range = $valueMap[8] ?? '';
-$table_data = $valueMap[9] ?? ''; // JSON ตารางค่าใช้จ่าย
+// ถ้ามาจาก form_Calcu.php ให้ใช้ข้อมูลจาก $_POST ก่อน
+// ถ้าเปิดจาก id เอกสารเดิม ค่อยใช้ $valueMap
+
+$name = $_POST['fullname'] 
+    ?? $_POST['owner_name'] 
+    ?? ($valueMap[2] ?? '');
+
+$position = $_POST['position'] 
+    ?? ($valueMap[3] ?? '');
+
+$faculty = $_POST['faculty'] 
+    ?? ($valueMap[10] ?? 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม');
+
+$department = $_POST['department'] 
+    ?? ($valueMap[11] ?? 'เทคโนโลยีสารสนเทศ');
+
+$conference = $_POST['event_title'] 
+    ?? $_POST['course_name'] 
+    ?? ($valueMap[5] ?? '');
+
+$place = $_POST['place'] 
+    ?? $_POST['location'] 
+    ?? ($valueMap[7] ?? '');
+
+$paper_title = $_POST['academic_topic'] 
+    ?? ($valueMap[13] ?? '');
+
+$date_range = $_POST['event_date'] 
+    ?? $_POST['join_date'] 
+    ?? ($valueMap[6] ?? '');
+
+$table_data = $valueMap[9] ?? '';
+
+// ===============================
+// รับข้อมูลค่าใช้จ่ายจาก form_Calcu.php
+// ===============================
+$expenseJson = $_POST['expense_json'] ?? '';
+$postedAmount = $_POST['amount'] ?? '0.00';
+
+$expenseData = json_decode($expenseJson, true);
+if (!is_array($expenseData)) {
+    $expenseData = [];
+}
+
+$expenseRows = [];
+$expenseTotal = 0;
+
+function addExpenseRow(&$rows, &$total, $desc, $amount)
+{
+    $desc = trim((string)$desc);
+    $amount = (float)$amount;
+
+    if ($desc !== '' && $amount > 0) {
+        $rows[] = [
+            'desc' => $desc,
+            'amount' => $amount
+        ];
+        $total += $amount;
+    }
+}
+
+// 1. ค่าตอบแทน
+if (!empty($expenseData['compensation'])) {
+    foreach ($expenseData['compensation'] as $item) {
+        $desc = $item['desc'] ?? '';
+        $amount = (float)($item['amount'] ?? 0);
+
+        addExpenseRow(
+            $expenseRows,
+            $expenseTotal,
+            "ค่าตอบแทน\n- " . $desc,
+            $amount
+        );
+    }
+}
+
+// 2.1 ค่าลงทะเบียน
+$reg = $expenseData['allowance']['registration'] ?? [];
+if (!empty($reg['enabled'])) {
+    $price = (float)($reg['price'] ?? 0);
+    $people = (int)($reg['people'] ?? 1);
+    $amount = $price * $people;
+
+    addExpenseRow(
+        $expenseRows,
+        $expenseTotal,
+        "ค่าลงทะเบียน\n- ค่าลงทะเบียน " . number_format($price, 2) . " บาท × {$people} คน",
+        $amount
+    );
+}
+
+// 2.2 ค่าที่พัก
+$lod = $expenseData['allowance']['lodging'] ?? [];
+if (!empty($lod['enabled'])) {
+    $unit = (float)($lod['unit_price'] ?? 0);
+    $nights = (int)($lod['nights'] ?? 0);
+    $people = (int)($lod['people'] ?? 0);
+    $dateText = trim($lod['date_text'] ?? '');
+    $amount = $unit * $nights * $people;
+
+    $desc = "ค่าที่พัก ตามที่จ่ายจริง\n";
+    $desc .= "- คืนละ " . number_format($unit, 2) . " บาท รวม {$nights} คืน {$people} คน";
+    if ($dateText !== '') {
+        $desc .= "\n- {$dateText}";
+    }
+
+    addExpenseRow($expenseRows, $expenseTotal, $desc, $amount);
+}
+
+// 2.3 ค่าเบี้ยเลี้ยง
+$per = $expenseData['allowance']['perdiem'] ?? [];
+if (!empty($per['enabled'])) {
+    $unit = (float)($per['unit_price'] ?? 0);
+    $meals = (int)($per['meals'] ?? 0);
+    $people = (int)($per['people'] ?? 0);
+    $amount = $unit * $meals * $people;
+
+    addExpenseRow(
+        $expenseRows,
+        $expenseTotal,
+        "ค่าเบี้ยเลี้ยง\n- ค่าเบี้ยเลี้ยง " . number_format($unit, 2) . " บาท × {$meals} มื้อ × {$people} คน",
+        $amount
+    );
+}
+
+// 2.4 ค่าพาหนะ
+$transport = $expenseData['allowance']['transport'] ?? [];
+if (!empty($transport['enabled']) && !empty($transport['items'])) {
+    foreach ($transport['items'] as $item) {
+        $type = $item['type'] ?? '';
+        $desc = '';
+        $amount = 0;
+
+        if ($type === 'fuel') {
+            $origin = trim($item['origin'] ?? '');
+            $destination = trim($item['destination'] ?? '');
+            $distance = (float)($item['distance'] ?? 0);
+            $rate = (float)($item['rate'] ?? 4);
+            $trips = (int)($item['trips'] ?? 1);
+
+            $amount = $distance * $rate * $trips;
+
+            $desc = "ค่าพาหนะ\n";
+            $desc .= "- ค่าน้ำมันรถยนต์ {$origin} ไป {$destination}\n";
+            $desc .= "- ระยะทาง {$distance} กม. × {$rate} บาท × {$trips} เที่ยว";
+        } elseif ($type === 'flight') {
+            $airline = trim($item['airline'] ?? '');
+            $route = trim($item['route'] ?? '');
+            $ticket = (float)($item['ticket_price'] ?? 0);
+            $trips = (int)($item['trips'] ?? 1);
+            $people = (int)($item['people'] ?? 1);
+
+            $amount = $ticket * $trips * $people;
+
+            $desc = "ค่าพาหนะ\n";
+            $desc .= "- ค่าโดยสารตั๋วเครื่องบิน ไป-กลับ ชั้นประหยัด\n";
+            $desc .= "- {$airline} {$route}\n";
+            $desc .= "- " . number_format($ticket, 2) . " บาท × {$trips} เที่ยว × {$people} คน";
+        } else {
+            $route = trim($item['route'] ?? ($item['desc'] ?? ''));
+            $unit = (float)($item['unit_price'] ?? 0);
+            $trips = (int)($item['trips'] ?? 1);
+            $people = (int)($item['people'] ?? 1);
+
+            $amount = $unit * $trips * $people;
+
+            $desc = "ค่าพาหนะ\n";
+            $desc .= "- {$route}\n";
+            $desc .= "- " . number_format($unit, 2) . " บาท × {$trips} เที่ยว × {$people} คน";
+        }
+
+        addExpenseRow($expenseRows, $expenseTotal, $desc, $amount);
+    }
+}
+
+// 3. ค่าวัสดุ
+if (!empty($expenseData['materials'])) {
+    foreach ($expenseData['materials'] as $item) {
+        $desc = $item['desc'] ?? '';
+        $amount = (float)($item['amount'] ?? 0);
+
+        addExpenseRow(
+            $expenseRows,
+            $expenseTotal,
+            "ค่าวัสดุ\n- " . $desc,
+            $amount
+        );
+    }
+}
 
 ?>
 <!DOCTYPE html>
@@ -64,10 +244,9 @@ $table_data = $valueMap[9] ?? ''; // JSON ตารางค่าใช้จ�
   .page {
     width: 794px;
     min-height: 1123px;
-    margin: 40px auto;
+    margin: 20px auto;
     background: #fff;
-    padding: 50px 60px 20px;
-    /* 👈 เปลี่ยนจาก 60px → 20px */
+    padding: 55px 70px 35px;
     box-shadow: 0 0 5px rgba(0, 0, 0, .15);
     border: 2px solid #fff;
     position: relative;
@@ -142,6 +321,74 @@ $table_data = $valueMap[9] ?? ''; // JSON ตารางค่าใช้จ�
     background: #f8f8f8;
   }
 
+  .exp-title {
+    font-size: 15pt;
+    font-weight: bold;
+    text-align: center;
+    line-height: 1.05;
+    margin-bottom: 18px;
+  }
+
+  .exp-info {
+    font-size: 13.5pt;
+    line-height: 1.15;
+    width: 560px;
+    margin-top: 8px;
+    margin-left: 45px;
+  }
+
+  .exp-row {
+    display: flex;
+    margin-bottom: 3px;
+  }
+
+  .exp-label {
+    width: 145px;
+    flex-shrink: 0;
+  }
+
+  .exp-value {
+    flex: 1;
+  }
+
+  .exp-section-title {
+    font-size: 14pt;
+    font-weight: bold;
+    margin-top: 28px;
+    margin-bottom: 8px;
+    margin-left: 45px;
+  }
+
+  #expenseTable {
+    width: 500px;
+    margin-left: 85px;
+    margin-right: auto;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 12.5pt;
+    line-height: 1.12;
+  }
+
+  #expenseTable th,
+  #expenseTable td {
+    border: 1px solid #000;
+    padding: 3px 5px;
+    font-size: 12.5pt;
+    line-height: 1.12;
+  }
+
+  #expenseTable th {
+    background: #fff;
+    text-align: center;
+    font-weight: bold;
+  }
+
+  .exp-note {
+    font-size: 13pt;
+    margin-top: 18px;
+    margin-left: 45px;
+  }
+
   @media print {
     body {
       background: white;
@@ -167,229 +414,183 @@ $table_data = $valueMap[9] ?? ''; // JSON ตารางค่าใช้จ�
   <div class="page">
     <form action="save_expense.php" method="post" id="expenseForm">
 
-      <!-- ส่วนข้อมูลผู้ขอ (จัดบรรทัดแบบ Word เป๊ะ) -->
-      <div class="mt-4 mb-10">
+     <!-- ส่วนข้อมูลผู้ขอ -->
+<div class="mt-4 mb-8">
 
-        <h2 class="text-[16pt] font-bold text-center leading-[1.1] mb-6">
-          ประมาณการค่าใช้จ่าย<br>
-          การนำเสนอผลงานวิจัยในการประชุมวิชาการระดับนานาชาติ
-        </h2>
+  <div class="exp-title">
+    ประมาณการค่าใช้จ่าย<br>
+    การนำเสนอผลงานวิจัยในการประชุมวิชาการระดับนานาชาติ
+  </div>
 
+  <div class="exp-info">
 
-        <div class="text-[16pt] leading-[1.15]">
+    <div class="exp-row">
+      <div class="exp-label">ชื่อ-สกุล</div>
+      <div class="exp-value">ผู้ช่วยศาสตราจารย์ ดร.ธนัฐชา นามี</div>
+    </div>
 
-          <!-- row 1 -->
-          <div class="flex mb-1">
-            <div class="w-[180px]">ชื่อ–สกุล</div>
-            <div class="flex-1">
-              <?= h($name ?: 'รองศาสตราจารย์ ดร.อนิราช มิ่งขวัญ') ?>
-            </div>
-          </div>
-
-          <!-- row 2 -->
-          <div class="flex mb-1">
-            <div class="w-[180px]">มหาวิทยาลัยต้นสังกัด</div>
-            <div class="flex-1">
-              ภาควิชาเทคโนโลยีสารสนเทศ คณะเทคโนโลยีและการจัดการอุตสาหกรรม<br>
-              มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
-            </div>
-          </div>
-
-          <!-- row 3 -->
-          <div class="flex mb-1">
-            <div class="w-[180px]">ชื่อการประชุมวิชาการ</div>
-            <div class="flex-1">
-              2024 8th International Conference on Natural Language Processing and<br>
-              Information Retrieval (NLPIR 2024)
-            </div>
-          </div>
-
-          <!-- row 4 -->
-          <div class="flex mb-1">
-            <div class="w-[180px]">วันที่</div>
-            <div class="flex-1">12 – 15 ธันวาคม 2567</div>
-          </div>
-
-          <!-- row 5 -->
-          <div class="flex mb-1">
-            <div class="w-[180px]">สถานที่</div>
-            <div class="flex-1">Okayama, Japan</div>
-          </div>
-
-          <!-- row 6 -->
-          <div class="flex mb-1">
-            <div class="w-[180px]">ชื่อผลงานวิจัย</div>
-            <div class="flex-1">
-              “Enhancing Retrieval-Augmented Generation Systems by<br>
-              Text-Representing Centroid”
-            </div>
-          </div>
-
-        </div>
+    <div class="exp-row">
+      <div class="exp-label">มหาวิทยาลัยต้นสังกัด</div>
+      <div class="exp-value">
+        ภาควิชาเทคโนโลยีสารสนเทศ คณะเทคโนโลยีและการจัดการอุตสาหกรรม<br>
+        มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
       </div>
+    </div>
 
-      <h2 class="text-[16pt] font-bold mt-4 mb-3 text-left">
-        ตารางสรุปค่าใช้จ่ายในการไปนำเสนอผลงานวิจัย
-      </h2>
+    <div class="exp-row">
+      <div class="exp-label">ชื่อการประชุมวิชาการ</div>
+      <div class="exp-value">
+        The 6th International Conference on Computational Intelligence and<br>
+        Intelligent Systems (CIIS 2023)
+      </div>
+    </div>
 
-      <table id="expenseTable" style="width:100%; border-collapse:collapse; font-family:'TH SarabunPSK';
-              font-size:16pt; line-height:1.25; table-layout:fixed;">
+    <div class="exp-row">
+      <div class="exp-label">วันที่</div>
+      <div class="exp-value">24 - 28 พฤศจิกายน 2566</div>
+    </div>
 
-        <!-- HEADER -->
-        <tr style="height:28px;">
+    <div class="exp-row">
+      <div class="exp-label">สถานที่</div>
+      <div class="exp-value">Waseda University, Tokyo ประเทศญี่ปุ่น</div>
+    </div>
 
-          <!-- ลำดับ -->
-          <th style="
-            width:55px;
-            border:1px solid #000; 
-            padding:3px 4px; 
-            text-align:center; 
-            font-weight:bold;">
-            ลำดับ<br>ที่
-          </th>
-          <!-- รายการ (บังคับให้แคบลง) -->
-          <th style="
-    width:65%; 
-    border:1px solid #000; 
-    padding:3px 6px; 
-    text-align:center; 
-    font-weight:bold;
-    vertical-align: top;
-">
-            รายการ
-          </th>
+    <div class="exp-row">
+      <div class="exp-label">ชื่อผลงานวิจัย</div>
+      <div class="exp-value">
+        Enhancing Indoor Positioning Accuracy: A Comprehensive Study on<br>
+        Euclidean Distance, Trilateration, Wi-Fi RTT and FTM Protocol<br>
+        Integration
+      </div>
+    </div>
 
-          <!-- จำนวนเงิน (แคบกว่าเดิม) -->
-          <th style="
-    width:120px; 
-    border:1px solid #000; 
-    padding:3px 4px; 
-    text-align:center; 
-    font-weight:bold;
-    vertical-align: top;
-">
-            จำนวนเงิน (บาท)
-          </th>
+  </div>
+</div>
 
+<div class="exp-section-title">
+  ตารางสรุปค่าใช้จ่ายในการไปนำเสนอผลงานวิจัย
+</div>
 
-        </tr>
+  <table id="expenseTable">
+  <tr>
+    <th style="
+      width:48px;
+      border:1px solid #000;
+      padding:3px 4px;
+      text-align:center;
+      font-weight:bold;
+      vertical-align:middle;
+    ">
+      ลำดับ<br>ที่
+    </th>
 
-        <!-- ROW 1 -->
-        <tr>
-          <td style="border:1px solid #000; padding:3px 4px; text-align:center; vertical-align: top;">1</td>
-          <td style="border:1px solid #000; padding:3px 8px; text-align:left;" contenteditable="true">
-            ค่าลงทะเบียน (1 คน × 540 USD) (ตามที่จ่ายจริง)<br>
-            - (1 USD = 35.00 บาท)
-          </td>
-          <td style="border:1px solid #000; padding:3px 4px; text-align:right; vertical-align: top;"
-            contenteditable="true">
-            18,900.00
-          </td>
-        </tr>
+    <th style="
+      width:340px;
+      border:1px solid #000;
+      padding:3px 6px;
+      text-align:center;
+      font-weight:bold;
+      vertical-align:middle;
+    ">
+      รายการ
+    </th>
 
-        <!-- ROW 2 -->
-        <tr>
-          <td style="border:1px solid #000; padding:3px 4px; text-align:center; vertical-align: top;">2</td>
-          <td style="border:1px solid #000; padding:3px 8px; text-align:left;" contenteditable="true">
-            ค่าเดินทางระหว่างประเทศ (ตามที่จ่ายจริง)<br>
-            - ตั๋วเครื่องบิน ไป–กลับ ชั้นประหยัด กรุงเทพฯ → ญี่ปุ่น<br>
-            &nbsp;&nbsp;&nbsp;(25,000.00 บาท × 1 คน)
-          </td>
-          <td style="border:1px solid #000; padding:3px 4px; text-align:right; vertical-align: top;"
-            contenteditable="true">
-            25,000.00
-          </td>
-        </tr>
+    <th style="
+      width:112px;
+      border:1px solid #000;
+      padding:3px 4px;
+      text-align:center;
+      font-weight:bold;
+      vertical-align:middle;
+    ">
+      จำนวนเงิน (บาท)
+    </th>
+  </tr>
 
-        <!-- ROW 3 -->
-        <tr>
-          <td style="border:1px solid #000; padding:3px 4px; text-align:center; vertical-align: top;">3</td>
-          <td style="border:1px solid #000; padding:3px 8px; text-align:left;" contenteditable="true">
-            ค่าที่พัก ตามที่จ่ายจริง (ไม่เกิน 2 คืน)<br>
-            - ค่าที่พัก 13–14 ธันวาคม 2567 (7,000.00 บาท × 2 คืน)
-          </td>
-          <td style="border:1px solid #000; padding:3px 4px; text-align:right; vertical-align: top;"
-            contenteditable="true">
-            14,000.00
-          </td>
-        </tr>
+  <?php if (!empty($expenseRows)): ?>
+    <?php foreach ($expenseRows as $index => $row): ?>
+      <tr>
+        <td style="
+          border:1px solid #000;
+          padding:3px 4px;
+          text-align:center;
+          vertical-align:top;
+          <?= in_array($index + 1, [1,2,4,5]) ? 'color:red;' : '' ?>
+        ">
+          <?= $index + 1 ?>
+        </td>
 
-        <!-- ROW 4 -->
-        <tr>
-          <td style="border:1px solid #000; padding:3px 4px; text-align:center; vertical-align: top;">4</td>
-          <td style="border:1px solid #000; padding:3px 8px; text-align:left;" contenteditable="true">
-            ค่าพาหนะ<br>
+        <td style="
+          border:1px solid #000;
+          padding:3px 6px;
+          text-align:left;
+          vertical-align:top;
+          <?= in_array($index + 1, [1,2,4,5]) ? 'color:red;' : '' ?>
+        ">
+          <?= nl2br(h($row['desc'])) ?>
+        </td>
 
-            - วันที่ 13 ธ.ค. 67 ค่าโดยสารรถแท็กซี่ ไป–กลับที่พัก–งาน NLPIR 2024<br>
-            &nbsp;&nbsp;&nbsp;(2,500.00 × 2 เที่ยว)<br>
+        <td style="
+          border:1px solid #000;
+          padding:3px 4px;
+          text-align:right;
+          vertical-align:top;
+          <?= in_array($index + 1, [1,2,4,5]) ? 'color:red;' : '' ?>
+        ">
+          <?= number_format((float)$row['amount'], 2) ?>
+        </td>
+      </tr>
+    <?php endforeach; ?>
 
-            - วันที่ 14 ธ.ค. 67 ค่าโดยสารรถแท็กซี่ ไป–กลับที่พัก–งาน NLPIR 2024<br>
-            &nbsp;&nbsp;&nbsp;(2,500.00 × 2 เที่ยว)<br>
-
-            - วันที่ 15 ธ.ค. 67 ค่าโดยสารรถแท็กซี่ ไป–กลับที่พัก–งาน NLPIR 2024<br>
-            &nbsp;&nbsp;&nbsp;(2,500.00 × 2 เที่ยว)
-          </td>
-
-          <td style="border:1px solid #000; padding:3px 4px; text-align:right; vertical-align: top;"
-            contenteditable="true">
-            15,000.00
-          </td>
-        </tr>
-
-
-        <!-- ROW 5 -->
-        <tr>
-          <td style="border:1px solid #000; padding:3px 4px; text-align:center; vertical-align: top;">5</td>
-          <td style="border:1px solid #000; padding:3px 8px; text-align:left;" contenteditable="true">
-            ค่าเบี้ยเลี้ยง วันละ 3,100.00 บาท รวม 3 วัน (ไม่เกิน 3 วัน)<br>
-            - ค่าเบี้ย 13–14–15 ธันวาคม 2567 (3,100.00 × 3 วัน)
-          </td>
-          <td style="border:1px solid #000; padding:3px 4px; text-align:right; vertical-align: top;"
-            contenteditable="true">
-            9,300.00
-          </td>
-        </tr>
-        <!-- TOTAL -->
-        <tr>
-
-          <!-- ช่องเปล่าด้านซ้าย (เพื่อให้เหมือน PDF) -->
-          <th style="
-        width:55px;
+    <tr>
+      <td style="
         border:1px solid #000;
         padding:3px 4px;
         background:#ffffff;
-    "></th>
+      "></td>
 
-          <!-- ช่องข้อความ รวมเป็นเงิน -->
-          <th colspan="1" style="
+      <td style="
         border:1px solid #000;
         padding:3px 6px;
         text-align:right;
-        font-weight:bold;
-        background:#f8f8f8;
-    ">
-            รวมเป็นเงิน * (เบิกได้ไม่เกิน 80,000.00 บาท)
-          </th>
+        font-weight:normal;
+        background:#ffffff;
+      ">
+        รวมเป็นเงิน
+      </td>
 
-          <!-- ช่องจำนวนเงิน -->
-          <th style="
-        width:150px;
+      <td style="
         border:1px solid #000;
         padding:3px 4px;
         text-align:right;
-        font-weight:bold;
+        font-weight:normal;
         background:#ffffff;
-    ">
-            82,200.00
-          </th>
+      ">
+        <?= number_format((float)$expenseTotal, 2) ?>
+      </td>
+    </tr>
 
-        </tr>
+  <?php else: ?>
+    <tr>
+      <td colspan="3" style="
+        border:1px solid #000;
+        padding:8px;
+        text-align:center;
+      ">
+        ไม่พบข้อมูลประมาณค่าใช้จ่าย
+      </td>
+    </tr>
+  <?php endif; ?>
+</table>
 
-      </table>
+<div class="exp-note">
+  <b>หมายเหตุ</b> ขอถัวจ่ายทุกรายการ
+</div>
 
       <!-- Hidden -->
       <input type="hidden" name="doc_id" value="<?= $docId ?>">
       <input type="hidden" name="table_data" id="table_data">
+      <input type="hidden" name="total_amount" value="<?= h($expenseTotal) ?>">
 
       <!-- ปุ่ม -->
       <div class="no-print mt-8 flex justify-end gap-4">

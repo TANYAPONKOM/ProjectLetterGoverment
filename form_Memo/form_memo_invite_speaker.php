@@ -896,20 +896,20 @@ $len = max(20, $len);
         </div>
 
         <!-- ครุฑ -->
-        <div style="text-align:center; position:relative; left:32px; top:6px;">
-          <img src="/Pro_letter/assets/img/garuda.jpg" style="
-        width:123px;
-        height:auto;
-        opacity:0.83;
-        filter: grayscale(100%) contrast(65%) brightness(126%);
-        image-rendering:auto;
-        border:none;
-        outline:none;
-        box-shadow:none;
-        background:transparent;
-        transform:scale(1.01);
-      ">
-        </div>
+  <div style="text-align:center; position:relative; left:32px; top:6px;">
+    <img src="/ProjectLetterGoverment/ProjectLetterGoverment/assets/img/garuda.jpg" style="
+      width:123px;
+      height:auto;
+      opacity:0.83;
+      filter: grayscale(100%) contrast(65%) brightness(126%);
+      image-rendering:auto;
+      border:none;
+      outline:none;
+      box-shadow:none;
+      background:transparent;
+      transform:scale(1.01);
+    ">
+  </div>
 
         <!-- ที่อยู่ -->
         <div style="
@@ -1131,15 +1131,14 @@ $len = max(20, $len);
 
           โทรศัพท์ ๐-๓๗๒๑-๗๓๔๐-๓ ต่อ ๗๐๖๕-๖<br>
 
-          โทรสาร ๐-๓๗๒๑-๗๓๑๗-๘<br>
 
           ไปรษณีย์อิเล็กทรอนิกส์ :
-          <a href="mailto:it@itm.kmutnb.ac.th" style="
-         color:#0563c1;
-         text-decoration:underline;
-       ">
-            it@itm.kmutnb.ac.th
-          </a>
+        <a href="mailto:it@itm.kmutnb.ac.th" style="
+          color:#111;
+          text-decoration:none;
+        ">
+          it@itm.kmutnb.ac.th
+        </a>
 
         </div>
 
