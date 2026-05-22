@@ -30,6 +30,8 @@ if ($roleId == 1) {
   $homePath = "/Pro_letter/user/home.php";
 }
 
+$referer = $_SERVER['HTTP_REFERER'] ?? $homePath;
+
 
 /* --------------------------------------------------
    รับ document_id
@@ -106,12 +108,21 @@ $readonly = !$canEdit;
 /* --------------------------------------------------
    ดึงค่า field จาก document_values
 -------------------------------------------------- */
-$q = $pdo->prepare("SELECT field_id, value_text FROM document_values WHERE document_id = :id");
+$q = $pdo->prepare("
+  SELECT dv.field_id, dv.value_text, tf.field_key
+  FROM document_values dv
+  LEFT JOIN template_fields tf ON tf.field_id = dv.field_id
+  WHERE dv.document_id = :id
+");
 $q->execute([':id' => $docId]);
 
 $valueMap = [];
+$valueKeyMap = [];
 foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
   $valueMap[(int) $row['field_id']] = $row['value_text'];
+  if (!empty($row['field_key'])) {
+    $valueKeyMap[$row['field_key']] = $row['value_text'];
+  }
 }
 
 /* --------------------------------------------------
@@ -144,6 +155,14 @@ function thai_date($ymd)
   return intval($d) . " " . $months[intval($m)] . " " . (intval($y) + 543);
 }
 
+function thai_digits($text)
+{
+  return strtr((string)$text, [
+    '0' => '๐', '1' => '๑', '2' => '๒', '3' => '๓', '4' => '๔',
+    '5' => '๕', '6' => '๖', '7' => '๗', '8' => '๘', '9' => '๙'
+  ]);
+}
+
 /* --------------------------------------------------
    Mapping ตัวแปรหลักจาก document_values
 -------------------------------------------------- */
@@ -160,6 +179,42 @@ $faculty = $valueMap[10] ?? "";
 $department = $valueMap[11] ?? "";
 $eventDate  = $valueMap[12] ?? "";
 $eventPlace = $valueMap[13] ?? "";
+
+/* --------------------------------------------------
+   Mapping สำหรับแบบประเมินสถานประกอบการสหกิจศึกษา
+-------------------------------------------------- */
+$coopSubject = $valueKeyMap['coop_subject'] ?? ($valueMap[70] ?? ($valueMap[14] ?? ($document['subject'] ?? 'ขอความอนุเคราะห์ตอบแบบประเมินและแบบสำรวจนักศึกษาปฏิบัติงานสหกิจศึกษา')));
+$coopToPerson = $valueKeyMap['coop_to_person'] ?? ($valueMap[71] ?? ($valueMap[26] ?? ''));
+$coopOrganizationName = $valueKeyMap['coop_organization_name'] ?? ($valueMap[72] ?? 'หน่วยงานของท่าน');
+$coopStudentCount = $valueKeyMap['coop_student_count'] ?? ($valueMap[73] ?? '');
+$coopStudentsJson = $valueKeyMap['coop_students_json'] ?? ($valueMap[74] ?? '');
+$coopStudentListText = $valueKeyMap['coop_student_list_text'] ?? ($valueMap[75] ?? '');
+$coopPeriod = $valueKeyMap['coop_period'] ?? ($valueMap[76] ?? '');
+$coopStartDate = $valueKeyMap['coop_start_date'] ?? ($valueMap[77] ?? '');
+$coopEndDate = $valueKeyMap['coop_end_date'] ?? ($valueMap[78] ?? '');
+$coopAdvisorName = $valueKeyMap['coop_advisor_name'] ?? ($valueMap[79] ?? 'พนักงานที่ปรึกษา');
+$coopAdditionalDetail = $valueKeyMap['coop_additional_detail'] ?? ($valueMap[81] ?? '');
+$coopReceiverName = $valueKeyMap['coop_receiver_name'] ?? ($valueMap[82] ?? 'ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์');
+$coopReceiverPosition = $valueKeyMap['coop_receiver_position'] ?? ($valueMap[83] ?? 'คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม');
+
+if ($coopStudentListText === '' && $coopStudentsJson !== '') {
+  $decodedStudents = json_decode($coopStudentsJson, true);
+  if (is_array($decodedStudents)) {
+    $studentLines = [];
+    foreach ($decodedStudents as $student) {
+      $studentName = trim((string)($student['name'] ?? ''));
+      $studentId = trim((string)($student['student_id'] ?? ($student['id'] ?? '')));
+      if ($studentName === '' && $studentId === '') continue;
+      $studentLines[] = trim($studentName . ($studentId !== '' ? ' รหัสนักศึกษา ' . $studentId : ''));
+    }
+    $coopStudentListText = implode("
+", $studentLines);
+  }
+}
+
+if ($coopPeriod === '' && ($coopStartDate !== '' || $coopEndDate !== '')) {
+  $coopPeriod = trim($coopStartDate . ($coopEndDate !== '' ? ' ถึง ' . $coopEndDate : ''));
+}
 
 /* --------------------------------------------------
    Mapping joinType → purposeCode (รหัส)
@@ -690,6 +745,12 @@ $len = max(20, $len);
 
       <input type="hidden" name="document_id" value="<?= h($document['document_id']) ?>">
 
+      <input type="hidden" name="document_type" value="infor_coop_evaluation">
+      <input type="hidden" name="form_type" value="coop_evaluation">
+      <input type="hidden" name="redirect_to" value="form_memo_coop_evaluation.php">
+      <input type="hidden" name="target_form" value="infor_coop_evaluation.php">
+      <input type="hidden" name="template_id" value="<?= h($document['template_id'] ?? 1) ?>">
+
       <!-- สำคัญ: ให้ doc_date เป็นรูปแบบเดิม (YYYY-MM-DD) ที่ดึงมาจาก DB -->
       <input type="hidden" name="doc_date" id="hidden_doc_date" value="<?= h($docDate) ?>">
 
@@ -697,7 +758,7 @@ $len = max(20, $len);
       <input type="hidden" name="position" id="hidden_position" value="<?= h($position) ?>">
 
       <!-- ส่ง purpose เป็นรหัส ไม่ใช่ข้อความไทย -->
-      <input type="hidden" name="purpose" id="hidden_joinType" value="<?= h($purposeCode) ?>">
+      <input type="hidden" name="purpose" id="hidden_joinType" value="coop_evaluation">
 
       <input type="hidden" name="event_title" id="hidden_courseName" value="<?= h($courseName) ?>">
 
@@ -708,6 +769,21 @@ $len = max(20, $len);
       <input type="hidden" name="car_plate" id="hidden_vehicle" value="<?= h($vehicle) ?>">
       <input type="hidden" name="faculty" id="hidden_faculty" value="<?= h($faculty) ?>">
       <input type="hidden" name="department" id="hidden_department" value="<?= h($department) ?>">
+
+      <input type="hidden" name="subject" value="<?= h($coopSubject) ?>">
+      <input type="hidden" name="to_person" value="<?= h($coopToPerson) ?>">
+      <input type="hidden" name="organization_name" value="<?= h($coopOrganizationName) ?>">
+      <input type="hidden" name="student_count" value="<?= h($coopStudentCount) ?>">
+      <input type="hidden" name="student_list_json" value="<?= h($coopStudentsJson) ?>">
+      <input type="hidden" name="student_list_text" value="<?= h($coopStudentListText) ?>">
+      <input type="hidden" name="coop_period" value="<?= h($coopPeriod) ?>">
+      <input type="hidden" name="coop_start_date" value="<?= h($coopStartDate) ?>">
+      <input type="hidden" name="coop_end_date" value="<?= h($coopEndDate) ?>">
+      <input type="hidden" name="advisor_name" value="<?= h($coopAdvisorName) ?>">
+      <input type="hidden" name="evaluation_email" value="">
+      <input type="hidden" name="additional_detail" value="<?= h($coopAdditionalDetail) ?>">
+      <input type="hidden" name="receiver_name" value="<?= h($coopReceiverName) ?>">
+      <input type="hidden" name="receiver_position" value="<?= h($coopReceiverPosition) ?>">
 
       <!-- ตัวเลือกช่วงวันที่: ใช้ range เป็นค่า default ตาม UI ปัจจุบัน -->
       <input type="hidden" name="date_option" id="hidden_dateOption" value="range">
@@ -796,7 +872,7 @@ $len = max(20, $len);
 
   left:55px;
 ">
-        ๕ กุมภาพันธ์ ๒๕๖๘
+        <?= h(thai_digits($thaiDocDate ?: thai_date($document['doc_date'] ?? ''))) ?>
       </div>
 
       <div style="
@@ -816,7 +892,7 @@ $len = max(20, $len);
           <div style="width:55px;">เรื่อง</div>
 
           <div>
-            ขอความอนุเคราะห์ตอบแบบประเมินและแบบสำรวจนักศึกษาปฏิบัติงานสหกิจศึกษา
+            <?= h($coopSubject ?: 'ขอความอนุเคราะห์ตอบแบบประเมินและแบบสำรวจนักศึกษาปฏิบัติงานสหกิจศึกษา') ?>
           </div>
         </div>
 
@@ -830,7 +906,7 @@ $len = max(20, $len);
           <div style="width:55px;">เรียน</div>
 
           <div>
-            เลขาธิการ สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ (กสมช.)
+            <?= h($coopToPerson ?: 'เลขาธิการ สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ (กสมช.)') ?>
           </div>
         </div>
 
@@ -845,7 +921,8 @@ $len = max(20, $len);
         text-indent:2.5cm;
         margin-bottom:4px;
     ">
-            ตามที่หน่วยงานของท่านได้ให้ความอนุเคราะห์รับนักศึกษาภาควิชาเทคโนโลยีสารสนเทศ
+            ตามที่ <?= h($coopOrganizationName ?: 'หน่วยงานของท่าน') ?>
+            ได้ให้ความอนุเคราะห์รับนักศึกษาภาควิชาเทคโนโลยีสารสนเทศ
             คณะเทคโนโลยีและการจัดการอุตสาหกรรม มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
             วิทยาเขตปราจีนบุรี ได้แก่
           </p>
@@ -855,17 +932,15 @@ $len = max(20, $len);
         margin-bottom:4px;
         line-height:1.35;
     ">
-            นายปุณนที ปิ่นวิเศษ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            รหัสนักศึกษา&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            ๖๕-๐๖๐๒๑๖-๓๐๐๓-๘
+            <?= nl2br(h($coopStudentListText ?: 'นายปุณนที ปิ่นวิเศษ รหัสนักศึกษา ๖๕-๐๖๐๒๑๖-๓๐๐๓-๘')) ?>
           </p>
 
           <p style="
         text-indent:0.0cm;
         margin-bottom:4px;
     ">
-            เข้าปฏิบัติงานสหกิจศึกษาในหน่วยงานของท่าน ตั้งแต่วันที่ ๓ พฤศจิกายน ๒๕๖๘
-            ถึง ๒๗ กุมภาพันธ์ ๒๕๖๙
+            เข้าปฏิบัติงานสหกิจศึกษาในหน่วยงานของท่าน ตั้งแต่วันที่
+            <?= h($coopPeriod ?: '๓ พฤศจิกายน ๒๕๖๘ ถึง ๒๗ กุมภาพันธ์ ๒๕๖๙') ?>
           </p>
 
           <p style="
@@ -875,11 +950,19 @@ $len = max(20, $len);
             ในการนี้ ภาควิชาเทคโนโลยีสารสนเทศ ขอความอนุเคราะห์ตอบแบบประเมินผลรายงาน
             การปฏิบัติงานของนักศึกษาสหกิจศึกษา และแบบสำรวจคุณลักษณะของนักศึกษาปฏิบัติงาน
             สหกิจศึกษาที่พึงประสงค์ตามความต้องการของสถานประกอบการ (ในปีถัดไป)
-            โดยภาควิชาขออนุญาตส่งแบบประเมินและแบบสำรวจดังกล่าวให้กับ “พนักงานที่ปรึกษา”
-            ผ่านทางไปรษณีย์อิเล็กทรอนิกส์ it.kmutnb@itm.kmutnb.ac.th
+            โดยภาควิชาขออนุญาตส่งแบบประเมินและแบบสำรวจดังกล่าวให้กับ “<?= h($coopAdvisorName ?: 'พนักงานที่ปรึกษา') ?>”
             ทั้งนี้ ข้อมูลที่ได้จากแบบประเมินและแบบสำรวจจะนำมารวบรวม วิเคราะห์ และสรุปผล
             ซึ่งภาควิชาจะนำข้อมูลมาเป็นแนวทางสำหรับการดำเนินการครั้งต่อไป
           </p>
+
+          <?php if (trim($coopAdditionalDetail) !== ''): ?>
+          <p style="
+        text-indent:2.5cm;
+        margin-bottom:4px;
+    ">
+            <?= nl2br(h($coopAdditionalDetail)) ?>
+          </p>
+          <?php endif; ?>
 
           <p style="
         text-indent:2.5cm;
@@ -909,11 +992,11 @@ $len = max(20, $len);
           <div>ขอแสดงความนับถือ</div>
 
           <div style="margin-top:42px;">
-            (ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์)
+            (<?= h($coopReceiverName ?: 'ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์') ?>)
           </div>
 
           <div>
-            คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม
+            <?= h($coopReceiverPosition ?: 'คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม') ?>
           </div>
         </div>
 
@@ -925,7 +1008,8 @@ $len = max(20, $len);
 ">
           ภาควิชาเทคโนโลยีสารสนเทศ<br>
           โทร. ๐ ๓๗๒๑ ๗๓๔๐ ต่อ ๗๐๖๕-๖<br>
-          ไปรษณีย์อิเล็กทรอนิกส์: it.kmutnb@itm.kmutnb.ac.th<br><br>
+          ไปรษณีย์อิเล็กทรอนิกส์ : it@itm.kmutnb.ac.th<br>
+          <br>
         </div>
 
       </div>

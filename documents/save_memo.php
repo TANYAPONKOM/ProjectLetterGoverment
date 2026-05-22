@@ -84,6 +84,15 @@ $isStudyVisit = (
     || isset($_POST['visit_time'])
     || isset($_POST['teacher_count'])
 );
+$isCoopEvaluation = (
+    $purpose === 'coop_evaluation'
+    || $redirectTo === 'form_memo_coop_evaluation.php'
+    || $targetForm === 'infor_coop_evaluation.php'
+    || ($_POST['form_type'] ?? '') === 'coop_evaluation'
+    || ($_POST['document_type'] ?? '') === 'infor_coop_evaluation'
+    || isset($_POST['organization_name'])
+    || isset($_POST['coop_period'])
+);
 $fullname = trim($_POST['fullname'] ?? $_POST['teacher_name'] ?? '');
 $position = trim($_POST['position'] ?? '');
 
@@ -124,6 +133,75 @@ $projectActivityPeriod   = trim($_POST['activity_period'] ?? '');
 $projectLecturerNames    = trim($_POST['lecturer_names'] ?? '');
 $projectReceiverName     = trim($_POST['receiver_name'] ?? '');
 $projectReceiverPosition = trim($_POST['receiver_position'] ?? '');
+
+
+$coopSubject          = trim($_POST['subject'] ?? '');
+$coopToPerson         = trim($_POST['to_person'] ?? '');
+$coopOrganizationName = trim($_POST['organization_name'] ?? '');
+$coopStudentCount     = trim($_POST['student_count'] ?? '');
+$coopPeriod           = trim($_POST['coop_period'] ?? '');
+$coopStartDate        = trim($_POST['coop_start_date'] ?? '');
+$coopEndDate          = trim($_POST['coop_end_date'] ?? '');
+$coopAdvisorName      = trim($_POST['advisor_name'] ?? '');
+$coopEvaluationEmail  = trim($_POST['evaluation_email'] ?? '');
+$coopAdditionalDetail = trim($_POST['additional_detail'] ?? '');
+$coopReceiverName     = trim($_POST['receiver_name'] ?? '');
+$coopReceiverPosition = trim($_POST['receiver_position'] ?? '');
+$coopStudentListText  = trim($_POST['student_list_text'] ?? '');
+$coopStudentsJsonRaw  = trim($_POST['student_list_json'] ?? '');
+
+$coopStudentNamesRaw = $_POST['student_names'] ?? [];
+$coopStudentIdsRaw   = $_POST['student_ids'] ?? [];
+
+if (!is_array($coopStudentNamesRaw)) {
+    $coopStudentNamesRaw = [$coopStudentNamesRaw];
+}
+if (!is_array($coopStudentIdsRaw)) {
+    $coopStudentIdsRaw = [$coopStudentIdsRaw];
+}
+
+$coopStudents = [];
+$coopStudentMax = max(count($coopStudentNamesRaw), count($coopStudentIdsRaw));
+for ($i = 0; $i < $coopStudentMax; $i++) {
+    $studentName = trim((string)($coopStudentNamesRaw[$i] ?? ''));
+    $studentId   = trim((string)($coopStudentIdsRaw[$i] ?? ''));
+
+    if ($studentName === '' && $studentId === '') {
+        continue;
+    }
+
+    $coopStudents[] = [
+        'name' => $studentName,
+        'student_id' => $studentId,
+    ];
+}
+
+if (!$coopStudents && $coopStudentsJsonRaw !== '') {
+    $decodedCoopStudents = json_decode($coopStudentsJsonRaw, true);
+    if (is_array($decodedCoopStudents)) {
+        foreach ($decodedCoopStudents as $row) {
+            $studentName = trim((string)($row['name'] ?? ''));
+            $studentId   = trim((string)($row['student_id'] ?? ($row['id'] ?? '')));
+
+            if ($studentName === '' && $studentId === '') {
+                continue;
+            }
+
+            $coopStudents[] = [
+                'name' => $studentName,
+                'student_id' => $studentId,
+            ];
+        }
+    }
+}
+
+if ($coopStudentListText === '') {
+    $lines = [];
+    foreach ($coopStudents as $row) {
+        $lines[] = trim(($row['name'] ?? '') . ' รหัสนักศึกษา ' . ($row['student_id'] ?? ''));
+    }
+    $coopStudentListText = implode("\n", array_filter($lines));
+}
 
 $roomRequest      = trim($_POST['room_request'] ?? '');
 $roomRequestOther = trim($_POST['room_request_other'] ?? '');
@@ -259,7 +337,49 @@ $documentId = isset($_POST['document_id']) ? (int)$_POST['document_id'] : 0;
    /** ===== ตรวจฝั่งเซิร์ฟเวอร์ ===== */
 $errors = [];
 
-if ($isProjectActivity) {
+if ($isCoopEvaluation) {
+    if ($docDate === '') {
+        $errors['doc_date'] = 'required';
+    }
+    if ($coopSubject === '') {
+        $errors['subject'] = 'required';
+    }
+    if ($coopToPerson === '') {
+        $errors['to_person'] = 'required';
+    }
+    if ($coopOrganizationName === '') {
+        $errors['organization_name'] = 'required';
+    }
+    if ($coopStudentCount === '' || (int)$coopStudentCount < 1) {
+        $errors['student_count'] = 'required';
+    }
+    if (count($coopStudents) < 1) {
+        $errors['student_list'] = 'required';
+    }
+    foreach ($coopStudents as $idx => $student) {
+        if (($student['name'] ?? '') === '') {
+            $errors['student_name_' . $idx] = 'required';
+        }
+        if (($student['student_id'] ?? '') === '') {
+            $errors['student_id_' . $idx] = 'required';
+        }
+    }
+    if ($coopPeriod === '') {
+        $errors['coop_period'] = 'required';
+    }
+    if ($coopAdvisorName === '') {
+        $errors['advisor_name'] = 'required';
+    }
+    if ($coopEvaluationEmail === '' || !filter_var($coopEvaluationEmail, FILTER_VALIDATE_EMAIL)) {
+        $errors['evaluation_email'] = 'required';
+    }
+    if ($coopReceiverName === '') {
+        $errors['receiver_name'] = 'required';
+    }
+    if ($coopReceiverPosition === '') {
+        $errors['receiver_position'] = 'required';
+    }
+} elseif ($isProjectActivity) {
     if ($docDate === '') {
         $errors['doc_date'] = 'required';
     }
@@ -605,7 +725,9 @@ if ($isProjectActivity) {
     
 
 if (!empty($errors)) {
-    if ($isProjectActivity) {
+    if ($isCoopEvaluation) {
+        header('Location: /Pro_letter/documents/infor_coop_evaluation.php?err=validate');
+    } elseif ($isProjectActivity) {
         header('Location: /Pro_letter/documents/infor_project_activity.php?err=validate');
     } elseif ($isResearchData) {
         header('Location: /Pro_letter/documents/infor_research_data.php?err=validate');
@@ -630,7 +752,10 @@ if (!empty($errors)) {
 
     
     // 1) map ฟิลด์
-if ($isProjectActivity) {
+if ($isCoopEvaluation) {
+    $joinType = 'ขอประเมินสถานประกอบการสหกิจศึกษา';
+    $subject = $coopSubject !== '' ? $coopSubject : 'ขอความอนุเคราะห์ประเมินผลนักศึกษาสหกิจศึกษา';
+} elseif ($isProjectActivity) {
     $joinType = 'ขอเข้าไปจัดกิจกรรมโครงการ';
     $subject = $projectSubject !== '' ? $projectSubject : 'ขออนุญาตดำเนินการจัดกิจกรรมโครงการ';
 } elseif ($isResearchData) {
@@ -773,7 +898,36 @@ if (!$noCost && $totalAmount !== null && $totalAmount >= 0) {
 
 $valuesByKey = [];
 
-if ($isProjectActivity) {
+if ($isCoopEvaluation) {
+    $coopStudentsJson = json_encode($coopStudents, JSON_UNESCAPED_UNICODE);
+
+    $values = [
+        1  => $docDate,
+        4  => $joinType,
+        10 => $faculty,
+        11 => $department,
+        14 => $coopSubject,
+        26 => $coopToPerson,
+    ];
+
+    $valuesByKey = [
+        'coop_subject'            => $coopSubject,
+        'coop_to_person'          => $coopToPerson,
+        'coop_organization_name'  => $coopOrganizationName,
+        'coop_student_count'      => (string)$coopStudentCount,
+        'coop_students_json'      => $coopStudentsJson,
+        'coop_student_list_text'  => $coopStudentListText,
+        'coop_period'             => $coopPeriod,
+        'coop_start_date'         => $coopStartDate,
+        'coop_end_date'           => $coopEndDate,
+        'coop_advisor_name'       => $coopAdvisorName,
+        'coop_evaluation_email'   => $coopEvaluationEmail,
+        'coop_additional_detail'  => $coopAdditionalDetail,
+        'coop_receiver_name'      => $coopReceiverName,
+        'coop_receiver_position'  => $coopReceiverPosition,
+    ];
+
+} elseif ($isProjectActivity) {
     $values = [
         1  => $docDate,
         4  => $joinType,
@@ -1061,7 +1215,9 @@ if (!$noCost && is_array($types) && is_array($descs) && is_array($amounts)) {
 
     $pdo->commit();
 
-if ($isProjectActivity) {
+if ($isCoopEvaluation) {
+    $redirectUrl = '/Pro_letter/form_Memo/form_memo_coop_evaluation.php?id=' . $documentId;
+} elseif ($isProjectActivity) {
     $redirectUrl = '/Pro_letter/form_Memo/form_memo_project_activity.php?id=' . $documentId;
 } elseif ($isResearchData) {
     $redirectUrl = '/Pro_letter/form_Memo/form_memo_request_research_data.php?id=' . $documentId;
@@ -1100,7 +1256,9 @@ exit;
         exit;
     }
 
-  if (!empty($isProjectActivity)) {
+  if (!empty($isCoopEvaluation)) {
+    header('Location: /Pro_letter/documents/infor_coop_evaluation.php?err=server');
+} elseif (!empty($isProjectActivity)) {
     header('Location: /Pro_letter/documents/infor_project_activity.php?err=server');
 } elseif (!empty($isResearchData)) {
     header('Location: /Pro_letter/documents/infor_research_data.php?err=server');

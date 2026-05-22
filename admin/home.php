@@ -475,12 +475,61 @@ main {
     }
   });
 
-  function openDocument(docId, joinType = "") {
-    fetch("../check_view_permission.php?id=" + docId)
+  function getDocumentViewUrl(docId, joinType = "") {
+    const type = String(joinType || "").trim();
 
+    const routes = [{
+        keywords: ["ขอประเมินสถานประกอบการสหกิจ", "ประเมินสถานประกอบการ", "สหกิจศึกษา"],
+        url: "../form_Memo/form_memo_coop_evaluation.php"
+      },
+      {
+        keywords: ["ขอเข้าไปจัดกิจกรรมโครงการ", "จัดกิจกรรมโครงการ", "กิจกรรมโครงการ"],
+        url: "../form_Memo/form_memo_project_activity.php"
+      },
+      {
+        keywords: ["ขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์", "ข้อมูลจัดทำปริญญานิพนธ์", "ปริญญานิพนธ์"],
+        url: "../form_Memo/form_memo_request_research_data.php"
+      },
+      {
+        keywords: ["หนังสือเรียนเชิญวิทยากร", "เรียนเชิญวิทยากร"],
+        url: "../form_Memo/form_memo_invite_speaker.php"
+      },
+      {
+        keywords: ["ขออนุมัติใช้ห้องพักรับรอง", "ขอห้องพักรับรอง", "ห้องพักรับรอง"],
+        url: "../form_Memo/form_memo_room_request_1.php"
+      },
+      {
+        keywords: ["ขออนุมัติตัวบุคคลเป็นวิทยากร", "ตัวบุคคลเป็นวิทยากร"],
+        url: "../form_Memo/form_memo_speaker.php"
+      },
+      {
+        keywords: ["ขออนุญาตเข้าเยี่ยมชมศึกษาดูงาน", "ขอเข้าเยี่ยมศึกษาดูงาน", "ศึกษาดูงาน", "เข้าเยี่ยมชม"],
+        url: "../form_Memo/form_memo_sut_wellness.php"
+      },
+      {
+        keywords: ["หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ", "ยินยอมให้นำเสนอผลงาน", "ยินยอมนำเสนอ"],
+        url: "../form_Memo/form_consent_research_presentation.php"
+      },
+      {
+        keywords: ["นำเสนอผลงานวิจัย"],
+        url: "../form_Memo/form_memo_academic_1.php"
+      }
+    ];
+
+    for (const route of routes) {
+      if (route.keywords.some(keyword => type.includes(keyword))) {
+        return route.url + "?id=" + encodeURIComponent(docId);
+      }
+    }
+
+    return "../documents/view_memo.php?id=" + encodeURIComponent(docId);
+  }
+
+  function openDocument(docId, joinType = "") {
+    fetch("../check_view_permission.php?id=" + encodeURIComponent(docId))
       .then(r => r.json())
       .then(res => {
-        console.log("Returned JSON:", res); // ⭐ Debug
+        console.log("Returned JSON:", res);
 
         if (!res || typeof res.allowed === "undefined") {
           Swal.fire("Error", "ข้อมูลที่ส่งกลับไม่ถูกต้อง", "error");
@@ -488,11 +537,7 @@ main {
         }
 
         if (res.allowed === true) {
-          const url = (joinType === "นำเสนอผลงานวิจัย") ?
-            "../form_Memo/form_memo_academic_1.php?id=" + docId :
-            "../documents/view_memo.php?id=" + docId;
-
-          window.location.href = url;
+          window.location.href = getDocumentViewUrl(docId, joinType);
           return;
         }
 
@@ -514,7 +559,7 @@ main {
         Swal.fire("เกิดข้อผิดพลาด", "ไม่สามารถตรวจสอบสิทธิ์ได้", "error");
       })
       .catch(err => {
-        console.log("Fetch error:", err); // ⭐ Debug
+        console.log("Fetch error:", err);
         Swal.fire("Error", "ไม่สามารถตรวจสอบสิทธิ์ได้", "error");
       });
   }

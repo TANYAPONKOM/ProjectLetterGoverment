@@ -12,10 +12,85 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-// ค่าเริ่มต้นสำหรับฟอร์มนี้ ป้องกัน Undefined variable และรองรับตอนกลับมาแก้ไขภายหลัง
-$projectDocDate = $_POST['doc_date'] ?? '';
-$projectReceiverName = $_POST['receiver_name'] ?? '';
-$projectReceiverPosition = $_POST['receiver_position'] ?? '';
+// ===== รองรับบันทึกใหม่ + แก้ไขเอกสารเดิม =====
+$docId  = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$isEdit = $docId > 0;
+
+$formDataById  = [];
+$formDataByKey = [];
+
+if ($isEdit) {
+    $pdo = db();
+
+    $stmt = $pdo->prepare("
+        SELECT document_id, owner_id, status
+        FROM documents
+        WHERE document_id = :id
+        LIMIT 1
+    ");
+    $stmt->execute([':id' => $docId]);
+    $doc = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$doc) {
+        exit("ไม่พบเอกสาร");
+    }
+
+    $roleId = (int)($_SESSION['role_id'] ?? 0);
+    $isAdmin   = ($roleId === 1);
+    $isOfficer = ($roleId === 2);
+
+    if (!$isAdmin && !$isOfficer) {
+        if ((int)$doc['owner_id'] !== (int)$_SESSION['user_id']) {
+            header("Location: /Pro_letter/documents/view_memo.php?id={$docId}&err=no_permission");
+            exit;
+        }
+
+        if (!in_array($doc['status'], ['draft', 'rejected'], true)) {
+            header("Location: /Pro_letter/documents/view_memo.php?id={$docId}&err=no_permission");
+            exit;
+        }
+    }
+
+    $q = $pdo->prepare("
+        SELECT dv.field_id, tf.field_key, dv.value_text
+        FROM document_values dv
+        LEFT JOIN template_fields tf ON tf.field_id = dv.field_id
+        WHERE dv.document_id = :id
+    ");
+    $q->execute([':id' => $docId]);
+
+    foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $formDataById[(int)$row['field_id']] = $row['value_text'];
+        if (!empty($row['field_key'])) {
+            $formDataByKey[$row['field_key']] = $row['value_text'];
+        }
+    }
+}
+
+// ค่าเริ่มต้นสำหรับฟอร์มนี้
+$projectDocDate = $_POST['doc_date'] ?? ($formDataById[1] ?? '');
+$coopSubject = $_POST['subject'] ?? ($formDataByKey['coop_subject'] ?? ($formDataById[14] ?? 'ขอความอนุเคราะห์ประเมินผลนักศึกษาสหกิจศึกษา'));
+$coopToPerson = $_POST['to_person'] ?? ($formDataByKey['coop_to_person'] ?? ($formDataById[26] ?? ''));
+$coopOrganizationName = $_POST['organization_name'] ?? ($formDataByKey['coop_organization_name'] ?? '');
+$coopStudentCount = $_POST['student_count'] ?? ($formDataByKey['coop_student_count'] ?? '');
+$coopStudentsJson = $_POST['student_list_json'] ?? ($formDataByKey['coop_students_json'] ?? '[]');
+$coopStudentListText = $_POST['student_list_text'] ?? ($formDataByKey['coop_student_list_text'] ?? '');
+$coopPeriod = $_POST['coop_period'] ?? ($formDataByKey['coop_period'] ?? '');
+$coopStartDateValue = $_POST['coop_start_date'] ?? ($formDataByKey['coop_start_date'] ?? '');
+$coopEndDateValue = $_POST['coop_end_date'] ?? ($formDataByKey['coop_end_date'] ?? '');
+$coopAdvisorName = $_POST['advisor_name'] ?? ($formDataByKey['coop_advisor_name'] ?? '');
+$coopAdditionalDetail = $_POST['additional_detail'] ?? ($formDataByKey['coop_additional_detail'] ?? '');
+$projectReceiverName = $_POST['receiver_name'] ?? ($formDataByKey['coop_receiver_name'] ?? '');
+$projectReceiverPosition = $_POST['receiver_position'] ?? ($formDataByKey['coop_receiver_position'] ?? '');
+
+$coopStudents = json_decode($coopStudentsJson, true);
+if (!is_array($coopStudents)) {
+    $coopStudents = [];
+}
+
+if (!$coopStudentCount && count($coopStudents) > 0) {
+    $coopStudentCount = count($coopStudents);
+}
 ?>
 
 <!DOCTYPE html>
@@ -373,6 +448,19 @@ $projectReceiverPosition = $_POST['receiver_position'] ?? '';
   </header>
 
   <form method="post" action="save_memo.php" id="memoForm">
+    <input type="hidden" name="template_id" value="1">
+    <input type="hidden" name="department_id" value="1">
+    <input type="hidden" name="document_type" value="infor_coop_evaluation">
+    <input type="hidden" name="form_type" value="coop_evaluation">
+    <input type="hidden" name="purpose" value="coop_evaluation">
+    <input type="hidden" name="target_form" value="infor_coop_evaluation.php">
+    <input type="hidden" name="redirect_to" value="form_memo_coop_evaluation.php">
+    <?php if ($isEdit): ?>
+    <input type="hidden" name="document_id" value="<?= (int)$docId ?>">
+    <input type="hidden" name="mode" value="update">
+    <?php else: ?>
+    <input type="hidden" name="mode" value="create">
+    <?php endif; ?>
     <!-- กล่องเนื้อหา -->
     <div class="w-[900px] mx-auto mt-16 mb-6 bg-white shadow-md rounded-md p-8" style="min-height: 1122px">
       <h1 class="text-center font-bold mb-6 text-black">
@@ -461,7 +549,7 @@ $projectReceiverPosition = $_POST['receiver_position'] ?? '';
       <div class="mb-4 flex items-start gap-1">
         <label class="lbl whitespace-nowrap w-48 pt-2">2. เรื่อง :</label>
         <div class="flex-1">
-          <input type="text" name="subject" id="subjectInput" data-spell-field="subject"
+          <input type="text" name="subject" id="subjectInput" data-spell-field="subject" value="<?= h($coopSubject) ?>"
             class="w-full border rounded-md p-2"
             placeholder="ขอความอนุเคราะห์ตอบแบบประเมินและแบบสำรวจนักศึกษาปฏิบัติงานสหกิจศึกษา">
 
@@ -481,7 +569,8 @@ $projectReceiverPosition = $_POST['receiver_position'] ?? '';
         <div class="flex-1">
           <input type="text" name="to_person" id="toPerson" data-spell-field="to_person"
             class="w-full border rounded-md p-2"
-            placeholder="เช่น เลขาธิการ สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ">
+            placeholder="เช่น เลขาธิการ สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ"
+            value="<?= h($coopToPerson) ?>">
 
           <div id="toPersonSpellBox" class="spell-box hidden"></div>
           <div id="toPersonSpellLoading" class="spell-loading hidden">
@@ -498,7 +587,7 @@ $projectReceiverPosition = $_POST['receiver_position'] ?? '';
         <label class="lbl whitespace-nowrap w-48 pt-2">4. หน่วยงาน :</label>
         <div class="flex-1">
           <input type="text" name="organization_name" id="organizationName" data-spell-field="organization_name"
-            class="w-full border rounded-md p-2"
+            value="<?= h($coopOrganizationName) ?>" class="w-full border rounded-md p-2"
             placeholder="เช่น สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ">
 
           <div id="organizationNameSpellBox" class="spell-box hidden"></div>
@@ -516,11 +605,12 @@ $projectReceiverPosition = $_POST['receiver_position'] ?? '';
         <label class="lbl whitespace-nowrap w-48 pt-2">5. จำนวนนักศึกษา :</label>
         <div class="flex-1">
           <input type="number" name="student_count" id="studentCount" class="w-40 border rounded-md p-2" min="1"
-            max="50" placeholder="เช่น 2">
+            max="50" value="<?= h($coopStudentCount) ?>" placeholder="เช่น 2">
 
           <div id="studentListContainer" class="mt-3 space-y-3"></div>
 
-          <input type="hidden" name="student_list_text" id="studentListText">
+          <input type="hidden" name="student_list_text" id="studentListText" value="<?= h($coopStudentListText) ?>">
+          <input type="hidden" name="student_list_json" id="studentListJson" value="<?= h($coopStudentsJson) ?>">
         </div>
       </div>
 
@@ -530,8 +620,8 @@ $projectReceiverPosition = $_POST['receiver_position'] ?? '';
 
         <div class="flex items-center gap-3">
           <div class="relative">
-            <input type="text" id="coopStartDate" class="border rounded-md p-2 shadow-sm w-44 pr-10 cursor-pointer"
-              placeholder="เริ่มต้น" readonly>
+            <input type="text" id="coopStartDate" name="coop_start_date" value="<?= h($coopStartDateValue) ?>"
+              class="border rounded-md p-2 shadow-sm w-44 pr-10 cursor-pointer" placeholder="เริ่มต้น" readonly>
             <svg class="absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]" xmlns="http://www.w3.org/2000/svg" fill="none"
               viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -542,8 +632,8 @@ $projectReceiverPosition = $_POST['receiver_position'] ?? '';
           <span>ถึง</span>
 
           <div class="relative">
-            <input type="text" id="coopEndDate" class="border rounded-md p-2 shadow-sm w-44 pr-10 cursor-pointer"
-              placeholder="สิ้นสุด" readonly>
+            <input type="text" id="coopEndDate" name="coop_end_date" value="<?= h($coopEndDateValue) ?>"
+              class="border rounded-md p-2 shadow-sm w-44 pr-10 cursor-pointer" placeholder="สิ้นสุด" readonly>
             <svg class="absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]" xmlns="http://www.w3.org/2000/svg" fill="none"
               viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -551,16 +641,17 @@ $projectReceiverPosition = $_POST['receiver_position'] ?? '';
             </svg>
           </div>
 
-          <input type="hidden" name="coop_period" id="coopPeriod">
+          <input type="hidden" name="coop_period" id="coopPeriod" value="<?= h($coopPeriod) ?>">
         </div>
       </div>
 
-      <!-- 7. พนักงานที่ปรึกษา / ผู้เกี่ยวข้อง -->
+      <!-- 7. ส่งแบบประเมินและแบบสำรวจดังกล่าวให้กับ -->
       <div class="mb-4 flex items-start gap-1">
-        <label class="lbl whitespace-nowrap w-48 pt-2">7. พนักงานที่ปรึกษา :</label>
+        <label class="lbl whitespace-nowrap w-62 pt-2">7. ส่งแบบประเมินและแบบสำรวจดังกล่าวให้กับ :</label>
         <div class="flex-1">
           <input type="text" name="advisor_name" id="advisorName" data-spell-field="advisor_name"
-            class="w-full border rounded-md p-2" placeholder="เช่น พนักงานที่ปรึกษา / ผู้รับผิดชอบนักศึกษาสหกิจศึกษา">
+            class="w-full border rounded-md p-2" value="<?= h($coopAdvisorName) ?>"
+            placeholder="เช่น พนักงานที่ปรึกษา / ผู้รับผิดชอบนักศึกษาสหกิจศึกษา">
 
           <div id="advisorNameSpellBox" class="spell-box hidden"></div>
           <div id="advisorNameSpellLoading" class="spell-loading hidden">
@@ -572,22 +663,13 @@ $projectReceiverPosition = $_POST['receiver_position'] ?? '';
         </div>
       </div>
 
-      <!-- 8. อีเมลสำหรับส่งแบบประเมิน -->
-      <div class="mb-4 flex items-start gap-1">
-        <label class="lbl whitespace-nowrap w-48 pt-2">8. อีเมล :</label>
-        <div class="flex-1">
-          <input type="email" name="evaluation_email" id="evaluationEmail" class="w-full border rounded-md p-2"
-            placeholder="เช่น it.kmutnb@itm.kmutnb.ac.th">
-        </div>
-      </div>
-
-      <!-- 9. รายละเอียดเพิ่มเติม -->
+      <!-- 8. รายละเอียดเพิ่มเติม -->
       <div class="mb-6 flex items-start gap-1">
-        <label class="lbl whitespace-nowrap w-48 pt-2">9. รายละเอียดเพิ่มเติม :</label>
+        <label class="lbl whitespace-nowrap w-48 pt-2">8. รายละเอียดเพิ่มเติม :</label>
         <div class="flex-1">
           <textarea name="additional_detail" id="additionalDetail" data-spell-field="additional_detail" rows="3"
             class="w-full border rounded-md p-2"
-            placeholder="เช่น ขอความอนุเคราะห์แจ้งผู้เกี่ยวข้องดำเนินการตอบแบบประเมินและแบบสำรวจ"></textarea>
+            placeholder="เช่น ขอความอนุเคราะห์แจ้งผู้เกี่ยวข้องดำเนินการตอบแบบประเมินและแบบสำรวจ"><?= h($coopAdditionalDetail) ?></textarea>
 
           <div id="additionalDetailSpellBox" class="spell-box hidden"></div>
           <div id="additionalDetailSpellLoading" class="spell-loading hidden">
@@ -599,10 +681,10 @@ $projectReceiverPosition = $_POST['receiver_position'] ?? '';
         </div>
       </div>
 
-      <!-- 10. ชื่อผู้ลงนามท้ายเอกสาร -->
+      <!-- 9. ชื่อผู้ลงนามท้ายเอกสาร -->
       <div class="mb-4 flex items-start gap-1">
         <label class="lbl text-gray-800 whitespace-nowrap w-48 pt-2" for="receiverNameInput">
-          10. ชื่อผู้ลงนาม :
+          9. ชื่อผู้ลงนาม :
         </label>
 
         <div class="flex-1">
@@ -614,10 +696,10 @@ $projectReceiverPosition = $_POST['receiver_position'] ?? '';
         </div>
       </div>
 
-      <!-- 11. ตำแหน่งผู้ลงนามท้ายเอกสาร -->
+      <!-- 10. ตำแหน่งผู้ลงนามท้ายเอกสาร -->
       <div class="mb-4 flex items-start gap-1">
         <label class="lbl text-gray-800 whitespace-nowrap w-48 pt-2" for="receiverPositionInput">
-          11. ตำแหน่งผู้ลงนาม :
+          10. ตำแหน่งผู้ลงนาม :
         </label>
 
         <div class="flex-1">
@@ -662,11 +744,12 @@ $projectReceiverPosition = $_POST['receiver_position'] ?? '';
   const studentCount = byId("studentCount");
   const studentListContainer = byId("studentListContainer");
   const studentListText = byId("studentListText");
+  const studentListJson = byId("studentListJson");
+  const existingStudents = <?= json_encode($coopStudents, JSON_UNESCAPED_UNICODE) ?>;
   const coopStartDate = byId("coopStartDate");
   const coopEndDate = byId("coopEndDate");
   const coopPeriod = byId("coopPeriod");
   const advisorName = byId("advisorName");
-  const evaluationEmail = byId("evaluationEmail");
   const additionalDetail = byId("additionalDetail");
   const receiverNameInput = byId("receiverNameInput");
   const receiverPositionInput = byId("receiverPositionInput");
@@ -805,10 +888,15 @@ $projectReceiverPosition = $_POST['receiver_position'] ?? '';
 
     studentListContainer.innerHTML = "";
     studentListText.value = "";
+    if (studentListJson) studentListJson.value = "[]";
 
     if (!count || count < 1) return;
 
     for (let i = 1; i <= count; i++) {
+      const oldStudent = Array.isArray(existingStudents) ? (existingStudents[i - 1] || {}) : {};
+      const oldName = oldStudent.name || "";
+      const oldId = oldStudent.student_id || oldStudent.id || "";
+
       const row = document.createElement("div");
       row.className = "grid grid-cols-1 md:grid-cols-2 gap-3";
 
@@ -831,23 +919,40 @@ $projectReceiverPosition = $_POST['receiver_position'] ?? '';
     `;
 
       studentListContainer.appendChild(row);
+      row.querySelector(".student-name-input").value = oldName;
+      row.querySelector(".student-id-input").value = oldId;
     }
+
+    updateStudentListText();
   }
 
   function updateStudentListText() {
     const rows = Array.from(studentListContainer.querySelectorAll(".grid"));
+    const students = [];
+
     const lines = rows.map(row => {
       const name = row.querySelector(".student-name-input")?.value.trim() || "";
       const id = row.querySelector(".student-id-input")?.value.trim() || "";
+
+      if (name || id) {
+        students.push({
+          name: name,
+          student_id: id
+        });
+      }
 
       if (!name && !id) return "";
       return `${name} รหัสนักศึกษา ${id}`;
     }).filter(Boolean);
 
     studentListText.value = lines.join("\n");
+    if (studentListJson) {
+      studentListJson.value = JSON.stringify(students);
+    }
   }
 
   studentCount?.addEventListener("input", rebuildStudentInputs);
+  if (studentCount?.value) rebuildStudentInputs();
   studentListContainer?.addEventListener("input", updateStudentListText);
 
   function getSpellBoxByField(el) {
@@ -1214,7 +1319,6 @@ $projectReceiverPosition = $_POST['receiver_position'] ?? '';
       coopStartDate,
       coopEndDate,
       advisorName,
-      evaluationEmail,
       receiverNameInput,
       receiverPositionInput,
       ...studentRows.flatMap(row => [
@@ -1231,7 +1335,6 @@ $projectReceiverPosition = $_POST['receiver_position'] ?? '';
       coopStartDate,
       coopEndDate,
       advisorName,
-      evaluationEmail,
       receiverNameInput,
       receiverPositionInput
     ];
@@ -1267,12 +1370,6 @@ $projectReceiverPosition = $_POST['receiver_position'] ?? '';
         firstInvalid = firstInvalid || idInput;
       }
     });
-
-    if (evaluationEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(evaluationEmail.value.trim())) {
-      setErr(evaluationEmail, true);
-      alert("กรุณากรอกอีเมลให้ถูกต้อง");
-      firstInvalid = firstInvalid || evaluationEmail;
-    }
 
     if (firstInvalid) {
       alert("กรุณากรอกข้อมูลให้ครบถ้วน");

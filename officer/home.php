@@ -430,12 +430,59 @@ if (!isset($_SESSION['user_id'])) {
     }
   });
 
+  function getDocumentUrl(docId, joinType = "") {
+    const title = String(joinType || "").trim();
+
+    const routes = [{
+        keywords: ["สหกิจ", "ประเมินสถานประกอบการ", "สถานประกอบการสหกิจ"],
+        url: "../form_Memo/form_memo_coop_evaluation.php?id="
+      },
+      {
+        keywords: ["จัดกิจกรรมโครงการ", "กิจกรรมโครงการ", "โครงการ"],
+        url: "../form_Memo/form_memo_project_activity.php?id="
+      },
+      {
+        keywords: ["ปริญญานิพนธ์", "ขอความอนุเคราะห์ข้อมูล"],
+        url: "../form_Memo/form_memo_request_research_data.php?id="
+      },
+      {
+        keywords: ["หนังสือเรียนเชิญวิทยากร", "เรียนเชิญวิทยากร"],
+        url: "../form_Memo/form_memo_invite_speaker.php?id="
+      },
+      {
+        keywords: ["ห้องพักรับรอง", "ขออนุมัติใช้ห้องพัก"],
+        url: "../form_Memo/form_memo_room_request_1.php?id="
+      },
+      {
+        keywords: ["ตัวบุคคลเป็นวิทยากร", "เป็นวิทยากร"],
+        url: "../form_Memo/form_memo_speaker.php?id="
+      },
+      {
+        keywords: ["ศึกษาดูงาน", "เข้าเยี่ยมชม", "เยี่ยมชมศึกษาดูงาน", "SUT Wellness"],
+        url: "../form_Memo/form_memo_sut_wellness.php?id="
+      },
+      {
+        keywords: ["ยินยอมให้นำเสนอผลงาน", "หนังสือยินยอม", "consent"],
+        url: "../form_Memo/form_consent_research_presentation.php?id="
+      },
+      {
+        keywords: ["นำเสนอผลงานวิจัย"],
+        url: "../form_Memo/form_memo_academic_1.php?id="
+      }
+    ];
+
+    const matched = routes.find(route =>
+      route.keywords.some(keyword => title.includes(keyword))
+    );
+
+    return (matched ? matched.url : "../documents/view_memo.php?id=") + docId;
+  }
+
   function openDocument(docId, joinType = "") {
     fetch("../check_view_permission.php?id=" + docId)
-
       .then(r => r.json())
       .then(res => {
-        console.log("Returned JSON:", res); // ⭐ Debug
+        console.log("Returned JSON:", res);
 
         if (!res || typeof res.allowed === "undefined") {
           Swal.fire("Error", "ข้อมูลที่ส่งกลับไม่ถูกต้อง", "error");
@@ -443,11 +490,7 @@ if (!isset($_SESSION['user_id'])) {
         }
 
         if (res.allowed === true) {
-          const url = (joinType === "นำเสนอผลงานวิจัย") ?
-            "../form_Memo/form_memo_academic_1.php?id=" + docId :
-            "../documents/view_memo.php?id=" + docId;
-
-          window.location.href = url;
+          window.location.href = getDocumentUrl(docId, joinType);
           return;
         }
 
@@ -469,7 +512,7 @@ if (!isset($_SESSION['user_id'])) {
         Swal.fire("เกิดข้อผิดพลาด", "ไม่สามารถตรวจสอบสิทธิ์ได้", "error");
       })
       .catch(err => {
-        console.log("Fetch error:", err); // ⭐ Debug
+        console.log("Fetch error:", err);
         Swal.fire("Error", "ไม่สามารถตรวจสอบสิทธิ์ได้", "error");
       });
   }
