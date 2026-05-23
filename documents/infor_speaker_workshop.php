@@ -64,7 +64,7 @@ if ($isEdit) {
     }
 }
 
-$formAction = $isEdit ? '../update_memo.php' : 'save_memo.php';
+$formAction = $isEdit ? '/Pro_letter/documents/update_memo.php' : '/Pro_letter/documents/save_memo.php';
 
 $oldSubject = $document['subject'] ?? '';
 $oldTeacherName = $valueMap[2] ?? ($_SESSION['fullname'] ?? '');
@@ -425,13 +425,16 @@ $oldIntentionText = $valueMap[25] ?? '';
 
   <form method="post" action="<?= h($formAction) ?>" id="memoForm">
     <input type="hidden" name="purpose" value="speaker_workshop">
+    <input type="hidden" name="form_type" value="speaker_workshop">
+    <input type="hidden" name="document_type" value="infor_speaker_workshop">
     <input type="hidden" name="redirect_to" value="form_memo_speaker.php">
     <input type="hidden" name="target_form" value="form_memo_speaker.php">
     <input type="hidden" name="template_page" value="form_memo_speaker.php">
     <?php if ($isEdit): ?>
     <input type="hidden" name="document_id" value="<?= (int)$documentId ?>">
     <input type="hidden" name="template_id" value="<?= (int)$templateId ?>">
-    <input type="hidden" name="redirect_back" value="form_memo_speaker.php">
+    <input type="hidden" name="redirect_back"
+      value="/Pro_letter/form_Memo/form_memo_speaker.php?id=<?= (int)$documentId ?>">
     <?php endif; ?>
     <!-- กล่องเนื้อหา -->
     <div class="w-[900px] mx-auto mt-16 mb-6 bg-white shadow-md rounded-md p-8" style="min-height: 1122px">
@@ -870,6 +873,89 @@ $oldIntentionText = $valueMap[25] ?? '';
       document.getElementById("travelRangeDisplay").value = text;
       document.getElementById("travelPeriod").value = text;
     }
+
+    function parseThaiDateText(text) {
+      if (!text) return null;
+
+      const monthMap = {
+        "มกราคม": 0,
+        "กุมภาพันธ์": 1,
+        "มีนาคม": 2,
+        "เมษายน": 3,
+        "พฤษภาคม": 4,
+        "มิถุนายน": 5,
+        "กรกฎาคม": 6,
+        "สิงหาคม": 7,
+        "กันยายน": 8,
+        "ตุลาคม": 9,
+        "พฤศจิกายน": 10,
+        "ธันวาคม": 11
+      };
+
+      const clean = String(text)
+        .replace(/วันที่/g, "")
+        .replace(/พ\.ศ\./g, "")
+        .replace(/,/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      const match = clean.match(/(\d{1,2})\s+([ก-๙]+)\s+(\d{4})/);
+      if (!match) return null;
+
+      const day = parseInt(match[1], 10);
+      const month = monthMap[match[2]];
+      let year = parseInt(match[3], 10);
+
+      if (Number.isNaN(day) || month === undefined || Number.isNaN(year)) return null;
+      if (year > 2400) year -= 543;
+
+      return new Date(year, month, day);
+    }
+
+    function parseThaiRangeText(text) {
+      if (!text) return [null, null];
+
+      const clean = String(text)
+        .replace(/–/g, "-")
+        .replace(/—/g, "-")
+        .replace(/ถึง/g, "-")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      const sameMonth = clean.match(/(\d{1,2})\s*-\s*(\d{1,2})\s+([ก-๙]+)\s+(\d{4})/);
+      if (sameMonth) {
+        const monthText = sameMonth[3];
+        const yearText = sameMonth[4];
+        const start = parseThaiDateText(`${sameMonth[1]} ${monthText} ${yearText}`);
+        const end = parseThaiDateText(`${sameMonth[2]} ${monthText} ${yearText}`);
+        return [start, end];
+      }
+
+      const parts = clean.split(/\s*-\s*/);
+      if (parts.length >= 2) {
+        return [parseThaiDateText(parts[0]), parseThaiDateText(parts.slice(1).join(" - "))];
+      }
+
+      return [null, null];
+    }
+
+    function preloadRangeToPickers(rangeText, startPicker, endPicker, updateFn) {
+      const [start, end] = parseThaiRangeText(rangeText);
+      if (!start || !end) return;
+
+      startPicker.setDate(start, false);
+      endPicker.setDate(end, false);
+
+      startPicker.input.value = formatThaiDate(start);
+      endPicker.input.value = formatThaiDate(end);
+
+      updateFn();
+    }
+
+    preloadRangeToPickers(document.getElementById("internPeriod")?.value, internStartPicker, internEndPicker,
+      updateInternRange);
+    preloadRangeToPickers(document.getElementById("travelPeriod")?.value, travelStartPicker, travelEndPicker,
+      updateTravelRange);
 
     const memoForm = document.getElementById("memoForm");
     const submitBtn = document.getElementById("submitBtn");
@@ -1524,19 +1610,15 @@ $oldIntentionText = $valueMap[25] ?? '';
       }
     }
 
-    function goMain() {
-      const mainVal = (main.value || "").trim();
-      const firstSub = (SUB_OPTIONS[mainVal] || [])[0] || "";
-      const target = ROUTE_SUB[firstSub];
-
-      if (!target || target === "#") return;
-
-      window.location.href = withSelection(target, mainVal, firstSub);
-    }
-
     function goSub() {
       const mainVal = (main.value || "").trim();
       const subVal = (sub.value || "").trim();
+
+      if (!subVal) {
+        sub.dataset.current = "";
+        return;
+      }
+
       sub.dataset.current = subVal;
 
       const target = ROUTE_SUB[subVal];
@@ -1548,7 +1630,6 @@ $oldIntentionText = $valueMap[25] ?? '';
     main.addEventListener("change", () => {
       sub.dataset.current = "";
       syncUI();
-      goMain();
     });
 
     sub.addEventListener("change", goSub);

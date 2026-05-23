@@ -53,6 +53,8 @@ if ($docId <= 0) {
     exit("ยังไม่มีเอกสารของคุณ");
 }
 
+$editQuestionUrl = "/Pro_letter/documents/infor_speaker_workshop.php?id=" . (int)$docId . "&edit=1";
+
 /* --------------------------------------------------
    โหลดข้อมูลเอกสาร
 -------------------------------------------------- */
@@ -915,11 +917,12 @@ $len = max(20, $len);
           ดาวน์โหลด PDF
         </button>
 
-        <!-- 🟩 USER: ปุ่มยืนยัน -->
+        <!-- 🟩 USER: ปุ่มแก้ไขเอกสาร -->
         <?php if ($roleId === 3): ?>
-        <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+        <a href="<?= h($editQuestionUrl) ?>"
+          class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           แก้ไขเอกสาร
-        </button>
+        </a>
         <?php endif; ?>
 
         <!-- 🟦 OFFICER & ADMIN -->

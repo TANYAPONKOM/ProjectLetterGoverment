@@ -19,6 +19,7 @@ if (!isset($_SESSION['user_id'])) {
 $docId  = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $isEdit = $docId > 0;
 $formData = [];
+$budgetItems = [];
 
 if ($isEdit) {
     $pdo = db();
@@ -55,6 +56,20 @@ if ($isEdit) {
 
     foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $formData[(int)$row['field_id']] = $row['value_text'];
+    }
+
+    // โหลดรายการค่าใช้จ่ายเดิมกลับมาใช้ตอนแก้ไข
+    try {
+        $bq = $pdo->prepare("
+            SELECT item_type, description, amount
+            FROM budget_items
+            WHERE document_id = :id
+            ORDER BY item_id ASC
+        ");
+        $bq->execute([':id' => $docId]);
+        $budgetItems = $bq->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        $budgetItems = [];
     }
 }
 
@@ -358,6 +373,46 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
   ;
 
+
+  .expense-subrow {
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) 145px auto;
+    gap: 6px;
+    align-items: end;
+    padding: 6px;
+    margin-top: 6px;
+    border: 0.6px solid #111;
+    background: #fff;
+  }
+
+  .expense-subrow label {
+    display: block;
+    color: #374151;
+    font-size: 13pt;
+    margin-bottom: 2px;
+  }
+
+  .expense-subrow input {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 14pt;
+  }
+
+  .expense-subrow .js-del {
+    border: 1px solid #f87171;
+    color: #dc2626;
+    background: #fff;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-weight: bold;
+  }
+
+  .expense-subrow .js-del:hover {
+    background: #fef2f2;
+  }
+
   @keyframes spin {
     to {
       transform: rotate(360deg);
@@ -439,19 +494,24 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       </div>
     </div>
   </header>
-  <form method="post" action="save_memo.php" id="memoForm">
+  <form method="post" action="<?= $isEdit ? '/Pro_letter/documents/update_memo.php' : 'save_memo.php' ?>" id="memoForm">
     <input type="hidden" name="template_id" value="1">
     <input type="hidden" name="department_id" value="1">
     <?php if ($isEdit): ?>
     <input type="hidden" name="document_id" value="<?= (int)$docId ?>">
     <input type="hidden" name="mode" value="update">
+    <input type="hidden" name="redirect_back" value="1">
+    <input type="hidden" name="target_form" value="form_memo_academic_1.php">
+    <input type="hidden" name="form_type" value="academic">
+    <input type="hidden" name="document_type" value="infor_academic_presentation">
+    <input type="hidden" name="redirect_to" value="form_memo_academic_1.php">
     <?php else: ?>
     <input type="hidden" name="mode" value="create">
     <?php endif; ?>
     <div id="step1">
       <div class="w-[900px] mx-auto mt-16 mb-6 bg-white shadow-md rounded-md p-8" style="min-height: 1122px">
         <h1 class="text-center font-bold mb-6 text-black">
-          แบบฟอร์มขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย
+          แบบฟอร์มบันทึกข้อความ
         </h1>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 p-6 rounded-[25px] border-2" style="
             background-color: #e3f9f8;
@@ -514,12 +574,12 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
           <div class="flex items-center gap-3">
             <label class="lbl text-gray-800 whitespace-nowrap" for="fullname">2.ชื่อ - นามสกุล :</label>
             <input type="text" name="fullname" class="flex-1 border rounded-md p-2" id="fullname"
-              value="<?= htmlspecialchars($_SESSION['fullname'] ) ?>" />
+              value="<?= h($ownerName ?: ($_SESSION['fullname'] ?? '')) ?>" />
           </div>
           <div class="flex items-center gap-3">
             <label class="lbl text-gray-800 whitespace-nowrap" for="position">ตำแหน่ง :</label>
             <input type="text" name="position" class="flex-1 border rounded-md p-2" id="position"
-              value="<?= h($formData[5] ?? ($_SESSION['position'] ?? 'อาจารย์ประจำภาควิชาเทคโนโลยีสารสนเทศ')) ?>">
+              value="<?= h($position ?: ($_SESSION['position'] ?? 'อาจารย์ประจำภาควิชาเทคโนโลยีสารสนเทศ')) ?>">
           </div>
           <div class="mb-4">
             <div class="flex items-start gap-2">
@@ -711,7 +771,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
                       d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <input type="hidden" id="rangeDisplay" value="<?= h($formData[6] ?? '') ?>">
+                <input type="hidden" id="rangeDisplay" name="range_date" value="<?= h($formData[6] ?? '') ?>">
                 <input type="hidden" name="join_date" id="joinDate" value="<?= h($formData[6] ?? '') ?>">
               </div>
             </div>
@@ -765,14 +825,11 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
             ?>
 
             <div class="flex items-center gap-3 mb-2">
-              <label class="lbl text-gray-800 whitespace-nowrap" for="amountInput">
+              <label class="lbl text-gray-800 whitespace-nowrap">
                 7.รวมยอดประมาณการค่าใช้จ่าย :
               </label>
 
-              <input type="text" name="amount" id="amountInput" class="border rounded-md p-2 shadow-sm w-32 text-right"
-                value="<?= h($amountDisplay) ?>" inputmode="decimal">
-
-              <span class="text-gray-800">บาท</span>
+              <input type="hidden" name="amount" id="amountInput" value="<?= h($amountDisplay) ?>">
             </div>
 
             <label class="flex items-center gap-3 ml-6 mt-2">
@@ -804,7 +861,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
             </div>
           </div>
           <div class="mt-24 flex justify-end gap-3">
-            <button type="submit" id="nextBtn"
+            <button type="button" id="nextBtn"
               class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md transition">
               ถัดไป
             </button>
@@ -999,7 +1056,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
             class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md transition">
             ย้อนกลับ
           </button>
-          <button type="submit" id="finalSubmitBtn"
+          <button type="button" id="finalSubmitBtn"
             class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md transition">
             ดำเนินการ
           </button>
@@ -1009,6 +1066,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
   </form>
   <script>
   const byId = (id) => document.getElementById(id);
+  const initialBudgetItems = <?= json_encode($budgetItems ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
   const spellState = {
     purpose_other_detail: {
       checked: false,
@@ -1065,6 +1123,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
     ];
     const memoForm = document.getElementById("memoForm");
+    const IS_EDIT_MODE = <?= $isEdit ? 'true' : 'false' ?>;
 
     const mainCategory = document.getElementById("mainCategory");
     const subCategory = document.getElementById("subCategory");
@@ -1196,12 +1255,19 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     }
 
     function parseThaiSingle(raw) {
-      const match = (raw || "").match(/(\d+)\s+([^\s]+)\s+(\d{4})/);
+      raw = (raw || "").trim();
+      if (!raw) return null;
+
+      const ymdDate = parseYMD(raw);
+      if (ymdDate) return ymdDate;
+
+      const match = raw.match(/(\d{1,2})\s+([^\s]+)\s+(\d{4})/);
       if (!match) return null;
 
       const d = parseInt(match[1], 10);
       const monthName = match[2].trim();
-      const year = parseInt(match[3], 10) - 543;
+      let year = parseInt(match[3], 10);
+      if (year > 2400) year -= 543;
 
       const monthIndex = monthsTH.indexOf(monthName);
       if (monthIndex === -1) return null;
@@ -1317,7 +1383,8 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       clickOpens: true,
       dateFormat: "Y-m-d", // internal (เราเอาไปใส่ hidden)
       onReady: (selectedDates, dateStr, inst) => {
-        const d = parseYMD(docDateHidden?.value);
+        const rawDocDate = (docDateHidden?.value || docDateDisplay?.value || "").trim();
+        const d = parseYMD(rawDocDate) || parseThaiSingle(rawDocDate);
         if (d) {
           inst.setDate(d, false);
           docDateDisplay.value = toThaiDisplay(d);
@@ -1452,6 +1519,9 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
         if (dates) {
           eventStartPicker.setDate(dates[0], false);
           eventEndPicker.setDate(dates[1], false);
+          eventStartDate.value = toThaiDisplay(dates[0]);
+          eventEndDate.value = toThaiDisplay(dates[1]);
+          eventDate.value = raw;
 
         }
       } else {
@@ -1493,7 +1563,10 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
         if (dates) {
           startPicker.setDate(dates[0], false);
           endPicker.setDate(dates[1], false);
+          startDate.value = toThaiDisplay(dates[0]);
+          endDate.value = toThaiDisplay(dates[1]);
           rangeDisplay.value = raw;
+          joinDate.value = raw;
         }
       } else {
         optSingle.checked = true;
@@ -1509,20 +1582,37 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
 
     function parseThaiRange(raw) {
-      const match = (raw || "").match(/(\d+)\s+([^\s]+)\s+(\d{4})\s*-\s*(\d+)\s+([^\s]+)\s+(\d{4})/);
-      if (!match) return null;
+      raw = (raw || "").trim().replace(/[–—]/g, "-").replace(/\s*ถึง\s*/g, " - ");
+      if (!raw) return null;
 
-      const d1 = parseInt(match[1], 10);
-      const m1 = monthsTH.indexOf(match[2]);
-      const y1 = parseInt(match[3], 10) - 543;
+      // รูปแบบเต็ม: 1 มกราคม 2568 - 3 กุมภาพันธ์ 2568
+      let match = raw.match(/(\d{1,2})\s+([^\s]+)\s+(\d{4})\s*-\s*(\d{1,2})\s+([^\s]+)\s+(\d{4})/);
+      if (match) {
+        const d1 = parseInt(match[1], 10);
+        const m1 = monthsTH.indexOf(match[2]);
+        let y1 = parseInt(match[3], 10);
+        const d2 = parseInt(match[4], 10);
+        const m2 = monthsTH.indexOf(match[5]);
+        let y2 = parseInt(match[6], 10);
+        if (m1 === -1 || m2 === -1) return null;
+        if (y1 > 2400) y1 -= 543;
+        if (y2 > 2400) y2 -= 543;
+        return [new Date(y1, m1, d1), new Date(y2, m2, d2)];
+      }
 
-      const d2 = parseInt(match[4], 10);
-      const m2 = monthsTH.indexOf(match[5]);
-      const y2 = parseInt(match[6], 10) - 543;
+      // รูปแบบย่อเดือน/ปีเดียวกัน: 1 - 3 มกราคม 2568
+      match = raw.match(/(\d{1,2})\s*-\s*(\d{1,2})\s+([^\s]+)\s+(\d{4})/);
+      if (match) {
+        const d1 = parseInt(match[1], 10);
+        const d2 = parseInt(match[2], 10);
+        const m = monthsTH.indexOf(match[3]);
+        let y = parseInt(match[4], 10);
+        if (m === -1) return null;
+        if (y > 2400) y -= 543;
+        return [new Date(y, m, d1), new Date(y, m, d2)];
+      }
 
-      if (m1 === -1 || m2 === -1) return null;
-
-      return [new Date(y1, m1, d1), new Date(y2, m2, d2)];
+      return null;
     }
 
     const step1 = document.getElementById("step1");
@@ -1764,28 +1854,30 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       return true;
     }
 
-    /*
-    nextBtn?.addEventListener("click", async () => {
+    nextBtn?.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
       if (noCostCheckbox?.checked) return;
 
-      try {
-        if (optSingle?.checked && singleDate?.value?.trim()) {
-          joinDate.value = singleDate.value.trim();
-        }
+      if (optSingle?.checked && singleDate?.value?.trim()) {
+        joinDate.value = singleDate.value.trim();
+      }
 
-        if (optRange?.checked && rangeDisplay?.value?.trim()) {
+      if (optRange?.checked) {
+        updateRangeDisplay();
+        if (rangeDisplay?.value?.trim()) {
           joinDate.value = rangeDisplay.value.trim();
         }
+      }
 
-        const okSpell = await checkAllSpellFields();
-        if (!okSpell) return;
+      const okSpell = await checkAllSpellFields();
+      if (!okSpell) return;
 
-        if (!validateStep1Minimal()) return;
+      if (!validateStep1Minimal()) return;
 
-        showStep2();
-      } finally {}
+      showStep2();
     });
-    */
 
     backBtn?.addEventListener("click", () => {
       showStep1();
@@ -1796,6 +1888,56 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
       // กันกดรัว
       const submitter = event.submitter || finalSubmitBtn || submitBtnStep1;
+
+      // ✅ ถ้ากดปุ่ม "ดำเนินการ" ใน Step 2 แล้ว ให้ส่งข้อมูลค่าใช้จ่ายทันที
+      // ไม่ย้อนกลับไป validate/scroll ช่องใน Step 1 อีกรอบ เพราะ Step 1 ผ่านแล้วตอนกด "ถัดไป"
+      const isFinalExpenseSubmit = !!(finalSubmitBtn && submitter === finalSubmitBtn);
+      if (isFinalExpenseSubmit) {
+        if (submitter) submitter.disabled = true;
+
+        try {
+          if (docDateDisplay?.value && !docDateHidden?.value) {
+            const d = docPicker.selectedDates[0];
+            if (d) docDateHidden.value = docPicker.formatDate(d, "Y-m-d");
+          }
+
+          if (eventOptSingle?.checked && eventSingleDate?.value?.trim()) {
+            eventDate.value = eventSingleDate.value.trim();
+          } else if (eventOptRange?.checked) {
+            updateEventRangeDisplay();
+          }
+
+          if (optSingle?.checked && singleDate?.value?.trim()) {
+            joinDate.value = singleDate.value.trim();
+          } else if (optRange?.checked) {
+            updateRangeDisplay();
+            if (rangeDisplay?.value?.trim()) joinDate.value = rangeDisplay.value.trim();
+          }
+
+          if (onlineCheckbox?.checked) {
+            placeOnsite.value = "เข้าร่วมรูปแบบออนไลน์";
+            placeOnsite.disabled = false;
+          }
+
+          calcAll();
+          if (typeof syncExpenseJsonForPresentation === "function") {
+            syncExpenseJsonForPresentation();
+          }
+
+          amountInput.value = (amountInput.value || totalAmountHidden?.value || totalAmountEl?.value ||
+              "0.00")
+            .replace(/,/g, "")
+            .trim();
+
+          // Step 2 อยู่ในหน้านี้แล้ว จึงส่งตรงไป update/save ไม่ส่งกลับไป Step 1 และไม่ต้องไป form_Calcu.php
+          memoForm.action = IS_EDIT_MODE ? "/Pro_letter/documents/update_memo.php" : "save_memo.php";
+          memoForm.submit();
+          return;
+        } finally {
+          if (submitter) submitter.disabled = false;
+        }
+      }
+
       if (submitter) submitter.disabled = true;
 
       try {
@@ -1944,8 +2086,16 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
         const okSpell = await checkAllSpellFields();
         if (!okSpell) return;
 
-        // เลือกปลายทางตามการติ๊ก "ไม่เบิกค่าใช้จ่าย"
-        if (noCostCheckbox?.checked) {
+        // กดดำเนินการจาก Step 2 ต้องรวมรายการค่าใช้จ่ายเป็น hidden ก่อนส่ง update/save
+        calcAll();
+        if (typeof syncExpenseJsonForPresentation === "function") {
+          syncExpenseJsonForPresentation();
+        }
+
+        // โหมดแก้ไขต้องส่งไป update_memo.php เพื่ออัปเดตเอกสารเดิม
+        if (IS_EDIT_MODE) {
+          memoForm.action = "/Pro_letter/documents/update_memo.php";
+        } else if (noCostCheckbox?.checked) {
           memoForm.action = "save_memo.php";
           amountInput.value = "0.00";
         } else {
@@ -1968,6 +2118,8 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
     const totalAmountEl = document.getElementById("totalAmount");
     const totalAmountHidden = document.getElementById("totalAmountHidden");
+    const compTotal = document.getElementById("compTotal");
+    const matTotal = document.getElementById("matTotal");
 
     const addCompBtn = document.getElementById("addCompBtn");
     const compList = document.getElementById("compList");
@@ -2069,20 +2221,69 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       return `${d} ${m} ${y}`;
     }
 
+    function normalizeThaiNumber(value) {
+      const thaiDigits = "๐๑๒๓๔๕๖๗๘๙";
+      return String(value || "").replace(/[๐-๙]/g, ch => {
+        const index = thaiDigits.indexOf(ch);
+        return index >= 0 ? String(index) : ch;
+      });
+    }
+
+    function parseLodThaiShortDate(raw) {
+      const text = normalizeThaiNumber(String(raw || "").trim());
+      const match = text.match(/(\d+)\s+([^\s]+)\s+(\d{2}|\d{4})/);
+      if (!match) return null;
+
+      const day = parseInt(match[1], 10);
+      const monthIndex = lodMonthsTH.indexOf(match[2]);
+      let year = parseInt(match[3], 10);
+      if (monthIndex === -1) return null;
+      if (year < 100) year = 2500 + year;
+      if (year > 2400) year -= 543;
+
+      return new Date(year, monthIndex, day);
+    }
+
+    function diffLodNights(startDateObj, endDateObj) {
+      if (!startDateObj || !endDateObj) return 1;
+      const start = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), startDateObj.getDate());
+      const end = new Date(endDateObj.getFullYear(), endDateObj.getMonth(), endDateObj.getDate());
+      const diff = Math.round((end - start) / (1000 * 60 * 60 * 24));
+      return diff > 0 ? diff : 1;
+    }
+
+    function syncLodNightsFromDates() {
+      if (!lodNights) return;
+
+      if (lodOptSingle?.checked) {
+        lodNights.value = 1;
+        return;
+      }
+
+      const start = lodStartPicker?.selectedDates?. [0] || parseLodThaiShortDate(lodStartDate?.value || "");
+      const end = lodEndPicker?.selectedDates?. [0] || parseLodThaiShortDate(lodEndDate?.value || "");
+      if (start && end) {
+        lodNights.value = diffLodNights(start, end);
+      }
+    }
+
     function updateLodDateText() {
       if (!lodDateText) return;
 
       if (lodOptSingle?.checked) {
         lodDateText.value = lodSingleDate?.value || "";
+        if (lodNights) lodNights.value = 1;
       } else {
         const start = lodStartDate?.value || "";
         const end = lodEndDate?.value || "";
         lodDateText.value = (start && end) ? `${start} – ${end}` : "";
+        syncLodNightsFromDates();
       }
 
       calcAll();
     }
-    flatpickr(lodSingleDate, {
+
+    const lodSinglePicker = flatpickr(lodSingleDate, {
       locale: "th",
       disableMobile: true,
       allowInput: false,
@@ -2092,7 +2293,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       }
     });
 
-    flatpickr(lodStartDate, {
+    const lodStartPicker = flatpickr(lodStartDate, {
       locale: "th",
       disableMobile: true,
       allowInput: false,
@@ -2102,7 +2303,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       }
     });
 
-    flatpickr(lodEndDate, {
+    const lodEndPicker = flatpickr(lodEndDate, {
       locale: "th",
       disableMobile: true,
       allowInput: false,
@@ -2160,6 +2361,288 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       calcAll();
     }
 
+    function makeTransportRow(data = {}) {
+      const row = document.createElement("div");
+      row.className = "p-4 rounded-[18px] border-2 bg-white";
+      row.style.borderColor = "#11c2b9";
+
+      row.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end mb-4">
+          <div class="md:col-span-4">
+            <label class="text-gray-800 font-bold block mb-1">ประเภทพาหนะ</label>
+            <select class="w-full border-2 border-[#11C2B9] bg-[#e3f9f8] rounded-md p-2 font-bold js-tr-type">
+              <option value="fuel">ค่าน้ำมันรถยนต์</option>
+              <option value="flight">เครื่องบิน</option>
+              <option value="other">อื่น ๆ</option>
+            </select>
+          </div>
+
+          <div class="md:col-span-5 text-gray-500 text-sm pb-2 js-tr-hint">
+            ค่าน้ำมัน = ระยะทาง × บาท/กม. × จำนวนเที่ยว
+          </div>
+
+          <div class="md:col-span-3 flex md:justify-end">
+            <button type="button"
+              class="js-tr-del bg-white border-2 border-red-400 text-red-600 font-bold px-4 py-2 rounded-md hover:bg-red-50">
+              ลบรายการ
+            </button>
+          </div>
+        </div>
+
+        <div class="js-tr-section js-tr-fuel space-y-3">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="text-gray-700 block mb-1">ต้นทาง</label>
+              <input type="text" class="w-full border rounded-md p-2 js-tr-origin" placeholder="เช่น ปราจีนบุรี">
+            </div>
+            <div>
+              <label class="text-gray-700 block mb-1">ปลายทาง</label>
+              <input type="text" class="w-full border rounded-md p-2 js-tr-destination" placeholder="เช่น กรุงเทพฯ">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label class="text-gray-700 block mb-1">ระยะทาง (กม.)</label>
+              <input type="number" class="w-full border rounded-md p-2 js-tr-distance" min="0" step="0.01" value="0">
+            </div>
+            <div>
+              <label class="text-gray-700 block mb-1">บาท/กม.</label>
+              <input type="number" class="w-full border rounded-md p-2 js-tr-rate" min="0" step="0.01" value="4">
+            </div>
+            <div>
+              <label class="text-gray-700 block mb-1">จำนวนเที่ยว</label>
+              <input type="number" class="w-full border rounded-md p-2 js-tr-trips" min="1" step="1" value="1">
+            </div>
+          </div>
+        </div>
+
+        <div class="js-tr-section js-tr-flight hidden space-y-3">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="text-gray-700 block mb-1">สายการบิน</label>
+              <input type="text" class="w-full border rounded-md p-2 js-tr-airline" placeholder="เช่น Thai Airways">
+            </div>
+            <div>
+              <label class="text-gray-700 block mb-1">เส้นทางบิน</label>
+              <input type="text" class="w-full border rounded-md p-2 js-tr-route-flight" placeholder="เช่น BKK - CNX">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label class="text-gray-700 block mb-1">ราคาตั๋ว/คน</label>
+              <input type="number" class="w-full border rounded-md p-2 js-tr-ticket" min="0" step="0.01" value="0">
+            </div>
+            <div>
+              <label class="text-gray-700 block mb-1">จำนวนเที่ยว</label>
+              <input type="number" class="w-full border rounded-md p-2 js-tr-flight-trips" min="1" step="1" value="1">
+            </div>
+            <div>
+              <label class="text-gray-700 block mb-1">จำนวนคน</label>
+              <input type="number" class="w-full border rounded-md p-2 js-tr-flight-people" min="1" step="1" value="1">
+            </div>
+          </div>
+        </div>
+
+        <div class="js-tr-section js-tr-other hidden space-y-3">
+          <div>
+            <label class="text-gray-700 block mb-1">รายละเอียด/เส้นทาง</label>
+            <input type="text" class="w-full border rounded-md p-2 js-tr-route-other" placeholder="เช่น รถตู้ / แท็กซี่ / ค่าเดินทางอื่น ๆ">
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label class="text-gray-700 block mb-1">ราคา/เที่ยว/คน</label>
+              <input type="number" class="w-full border rounded-md p-2 js-tr-unit" min="0" step="0.01" value="0">
+            </div>
+            <div>
+              <label class="text-gray-700 block mb-1">จำนวนเที่ยว</label>
+              <input type="number" class="w-full border rounded-md p-2 js-tr-other-trips" min="1" step="1" value="1">
+            </div>
+            <div>
+              <label class="text-gray-700 block mb-1">จำนวนคน</label>
+              <input type="number" class="w-full border rounded-md p-2 js-tr-other-people" min="1" step="1" value="1">
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 flex justify-end">
+          <div class="bg-gray-50 border rounded-md px-4 py-2 text-gray-800 font-bold">
+            รวมรายการนี้: <span class="js-tr-row-total ml-1">0.00</span> บาท
+          </div>
+        </div>
+        <input type="hidden" class="js-type" value="transport">
+      `;
+
+      const typeSelect = row.querySelector(".js-tr-type");
+
+      function setVal(selector, value) {
+        const el = row.querySelector(selector);
+        if (el && value !== undefined && value !== null && value !== "") el.value = value;
+      }
+
+      if (data.type) typeSelect.value = data.type;
+      setVal(".js-tr-origin", data.origin);
+      setVal(".js-tr-destination", data.destination);
+      setVal(".js-tr-distance", data.distance);
+      setVal(".js-tr-rate", data.rate ?? 4);
+      setVal(".js-tr-trips", data.trips ?? 1);
+
+      setVal(".js-tr-airline", data.airline);
+      setVal(".js-tr-route-flight", data.route);
+      setVal(".js-tr-ticket", data.ticket_price);
+      setVal(".js-tr-flight-trips", data.trips ?? 1);
+      setVal(".js-tr-flight-people", data.people ?? 1);
+
+      setVal(".js-tr-route-other", data.route || data.desc);
+      setVal(".js-tr-unit", data.unit_price);
+      setVal(".js-tr-other-trips", data.trips ?? 1);
+      setVal(".js-tr-other-people", data.people ?? 1);
+
+      function syncTransportTypeUI() {
+        const type = typeSelect.value;
+        row.querySelector(".js-tr-fuel").classList.toggle("hidden", type !== "fuel");
+        row.querySelector(".js-tr-flight").classList.toggle("hidden", type !== "flight");
+        row.querySelector(".js-tr-other").classList.toggle("hidden", type !== "other");
+
+        const hint = row.querySelector(".js-tr-hint");
+        if (hint) {
+          if (type === "fuel") hint.textContent = "ค่าน้ำมัน = ระยะทาง × บาท/กม. × จำนวนเที่ยว";
+          else if (type === "flight") hint.textContent = "เครื่องบิน = ราคาตั๋ว/คน × จำนวนเที่ยว × จำนวนคน";
+          else hint.textContent = "อื่น ๆ = ราคา/เที่ยว/คน × จำนวนเที่ยว × จำนวนคน";
+        }
+        calcAll();
+      }
+
+      row.querySelector(".js-tr-del").addEventListener("click", () => {
+        row.remove();
+        syncEmpty(trList, trEmpty);
+        calcAll();
+      });
+
+      row.querySelectorAll("input, select").forEach(el => {
+        el.addEventListener("input", calcAll);
+        el.addEventListener("change", calcAll);
+      });
+      typeSelect.addEventListener("change", syncTransportTypeUI);
+
+      trList.appendChild(row);
+      syncTransportTypeUI();
+      syncEmpty(trList, trEmpty);
+      calcAll();
+      return row;
+    }
+
+    function getTransportRowData(row) {
+      const type = row.querySelector(".js-tr-type")?.value || "other";
+
+      if (type === "fuel") {
+        const distance = n(row.querySelector(".js-tr-distance")?.value);
+        const rate = n(row.querySelector(".js-tr-rate")?.value);
+        const trips = n(row.querySelector(".js-tr-trips")?.value || 1);
+        return {
+          type: "fuel",
+          origin: (row.querySelector(".js-tr-origin")?.value || "").trim(),
+          destination: (row.querySelector(".js-tr-destination")?.value || "").trim(),
+          distance,
+          rate,
+          trips,
+          amount: distance * rate * trips
+        };
+      }
+
+      if (type === "flight") {
+        const ticket = n(row.querySelector(".js-tr-ticket")?.value);
+        const trips = n(row.querySelector(".js-tr-flight-trips")?.value || 1);
+        const people = n(row.querySelector(".js-tr-flight-people")?.value || 1);
+        return {
+          type: "flight",
+          airline: (row.querySelector(".js-tr-airline")?.value || "").trim(),
+          route: (row.querySelector(".js-tr-route-flight")?.value || "").trim(),
+          ticket_price: ticket,
+          trips,
+          people,
+          amount: ticket * trips * people
+        };
+      }
+
+      const unit = n(row.querySelector(".js-tr-unit")?.value);
+      const trips = n(row.querySelector(".js-tr-other-trips")?.value || 1);
+      const people = n(row.querySelector(".js-tr-other-people")?.value || 1);
+      return {
+        type: "other",
+        route: (row.querySelector(".js-tr-route-other")?.value || "").trim(),
+        unit_price: unit,
+        trips,
+        people,
+        amount: unit * trips * people
+      };
+    }
+
+    function formatTransportDesc(data) {
+      if (!data) return "ค่าพาหนะ";
+      if (data.type === "fuel") {
+        return `ค่าพาหนะ\n- ค่าน้ำมันรถยนต์ ${data.origin || ""} ไป ${data.destination || ""}\n- ระยะทาง ${n(data.distance)} กม. × ${n(data.rate)} บาท × ${n(data.trips || 1)} เที่ยว`;
+      }
+      if (data.type === "flight") {
+        return `ค่าพาหนะ\n- ค่าโดยสารตั๋วเครื่องบิน ไป-กลับ ชั้นประหยัด\n- ${data.airline || ""} ${data.route || ""}\n- ${money(n(data.ticket_price))} บาท × ${n(data.trips || 1)} เที่ยว × ${n(data.people || 1)} คน`;
+      }
+      return `ค่าพาหนะ\n- ${data.route || "ค่าพาหนะ"}\n- ${money(n(data.unit_price))} บาท × ${n(data.trips || 1)} เที่ยว × ${n(data.people || 1)} คน`;
+    }
+
+    function calcTransportTotal() {
+      let sum = 0;
+      [...(trList?.children || [])].forEach(row => {
+        const data = getTransportRowData(row);
+        sum += n(data.amount);
+        const totalEl = row.querySelector(".js-tr-row-total");
+        if (totalEl) totalEl.textContent = money(data.amount);
+      });
+      return sum;
+    }
+
+    function parseTransportDescToData(desc, amount = 0) {
+      const clean = normalizeThaiNumber(String(desc || ""));
+
+      if (clean.includes("ค่าน้ำมันรถยนต์")) {
+        const routeMatch = clean.match(/ค่าน้ำมันรถยนต์\s*(.*?)\s*ไป\s*(.*?)(?:\n|- ระยะทาง|$)/);
+        const formulaMatch = clean.match(
+          /ระยะทาง\s*([\d.]+)\s*กม\.\s*[×x]\s*([\d.]+)\s*บาท\s*[×x]\s*([\d.]+)\s*เที่ยว/);
+        return {
+          type: "fuel",
+          origin: routeMatch?. [1]?.trim() || "",
+          destination: routeMatch?. [2]?.trim() || "",
+          distance: formulaMatch ? Number(formulaMatch[1]) : 0,
+          rate: formulaMatch ? Number(formulaMatch[2]) : 4,
+          trips: formulaMatch ? Number(formulaMatch[3]) : 1
+        };
+      }
+
+      if (clean.includes("เครื่องบิน") || clean.includes("ตั๋วเครื่องบิน")) {
+        const lines = clean.split(/\n+/).map(s => s.replace(/^-+\s*/, "").trim()).filter(Boolean);
+        const routeLine = lines.find(line => !line.includes("ค่าพาหนะ") && !line.includes("ตั๋วเครื่องบิน") && !line
+          .includes("บาท ×")) || "";
+        const formulaMatch = clean.match(/([\d,.]+)\s*บาท\s*[×x]\s*([\d.]+)\s*เที่ยว\s*[×x]\s*([\d.]+)\s*คน/);
+        return {
+          type: "flight",
+          airline: "",
+          route: routeLine,
+          ticket_price: formulaMatch ? Number(String(formulaMatch[1]).replace(/,/g, "")) : n(amount),
+          trips: formulaMatch ? Number(formulaMatch[2]) : 1,
+          people: formulaMatch ? Number(formulaMatch[3]) : 1
+        };
+      }
+
+      const lines = clean.split(/\n+/).map(s => s.replace(/^-+\s*/, "").trim()).filter(Boolean);
+      const routeLine = lines.find(line => line && !line.includes("ค่าพาหนะ") && !line.includes("บาท ×")) || "";
+      const formulaMatch = clean.match(/([\d,.]+)\s*บาท\s*[×x]\s*([\d.]+)\s*เที่ยว\s*[×x]\s*([\d.]+)\s*คน/);
+      return {
+        type: "other",
+        route: routeLine || clean,
+        unit_price: formulaMatch ? Number(String(formulaMatch[1]).replace(/,/g, "")) : n(amount),
+        trips: formulaMatch ? Number(formulaMatch[2]) : 1,
+        people: formulaMatch ? Number(formulaMatch[3]) : 1
+      };
+    }
+
     function syncEmpty(container, emptyEl) {
       if (!container || !emptyEl) return;
       emptyEl.style.display = container.children.length ? "none" : "block";
@@ -2182,13 +2665,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     });
 
     addTrItemBtn?.addEventListener("click", () => {
-      // transport รองรับใน enum ตรง ๆ
-      makeRow({
-        type: "transport",
-        container: trList,
-        emptyEl: trEmpty,
-        placeholder: "เช่น รถตู้/แท็กซี่/น้ำมัน"
-      });
+      makeTransportRow();
     });
     regEnabled?.addEventListener("change", () => {
       calcAll();
@@ -2239,7 +2716,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       const perSum = calcPer();
 
       let trSum = 0;
-      if (trEnabled?.checked) trSum = calcDynamic(trList, "transport");
+      if (trEnabled?.checked) trSum = calcTransportTotal();
       regTotal.textContent = money(regSum);
       lodTotal.textContent = money(lodSum);
       perTotal.textContent = money(perSum);
@@ -2270,6 +2747,99 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       input.value = value;
       input.setAttribute("data-budget", "1");
       memoForm.appendChild(input);
+    }
+
+    function setNamedHidden(name, value) {
+      let input = memoForm.querySelector(`input[name="${name}"]`);
+      if (!input) {
+        input = document.createElement("input");
+        input.type = "hidden";
+        input.name = name;
+        memoForm.appendChild(input);
+      }
+      input.value = value;
+    }
+
+    function collectRows(container) {
+      return [...(container?.children || [])].map(row => ({
+        desc: (row.querySelector(".js-desc")?.value || "").trim(),
+        amount: n(row.querySelector(".js-amt")?.value)
+      })).filter(item => item.desc || item.amount > 0);
+    }
+
+    function buildExpenseJsonForPresentation() {
+      const compensation = collectRows(compList);
+      const materials = collectRows(matList);
+
+      const transportItems = [...(trList?.children || [])].map(row => {
+        const data = getTransportRowData(row);
+        if (!data || n(data.amount) <= 0) return null;
+
+        if (data.type === "fuel") {
+          return {
+            type: "fuel",
+            origin: data.origin,
+            destination: data.destination,
+            distance: n(data.distance),
+            rate: n(data.rate),
+            trips: n(data.trips || 1)
+          };
+        }
+
+        if (data.type === "flight") {
+          return {
+            type: "flight",
+            airline: data.airline,
+            route: data.route,
+            ticket_price: n(data.ticket_price),
+            trips: n(data.trips || 1),
+            people: n(data.people || 1)
+          };
+        }
+
+        return {
+          type: "other",
+          route: data.route || "ค่าพาหนะ",
+          unit_price: n(data.unit_price),
+          trips: n(data.trips || 1),
+          people: n(data.people || 1)
+        };
+      }).filter(Boolean);
+
+      return {
+        compensation,
+        allowance: {
+          registration: {
+            enabled: !!regEnabled?.checked,
+            price: n(regPrice?.value),
+            people: n(regPeople?.value || 1)
+          },
+          lodging: {
+            enabled: !!lodEnabled?.checked,
+            date_text: lodDateText?.value || "",
+            unit_price: n(lodUnit?.value),
+            nights: n(lodNights?.value || 1),
+            people: n(lodPeople?.value || 1)
+          },
+          perdiem: {
+            enabled: !!perEnabled?.checked,
+            unit_price: n(perUnit?.value),
+            meals: n(perMeals?.value || 1),
+            people: n(perPeople?.value || 1)
+          },
+          transport: {
+            enabled: !!trEnabled?.checked,
+            items: transportItems
+          }
+        },
+        materials
+      };
+    }
+
+    function syncExpenseJsonForPresentation() {
+      const expenseData = buildExpenseJsonForPresentation();
+      setNamedHidden("expense_json", JSON.stringify(expenseData));
+      setNamedHidden("amount", totalAmountHidden?.value || totalAmountEl?.value || "0.00");
     }
 
     function buildBudgetHiddenInputs() {
@@ -2304,11 +2874,11 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       }
       if (trEnabled?.checked) {
         [...(trList?.children || [])].forEach(row => {
-          const desc = (row.querySelector(".js-desc")?.value || "").trim();
-          const amt = money(n(row.querySelector(".js-amt")?.value));
-          if (!desc && amt === "0.00") return;
+          const data = getTransportRowData(row);
+          const amt = money(n(data?.amount));
+          if (amt === "0.00") return;
           addHidden("budget_type[]", "transport");
-          addHidden("budget_desc[]", desc || "ค่าพาหนะ");
+          addHidden("budget_desc[]", formatTransportDesc(data));
           addHidden("budget_amount[]", amt);
         });
       }
@@ -2321,14 +2891,328 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
         addHidden("budget_amount[]", amt);
       });
     }
+
+    function makePresetBudgetRow({
+      type,
+      container,
+      emptyEl,
+      desc,
+      amount
+    }) {
+      const row = document.createElement("div");
+      row.className = "p-3 rounded-[16px] border-2 flex flex-wrap gap-3 items-end";
+      row.style.borderColor = "#11c2b9";
+      row.style.background = "#ffffff";
+      row.innerHTML = `
+    <div class="flex-1 min-w-[260px]">
+      <label class="text-gray-700">รายละเอียด</label>
+      <input type="text" class="w-full border rounded-md p-2 js-desc" placeholder="รายละเอียด" value="${escapeHtml(desc || "")}">
+    </div>
+    <div class="w-[180px]">
+      <label class="text-gray-700">จำนวนเงิน (บาท)</label>
+      <input type="number" class="w-full border rounded-md p-2 js-amt" min="0" step="0.01" value="${money(n(amount))}">
+    </div>
+    <div>
+      <button type="button" class="js-del bg-white border-2 border-red-400 text-red-600 font-bold px-3 py-2 rounded-md hover:bg-red-50">
+        ลบ
+      </button>
+    </div>
+    <input type="hidden" class="js-type" value="${type}">
+  `;
+      row.querySelector(".js-del").addEventListener("click", () => {
+        row.remove();
+        syncEmpty(container, emptyEl);
+        calcAll();
+      });
+      row.querySelector(".js-desc").addEventListener("input", calcAll);
+      row.querySelector(".js-amt").addEventListener("input", calcAll);
+      container.appendChild(row);
+      syncEmpty(container, emptyEl);
+    }
+
+    function parseBudgetFormula(desc, keys = []) {
+      const clean = normalizeThaiNumber(String(desc || ""));
+      const bracket = clean.match(/\(([^)]*)\)/);
+      const source = bracket ? bracket[1] : clean;
+      const nums = (source.match(/\d+(?:\.\d+)?/g) || []).map(Number);
+
+      const result = {};
+      keys.forEach((key, i) => {
+        if (typeof nums[i] !== "undefined" && Number.isFinite(nums[i])) {
+          result[key] = nums[i];
+        }
+      });
+      return result;
+    }
+
+    function extractLodDateTextFromDesc(desc) {
+      const clean = String(desc || "").trim();
+      const match = clean.match(/ค่าที่พัก\s*(.*?)\s*\(/);
+      if (match && match[1]) return match[1].trim();
+      return "";
+    }
+
+    function prefillLodDateFromDescription(desc) {
+      const dateText = extractLodDateTextFromDesc(desc);
+      if (!dateText) return false;
+
+      if (dateText.includes("–") || dateText.includes("-") || dateText.includes("ถึง")) {
+        const parts = dateText.split(/\s*(?:–|-|ถึง)\s*/).filter(Boolean);
+        if (parts.length >= 2) {
+          const startObj = parseLodThaiShortDate(parts[0]);
+          const endObj = parseLodThaiShortDate(parts[1]);
+
+          if (lodOptRange) lodOptRange.checked = true;
+          if (lodOptSingle) lodOptSingle.checked = false;
+
+          if (lodStartDate) lodStartDate.value = parts[0];
+          if (lodEndDate) lodEndDate.value = parts[1];
+
+          if (startObj && lodStartPicker) lodStartPicker.setDate(startObj, false);
+          if (endObj && lodEndPicker) lodEndPicker.setDate(endObj, false);
+
+          updateLodDateText();
+          return true;
+        }
+      }
+
+      const singleObj = parseLodThaiShortDate(dateText);
+      if (lodOptSingle) lodOptSingle.checked = true;
+      if (lodOptRange) lodOptRange.checked = false;
+      if (lodSingleDate) lodSingleDate.value = dateText;
+      if (singleObj && lodSinglePicker) lodSinglePicker.setDate(singleObj, false);
+
+      updateLodDateText();
+      return true;
+    }
+
+    function preloadBudgetItems() {
+      if (!Array.isArray(initialBudgetItems) || initialBudgetItems.length === 0) return;
+
+      initialBudgetItems.forEach(item => {
+        const type = String(item.item_type || item.type || "other");
+        const desc = String(item.description || "");
+        const amt = money(n(item.amount));
+
+        if (type === "registration") {
+          const f = parseBudgetFormula(desc, ["price", "people"]);
+          if (regEnabled) regEnabled.checked = true;
+          if (regPrice) regPrice.value = typeof f.price !== "undefined" ? f.price : amt;
+          if (regPeople) regPeople.value = typeof f.people !== "undefined" ? f.people : 1;
+          return;
+        }
+
+        if (type === "accommodation") {
+          const f = parseBudgetFormula(desc, ["unit", "nights", "people"]);
+          const hasPrefilledDate = prefillLodDateFromDescription(desc);
+
+          if (lodEnabled) lodEnabled.checked = true;
+          if (lodUnit) lodUnit.value = typeof f.unit !== "undefined" ? f.unit : amt;
+          if (lodPeople) lodPeople.value = typeof f.people !== "undefined" ? f.people : 1;
+          if (!hasPrefilledDate && lodNights) {
+            lodNights.value = typeof f.nights !== "undefined" ? f.nights : 1;
+          }
+
+          updateLodDateText();
+          return;
+        }
+
+        if (type === "per_diem") {
+          const f = parseBudgetFormula(desc, ["unit", "meals", "people"]);
+          if (perEnabled) perEnabled.checked = true;
+          if (perUnit) perUnit.value = typeof f.unit !== "undefined" ? f.unit : amt;
+          if (perMeals) perMeals.value = typeof f.meals !== "undefined" ? f.meals : 1;
+          if (perPeople) perPeople.value = typeof f.people !== "undefined" ? f.people : 1;
+          return;
+        }
+
+        if (type === "transport") {
+          if (trEnabled) trEnabled.checked = true;
+          makeTransportRow(parseTransportDescToData(desc, amt));
+          return;
+        }
+
+        const targetIsComp = /ค่าตอบแทน|วิทยากร/.test(desc);
+        makePresetBudgetRow({
+          type: "other",
+          container: targetIsComp ? compList : matList,
+          emptyEl: targetIsComp ? compEmpty : matEmpty,
+          desc,
+          amount: amt
+        });
+      });
+    }
+
+    preloadBudgetItems();
     syncEmpty(compList, compEmpty);
     syncEmpty(matList, matEmpty);
     syncEmpty(trList, trEmpty);
     calcAll();
 
-    finalSubmitBtn?.addEventListener("click", () => {
-      calcAll();
+    function expenseFieldHasValue(el, defaultValue = "0") {
+      if (!el) return false;
+      const value = String(el.value || "").trim();
+      if (value === "") return false;
+      if (el.type === "number") {
+        return n(value) !== n(defaultValue);
+      }
+      return true;
+    }
 
+    function rowHasAnyExpenseInput(row) {
+      if (!row) return false;
+      return [...row.querySelectorAll("input, select, textarea")].some(el => {
+        if (el.type === "hidden") return false;
+        if (el.classList.contains("js-tr-type")) {
+          return (el.value || "") !== "fuel";
+        }
+        if (el.type === "number") {
+          const defaultValue = el.classList.contains("js-tr-rate") ? "4" :
+            (el.classList.contains("js-tr-trips") ||
+              el.classList.contains("js-tr-flight-trips") ||
+              el.classList.contains("js-tr-flight-people") ||
+              el.classList.contains("js-tr-other-trips") ||
+              el.classList.contains("js-tr-other-people")) ? "1" : "0";
+          return expenseFieldHasValue(el, defaultValue);
+        }
+        return String(el.value || "").trim() !== "";
+      });
+    }
+
+    function hasRegistrationInputWithoutTick() {
+      return !regEnabled?.checked && (
+        n(regPrice?.value) > 0 ||
+        n(regPeople?.value || 1) !== 1
+      );
+    }
+
+    function hasLodgingInputWithoutTick() {
+      return !lodEnabled?.checked && (
+        n(lodUnit?.value) > 0 ||
+        n(lodNights?.value || 1) !== 1 ||
+        n(lodPeople?.value || 1) !== 1 ||
+        String(lodSingleDate?.value || "").trim() !== "" ||
+        String(lodStartDate?.value || "").trim() !== "" ||
+        String(lodEndDate?.value || "").trim() !== ""
+      );
+    }
+
+    function hasPerDiemInputWithoutTick() {
+      return !perEnabled?.checked && (
+        n(perUnit?.value) > 0 ||
+        n(perMeals?.value || 1) !== 1 ||
+        n(perPeople?.value || 1) !== 1
+      );
+    }
+
+    function hasTransportInputWithoutTick() {
+      return !trEnabled?.checked && [...(trList?.children || [])].some(rowHasAnyExpenseInput);
+    }
+
+    function validateExpenseStep2() {
+      [regEnabled, lodEnabled, perEnabled, trEnabled].forEach(clearError);
+
+      const checks = [{
+          invalid: hasRegistrationInputWithoutTick(),
+          el: regEnabled,
+          msg: "กรุณาติ๊กเลือกค่าลงทะเบียนก่อน หากต้องการบันทึกรายการนี้"
+        },
+        {
+          invalid: hasLodgingInputWithoutTick(),
+          el: lodEnabled,
+          msg: "กรุณาติ๊กเลือกค่าที่พักค้างคืนก่อน หากต้องการบันทึกรายการนี้"
+        },
+        {
+          invalid: hasPerDiemInputWithoutTick(),
+          el: perEnabled,
+          msg: "กรุณาติ๊กเลือกค่าเบี้ยเลี้ยงก่อน หากต้องการบันทึกรายการนี้"
+        },
+        {
+          invalid: hasTransportInputWithoutTick(),
+          el: trEnabled,
+          msg: "กรุณาติ๊กเลือกค่าพาหนะก่อน หากต้องการบันทึกรายการนี้"
+        }
+      ];
+
+      const firstInvalid = checks.find(item => item.invalid);
+      if (!firstInvalid) return true;
+
+      setError(firstInvalid.el, firstInvalid.msg);
+      alert(firstInvalid.msg);
+      firstInvalid.el?.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
+      setTimeout(() => firstInvalid.el?.focus?.(), 150);
+      return false;
+    }
+
+    finalSubmitBtn?.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (finalSubmitBtn.disabled) return;
+
+      // ถ้ากรอกข้อมูลในหมวดค่าใช้จ่าย แต่ยังไม่ได้ติ๊กเลือกหมวดนั้น ให้หยุดและแจ้งก่อน
+      if (!validateExpenseStep2()) return;
+
+      finalSubmitBtn.disabled = true;
+
+      try {
+        // sync วันที่เอกสาร
+        if (docDateDisplay?.value && !docDateHidden?.value) {
+          const d = docPicker.selectedDates[0];
+          if (d) docDateHidden.value = docPicker.formatDate(d, "Y-m-d");
+        }
+
+        // sync วันที่จัดงาน
+        if (eventOptSingle?.checked && eventSingleDate?.value?.trim()) {
+          eventDate.value = eventSingleDate.value.trim();
+        } else if (eventOptRange?.checked) {
+          updateEventRangeDisplay();
+        }
+
+        // sync วันที่เข้าร่วม: สำคัญมาก เพราะ update_memo.php ใช้ range_date ด้วย
+        if (optSingle?.checked && singleDate?.value?.trim()) {
+          joinDate.value = singleDate.value.trim();
+          if (rangeDisplay) rangeDisplay.value = "";
+        } else if (optRange?.checked) {
+          updateRangeDisplay();
+          if (rangeDisplay?.value?.trim()) {
+            joinDate.value = rangeDisplay.value.trim();
+          }
+        }
+
+        // sync สถานที่
+        if (onlineCheckbox?.checked) {
+          placeOnsite.disabled = false;
+          placeOnsite.value = "เข้าร่วมรูปแบบออนไลน์";
+        } else if (onsiteCheckbox?.checked) {
+          placeOnsite.disabled = false;
+        }
+
+        // รวมค่าใช้จ่าย + สร้าง budget_type[] / budget_desc[] / budget_amount[]
+        calcAll();
+        if (typeof syncExpenseJsonForPresentation === "function") {
+          syncExpenseJsonForPresentation();
+        }
+
+        if (amountInput) {
+          amountInput.disabled = false;
+          amountInput.value = (totalAmountHidden?.value || totalAmountEl?.value || amountInput.value || "0.00")
+            .replace(/,/g, "")
+            .trim();
+        }
+
+        memoForm.action = IS_EDIT_MODE ? "/Pro_letter/documents/update_memo.php" : "save_memo.php";
+
+        // ใช้ native submit เพื่อไม่เข้า submit handler เดิมที่ validate Step 1 ซ้ำแล้วเด้งกลับ
+        HTMLFormElement.prototype.submit.call(memoForm);
+      } catch (err) {
+        console.error(err);
+        finalSubmitBtn.disabled = false;
+        alert("ไม่สามารถส่งข้อมูลได้ กรุณาตรวจสอบข้อมูลอีกครั้ง");
+      }
     });
 
     function getSpellBoxByField(el) {
@@ -2800,7 +3684,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     main.addEventListener("change", () => {
       sub.dataset.current = "";
       syncUI();
-      goMain();
+      sub.value = "";
     });
     sub.addEventListener("change", goSub);
     syncUI();

@@ -93,6 +93,23 @@ $isCoopEvaluation = (
     || isset($_POST['organization_name'])
     || isset($_POST['coop_period'])
 );
+
+$isConsentResearchPresentation = (
+    $purpose === 'consent_research_presentation'
+    || $redirectTo === 'form_consent_research_presentation.php'
+    || $targetForm === 'form_consent_research_presentation.php'
+    || $redirectTo === 'infor_present.php'
+    || $targetForm === 'infor_present.php'
+    || ($_POST['form_type'] ?? '') === 'consent_research_presentation'
+    || ($_POST['document_type'] ?? '') === 'infor_present'
+    || ($_POST['document_type'] ?? '') === 'consent_research_presentation'
+    || isset($_POST['signature_affiliation'])
+);
+
+if ($isConsentResearchPresentation) {
+    // บังคับไม่ให้ flow นี้ถูกมองเป็น "อื่นๆ"
+    $purpose = 'consent_research_presentation';
+}
 $fullname = trim($_POST['fullname'] ?? $_POST['teacher_name'] ?? '');
 $position = trim($_POST['position'] ?? '');
 
@@ -144,7 +161,6 @@ $coopStartDate        = trim($_POST['coop_start_date'] ?? '');
 $coopEndDate          = trim($_POST['coop_end_date'] ?? '');
 $coopAdvisorName      = trim($_POST['advisor_name'] ?? '');
 $coopEvaluationEmail  = trim($_POST['evaluation_email'] ?? '');
-$coopAdditionalDetail = trim($_POST['additional_detail'] ?? '');
 $coopReceiverName     = trim($_POST['receiver_name'] ?? '');
 $coopReceiverPosition = trim($_POST['receiver_position'] ?? '');
 $coopStudentListText  = trim($_POST['student_list_text'] ?? '');
@@ -370,8 +386,10 @@ if ($isCoopEvaluation) {
     if ($coopAdvisorName === '') {
         $errors['advisor_name'] = 'required';
     }
-    if ($coopEvaluationEmail === '' || !filter_var($coopEvaluationEmail, FILTER_VALIDATE_EMAIL)) {
-        $errors['evaluation_email'] = 'required';
+    // ฟอร์ม infor_coop_evaluation.php ปัจจุบันไม่มีช่อง evaluation_email
+    // จึงตรวจรูปแบบเฉพาะกรณีที่มีการส่งค่ามาเท่านั้น
+    if ($coopEvaluationEmail !== '' && !filter_var($coopEvaluationEmail, FILTER_VALIDATE_EMAIL)) {
+        $errors['evaluation_email'] = 'invalid';
     }
     if ($coopReceiverName === '') {
         $errors['receiver_name'] = 'required';
@@ -726,7 +744,7 @@ if ($isCoopEvaluation) {
 
 if (!empty($errors)) {
     if ($isCoopEvaluation) {
-        header('Location: /Pro_letter/documents/infor_coop_evaluation.php?err=validate');
+        header('Location: /Pro_letter/documents/infor_coop_evaluation.php' . ($documentId > 0 ? '?id=' . $documentId . '&edit=1&err=validate' : '?err=validate'));
     } elseif ($isProjectActivity) {
         header('Location: /Pro_letter/documents/infor_project_activity.php?err=validate');
     } elseif ($isResearchData) {
@@ -739,6 +757,8 @@ if (!empty($errors)) {
         header('Location: /Pro_letter/documents/infor_speaker_workshop.php?err=validate');
     } elseif ($isStudyVisit) {
         header('Location: /Pro_letter/documents/infor_study_visit.php?err=validate');
+    } elseif (!empty($isConsentResearchPresentation) || $purpose === 'consent_research_presentation') {
+        header('Location: /Pro_letter/documents/infor_present.php?err=validate');
     } else {
         header('Location: /Pro_letter/documents/form_Memo.php?err=validate');
     }
@@ -775,6 +795,10 @@ if ($isCoopEvaluation) {
     $subject = $memoSubject !== ''
         ? $memoSubject
         : trim('ขออนุญาตเข้าเยี่ยมชมศึกษาดูงาน ' . $studyVisitPlace);
+} elseif ($isConsentResearchPresentation || $purpose === 'consent_research_presentation') {
+    $purpose = 'consent_research_presentation';
+    $joinType = 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ';
+    $subject = 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ';
 } elseif ($purpose === 'other') {
     $joinType = trim($_POST['purpose_other_detail'] ?? '');
     if ($joinType === '') {
@@ -785,14 +809,19 @@ if ($isCoopEvaluation) {
 } else {
     $joinType = match ($purpose) {
         'academic' => 'นำเสนอผลงานวิจัย',
+        'consent_research_presentation' => 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ',
         'training' => 'เข้ารับการฝึกอบรมหลักสูตร',
         'meeting'  => 'เข้าร่วมประชุมวิชาการในงาน',
         default    => 'อื่นๆ',
     };
 
-    $subject = ($purpose === 'academic' && $memoSubject !== '')
-        ? $memoSubject
-        : trim($joinType . $eventTitle);
+    if ($purpose === 'academic' && $memoSubject !== '') {
+        $subject = $memoSubject;
+    } elseif ($purpose === 'consent_research_presentation') {
+        $subject = 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ';
+    } else {
+        $subject = trim($joinType . $eventTitle);
+    }
 }
     $q = $pdo->prepare("SELECT d.department_name, d.phone, f.faculty_name
                     FROM departments d
@@ -908,6 +937,21 @@ if ($isCoopEvaluation) {
         11 => $department,
         14 => $coopSubject,
         26 => $coopToPerson,
+
+        // legacy field_id ของฟอร์มประเมินสหกิจ เผื่อ template_fields ไม่มี field_key
+        70 => $coopSubject,
+        71 => $coopToPerson,
+        72 => $coopOrganizationName,
+        73 => (string)$coopStudentCount,
+        74 => $coopStudentsJson,
+        75 => $coopStudentListText,
+        76 => $coopPeriod,
+        77 => $coopStartDate,
+        78 => $coopEndDate,
+        79 => $coopAdvisorName,
+        80 => $coopEvaluationEmail,
+        82 => $coopReceiverName,
+        83 => $coopReceiverPosition,
     ];
 
     $valuesByKey = [
@@ -922,7 +966,6 @@ if ($isCoopEvaluation) {
         'coop_end_date'           => $coopEndDate,
         'coop_advisor_name'       => $coopAdvisorName,
         'coop_evaluation_email'   => $coopEvaluationEmail,
-        'coop_additional_detail'  => $coopAdditionalDetail,
         'coop_receiver_name'      => $coopReceiverName,
         'coop_receiver_position'  => $coopReceiverPosition,
     ];
@@ -1229,7 +1272,7 @@ if ($isCoopEvaluation) {
     $redirectUrl = '/Pro_letter/form_Memo/form_memo_speaker.php?id=' . $documentId;
 } elseif ($isStudyVisit) {
     $redirectUrl = '/Pro_letter/form_Memo/form_memo_sut_wellness.php?id=' . $documentId;
-} elseif ($purpose === 'consent_research_presentation') {
+} elseif (!empty($isConsentResearchPresentation) || $purpose === 'consent_research_presentation') {
     $redirectUrl = '/Pro_letter/form_Memo/form_consent_research_presentation.php?id=' . $documentId;
 } elseif ($purpose === 'academic') {
     $redirectUrl = '/Pro_letter/form_Memo/form_memo_academic_1.php?id=' . $documentId;
@@ -1268,6 +1311,8 @@ exit;
     header('Location: /Pro_letter/documents/infor_speaker_workshop.php?err=server');
 } elseif (!empty($isStudyVisit)) {
     header('Location: /Pro_letter/documents/infor_study_visit.php?err=server');
+} elseif (!empty($isConsentResearchPresentation) || $purpose === 'consent_research_presentation') {
+    header('Location: /Pro_letter/documents/infor_present.php?err=server');
 } else {
     header('Location: /Pro_letter/documents/form_Memo.php?err=server');
 }

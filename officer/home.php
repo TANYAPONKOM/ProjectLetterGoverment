@@ -178,6 +178,18 @@ if (!isset($_SESSION['user_id'])) {
         statusClass = "bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold";
       }
 
+      const routeHint = [
+        d.join_type,
+        d.course_name,
+        d.subject,
+        d.form_type,
+        d.document_type,
+        d.redirect_to,
+        d.target_form,
+        d.word_file,
+        d.pdf_file
+      ].filter(Boolean).join(" ");
+
       return {
         document_id: d.document_id,
         title: d.join_type || "(ไม่มีชื่อเรื่อง)",
@@ -187,7 +199,8 @@ if (!isset($_SESSION['user_id'])) {
         statusText,
         statusClass,
         word: d.word_file,
-        pdf: d.pdf_file
+        pdf: d.pdf_file,
+        routeHint
       };
     });
 
@@ -292,7 +305,7 @@ if (!isset($_SESSION['user_id'])) {
      <!-- ซ้าย -->
 <div class="flex-1 min-w-0 pr-4">
 
-  <a href="#" onclick="openDocument(${req.document_id}, '${String(req.title).replace(/'/g, "\\'")}')"
+  <a href="#" onclick="openDocument(${req.document_id}, '${String(req.routeHint || req.title).replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, " ")}')"
    class="font-semibold text-teal-600 hover:underline text-lg">
   ${req.title}
 </a>
@@ -462,7 +475,17 @@ if (!isset($_SESSION['user_id'])) {
         url: "../form_Memo/form_memo_sut_wellness.php?id="
       },
       {
-        keywords: ["ยินยอมให้นำเสนอผลงาน", "หนังสือยินยอม", "consent"],
+        keywords: [
+          "consent_research_presentation",
+          "infor_present",
+          "form_consent_research_presentation",
+          "หนังสือยินยอมให้นำเสนอผลงานวิจัย",
+          "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ",
+          "ยินยอมให้นำเสนอผลงานวิจัย",
+          "ยินยอมให้นำเสนอผลงานทางวิชาการ",
+          "หนังสือยินยอม",
+          "consent"
+        ],
         url: "../form_Memo/form_consent_research_presentation.php?id="
       },
       {

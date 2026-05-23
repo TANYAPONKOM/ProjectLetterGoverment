@@ -133,40 +133,143 @@ foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
 //   return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
 // }
 
-function thai_date($ymd)
-{
-  if (!$ymd || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $ymd))
-    return "";
-  [$y, $m, $d] = explode("-", $ymd);
-  $months = [
-    1 => "มกราคม",
-    2 => "กุมภาพันธ์",
-    3 => "มีนาคม",
-    4 => "เมษายน",
-    5 => "พฤษภาคม",
-    6 => "มิถุนายน",
-    7 => "กรกฎาคม",
-    8 => "สิงหาคม",
-    9 => "กันยายน",
-    10 => "ตุลาคม",
-    11 => "พฤศจิกายน",
-    12 => "ธันวาคม"
-  ];
-  return intval($d) . " " . $months[intval($m)] . " " . (intval($y) + 543);
+function thai_digits($text) {
+  return strtr((string)$text, [
+    '0' => '๐',
+    '1' => '๑',
+    '2' => '๒',
+    '3' => '๓',
+    '4' => '๔',
+    '5' => '๕',
+    '6' => '๖',
+    '7' => '๗',
+    '8' => '๘',
+    '9' => '๙',
+  ]);
 }
 
-function thai_digits($text)
-{
+function arabic_digits($text) {
   return strtr((string)$text, [
-    '0' => '๐', '1' => '๑', '2' => '๒', '3' => '๓', '4' => '๔',
-    '5' => '๕', '6' => '๖', '7' => '๗', '8' => '๘', '9' => '๙'
+    '๐' => '0', '๑' => '1', '๒' => '2', '๓' => '3', '๔' => '4',
+    '๕' => '5', '๖' => '6', '๗' => '7', '๘' => '8', '๙' => '9',
   ]);
+}
+
+function thai_date($date)
+{
+  return thai_doc_date_format($date, 1);
+}
+
+function thai_doc_date_format($date, $spaceAfterDay = 2) {
+  $date = trim((string)$date);
+
+  if ($date === '' || $date === '0000-00-00' || $date === '0000-00-00 00:00:00') {
+    return '';
+  }
+
+  // แปลงเลขไทยเป็นเลขอารบิกก่อน parse
+  $date = arabic_digits($date);
+
+  // ตัดคำขึ้นต้น เช่น "วันที่", "วันพุธที่", "ในวันที่"
+  $date = preg_replace('/^\s*ใน\s*/u', '', $date);
+  $date = preg_replace('/^\s*วัน[\p{Thai}]+ที่\s*/u', '', $date);
+  $date = preg_replace('/^\s*วันที่\s*/u', '', $date);
+  $date = trim($date);
+
+  $months = [
+    1 => 'มกราคม',
+    2 => 'กุมภาพันธ์',
+    3 => 'มีนาคม',
+    4 => 'เมษายน',
+    5 => 'พฤษภาคม',
+    6 => 'มิถุนายน',
+    7 => 'กรกฎาคม',
+    8 => 'สิงหาคม',
+    9 => 'กันยายน',
+    10 => 'ตุลาคม',
+    11 => 'พฤศจิกายน',
+    12 => 'ธันวาคม',
+  ];
+
+  // รองรับวันที่ไทย เช่น "5 กุมภาพันธ์ 2568" หรือ "๕ กุมภาพันธ์ ๒๕๖๘"
+  // ห้ามใช้ [ก-ฮ]+ เพราะเดือนอย่าง "กุมภาพันธ์" มีสระ/วรรณยุกต์ ทำให้จับไม่ครบ
+  if (preg_match('/(\d{1,2})\s+([\p{Thai}]+)\s+(\d{4})/u', $date, $mThai)) {
+    $day = (int)$mThai[1];
+    $monthName = trim($mThai[2]);
+    $year = (int)$mThai[3];
+
+    if ($day < 1 || $day > 31) {
+      return '';
+    }
+
+    if ($year < 2400) {
+      $year += 543;
+    }
+
+    $spaces = str_repeat(' ', max(1, (int)$spaceAfterDay));
+    return thai_digits($day . $spaces . $monthName . ' ' . $year);
+  }
+
+  // รองรับ YYYY-MM-DD, YYYY/MM/DD, YYYY-MM-DD HH:mm:ss และปี พ.ศ. เช่น 2568-02-05
+  if (preg_match('/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/', $date, $mDate)) {
+    $y = (int)$mDate[1];
+    $month = (int)$mDate[2];
+    $day = (int)$mDate[3];
+
+    if ($y > 2400) {
+      $y -= 543;
+    }
+
+    if ($month < 1 || $month > 12 || $day < 1 || $day > 31 || !checkdate($month, $day, $y)) {
+      return '';
+    }
+
+    $spaces = str_repeat(' ', max(1, (int)$spaceAfterDay));
+    return thai_digits($day . $spaces . $months[$month] . ' ' . ($y + 543));
+  }
+
+  return '';
+}
+
+function coop_student_rows($studentsJson, $studentListText) {
+  $rows = [];
+  $decoded = json_decode((string)$studentsJson, true);
+
+  if (is_array($decoded)) {
+    foreach ($decoded as $student) {
+      if (!is_array($student)) continue;
+
+      $name = trim((string)($student['name'] ?? $student['student_name'] ?? $student['fullname'] ?? ''));
+      $id = trim((string)($student['student_id'] ?? $student['id'] ?? ''));
+
+      if ($name === '' && $id === '') continue;
+      $rows[] = ['name' => $name, 'id' => $id];
+    }
+  }
+
+  if (empty($rows)) {
+    $lines = preg_split('/\r\n|\r|\n/', (string)$studentListText);
+    foreach ($lines as $line) {
+      $line = trim($line);
+      if ($line === '') continue;
+
+      $parts = preg_split('/\s*รหัสนักศึกษา\s*/u', $line, 2);
+      $name = trim($parts[0] ?? '');
+      $id = trim($parts[1] ?? '');
+
+      $rows[] = ['name' => $name, 'id' => $id];
+    }
+  }
+
+  return $rows;
 }
 
 /* --------------------------------------------------
    Mapping ตัวแปรหลักจาก document_values
 -------------------------------------------------- */
-$docDate = $valueMap[1] ?? $document['doc_date'];
+$docDate = trim((string)($valueMap[1] ?? '')) !== ''
+  ? trim((string)$valueMap[1])
+  : trim((string)($document['doc_date'] ?? ''));
 $ownerName = $valueMap[2] ?? "";
 $position = $valueMap[3] ?? "";
 $joinType = $valueMap[4] ?? "";
@@ -216,6 +319,8 @@ if ($coopPeriod === '' && ($coopStartDate !== '' || $coopEndDate !== '')) {
   $coopPeriod = trim($coopStartDate . ($coopEndDate !== '' ? ' ถึง ' . $coopEndDate : ''));
 }
 
+$coopStudentRows = coop_student_rows($coopStudentsJson, $coopStudentListText);
+
 /* --------------------------------------------------
    Mapping joinType → purposeCode (รหัส)
 -------------------------------------------------- */
@@ -244,7 +349,41 @@ $subject = $document["subject"] ?? "";
 /* --------------------------------------------------
    คำนวณวันที่ไทย, งบประมาณ
 -------------------------------------------------- */
-$thaiDocDate = thai_date($docDate);
+$dateCandidates = [
+  $docDate ?? '',
+  $valueMap[1] ?? '',
+  $valueKeyMap['doc_date'] ?? '',
+  $valueKeyMap['document_date'] ?? '',
+  $valueKeyMap['memo_date'] ?? '',
+  $valueKeyMap['date'] ?? '',
+  $document['doc_date'] ?? '',
+];
+
+$displayDocDate = '';
+foreach ($dateCandidates as $dateCandidate) {
+  $displayDocDate = thai_doc_date_format($dateCandidate, 2);
+  if ($displayDocDate !== '') {
+    break;
+  }
+}
+
+// กันกรณีเอกสารเก่าที่ไม่มีวันที่ใน document_values/documents.doc_date
+// อย่างน้อยต้องมีวันที่แสดง ไม่ให้หน้าเอกสารว่าง
+if ($displayDocDate === '') {
+  $displayDocDate = thai_doc_date_format(date('Y-m-d'), 2);
+}
+
+$thaiDocDate = '';
+foreach ($dateCandidates as $dateCandidate) {
+  $thaiDocDate = thai_doc_date_format($dateCandidate, 1);
+  if ($thaiDocDate !== '') {
+    break;
+  }
+}
+
+if ($thaiDocDate === '') {
+  $thaiDocDate = thai_doc_date_format(date('Y-m-d'), 1);
+}
 $prettyAmount = $amountStr !== "" ? number_format((float) $amountStr, 2) : "";
 
 /* --------------------------------------------------
@@ -263,7 +402,7 @@ $hdr_to = "คณบดี" . ($faculty ?: "คณะ...........................
 -------------------------------------------------- */
 $thaiYear = "";
 if ($docDate && preg_match('/^\d{4}/', $docDate)) {
-  $thaiYear = ((int) substr($docDate, 0, 4) + 543);
+  $thaiYear = thai_digits((int) substr($docDate, 0, 4) + 543);
 }
 
 /* --------------------------------------------------
@@ -323,6 +462,28 @@ $len = max(20, $len);
     box-sizing: border-box;
 
     overflow: visible;
+  }
+
+
+  /* ✅ เพิ่มพื้นที่ท้ายกระดาษเฉพาะหน้าโชว์บนเว็บเท่านั้น
+     ไม่ใช้ body.pdf-rendering แล้ว เพราะจะทำให้พื้นที่ท้ายกระดาษหายระหว่างโหลด PDF
+     ตอนสร้าง PDF จะใส่ class pdf-page-clone ให้ clone แทน เพื่อไม่ให้ CSS นี้กระทบ PDF */
+  .page:not(.pdf-page-clone) {
+    height: auto !important;
+    min-height: 1123px !important;
+    padding-bottom: 130px !important;
+    margin-bottom: 90px !important;
+  }
+
+  .page:not(.pdf-page-clone) .footer-actions {
+    margin-top: 24px !important;
+    margin-bottom: 20px !important;
+    flex-wrap: wrap !important;
+  }
+
+  .pdf-page-clone {
+    padding-bottom: 45px !important;
+    margin-bottom: 0 !important;
   }
 
   h1 {
@@ -736,7 +897,7 @@ $len = max(20, $len);
   <?php endif; ?>
 
   <main class="page">
-    <form id="updateForm" action="update_memo.php" method="post">
+    <form id="updateForm" action="/Pro_letter/documents/update_memo.php" method="post">
       <input type="hidden" name="header_text" id="hidden_header_text" value="<?= h($header_text) ?>">
       <input type="hidden" name="doc_no" id="hidden_doc_no" value="<?= h($doc_no) ?>">
 
@@ -872,7 +1033,13 @@ $len = max(20, $len);
 
   left:55px;
 ">
-        <?= h(thai_digits($thaiDocDate ?: thai_date($document['doc_date'] ?? ''))) ?>
+        <?php
+          $dateToShow = trim((string)($displayDocDate ?? ''));
+          if ($dateToShow === '') {
+            $dateToShow = thai_doc_date_format($docDate ?: ($valueMap[1] ?? '') ?: ($document['doc_date'] ?? '') ?: date('Y-m-d'), 2);
+          }
+          echo h($dateToShow);
+        ?>
       </div>
 
       <div style="
@@ -927,20 +1094,46 @@ $len = max(20, $len);
             วิทยาเขตปราจีนบุรี ได้แก่
           </p>
 
-          <p style="
+          <div style="
         margin-left:2.5cm;
         margin-bottom:4px;
         line-height:1.35;
     ">
-            <?= nl2br(h($coopStudentListText ?: 'นายปุณนที ปิ่นวิเศษ รหัสนักศึกษา ๖๕-๐๖๐๒๑๖-๓๐๐๓-๘')) ?>
-          </p>
+            <?php if (!empty($coopStudentRows)): ?>
+            <?php foreach ($coopStudentRows as $studentRow): ?>
+            <div style="display:flex; align-items:baseline; white-space:nowrap;">
+              <span style="display:inline-block; min-width:5cm;">
+                <?= h(thai_digits($studentRow['name'] ?? '')) ?>
+              </span>
+              <span style="display:inline-block; min-width:2.35cm;">
+                รหัสนักศึกษา
+              </span>
+              <span style="display:inline-block;">
+                <?= h(thai_digits($studentRow['id'] ?? '')) ?>
+              </span>
+            </div>
+            <?php endforeach; ?>
+            <?php else: ?>
+            <div style="display:flex; align-items:baseline; white-space:nowrap;">
+              <span style="display:inline-block; min-width:8.8cm;">
+                นายปุณนที ปิ่นวิเศษ
+              </span>
+              <span style="display:inline-block; min-width:2.35cm;">
+                รหัสนักศึกษา
+              </span>
+              <span style="display:inline-block;">
+                ๖๕-๐๖๐๒๑๖-๓๐๐๓-๘
+              </span>
+            </div>
+            <?php endif; ?>
+          </div>
 
           <p style="
         text-indent:0.0cm;
         margin-bottom:4px;
     ">
             เข้าปฏิบัติงานสหกิจศึกษาในหน่วยงานของท่าน ตั้งแต่วันที่
-            <?= h($coopPeriod ?: '๓ พฤศจิกายน ๒๕๖๘ ถึง ๒๗ กุมภาพันธ์ ๒๕๖๙') ?>
+            <?= h(thai_digits($coopPeriod ?: '๓ พฤศจิกายน ๒๕๖๘ ถึง ๒๗ กุมภาพันธ์ ๒๕๖๙')) ?>
           </p>
 
           <p style="
@@ -955,14 +1148,7 @@ $len = max(20, $len);
             ซึ่งภาควิชาจะนำข้อมูลมาเป็นแนวทางสำหรับการดำเนินการครั้งต่อไป
           </p>
 
-          <?php if (trim($coopAdditionalDetail) !== ''): ?>
-          <p style="
-        text-indent:2.5cm;
-        margin-bottom:4px;
-    ">
-            <?= nl2br(h($coopAdditionalDetail)) ?>
-          </p>
-          <?php endif; ?>
+
 
           <p style="
         text-indent:2.5cm;
@@ -1025,21 +1211,26 @@ $len = max(20, $len);
           class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
           ดาวน์โหลด PDF
         </button>
-
-        <!-- 🟩 USER: ปุ่มยืนยัน -->
+        <!-- 🟩 USER: ปุ่มแก้ไขเอกสาร -->
         <?php if ($roleId === 3): ?>
-        <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          ยืนยันการแก้ไข
-        </button>
+        <a href="/Pro_letter/documents/infor_coop_evaluation.php?id=<?= urlencode((string)$document['document_id']) ?>&edit=1"
+          class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+          แก้ไขเอกสาร
+        </a>
         <?php endif; ?>
 
         <!-- 🟦 OFFICER & ADMIN -->
         <?php if ($isAdmin || $isOfficer): ?>
-
-        <!-- ปุ่มอนุมัติ -->
-        <button type="button" onclick="updateStatus('approved')"
+        <!-- ปุ่มแก้ไขเอกสาร -->
+        <a href="/Pro_letter/documents/infor_coop_evaluation.php?id=<?= urlencode((string)$document['document_id']) ?>&edit=1"
           class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          ยืนยันการแก้ไข
+          แก้ไขเอกสาร
+        </a>
+
+        <!-- ปุ่มผ่านการตรวจสอบ -->
+        <button type="button" onclick="updateStatus('approved')"
+          class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+          ผ่านการตรวจสอบ
         </button>
 
         <!-- ปุ่มไม่ผ่าน -->
@@ -1224,6 +1415,7 @@ $len = max(20, $len);
 
       for (let i = 0; i < pages.length; i++) {
         const clone = pages[i].cloneNode(true);
+        clone.classList.add("pdf-page-clone");
 
         clone.style.position = "fixed";
         clone.style.left = "-9999px";
@@ -1278,6 +1470,8 @@ $len = max(20, $len);
     } catch (error) {
       console.error(error);
       alert("สร้าง PDF ไม่สำเร็จ กรุณากด F12 ดู Console");
+    } finally {
+      // ไม่ต้องลบ class จาก body แล้ว เพราะไม่ได้ใส่ class ให้ body ระหว่างโหลด PDF
     }
   }
   </script>

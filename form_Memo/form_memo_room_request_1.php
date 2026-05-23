@@ -198,6 +198,7 @@ $header_text = $document["header_text"] ?? "";
 $doc_no = $document["doc_no"] ?? "";
 $subject = $document["subject"] ?? "";
 
+
 /* --------------------------------------------------
    คำนวณวันที่ไทย, งบประมาณ
 -------------------------------------------------- */
@@ -678,7 +679,7 @@ $len = max(20, $len);
 
   <main class="page">
     <form id="updateForm" action="update_memo.php" method="post">
-      <input type="hidden" name="header_text" id="hidden_header_text" value="<?= h($header_text) ?>">
+
       <input type="hidden" name="doc_no" id="hidden_doc_no" value="<?= h($doc_no) ?>">
 
       <!-- หน้านี้เป็นหน้าแสดงผลเท่านั้น ถ้าต้องการแก้ไขให้กลับไปหน้าแบบฟอร์ม Request_3.php -->

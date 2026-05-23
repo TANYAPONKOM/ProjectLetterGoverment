@@ -1543,23 +1543,14 @@ $editStudentsJsonForJs = json_encode($editStudents, JSON_UNESCAPED_UNICODE | JSO
       }
     }
 
-    function goMain() {
-      const mainVal = (main.value || "").trim();
-      const firstSub = (SUB_OPTIONS[mainVal] || [])[0] || "";
-      const target = ROUTE_SUB[firstSub];
-
-      sub.dataset.current = firstSub;
-
-      if (!target || target === "#") return;
-
-      window.location.href = withSelection(target, mainVal, firstSub);
-    }
-
     function goSub() {
       const mainVal = (main.value || "").trim();
       const subVal = (sub.value || "").trim();
 
       sub.dataset.current = subVal;
+
+      // ยังไม่เลือกหมวดย่อยจริง ๆ ให้ค้างที่ placeholder และไม่เปลี่ยนหน้า
+      if (!subVal) return;
 
       const target = ROUTE_SUB[subVal];
       if (!target || target === "#") return;
@@ -1568,9 +1559,10 @@ $editStudentsJsonForJs = json_encode($editStudents, JSON_UNESCAPED_UNICODE | JSO
     }
 
     main.addEventListener("change", () => {
+      // เปลี่ยนหมวดหลักแล้วให้หมวดย่อยกลับไปที่ "-- เลือกหมวดย่อย --"
+      // ไม่ auto เลือกข้อแรก และไม่ redirect ทันที
       sub.dataset.current = "";
       syncUI();
-      goMain();
     });
 
     sub.addEventListener("change", goSub);

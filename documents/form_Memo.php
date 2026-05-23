@@ -461,8 +461,8 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
             <div class="relative w-full">
               <select name="main_category" class="custom-select w-full" id="mainCategory">
                 <option value="">-- เลือกหมวดหลัก --</option>
-                <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายใน(บันทึกข้อความ)</option>
-                <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>ภายนอก</option>
+                <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>ภายใน</option>
+                <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
               </select>
             </div>
           </div>
@@ -2000,6 +2000,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
         if (noCostCheckbox?.checked) {
           amountInput.value = "0.00";
         } else {
+          if (!validateExpenseCheckboxes()) return;
           calcAll();
           syncExpenseJsonForPresentation();
         }
@@ -2945,13 +2946,89 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       });
     }
 
+    function markExpenseBlockError(enabledEl, message) {
+      if (!enabledEl) return;
+      const box = enabledEl.closest(".p-4") || enabledEl.parentElement;
+      if (box) {
+        box.classList.add("error", "shake");
+        setTimeout(() => box.classList.remove("shake"), 450);
+      }
+      alert(message);
+      enabledEl.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
+      setTimeout(() => enabledEl.focus?.(), 150);
+    }
+
+    function hasRegistrationInput() {
+      return n(regPrice?.value) > 0 || n(regPeople?.value || 1) !== 1;
+    }
+
+    function hasLodgingInput() {
+      return n(lodUnit?.value) > 0 ||
+        n(lodNights?.value || 1) !== 1 ||
+        n(lodPeople?.value || 1) !== 1 ||
+        !!(lodSingleDate?.value || "").trim() ||
+        !!(lodStartDate?.value || "").trim() ||
+        !!(lodEndDate?.value || "").trim();
+    }
+
+    function hasPerDiemInput() {
+      return n(perUnit?.value) > 0 ||
+        n(perMeals?.value || 1) !== 1 ||
+        n(perPeople?.value || 1) !== 1;
+    }
+
+    function hasTransportInput() {
+      return [...(trList?.children || [])].some(row => {
+        const data = getTransportRowData(row);
+        if (n(data?.amount) > 0) return true;
+        return !!row.querySelector("input[type='text']")?.value?.trim();
+      });
+    }
+
+    function validateExpenseCheckboxes() {
+      [regEnabled, lodEnabled, perEnabled, trEnabled].forEach(el => {
+        const box = el?.closest(".p-4") || el?.parentElement;
+        box?.classList.remove("error", "shake");
+      });
+
+      if (!regEnabled?.checked && hasRegistrationInput()) {
+        markExpenseBlockError(regEnabled, "กรุณาติ๊กเลือก 2.1 ค่าลงทะเบียน ก่อนกรอกหรือบันทึกรายการนี้");
+        return false;
+      }
+
+      if (!lodEnabled?.checked && hasLodgingInput()) {
+        markExpenseBlockError(lodEnabled, "กรุณาติ๊กเลือก 2.2 ค่าที่พักค้างคืน ก่อนกรอกหรือบันทึกรายการนี้");
+        return false;
+      }
+
+      if (!perEnabled?.checked && hasPerDiemInput()) {
+        markExpenseBlockError(perEnabled, "กรุณาติ๊กเลือก 2.3 ค่าเบี้ยเลี้ยง ก่อนกรอกหรือบันทึกรายการนี้");
+        return false;
+      }
+
+      if (!trEnabled?.checked && hasTransportInput()) {
+        markExpenseBlockError(trEnabled, "กรุณาติ๊กเลือก 2.4 ค่าพาหนะ ก่อนเพิ่มหรือบันทึกรายการนี้");
+        return false;
+      }
+
+      return true;
+    }
+
     preloadBudgetItems();
     syncEmpty(compList, compEmpty);
     syncEmpty(matList, matEmpty);
     syncEmpty(trList, trEmpty);
     calcAll();
 
-    finalSubmitBtn?.addEventListener("click", () => {
+    finalSubmitBtn?.addEventListener("click", (event) => {
+      if (!noCostCheckbox?.checked && !validateExpenseCheckboxes()) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       calcAll();
       syncExpenseJsonForPresentation();
     });
@@ -3338,95 +3415,84 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     if (!main || !sub) return;
 
     const SUB_OPTIONS = {
-      external: [
-        "ฝึกอบรม ",
-        "ประชุมวิชาการ/ศึกษาดูงาน/สัมมนาวิชาการ ",
-        "ขออนุมัติตัวบุคคลเป็นวิทยากร ",
-        "ขอห้องพักรับรอง ",
-        "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ",
-      ],
       internal: [
         "หนังสือเรียนเชิญวิทยากร",
-        "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์ ",
-        "ขอเข้าเยี่ยมศึกษาดูงาน ",
+        "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์",
+        "ขอเข้าเยี่ยมศึกษาดูงาน",
         "ขอเข้าไปจัดกิจกรรมโครงการ",
-        "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ) ",
+        "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)",
       ],
-    };
-
-    const ROUTE_MAIN = {
-      train: "/Pro_letter/documents/form_Memo.php",
-      academic: "/Pro_letter/form_Memo/Request/infor_approve_pro.php",
+      external: [
+        "ฝึกอบรม",
+        "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย",
+        "ขออนุมัติตัวบุคคลเป็นวิทยากร",
+        "ขอห้องพักรับรอง",
+        "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ",
+      ],
     };
 
     const ROUTE_SUB = {
-      "ระบบขอความอนุเคราะห์หนังสือฝึกงาน (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_intership.php",
-      "หนังสือเรียนเชิญวิทยากร (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_invite.php",
-      "ส่งตัวหนังสือขอออกฝึกงาน(ของนักศึกษา)": "#",
-      "หนังสือขอบคุณ (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_thankyou.php",
-      "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์ (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_research_data.php",
-      "หนังสือเรียนเชิญปริญญา(ของนักศึกษา)": "#",
+      "ฝึกอบรม": "/Pro_letter/documents/form_Memo.php",
+      "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย": "/Pro_letter/documents/infor_academic_presentation.php",
+      "ขออนุมัติตัวบุคคลเป็นวิทยากร": "/Pro_letter/documents/infor_speaker_workshop.php",
+      "ขอห้องพักรับรอง": "/Pro_letter/documents/infor_room_request.php",
+      "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ": "/Pro_letter/documents/infor_present.php",
 
-      "ขอเปลี่ยนแปลงตารางสอน (ของอาจารย์)": "#",
-      "ขอเปลี่ยนแปลงตารางสอบ (ของอาจารย์)": "/Pro_letter/form_Memo/Request/infor_change_exam.php",
-      "ขอสอบนอกตาราง (ของอาจารย์)": "/Pro_letter/form_Memo/Request/infor_extra_exam.php",
-      "ขอใช้อาคารวันหยุดราชการ (ของอาจารย์)": "/Pro_letter/user/Request_2.php",
-      "ขอสอนชดเชย (ของอาจารย์)": "#",
-      "ขอห้องพักรับรอง (ของอาจารย์)": "/Pro_letter/user/Request_3.php",
-      "ขออนุมัติตัวบุคคลเป็นวิทยากร (ของอาจารย์)": "/Pro_letter/user/Request_4.php",
-      "ขออนุมัติไม่เข้าร่วมโครงการ (ของอาจารย์)": "/Pro_letter/user/Request_5.php",
-      "การเผยแพร่งานวิจัยและเบิกค่าตอบแทนการตีพิมพ์ (ของอาจารย์)": "#",
-      "ขออนุมัติจัดทำโครงการ (ของอาจารย์)": "#",
-      "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ (ของอาจารย์)": "#",
-      "ขอแจ้งเรียนการเป็นผู้ร่วมวิจัย (ของอาจารย์)": "/Pro_letter/user/Request_7.php",
+      "หนังสือเรียนเชิญวิทยากร": "/Pro_letter/documents/infor_invite.php",
+      "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์": "/Pro_letter/documents/infor_research_data.php",
+      "ขอเข้าเยี่ยมศึกษาดูงาน": "/Pro_letter/documents/infor_study_visit.php",
+      "ขอเข้าไปจัดกิจกรรมโครงการ": "/Pro_letter/documents/infor_project_activity.php",
+      "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)": "/Pro_letter/documents/infor_coop_evaluation.php",
     };
 
     function renderSubOptions(list, selectedValue = "") {
-      sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
+      sub.innerHTML = '<option value="" selected>-- เลือกหมวดย่อย --</option>';
       list.forEach(text => {
         const opt = document.createElement("option");
         opt.value = text;
         opt.textContent = text;
-        if (text === selectedValue) opt.selected = true;
+        if (selectedValue && text === selectedValue) opt.selected = true;
         sub.appendChild(opt);
       });
+
+      // ถ้าไม่มีค่าเดิมจริง ๆ ให้ล็อกไว้ที่ตัวเลือก placeholder เสมอ
+      if (!selectedValue) sub.value = "";
     }
 
-    function syncUI() {
+    function syncUI(keepCurrentSub = false) {
       const mainVal = (main.value || "").trim();
-      const currentSub = (sub.dataset.current || "").trim();
-      if (mainVal === "external" || mainVal === "internal") {
+      const currentSub = keepCurrentSub ? (sub.dataset.current || "").trim() : "";
+
+      if (mainVal === "internal" || mainVal === "external") {
         sub.disabled = false;
         renderSubOptions(SUB_OPTIONS[mainVal] || [], currentSub);
       } else {
         sub.disabled = true;
-        sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
+        sub.dataset.current = "";
+        sub.innerHTML = '<option value="" selected>-- เลือกหมวดย่อย --</option>';
       }
     }
 
-    function goMain() {
-      const mainVal = (main.value || "").trim();
-      const target = ROUTE_MAIN[mainVal];
-      if (target && target !== "#") window.location.href = target;
-    }
+    main.addEventListener("change", () => {
+      // เปลี่ยนหมวดหลักแล้วต้องยังไม่เลือกหมวดย่อยให้เอง
+      sub.dataset.current = "";
+      syncUI(false);
+    });
 
-    function goSub() {
+    sub.addEventListener("change", () => {
       const subVal = (sub.value || "").trim();
       sub.dataset.current = subVal;
+
+      // ยังอยู่ที่ placeholder ห้ามเปลี่ยนหน้า
+      if (!subVal) return;
+
       const target = ROUTE_SUB[subVal];
       if (!target || target === "#") return;
       window.location.href = target;
-    }
-    main.addEventListener("change", () => {
-      sub.dataset.current = "";
-      syncUI();
-      goMain();
     });
-    sub.addEventListener("change", goSub);
-    syncUI();
 
-
-
+    // ตอนโหลดหน้า ถ้ามีค่าเดิมจาก PHP ค่อยเลือกหมวดย่อยเดิมให้ เฉพาะกรณี edit/preselect เท่านั้น
+    syncUI(true);
   });
   </script>
   <script>

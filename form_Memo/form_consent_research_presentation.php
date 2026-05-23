@@ -204,12 +204,23 @@ function dashText($text, $bold = true)
 $purposeCode = 'other';
 
 switch (trim($joinType)) {
+  // เอกสารหนังสือยินยอมฯ ต้องส่งกลับ update_memo.php ด้วย purpose เดิม
+  // ถ้าปล่อยเป็น other จะทำให้ field_id 4 ถูกอัปเดตเป็น "อื่นๆ"
+  case 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ':
+  case 'หนังสือยินยอมให้นำเสนอผลงานวิจัย':
+  case 'consent_research_presentation':
+    $purposeCode = 'consent_research_presentation';
+    break;
+
   case 'นำเสนอผลงานทางวิชาการ':
+  case 'นำเสนอผลงานวิจัย':
     $purposeCode = 'academic';
     break;
+
   case 'เข้าร่วมประชุมวิชาการในงาน':
     $purposeCode = 'meeting';
     break;
+
   case 'เข้ารับการฝึกอบรมหลักสูตร':
     $purposeCode = 'training';
     break;

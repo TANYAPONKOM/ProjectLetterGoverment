@@ -74,6 +74,21 @@ $singleDateValue    = $formData[35] ?? '';
 $rangeDateValue     = $formData[36] ?? '';
 $roomTypeValue      = $formData[37] ?? '';
 
+// แยกข้อความช่วงวันที่เดิมให้เอากลับไปโชว์ในช่อง วันที่เริ่มต้น/วันที่สิ้นสุด ตอนแก้ไข
+$rangeStartDisplay = '';
+$rangeEndDisplay = '';
+if (trim($rangeDateValue) !== '') {
+    $rangeText = trim($rangeDateValue);
+    if (preg_match('/^([0-9]{1,2})\s*-\s*([0-9]{1,2})\s+([^\s]+)\s+([0-9]{4})$/u', $rangeText, $m)) {
+        $rangeStartDisplay = $m[1] . ' ' . $m[3] . ' ' . $m[4];
+        $rangeEndDisplay   = $m[2] . ' ' . $m[3] . ' ' . $m[4];
+    } elseif (strpos($rangeText, ' - ') !== false) {
+        [$rangeStartDisplay, $rangeEndDisplay] = array_map('trim', explode(' - ', $rangeText, 2));
+    } else {
+        $rangeStartDisplay = $rangeText;
+    }
+}
+
 function checked_value($a, $b) {
     return ((string)$a === (string)$b) ? 'checked' : '';
 }
@@ -396,7 +411,7 @@ function checked_value($a, $b) {
     </div>
   </header>
 
-  <form method="post" action="save_memo.php" id="memoForm">
+  <form method="post" action="<?= $isEdit ? '/Pro_letter/documents/update_memo.php' : 'save_memo.php' ?>" id="memoForm">
     <input type="hidden" name="template_id" value="1">
     <input type="hidden" name="department_id" value="1">
     <input type="hidden" name="purpose" value="room_request">
@@ -755,7 +770,7 @@ function checked_value($a, $b) {
 
             <div class="relative">
               <input type="text" id="startDate" class="border rounded-md p-2 shadow-sm w-44 pr-10 cursor-pointer"
-                placeholder="วันที่เริ่มต้น" readonly />
+                placeholder="วันที่เริ่มต้น" readonly value="<?= htmlspecialchars($rangeStartDisplay) ?>" />
 
               <svg class="absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]" xmlns="http://www.w3.org/2000/svg"
                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -768,7 +783,7 @@ function checked_value($a, $b) {
 
             <div class="relative">
               <input type="text" id="endDate" class="border rounded-md p-2 shadow-sm w-44 pr-10 cursor-pointer"
-                placeholder="วันที่สิ้นสุด" readonly />
+                placeholder="วันที่สิ้นสุด" readonly value="<?= htmlspecialchars($rangeEndDisplay) ?>" />
 
               <svg class="absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]" xmlns="http://www.w3.org/2000/svg"
                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1715,23 +1730,26 @@ function checked_value($a, $b) {
       window.location.href = withSelection(target, mainVal, cleanSub);
     }
 
-    function goMain() {
-      const mainVal = (main.value || "").trim();
-      const firstSub = (SUB_OPTIONS[mainVal] || [])[0] || "";
-      if (firstSub) goToSub(mainVal, firstSub);
-    }
-
     function goSub() {
       const mainVal = (main.value || "").trim();
       const subVal = (sub.value || "").trim();
+
+      // ถ้ายังอยู่ที่ตัวเลือก placeholder ห้ามเปลี่ยนหน้า
+      if (!subVal) {
+        sub.dataset.current = "";
+        return;
+      }
+
       sub.dataset.current = subVal;
       goToSub(mainVal, subVal);
     }
 
     main.addEventListener("change", () => {
+      // เลือกหมวดหลักใหม่แล้วให้หมวดย่อยกลับไปที่ "-- เลือกหมวดย่อย --" ก่อน
+      // ไม่ auto เลือกหมวดย่อยตัวแรก และไม่ redirect ทันที
       sub.dataset.current = "";
       syncUI();
-      goMain();
+      sub.value = "";
     });
 
     sub.addEventListener("change", goSub);

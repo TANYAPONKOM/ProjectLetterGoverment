@@ -70,6 +70,8 @@ $document = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$document)
   exit("ไม่พบเอกสาร");
 
+$editQuestionUrl = "/Pro_letter/documents/infor_academic_presentation.php?id=" . (int)$docId . "&edit=1";
+
 /* --------------------------------------------------
    สิทธิ์ดูเอกสาร
 -------------------------------------------------- */
@@ -1057,9 +1059,10 @@ $len = max(20, $len);
         </button>
 
         <?php if ($roleId === 3): ?>
-        <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+        <a href="<?= h($editQuestionUrl) ?>"
+          class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           แก้ไขเอกสาร
-        </button>
+        </a>
         <?php endif; ?>
 
         <?php if ($isAdmin || $isOfficer): ?>
@@ -1327,9 +1330,10 @@ $len = max(20, $len);
 
       <!-- 🟩 USER: ปุ่มยืนยัน -->
       <?php if ($roleId === 3): ?>
-      <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+      <a href="<?= h($editQuestionUrl) ?>"
+        class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
         แก้ไขเอกสาร
-      </button>
+      </a>
       <?php endif; ?>
 
       <!-- 🟦 OFFICER & ADMIN -->

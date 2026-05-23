@@ -1,4 +1,4 @@
-<?php //หนังสือเรียนเชิญวิทยากร 
+<?php //หนังสือเรียนเชิญวิทยากร  Pro_letter/form_memo/form_memo_invite_speaker.php
 session_start();
 require_once __DIR__ . '/../functions.php';
 
@@ -98,8 +98,15 @@ $sql = "
 $st = $pdo->prepare($sql);
 $st->execute([':uid' => $userId]);
 
-$canEdit = $st->fetchColumn() > 0;
+$hasDocumentEditPermission = $st->fetchColumn() > 0;
+$isOwner = ((int)($document['owner_id'] ?? 0) === $userId);
+
+// เจ้าของเอกสาร / admin / officer / คนที่มีสิทธิ์ document.edit สามารถกดไปหน้าแก้ไขคำถามได้
+$canEdit = $isOwner || $isAdmin || $isOfficer || $hasDocumentEditPermission;
 $readonly = !$canEdit;
+
+// ปุ่มแก้ไขเอกสารต้องกลับไปหน้าแบบฟอร์มคำถาม เพื่อดึงข้อมูลเดิมไปแก้ไข
+$editQuestionUrl = "/Pro_letter/documents/infor_invite.php?id=" . (int)$docId . "&edit=1";
 
 
 
@@ -892,7 +899,7 @@ $len = max(20, $len);
     padding-top:50px;
     white-space:nowrap;
   ">
-          ที่ อว ๗๑๒๐/๗๑๖
+          ที่ อว ๗๑๒๐/
         </div>
 
         <!-- ครุฑ -->
@@ -957,7 +964,7 @@ $len = max(20, $len);
 
   position:relative;
 
-  left:29px;
+  left:38px;
 ">
         <?= h($thaiDocDate ?: '๗ ตุลาคม ๒๕๖๘') ?>
       </div>
@@ -1156,15 +1163,21 @@ $len = max(20, $len);
           ดาวน์โหลด PDF
         </button>
 
-        <!-- 🟩 USER: ปุ่มยืนยัน -->
-        <?php if ($roleId === 3): ?>
-        <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          ยืนยันการแก้ไข
-        </button>
+        <!-- 🟩 USER: ปุ่มแก้ไขเอกสาร กลับไปหน้า infor_invite.php พร้อม id เดิม -->
+        <?php if ($roleId === 3 && $canEdit): ?>
+        <a href="<?= h($editQuestionUrl) ?>"
+          class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
+          แก้ไขเอกสาร
+        </a>
         <?php endif; ?>
 
         <!-- 🟦 OFFICER & ADMIN -->
         <?php if ($isAdmin || $isOfficer): ?>
+
+        <a href="<?= h($editQuestionUrl) ?>"
+          class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
+          แก้ไขเอกสาร
+        </a>
 
         <!-- ปุ่มอนุมัติ -->
         <button type="button" onclick="updateStatus('approved')"

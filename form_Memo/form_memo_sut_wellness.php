@@ -849,7 +849,7 @@ $len = max(20, $len);
   margin-top:20px;
   margin-bottom:16px;
   position:relative;
-  left:60px;
+  left:50px;
 ">
         <?= h($thaiDocDate ?: "") ?>
       </div>
@@ -906,7 +906,7 @@ $len = max(20, $len);
           มีความประสงค์จะขออนุญาตเข้าเยี่ยมชม
           <span contenteditable="false" data-target="visit_place"><?= h($visitPlace) ?></span>
           <span contenteditable="false" data-target="place_detail"><?= h($placeDetail) ?></span>
-          <?= $visitPeriod !== '' ? 'ใน' . h($visitPeriod) : '' ?>
+          <?= $visitPeriod !== '' ? 'ในวันที่ ' . h($visitPeriod) : '' ?>
           <?= $visitTime !== '' ? 'เวลา ' . h($visitTime) : '' ?>
           <span contenteditable="false" data-target="study_purpose"><?= h($purposeText) ?></span>
           โดยมีรายชื่อคณาจารย์ที่จะเข้าเยี่ยมชมศึกษาดูงาน

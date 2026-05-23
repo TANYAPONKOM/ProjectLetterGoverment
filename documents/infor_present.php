@@ -385,7 +385,7 @@ $position    = $formData[3]  ?? '';
     <input type="hidden" name="department_id" value="1">
 
     <input type="hidden" name="purpose" value="consent_research_presentation">
-    <input type="hidden" name="doc_date" value="<?= date('Y-m-d') ?>">
+    <input type="hidden" name="doc_date" value="<?= h($docDate ?: date('Y-m-d')) ?>">
     <input type="hidden" name="fullname" id="fullnameHidden"
       value="<?= htmlspecialchars($ownerName ?: ($_SESSION['fullname'] ?? '')) ?>">
     <input type="hidden" name="position" value="<?= htmlspecialchars($position ?? '') ?>">
@@ -599,7 +599,7 @@ $position    = $formData[3]  ?? '';
           </div>
 
           <!-- ค่าที่ส่งจริง -->
-          <input type="hidden" name="intern_period" id="internPeriod">
+          <input type="hidden" name="intern_period" id="internPeriod" value="<?= h($formData[6] ?? '') ?>">
         </div>
       </div>
       <!-- 8. หน่วยงาน/มหาวิทยาลัยใต้ลายเซ็น -->
@@ -1271,6 +1271,68 @@ $position    = $formData[3]  ?? '';
     disableMobile: true,
     onChange: updateInternRange
   });
+
+  function parseThaiDateForIntern(raw) {
+    raw = String(raw || "").trim();
+    if (!raw) return null;
+
+    const thaiDigits = "๐๑๒๓๔๕๖๗๘๙";
+    raw = raw.replace(/[๐-๙]/g, ch => {
+      const index = thaiDigits.indexOf(ch);
+      return index >= 0 ? String(index) : ch;
+    });
+
+    const m = raw.match(/(\d{1,2})\s+([^\s]+)\s+(\d{4})/);
+    if (!m) return null;
+
+    const day = parseInt(m[1], 10);
+    const monthIndex = monthsTH.indexOf(m[2].trim());
+    let year = parseInt(m[3], 10);
+
+    if (monthIndex === -1) return null;
+    if (year > 2400) year -= 543;
+
+    return new Date(year, monthIndex, day);
+  }
+
+  function parseThaiRangeForIntern(raw) {
+    raw = String(raw || "")
+      .trim()
+      .replace(/[–—]/g, "-")
+      .replace(/\s*ถึง\s*/g, " - ");
+
+    if (!raw) return null;
+
+    // แบบเต็ม: 10 กรกฎาคม 2568 - 12 สิงหาคม 2568
+    let m = raw.match(/(\d{1,2})\s+([^\s]+)\s+(\d{4})\s*-\s*(\d{1,2})\s+([^\s]+)\s+(\d{4})/);
+    if (m) {
+      const start = parseThaiDateForIntern(`${m[1]} ${m[2]} ${m[3]}`);
+      const end = parseThaiDateForIntern(`${m[4]} ${m[5]} ${m[6]}`);
+      return start && end ? [start, end] : null;
+    }
+
+    // แบบย่อ: 10 - 12 กรกฎาคม 2568
+    m = raw.match(/(\d{1,2})\s*-\s*(\d{1,2})\s+([^\s]+)\s+(\d{4})/);
+    if (m) {
+      const start = parseThaiDateForIntern(`${m[1]} ${m[3]} ${m[4]}`);
+      const end = parseThaiDateForIntern(`${m[2]} ${m[3]} ${m[4]}`);
+      return start && end ? [start, end] : null;
+    }
+
+    const single = parseThaiDateForIntern(raw);
+    return single ? [single, single] : null;
+  }
+
+  // โหลดวันที่นำเสนอเดิมกลับมาโชว์ตอนแก้ไขเอกสาร
+  const oldInternPeriod = (document.getElementById("internPeriod")?.value || "").trim();
+  if (oldInternPeriod) {
+    const parsedRange = parseThaiRangeForIntern(oldInternPeriod);
+    if (parsedRange) {
+      startPicker.setDate(parsedRange[0], false);
+      endPicker.setDate(parsedRange[1], false);
+      document.getElementById("internPeriod").value = oldInternPeriod;
+    }
+  }
   </script>
   <script>
   // ✅ ระบบเปิด/ปิดเมนูโปรไฟล์
@@ -1369,14 +1431,19 @@ $position    = $formData[3]  ?? '';
     }
   }
 
-  function goMain() {
+  function resetSubToPlaceholder() {
     const mainVal = (main.value || "").trim();
-    const firstSub = (SUB_OPTIONS[mainVal] || [])[0] || "";
-    const target = ROUTE_SUB[firstSub];
 
-    if (!target || target === "#") return;
+    sub.dataset.current = "";
 
-    window.location.href = withSelection(target, mainVal, firstSub);
+    if (mainVal === "external" || mainVal === "internal") {
+      sub.disabled = false;
+      renderSubOptions(SUB_OPTIONS[mainVal] || [], "");
+      sub.value = "";
+    } else {
+      sub.disabled = true;
+      sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
+    }
   }
 
   function goSub() {
@@ -1391,11 +1458,7 @@ $position    = $formData[3]  ?? '';
     window.location.href = withSelection(target, mainVal, subVal);
   }
 
-  main.addEventListener("change", () => {
-    sub.dataset.current = "";
-    syncUI();
-    goMain();
-  });
+  main.addEventListener("change", resetSubToPlaceholder);
 
   sub.addEventListener("change", goSub);
 

@@ -84,7 +84,6 @@ $coopPeriod = $_POST['coop_period'] ?? ($formDataByKey['coop_period'] ?? '');
 $coopStartDateValue = $_POST['coop_start_date'] ?? ($formDataByKey['coop_start_date'] ?? '');
 $coopEndDateValue = $_POST['coop_end_date'] ?? ($formDataByKey['coop_end_date'] ?? '');
 $coopAdvisorName = $_POST['advisor_name'] ?? ($formDataByKey['coop_advisor_name'] ?? '');
-$coopAdditionalDetail = $_POST['additional_detail'] ?? ($formDataByKey['coop_additional_detail'] ?? '');
 $projectReceiverName = $_POST['receiver_name'] ?? ($formDataByKey['coop_receiver_name'] ?? '');
 $projectReceiverPosition = $_POST['receiver_position'] ?? ($formDataByKey['coop_receiver_position'] ?? '');
 
@@ -452,7 +451,7 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
     </div>
   </header>
 
-  <form method="post" action="save_memo.php" id="memoForm">
+  <form method="post" action="<?= $isEdit ? '/Pro_letter/documents/update_memo.php' : 'save_memo.php' ?>" id="memoForm">
     <input type="hidden" name="template_id" value="1">
     <input type="hidden" name="department_id" value="1">
     <input type="hidden" name="document_type" value="infor_coop_evaluation">
@@ -463,6 +462,7 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
     <?php if ($isEdit): ?>
     <input type="hidden" name="document_id" value="<?= (int)$docId ?>">
     <input type="hidden" name="mode" value="update">
+    <input type="hidden" name="redirect_back" value="1">
     <?php else: ?>
     <input type="hidden" name="mode" value="create">
     <?php endif; ?>
@@ -664,28 +664,10 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
         </div>
       </div>
 
-      <!-- 8. รายละเอียดเพิ่มเติม -->
-      <div class="mb-6 flex items-start gap-1">
-        <label class="lbl whitespace-nowrap w-48 pt-2">8. รายละเอียดเพิ่มเติม :</label>
-        <div class="flex-1">
-          <textarea name="additional_detail" id="additionalDetail" data-spell-field="additional_detail" rows="3"
-            class="w-full border rounded-md p-2"
-            placeholder="เช่น ขอความอนุเคราะห์แจ้งผู้เกี่ยวข้องดำเนินการตอบแบบประเมินและแบบสำรวจ"><?= h($coopAdditionalDetail) ?></textarea>
-
-          <div id="additionalDetailSpellBox" class="spell-box hidden"></div>
-          <div id="additionalDetailSpellLoading" class="spell-loading hidden">
-            <div class="spell-loading-row">
-              <div class="spell-spinner"></div>
-              <span>กำลังตรวจคำผิด...</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 9. ชื่อผู้ลงนามท้ายเอกสาร -->
+      <!-- 8. ชื่อผู้ลงนามท้ายเอกสาร -->
       <div class="mb-4 flex items-start gap-1">
         <label class="lbl text-gray-800 whitespace-nowrap w-48 pt-2" for="receiverNameInput">
-          9. ชื่อผู้ลงนาม :
+          8. ชื่อผู้ลงนาม :
         </label>
 
         <div class="flex-1">
@@ -697,10 +679,10 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
         </div>
       </div>
 
-      <!-- 10. ตำแหน่งผู้ลงนามท้ายเอกสาร -->
+      <!-- 9. ตำแหน่งผู้ลงนามท้ายเอกสาร -->
       <div class="mb-4 flex items-start gap-1">
         <label class="lbl text-gray-800 whitespace-nowrap w-48 pt-2" for="receiverPositionInput">
-          10. ตำแหน่งผู้ลงนาม :
+          9. ตำแหน่งผู้ลงนาม :
         </label>
 
         <div class="flex-1">
@@ -751,7 +733,6 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
   const coopEndDate = byId("coopEndDate");
   const coopPeriod = byId("coopPeriod");
   const advisorName = byId("advisorName");
-  const additionalDetail = byId("additionalDetail");
   const receiverNameInput = byId("receiverNameInput");
   const receiverPositionInput = byId("receiverPositionInput");
 
@@ -779,13 +760,6 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
     },
 
     advisor_name: {
-      checked: false,
-      hasError: false,
-      ignored: false,
-      errors: [],
-      lastText: ""
-    },
-    additional_detail: {
       checked: false,
       hasError: false,
       ignored: false,
@@ -963,7 +937,6 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
     if (el.id === "organizationName") return byId("organizationNameSpellBox");
     if (el.id === "studentName") return byId("studentNameSpellBox");
     if (el.id === "advisorName") return byId("advisorNameSpellBox");
-    if (el.id === "additionalDetail") return byId("additionalDetailSpellBox");
     if (el.id === "receiverPositionInput") return byId("receiverPositionInputSpellBox");
     return null;
   }
@@ -975,7 +948,6 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
     if (el.id === "organizationName") return byId("organizationNameSpellLoading");
     if (el.id === "studentName") return byId("studentNameSpellLoading");
     if (el.id === "advisorName") return byId("advisorNameSpellLoading");
-    if (el.id === "additionalDetail") return byId("additionalDetailSpellLoading");
     if (el.id === "receiverPositionInput") return byId("receiverPositionInputSpellLoading");
     return null;
   }
@@ -1256,7 +1228,6 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
       toPerson,
       organizationName,
       advisorName,
-      additionalDetail,
       receiverPositionInput
     ];
 

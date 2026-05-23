@@ -16,6 +16,119 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: login.html");
     exit;
 }
+
+$pdo = db();
+
+$documentId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$isEditMode = $documentId > 0 && (($_GET['edit'] ?? '') === '1' || isset($_GET['id']));
+
+$docRow = [];
+$formData = [];
+$formDataByKey = [];
+
+if ($isEditMode) {
+    $stmt = $pdo->prepare("SELECT * FROM documents WHERE document_id = :id LIMIT 1");
+    $stmt->execute([':id' => $documentId]);
+    $docRow = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    if (!$docRow) {
+        header("Location: /Pro_letter/user/home.php?err=notfound");
+        exit;
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT dv.field_id, dv.value_text, tf.field_key
+        FROM document_values dv
+        LEFT JOIN template_fields tf ON tf.field_id = dv.field_id
+        WHERE dv.document_id = :id
+    ");
+    $stmt->execute([':id' => $documentId]);
+
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $fieldId = (int)($row['field_id'] ?? 0);
+        $value = (string)($row['value_text'] ?? '');
+        if ($fieldId > 0) {
+            $formData[$fieldId] = $value;
+        }
+        $fieldKey = trim((string)($row['field_key'] ?? ''));
+        if ($fieldKey !== '') {
+            $formDataByKey[$fieldKey] = $value;
+        }
+    }
+}
+
+function fv($fieldId, $fieldKey = null, $default = '') {
+    global $formData, $formDataByKey, $docRow;
+    if ($fieldKey !== null && $fieldKey !== '' && array_key_exists($fieldKey, $formDataByKey)) {
+        return $formDataByKey[$fieldKey];
+    }
+    if ($fieldId !== null && array_key_exists((int)$fieldId, $formData)) {
+        return $formData[(int)$fieldId];
+    }
+    return $default;
+}
+
+function thai_digits_to_arabic($text) {
+    return strtr((string)$text, [
+        '๐' => '0', '๑' => '1', '๒' => '2', '๓' => '3', '๔' => '4',
+        '๕' => '5', '๖' => '6', '๗' => '7', '๘' => '8', '๙' => '9',
+    ]);
+}
+
+function thai_time_to_html_time($text) {
+    $text = thai_digits_to_arabic($text);
+    if (preg_match('/(\d{1,2})[.:](\d{2})/', $text, $m)) {
+        return str_pad($m[1], 2, '0', STR_PAD_LEFT) . ':' . $m[2];
+    }
+    return '';
+}
+
+$studyDocDate = fv(1, 'doc_date', $docRow['doc_date'] ?? '');
+$studySubject = fv(14, 'study_subject', $docRow['subject'] ?? '');
+$studyToPerson = fv(26, 'study_to_person', '');
+$studyReceiverName = fv(31, 'study_receiver_name', '');
+$studyReceiverPosition = fv(32, 'study_receiver_position', '');
+$studyFullname = fv(2, 'study_fullname', $_SESSION['fullname'] ?? '');
+$studyPosition = fv(3, 'study_position', $_SESSION['position'] ?? 'อาจารย์ประจำภาควิชาเทคโนโลยีสารสนเทศ');
+$studyVisitPlace = fv(5, 'study_visit_place', '');
+$studyPlaceDetail = fv(7, 'study_place_detail', '');
+$studyObjective = fv(25, 'study_objective', '');
+$studyPurpose = fv(27, 'study_purpose_text', '');
+$studyVisitPeriod = fv(6, 'study_visit_period', '');
+$studyVisitTime = fv(9, 'study_visit_time', '');
+$studyVisitTimeHtml = thai_time_to_html_time($studyVisitTime);
+$studyTeacherCount = (int)fv(8, 'study_teacher_count', 0);
+$studyTeacherNamesText = fv(28, 'study_teacher_names_text', '');
+$studyTeacherAffiliationsText = fv(29, 'study_teacher_affiliations_text', '');
+$studyTeacherListText = fv(30, 'study_teacher_list_text', '');
+
+$studyTeachers = [];
+if (trim($studyTeacherListText) !== '') {
+    foreach (preg_split('/\r\n|\r|\n/', trim($studyTeacherListText)) as $line) {
+        $parts = explode('|', $line, 2);
+        $studyTeachers[] = [
+            'name' => trim($parts[0] ?? ''),
+            'affiliation' => trim($parts[1] ?? ''),
+        ];
+    }
+} else {
+    $names = preg_split('/\r\n|\r|\n/', trim($studyTeacherNamesText));
+    $affiliations = preg_split('/\r\n|\r|\n/', trim($studyTeacherAffiliationsText));
+    $max = max(count($names), count($affiliations), $studyTeacherCount);
+    for ($i = 0; $i < $max; $i++) {
+        $name = trim($names[$i] ?? '');
+        $affiliation = trim($affiliations[$i] ?? '');
+        if ($name !== '' || $affiliation !== '') {
+            $studyTeachers[] = [
+                'name' => $name,
+                'affiliation' => $affiliation,
+            ];
+        }
+    }
+}
+if ($studyTeacherCount < count($studyTeachers)) {
+    $studyTeacherCount = count($studyTeachers);
+}
 ?>
 
 <!DOCTYPE html>
@@ -372,7 +485,17 @@ if (!isset($_SESSION['user_id'])) {
     </div>
   </header>
 
-  <form method="post" action="save_memo.php" id="memoForm">
+  <form method="post" action="<?= $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo.php' ?>"
+    id="memoForm">
+    <?php if ($isEditMode): ?>
+    <input type="hidden" name="document_id" value="<?= (int)$documentId ?>">
+    <?php endif; ?>
+    <input type="hidden" name="form_type" value="study_visit">
+    <input type="hidden" name="document_type" value="infor_study_visit">
+    <input type="hidden" name="target_form" value="form_memo_sut_wellness.php">
+    <input type="hidden" name="redirect_to" value="form_memo_sut_wellness.php">
+    <input type="hidden" name="template_id"
+      value="<?= (int)($docRow['template_id'] ?? ($_POST['template_id'] ?? 1)) ?>">
     <!-- กล่องเนื้อหา -->
     <div class="w-[900px] mx-auto mt-16 mb-6 bg-white shadow-md rounded-md p-8" style="min-height: 1122px">
       <h1 class="text-center font-bold mb-6 text-black">
@@ -432,9 +555,9 @@ if (!isset($_SESSION['user_id'])) {
         <div class="flex items-center gap-3 md:col-span-2">
           <label class="lbl text-gray-800 whitespace-nowrap w-48" for="docDateDisplay">1. วัน เดือน ปี :</label>
           <div class="relative">
-            <input type="text" id="docDateDisplay" value="<?= h($formData[1] ?? '') ?>"
+            <input type="text" id="docDateDisplay" value="<?= h($studyDocDate) ?>"
               class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่" readonly />
-            <input type="hidden" name="doc_date" id="docDate" value="<?= h($formData[1] ?? '') ?>" />
+            <input type="hidden" name="doc_date" id="docDate" value="<?= h($studyDocDate) ?>" />
             <svg class="pointer-events-none absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]"
               xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -453,7 +576,8 @@ if (!isset($_SESSION['user_id'])) {
 
         <div class="flex-1">
           <input type="text" name="subject" id="subjectInput" data-spell-field="subject"
-            class="w-full border rounded-md p-2" placeholder="เช่น ขออนุญาตเข้าเยี่ยมชมศึกษาดูงาน SUT Wellness Academy">
+            class="w-full border rounded-md p-2" value="<?= h($studySubject) ?>"
+            placeholder="เช่น ขออนุญาตเข้าเยี่ยมชมศึกษาดูงาน SUT Wellness Academy">
 
           <div id="subjectInputSpellBox" class="spell-box hidden"></div>
           <div id="subjectInputSpellLoading" class="spell-loading hidden">
@@ -473,7 +597,8 @@ if (!isset($_SESSION['user_id'])) {
 
         <div class="flex-1">
           <input type="text" name="to_person" id="toPerson" data-spell-field="to_person"
-            class="w-full border rounded-md p-2" placeholder="เช่น อธิการบดีมหาวิทยาลัยเทคโนโลยีสุรนารี (มทส.)">
+            class="w-full border rounded-md p-2" value="<?= h($studyToPerson) ?>"
+            placeholder="เช่น อธิการบดีมหาวิทยาลัยเทคโนโลยีสุรนารี (มทส.)">
 
           <div id="toPersonSpellBox" class="spell-box hidden"></div>
           <div id="toPersonSpellLoading" class="spell-loading hidden">
@@ -493,7 +618,7 @@ if (!isset($_SESSION['user_id'])) {
 
         <div class="flex-1">
           <input type="text" name="receiver_name" id="receiverNameInput" class="w-full border rounded-md p-2"
-            value="<?= h($formData[31] ?? '') ?>" placeholder="เช่น ผู้ช่วยศาสตราจารย์พีระศักดิ์ เสรีกุล">
+            value="<?= h($studyReceiverName) ?>" placeholder="เช่น ผู้ช่วยศาสตราจารย์พีระศักดิ์ เสรีกุล">
           <p class="text-sm text-gray-500 mt-1">ชื่อนี้จะใช้แสดงบริเวณลายเซ็นท้ายเอกสาร เช่น
             (ผู้ช่วยศาสตราจารย์พีระศักดิ์ เสรีกุล)</p>
         </div>
@@ -557,7 +682,8 @@ if (!isset($_SESSION['user_id'])) {
 
         <div class="flex-1">
           <input type="text" name="visit_place" id="visitPlaceInput" data-spell-field="visit_place"
-            class="w-full border rounded-md p-2" placeholder="เช่น SUT Wellness Academy">
+            class="w-full border rounded-md p-2" value="<?= h($studyVisitPlace) ?>"
+            placeholder="เช่น SUT Wellness Academy">
 
           <div id="visitPlaceInputSpellBox" class="spell-box hidden"></div>
           <div id="visitPlaceInputSpellLoading" class="spell-loading hidden">
@@ -578,7 +704,7 @@ if (!isset($_SESSION['user_id'])) {
         <div class="flex-1">
           <textarea name="place_detail" id="placeDetailInput" data-spell-field="place_detail" rows="3"
             class="w-full border rounded-md p-2 shadow-sm"
-            placeholder="เช่น ศูนย์สุขภาพเพื่อการป้องกัน รักษา และฟื้นฟูสุขภาพด้วยแผนไทยประยุกต์แบบครบวงจร"></textarea>
+            placeholder="เช่น ศูนย์สุขภาพเพื่อการป้องกัน รักษา และฟื้นฟูสุขภาพด้วยแผนไทยประยุกต์แบบครบวงจร"><?= h($studyPlaceDetail) ?></textarea>
 
           <div id="placeDetailInputSpellBox" class="spell-box hidden"></div>
           <div id="placeDetailInputSpellLoading" class="spell-loading hidden">
@@ -599,7 +725,7 @@ if (!isset($_SESSION['user_id'])) {
         <div class="flex-1">
           <textarea name="objective" id="objectiveInput" data-spell-field="objective" rows="3"
             class="w-full border rounded-md p-2 shadow-sm"
-            placeholder="เช่น มีความประสงค์จะขออนุญาตเข้าเยี่ยมชมศึกษาดูงาน เพื่อศึกษาแนวทางการบริหารจัดการ..."></textarea>
+            placeholder="เช่น มีความประสงค์จะขออนุญาตเข้าเยี่ยมชมศึกษาดูงาน เพื่อศึกษาแนวทางการบริหารจัดการ..."><?= h($studyObjective) ?></textarea>
 
           <div id="objectiveInputSpellBox" class="spell-box hidden"></div>
           <div id="objectiveInputSpellLoading" class="spell-loading hidden">
@@ -620,7 +746,7 @@ if (!isset($_SESSION['user_id'])) {
         <div class="flex-1">
           <textarea name="purpose" id="purposeInput" data-spell-field="purpose" rows="3"
             class="w-full border rounded-md p-2"
-            placeholder="เช่น เพื่อนำข้อมูลและความรู้ที่ได้รับมาพัฒนาให้เกิดประโยชน์กับการจัดการเรียนการสอน งานวิจัย และการบริการวิชาการ"></textarea>
+            placeholder="เช่น เพื่อนำข้อมูลและความรู้ที่ได้รับมาพัฒนาให้เกิดประโยชน์กับการจัดการเรียนการสอน งานวิจัย และการบริการวิชาการ"><?= h($studyPurpose) ?></textarea>
 
           <div id="purposeInputSpellBox" class="spell-box hidden"></div>
           <div id="purposeInputSpellLoading" class="spell-loading hidden">
@@ -641,7 +767,7 @@ if (!isset($_SESSION['user_id'])) {
         <div class="flex items-center gap-4">
           <div class="relative">
             <input type="text" id="visitStart" class="border rounded-md p-2 w-44 pr-10 cursor-pointer"
-              placeholder="วันที่เข้าเยี่ยม" readonly>
+              value="<?= h($studyVisitPeriod) ?>" placeholder="วันที่เข้าเยี่ยม" readonly>
 
             <svg class="absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]" xmlns="http://www.w3.org/2000/svg" fill="none"
               viewBox="0 0 24 24" stroke="currentColor">
@@ -650,7 +776,7 @@ if (!isset($_SESSION['user_id'])) {
             </svg>
           </div>
 
-          <input type="hidden" name="visit_period" id="visitPeriod">
+          <input type="hidden" name="visit_period" id="visitPeriod" value="<?= h($studyVisitPeriod) ?>">
         </div>
       </div>
 
@@ -661,8 +787,8 @@ if (!isset($_SESSION['user_id'])) {
         </label>
 
         <div class="flex items-center gap-4">
-          <input type="time" id="timeStart" class="border rounded-md p-2 w-40">
-          <input type="hidden" name="visit_time" id="visitTime">
+          <input type="time" id="timeStart" class="border rounded-md p-2 w-40" value="<?= h($studyVisitTimeHtml) ?>">
+          <input type="hidden" name="visit_time" id="visitTime" value="<?= h($studyVisitTime) ?>">
         </div>
       </div>
 
@@ -674,13 +800,14 @@ if (!isset($_SESSION['user_id'])) {
 
         <div class="flex-1">
           <input type="number" name="teacher_count" id="teacherCount" class="w-48 border rounded-md p-2" min="1"
-            max="50" placeholder="กรอกจำนวนคณาจารย์">
+            max="50" value="<?= h((string)$studyTeacherCount) ?>" placeholder="กรอกจำนวนคณาจารย์">
 
           <div id="teacherNameContainer" class="mt-3 space-y-3"></div>
 
-          <input type="hidden" name="teacher_names_text" id="teacherNamesText">
-          <input type="hidden" name="teacher_affiliations_text" id="teacherAffiliationsText">
-          <input type="hidden" name="teacher_list_text" id="teacherListText">
+          <input type="hidden" name="teacher_names_text" id="teacherNamesText" value="<?= h($studyTeacherNamesText) ?>">
+          <input type="hidden" name="teacher_affiliations_text" id="teacherAffiliationsText"
+            value="<?= h($studyTeacherAffiliationsText) ?>">
+          <input type="hidden" name="teacher_list_text" id="teacherListText" value="<?= h($studyTeacherListText) ?>">
         </div>
       </div>
 
@@ -700,6 +827,7 @@ if (!isset($_SESSION['user_id'])) {
   <script>
   const byId = (id) => document.getElementById(id);
   const form = byId("memoForm");
+  const INITIAL_TEACHERS = <?= json_encode($studyTeachers, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 
   const docDateDisplay = byId("docDateDisplay");
   const docDate = byId("docDate");
@@ -902,10 +1030,15 @@ if (!isset($_SESSION['user_id'])) {
   }
 
   function rebuildTeacherInputs() {
-    const oldNames = Array.from(document.querySelectorAll(".teacher-name-input"))
+    let oldNames = Array.from(document.querySelectorAll(".teacher-name-input"))
       .map(input => input.value.trim());
-    const oldAffiliations = Array.from(document.querySelectorAll(".teacher-affiliation-input"))
+    let oldAffiliations = Array.from(document.querySelectorAll(".teacher-affiliation-input"))
       .map(input => input.value.trim());
+
+    if (oldNames.length === 0 && Array.isArray(INITIAL_TEACHERS) && INITIAL_TEACHERS.length > 0) {
+      oldNames = INITIAL_TEACHERS.map(row => (row?.name || "").trim());
+      oldAffiliations = INITIAL_TEACHERS.map(row => (row?.affiliation || "").trim());
+    }
 
     const count = parseInt(teacherCount.value, 10);
 
@@ -977,6 +1110,13 @@ if (!isset($_SESSION['user_id'])) {
 
   teacherCount?.addEventListener("input", rebuildTeacherInputs);
   teacherNameContainer?.addEventListener("input", updateTeacherNamesText);
+
+  if (teacherCount && parseInt(teacherCount.value || "0", 10) > 0) {
+    rebuildTeacherInputs();
+  }
+  if (timeStart && timeStart.value && !visitTime.value) {
+    updateVisitTime();
+  }
 
   function getSpellBoxByField(el) {
     if (!el) return null;
@@ -1580,16 +1720,6 @@ if (!isset($_SESSION['user_id'])) {
       }
     }
 
-    function goMain() {
-      const mainVal = (main.value || "").trim();
-      const firstSub = (SUB_OPTIONS[mainVal] || [""])[0] || "";
-      const target = ROUTE_SUB[firstSub];
-
-      if (target && target !== "#") {
-        window.location.href = withSelection(target, mainVal, firstSub);
-      }
-    }
-
     function goSub() {
       const mainVal = (main.value || "").trim();
       const subVal = (sub.value || "").trim();
@@ -1604,7 +1734,7 @@ if (!isset($_SESSION['user_id'])) {
     main.addEventListener("change", () => {
       sub.dataset.current = "";
       syncUI();
-      goMain();
+      sub.value = "";
     });
 
     sub.addEventListener("change", goSub);

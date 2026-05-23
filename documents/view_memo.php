@@ -576,14 +576,7 @@ $len = max(20, $len);
         <div class="sig-position"><?= h($position ?: '') ?></div>
       </div>
     </div>
-    <div style="font-family:'TH SarabunPSK'; font-size:16pt; line-height:1.2;"> เรียน <?= h($hdr_to) ?> </div>
-    <div class="approve-line">
-      เพื่อโปรดพิจารณาอนุมัติ
-    </div>
-    <div class="signature-area">
-      <div class="signature-name">(ผู้ช่วยศาสตราจารย์ ดร. ขนิษฐา นามี)</div>
-      <div class="signature-position">หัวหน้าภาควิชาเทคโนโลยีสารสนเทศ</div>
-    </div>
+
     <?php if (!$hasExpense): ?>
     <div class="footer-actions">
       <button type="button" onclick="downloadPdf()"
@@ -689,14 +682,7 @@ $len = max(20, $len);
         <div class="sig-position"><?= h($position ?: '') ?></div>
       </div>
     </div>
-    <div style="font-family:'TH SarabunPSK'; font-size:16pt; line-height:1.2;"> เรียน <?= h($hdr_to) ?> </div>
-    <div class="approve-line">
-      เพื่อโปรดพิจารณาอนุมัติ
-    </div>
-    <div class="signature-area">
-      <div class="signature-name">(ผู้ช่วยศาสตราจารย์ ดร. ขนิษฐา นามี)</div>
-      <div class="signature-position">หัวหน้าภาควิชาเทคโนโลยีสารสนเทศ</div>
-    </div>
+
     <?php if (!$hasExpense): ?>
     <div class="footer-actions">
       <button type="button" onclick="downloadPdf()"
@@ -801,14 +787,7 @@ $len = max(20, $len);
         <div class="sig-position"><?= h($position ?: '') ?></div>
       </div>
     </div>
-    <div style="font-family:'TH SarabunPSK'; font-size:16pt; line-height:1.2;"> เรียน <?= h($hdr_to) ?> </div>
-    <div class="approve-line">
-      เพื่อโปรดพิจารณาอนุมัติ
-    </div>
-    <div class="signature-area">
-      <div class="signature-name">(ผู้ช่วยศาสตราจารย์ ดร. ขนิษฐา นามี)</div>
-      <div class="signature-position">หัวหน้าภาควิชาเทคโนโลยีสารสนเทศ</div>
-    </div>
+
     <?php if (!$hasExpense): ?>
     <div class="footer-actions">
       <button type="button" onclick="downloadPdf()"

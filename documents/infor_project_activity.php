@@ -75,7 +75,7 @@ $projectLecturerNames = $editValuesByKey['project_lecturer_names'] ?? '';
 $projectReceiverName = $editValuesByKey['project_receiver_name'] ?? '';
 $projectReceiverPosition = $editValuesByKey['project_receiver_position'] ?? '';
 
-$formAction = $isEditMode ? '/Pro_letter/update_memo.php' : 'save_memo.php';
+$formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo.php';
 ?>
 
 <!DOCTYPE html>
@@ -776,7 +776,7 @@ $formAction = $isEditMode ? '/Pro_letter/update_memo.php' : 'save_memo.php';
         <div class="absolute right-0 bottom-0">
           <button type="submit" id="submitBtn"
             class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md flex items-center justify-center transition">
-            <?= $isEditMode ? "บันทึกการแก้ไข" : "ดำเนินการ" ?>
+            ดำเนินการ
           </button>
         </div>
 
@@ -1461,67 +1461,7 @@ $formAction = $isEditMode ? '/Pro_letter/update_memo.php' : 'save_memo.php';
     profileMenu.classList.add("hidden");
   }
 
-  const main = document.getElementById("mainCategory");
-  const sub = document.getElementById("subCategory");
-
-  // Mapping ไฟล์สำหรับ redirect
-  const redirectMain = {
-    train: "form_Memo.php",
-    academic: "Request_1.php",
-    external: null, // ยังไม่มีฟอร์ม
-    internal: null // ให้เลือกหมวดย่อยแทน
-  };
-
-  const redirectSub = {
-    "ขอใช้อาคารวันหยุดราชการ": "Request_2.php",
-    "ขอห้องพักรับรอง": "infor_room_request.php",
-    "ขออนุมัติตัวบุคคลเป็นวิทยากร": "Request_4.php",
-    "ขออนุมัติไม่เข้าร่วมโครงการ": "Request_5.php",
-    "การเผยแพร่งานวิจัยและเบิกค่าตอบแทนการตีพิมพ์": "Request_6.php",
-    "ขอแจ้งเรียนการเป็นผู้ร่วมวิจัย": "Request_7.php"
-  };
-
-  // หมวดย่อยของ "ภายใน"
-  const subInternal = Object.keys(redirectSub);
-
-  // เมื่อเลือก "หมวดหลัก"
-  main.addEventListener("change", () => {
-    const value = main.value;
-
-    // เคลียร์หมวดย่อยก่อน
-    sub.innerHTML = `<option value="">-- เลือกหมวดย่อย --</option>`;
-    sub.disabled = true;
-
-    // ถ้าเลือกหมวดที่มี redirect ทันที เช่น ฝึกอบรม, ประชุมฯ
-    if (redirectMain[value]) {
-      window.location.href = redirectMain[value];
-      return;
-    }
-
-    // ถ้าเลือก "ภายนอก" → ไม่ redirect, ไม่เปิดหมวดย่อย
-    if (value === "external") {
-      return;
-    }
-
-    // ถ้าเลือก "ภายใน" → เปิดหมวดย่อย
-    if (value === "internal") {
-      sub.disabled = false;
-      subInternal.forEach(text => {
-        const opt = document.createElement("option");
-        opt.value = text;
-        opt.textContent = text;
-        sub.appendChild(opt);
-      });
-    }
-  });
-
-  // เมื่อเลือกหมวดย่อยของภายใน → redirect
-  sub.addEventListener("change", () => {
-    const value = sub.value;
-    if (redirectSub[value]) {
-      window.location.href = redirectSub[value];
-    }
-  });
+  // หมวดหมู่ใช้สคริปต์ชุดเดียวด้านล่าง เพื่อไม่ให้ event ซ้ำและไม่ให้ redirect ตอนเลือกหมวดหลัก
   </script>
 
   <script>
@@ -1603,16 +1543,6 @@ $formAction = $isEditMode ? '/Pro_letter/update_memo.php' : 'save_memo.php';
       }
     }
 
-    function goMain() {
-      const mainVal = (main.value || "").trim();
-      const firstSub = (SUB_OPTIONS[mainVal] || [])[0] || "";
-      const target = ROUTE_SUB[firstSub];
-
-      if (!target || target === "#") return;
-
-      window.location.href = withSelection(target, mainVal, firstSub);
-    }
-
     function goSub() {
       const mainVal = (main.value || "").trim();
       const subVal = (sub.value || "").trim();
@@ -1626,9 +1556,10 @@ $formAction = $isEditMode ? '/Pro_letter/update_memo.php' : 'save_memo.php';
     }
 
     main.addEventListener("change", () => {
+      // เลือกหมวดหลักแล้วให้หมวดย่อยกลับไปที่ placeholder ก่อน
+      // ไม่ redirect และไม่เลือกหมวดย่อยตัวแรกให้อัตโนมัติ
       sub.dataset.current = "";
       syncUI();
-      goMain();
     });
 
     sub.addEventListener("change", goSub);

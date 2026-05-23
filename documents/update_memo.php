@@ -1,5 +1,5 @@
 <?php
-// /update_memo.php
+// /documents/update_memo.php
 session_start();
 
 /** DEV */
@@ -26,14 +26,37 @@ try {
     exit;
   }
 
-  // ตรวจสิทธิ์เป็นเจ้าของเอกสาร
+  // ตรวจสิทธิ์แก้ไขเอกสาร: เจ้าของเอกสาร / admin / officer / ผู้มีสิทธิ์ document.edit
   $pdo = db();
   $chk = $pdo->prepare("SELECT owner_id FROM documents WHERE document_id = :id LIMIT 1");
   $chk->execute([':id' => $documentId]);
   $owner = (int) $chk->fetchColumn();
-  if ($owner !== $userId) {
-    header('Location: /documents/form_Memo.html?err=forbidden', true, 302);
-    
+
+  $roleId = (int)($_SESSION['role_id'] ?? 0);
+  $canEditByPermission = false;
+
+  try {
+    $permStmt = $pdo->prepare("
+      SELECT COUNT(*)
+      FROM user_permissions up
+      JOIN permissions p ON p.perm_id = up.perm_id
+      WHERE up.user_id = :uid
+        AND p.perm_code = 'document.edit'
+    ");
+    $permStmt->execute([':uid' => $userId]);
+    $canEditByPermission = ((int)$permStmt->fetchColumn() > 0);
+  } catch (Throwable $permError) {
+    $canEditByPermission = false;
+  }
+
+  $canEditThisDocument = (
+    $owner === $userId
+    || in_array($roleId, [1, 2], true)
+    || $canEditByPermission
+  );
+
+  if (!$canEditThisDocument) {
+    header('Location: /Pro_letter/documents/view_memo.php?id=' . $documentId . '&err=forbidden', true, 302);
     exit;
   }
 
@@ -48,6 +71,8 @@ try {
     $purpose === 'speaker_workshop'
     || $redirectTo === 'form_memo_speaker.php'
     || $targetForm === 'form_memo_speaker.php'
+    || ($_POST['form_type'] ?? '') === 'speaker_workshop'
+    || ($_POST['document_type'] ?? '') === 'infor_speaker_workshop'
   );
   $isRoomRequest = (
     $purpose === 'room_request'
@@ -95,6 +120,20 @@ try {
     || isset($_POST['teacher_count'])
   );
 
+  $isAcademicPresentation = (
+    $purpose === 'academic'
+    || $redirectTo === 'form_memo_academic_1.php'
+    || $targetForm === 'form_memo_academic_1.php'
+    || $targetForm === 'infor_academic_presentation.php'
+    || ($_POST['form_type'] ?? '') === 'academic'
+    || ($_POST['form_type'] ?? '') === 'academic_presentation'
+    || ($_POST['document_type'] ?? '') === 'infor_academic_presentation'
+  );
+
+  if ($isAcademicPresentation && $purpose === '') {
+    $purpose = 'academic';
+  }
+
   // รองรับทั้ง field เดิมของ form_Memo.php และ field ของ infor_speaker_workshop.php
   $fullname = trim($_POST['fullname'] ?? $_POST['teacher_name'] ?? '');
   $position = trim($_POST['position'] ?? '');
@@ -113,6 +152,15 @@ try {
   $rangeDate = trim($_POST['range_date'] ?? '');
 
   $joinDates = trim($_POST['join_date'] ?? $_POST['intern_period'] ?? '');
+
+  // infor_academic_presentation.php ส่งช่วงวันที่ผ่าน join_date ไม่ได้ส่ง range_date
+  // ถ้าไม่เติมค่านี้ update จะ validate fail แล้วเด้งกลับหน้า Step 1
+  if ($rangeDate === '' && $joinDates !== '') {
+    $rangeDate = $joinDates;
+  }
+  if ($singleDate === '' && $dateOption === 'single' && $joinDates !== '') {
+    $singleDate = $joinDates;
+  }
 
   $isOnline = isset($_POST['is_online']) ? 1 : 0;
   $place = trim($_POST['place'] ?? $_POST['location'] ?? $_POST['location_input'] ?? '');
@@ -153,7 +201,6 @@ $projectReceiverPosition = trim($_POST['receiver_position'] ?? '');
   $coopEndDate          = trim($_POST['coop_end_date'] ?? '');
   $coopAdvisorName      = trim($_POST['advisor_name'] ?? '');
   $coopEvaluationEmail  = trim($_POST['evaluation_email'] ?? '');
-  $coopAdditionalDetail = trim($_POST['additional_detail'] ?? '');
   $coopReceiverName     = trim($_POST['receiver_name'] ?? '');
   $coopReceiverPosition = trim($_POST['receiver_position'] ?? '');
   $coopStudentListText  = trim($_POST['student_list_text'] ?? '');
@@ -219,6 +266,10 @@ $personType       = trim($_POST['person_type'] ?? '');
 $personTypeOther  = trim($_POST['person_type_other'] ?? '');
 $reason           = trim($_POST['reason'] ?? '');
 $reasonOther      = trim($_POST['reason_other'] ?? '');
+$dateOption       = trim($_POST['date_option'] ?? 'single');
+$singleDate       = trim($_POST['single_date'] ?? '');
+$rangeDate        = trim($_POST['range_date'] ?? '');
+$roomType         = trim($_POST['room_type'] ?? '');
 $studyVisitPlace  = trim($_POST['visit_place'] ?? '');
 $studyPlaceDetail = trim($_POST['place_detail'] ?? '');
 $studyObjectiveText = trim($_POST['objective'] ?? '');
@@ -344,6 +395,27 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
   $faculty = trim($_POST['faculty'] ?? '');
   $department = trim($_POST['department'] ?? '');
   $headerText = trim($_POST['header_text'] ?? '');
+
+  // ถ้าหน้าแบบฟอร์มไม่ได้ส่ง header_text มา อย่าล้างค่าเดิมใน documents.header_text
+  // ให้ประกอบส่วนราชการจากตาราง departments/faculties เหมือนตอนบันทึกใหม่
+  if ($headerText === '') {
+    $qHdr = $pdo->prepare("
+      SELECT d.department_name, d.phone, f.faculty_name
+      FROM departments d
+      JOIN faculties f ON d.faculty_id = f.faculty_id
+      WHERE d.department_id = :id
+      LIMIT 1
+    ");
+    $qHdr->execute([':id' => $departmentId]);
+    $hdrRow = $qHdr->fetch(PDO::FETCH_ASSOC);
+
+    if ($hdrRow) {
+      $headerText = trim($hdrRow['faculty_name'] . ' ภาค' . $hdrRow['department_name'] . ' โทร. ' . $hdrRow['phone']);
+    } else {
+      $headerText = trim(($faculty !== '' ? $faculty : '') . ' ' . ($department !== '' ? 'ภาค' . $department : ''));
+    }
+  }
+
   $docNo = trim($_POST['doc_no'] ?? '');
   $docDateDisp = trim($_POST['doc_date_display'] ?? '');
 
@@ -383,8 +455,10 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
     if ($coopAdvisorName === '') {
       $errors['advisor_name'] = 'required';
     }
-    if ($coopEvaluationEmail === '' || !filter_var($coopEvaluationEmail, FILTER_VALIDATE_EMAIL)) {
-      $errors['evaluation_email'] = 'required';
+    // ฟอร์ม infor_coop_evaluation.php ปัจจุบันไม่มีช่อง evaluation_email
+    // จึงตรวจรูปแบบเฉพาะกรณีที่มีการส่งค่ามาเท่านั้น
+    if ($coopEvaluationEmail !== '' && !filter_var($coopEvaluationEmail, FILTER_VALIDATE_EMAIL)) {
+      $errors['evaluation_email'] = 'invalid';
     }
     if ($coopReceiverName === '') {
       $errors['receiver_name'] = 'required';
@@ -578,13 +652,15 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
     } elseif ($isResearchData) {
         header('Location: /Pro_letter/documents/infor_research_data.php?id=' . $documentId . '&err=validate');
     } elseif ($isInviteMemo) {
-        header('Location: /Pro_letter/form_Memo/Request/infor_invite.php?id=' . $documentId . '&err=validate');
+        header('Location: /Pro_letter/documents/infor_invite.php?id=' . $documentId . '&edit=1&err=validate');
     } elseif ($isRoomRequest) {
         header('Location: /Pro_letter/documents/infor_room_request.php?id=' . $documentId . '&err=validate');
     } elseif ($isSpeakerMemo) {
-        header('Location: /Pro_letter/documents/infor_speaker_workshop.php?id=' . $documentId . '&err=validate');
+        header('Location: /Pro_letter/documents/infor_speaker_workshop.php?id=' . $documentId . '&edit=1&err=validate');
     } elseif ($isStudyVisit) {
-        header('Location: /Pro_letter/documents/infor_study_visit.php?id=' . $documentId . '&err=validate');
+        header('Location: /Pro_letter/documents/infor_study_visit.php?id=' . $documentId . '&edit=1&err=validate');
+    } elseif (!empty($isAcademicPresentation) || $purpose === 'academic') {
+        header('Location: /Pro_letter/documents/infor_academic_presentation.php?id=' . $documentId . '&edit=1&err=validate');
     } else {
         header('Location: /Pro_letter/documents/view_memo.php?id=' . $documentId . '&err=validate');
     }
@@ -621,7 +697,7 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute([':uid'=>$userId]);
 $canEdit = (int)$stmt->fetchColumn() > 0;
 
-if (!$canEdit) {
+if (!$canEditThisDocument) {
     header("Location: /Pro_letter/documents/view_memo.php?id={$documentId}&err=no_permission");
     exit;
 }
@@ -702,6 +778,21 @@ if ($isCoopEvaluation) {
         11 => $department,
         14 => $coopSubject,
         26 => $coopToPerson,
+
+        // legacy field_id ของฟอร์มประเมินสหกิจ เผื่อ template_fields ไม่มี field_key
+        70 => $coopSubject,
+        71 => $coopToPerson,
+        72 => $coopOrganizationName,
+        73 => (string)$coopStudentCount,
+        74 => $coopStudentsJson,
+        75 => $coopStudentListText,
+        76 => $coopPeriod,
+        77 => $coopStartDate,
+        78 => $coopEndDate,
+        79 => $coopAdvisorName,
+        80 => $coopEvaluationEmail,
+        82 => $coopReceiverName,
+        83 => $coopReceiverPosition,
     ];
 
     $valuesByKey = [
@@ -716,7 +807,6 @@ if ($isCoopEvaluation) {
         'coop_end_date'           => $coopEndDate,
         'coop_advisor_name'       => $coopAdvisorName,
         'coop_evaluation_email'   => $coopEvaluationEmail,
-        'coop_additional_detail'  => $coopAdditionalDetail,
         'coop_receiver_name'      => $coopReceiverName,
         'coop_receiver_position'  => $coopReceiverPosition,
     ];
@@ -903,7 +993,7 @@ if ($isCoopEvaluation) {
       3 => $position,
       4 => $joinType,
       5 => $eventTitle,
-      6 => ($dateOption === 'single') ? $singleDate : $rangeDate,
+      6 => ($dateOption === 'single') ? $singleDate : ($rangeDate !== '' ? $rangeDate : $joinDates),
       7 => $isOnline ? 'เข้าร่วมรูปแบบออนไลน์' : $place,
       8 => number_format($amount, 2, '.', ''),
       9 => $carUsed ? $carPlate : '',
@@ -1014,7 +1104,7 @@ $redirectBack = trim($redirectBack);
 
 /* ถ้ามี referer ที่ส่งมา → กลับไปหน้าตามประเภทเอกสาร */
 if ($redirectBack !== '') {
-    if (!$noCost && !$isCoopEvaluation && !$isProjectActivity && !$isResearchData && !$isInviteMemo && !$isRoomRequest && !$isSpeakerMemo && !$isStudyVisit) {
+    if (!$noCost && !$isCoopEvaluation && !$isProjectActivity && !$isResearchData && !$isInviteMemo && !$isRoomRequest && !$isSpeakerMemo && !$isStudyVisit && !$isAcademicPresentation) {
         header("Location: /Pro_letter/documents/form_Calcu.php?id={$documentId}&from=update");
         exit;
     }
@@ -1026,9 +1116,9 @@ if ($redirectBack !== '') {
 } elseif ($isResearchData) {
     $redirectUrl = "/Pro_letter/form_Memo/form_memo_request_research_data.php?id={$documentId}";
 } elseif ($isInviteMemo) {
-    $redirectUrl = "/Pro_letter/form_Memo/form_memo_invite.php?id={$documentId}";
+    $redirectUrl = "/Pro_letter/form_Memo/form_memo_invite_speaker.php?id={$documentId}";
 } elseif ($isRoomRequest) {
-    $redirectUrl = "/Pro_letter/documents/infor_room_request.php?id={$documentId}";
+    $redirectUrl = "/Pro_letter/form_Memo/form_memo_room_request_1.php?id={$documentId}";
 } elseif ($isSpeakerMemo) {
     $redirectUrl = "/Pro_letter/form_Memo/form_memo_speaker.php?id={$documentId}";
 } elseif ($isStudyVisit) {
@@ -1063,12 +1153,12 @@ if ($isResearchData) {
 }
 
 if ($isInviteMemo) {
-    header("Location: /Pro_letter/form_Memo/form_memo_invite.php?id={$documentId}&saved=1&from=update");
+    header("Location: /Pro_letter/form_Memo/form_memo_invite_speaker.php?id={$documentId}&saved=1&from=update");
     exit;
 }
 
 if ($isRoomRequest) {
-    header("Location: /Pro_letter/documents/infor_room_request.php?id={$documentId}&saved=1&from=update");
+    header("Location: /Pro_letter/form_Memo/form_memo_room_request_1.php?id={$documentId}&saved=1&from=update");
     exit;
 }
 
@@ -1079,6 +1169,11 @@ if ($isSpeakerMemo) {
 
 if ($isStudyVisit) {
     header("Location: /Pro_letter/form_Memo/form_memo_sut_wellness.php?id={$documentId}&saved=1&from=update");
+    exit;
+}
+
+if (!empty($isAcademicPresentation) || $purpose === 'academic') {
+    header("Location: /Pro_letter/form_Memo/form_memo_academic_1.php?id={$documentId}&saved=1&from=update");
     exit;
 }
 
@@ -1114,7 +1209,9 @@ exit;
     } elseif (!empty($isInviteMemo)) {
       header('Location: /Pro_letter/documents/infor_invite.php?id=' . $documentId . '&err=server', true, 302);
     } elseif (!empty($isStudyVisit)) {
-      header('Location: /Pro_letter/documents/infor_study_visit.php?id=' . $documentId . '&err=server', true, 302);
+      header('Location: /Pro_letter/documents/infor_study_visit.php?id=' . $documentId . '&edit=1&err=server', true, 302);
+    } elseif (!empty($isAcademicPresentation) || $purpose === 'academic') {
+      header('Location: /Pro_letter/documents/infor_academic_presentation.php?id=' . $documentId . '&edit=1&err=server', true, 302);
     } else {
       header('Location: /Pro_letter/documents/view_memo.php?id=' . $documentId . '&err=server', true, 302);
     }

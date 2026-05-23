@@ -225,11 +225,37 @@ if (!isset($_SESSION['user_id'])) {
         userViewStatus = "rejected";
       }
 
+      const routeHint = [
+        d.join_type || "",
+        d.course_name || "",
+        d.subject || "",
+        d.memo_subject || "",
+        d.form_type || "",
+        d.document_type || "",
+        d.target_form || "",
+        d.redirect_to || "",
+        d.view_file || "",
+        d.word_file || "",
+        d.pdf_file || ""
+      ].join(" ");
+
+      let title = d.join_type || "";
+      if (title.trim() === "อื่นๆ" && (
+          routeHint.includes("consent_research_presentation") ||
+          routeHint.includes("infor_present") ||
+          routeHint.includes("form_consent_research_presentation") ||
+          routeHint.includes("หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ") ||
+          routeHint.includes("ยินยอมให้นำเสนอผลงานวิจัย")
+        )) {
+        title = "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ";
+      }
+
       return {
         document_id: d.document_id,
         join_type: d.join_type || "",
-        title: d.join_type || "(ไม่มีชื่อเรื่อง)",
-        detail: d.course_name || "(ไม่มีรายละเอียด)",
+        route_hint: routeHint,
+        title: title || "(ไม่มีชื่อเรื่อง)",
+        detail: d.course_name || d.subject || "(ไม่มีรายละเอียด)",
         date: d.doc_date,
 
         raw_status: d.status, // ⭐ สถานะจริง DB
@@ -331,7 +357,7 @@ if (!isset($_SESSION['user_id'])) {
 
         <!-- ซ้าย -->
         <div class="flex-1 min-w-0 pr-4">
-          <a href="#" onclick="return openDocument(${req.document_id}, '${String(req.join_type).replace(/'/g, "\\'")}')"
+          <a href="#" onclick='return openDocument(${req.document_id}, ${JSON.stringify(req.route_hint || req.join_type || "")})'
              class="font-semibold text-teal-600 hover:underline text-lg">
             ${req.title}
           </a>
@@ -520,8 +546,24 @@ if (!isset($_SESSION['user_id'])) {
     }
   });
 
-  function getDocumentViewUrl(docId, joinType = "") {
-    const text = String(joinType || "").trim();
+  function isConsentResearchPresentationHint(routeHint = "") {
+    const text = String(routeHint || "").trim();
+    return (
+      text.includes("consent_research_presentation") ||
+      text.includes("infor_present") ||
+      text.includes("form_consent_research_presentation") ||
+      text.includes("หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ") ||
+      text.includes("ยินยอมให้นำเสนอผลงานทางวิชาการ") ||
+      text.includes("ยินยอมให้นำเสนอผลงานวิจัย")
+    );
+  }
+
+  function getDocumentViewUrl(docId, routeHint = "") {
+    const text = String(routeHint || "").trim();
+
+    if (isConsentResearchPresentationHint(text)) {
+      return `../form_Memo/form_consent_research_presentation.php?id=${encodeURIComponent(docId)}`;
+    }
 
     // จับจากข้อความที่แสดงในรายการเอกสาร ให้ตรงกับ redirect ที่ save_memo.php ส่งไป
     const routes = [{
@@ -570,7 +612,7 @@ if (!isset($_SESSION['user_id'])) {
     return `${baseUrl}?id=${encodeURIComponent(docId)}`;
   }
 
-  function openDocument(docId, joinType = "") {
+  function openDocument(docId, routeHint = "") {
     fetch("../check_view_permission.php?id=" + encodeURIComponent(docId))
       .then(r => r.json())
       .then(res => {
@@ -582,7 +624,7 @@ if (!isset($_SESSION['user_id'])) {
         }
 
         if (res.allowed === true) {
-          window.location.href = getDocumentViewUrl(docId, joinType);
+          window.location.href = getDocumentViewUrl(docId, routeHint);
           return;
         }
 

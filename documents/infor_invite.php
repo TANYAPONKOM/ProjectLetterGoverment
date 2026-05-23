@@ -1408,14 +1408,6 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
       }
     }
 
-    function goMain() {
-      const mainVal = (main.value || "").trim();
-      const firstSub = (SUB_OPTIONS[mainVal] || [""])[0] || "";
-      const target = ROUTE_SUB[firstSub];
-      if (!target || target === "#") return;
-      window.location.href = withSelection(target, mainVal, firstSub);
-    }
-
     function goSub() {
       const mainVal = (main.value || "").trim();
       const subVal = (sub.value || "").trim();
@@ -1427,9 +1419,11 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
     }
 
     main.addEventListener("change", () => {
+      // เมื่อเลือกหมวดหลัก ให้แสดงรายการหมวดย่อย แต่ยังไม่เลือกให้อัตโนมัติ
+      // และยังไม่เปลี่ยนหน้า จนกว่าผู้ใช้จะเลือกหมวดย่อยเอง
       sub.dataset.current = "";
       syncUI();
-      goMain();
+      sub.value = "";
     });
 
     sub.addEventListener("change", goSub);
