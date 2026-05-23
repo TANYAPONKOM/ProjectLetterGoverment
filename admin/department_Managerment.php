@@ -1,4 +1,4 @@
-<?php
+<?php //department_Managerment.php
 session_start();
 if (!isset($_SESSION['role_id']) || $_SESSION['role_id'] != 1) {
     header('Location: ../login.html');
