@@ -3337,48 +3337,35 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     const sub = document.getElementById("subCategory");
     if (!main || !sub) return;
 
-    const SUB_OPTIONS = {
+const SUB_OPTIONS = {
       external: [
-        "ฝึกอบรม ",
-        "ประชุมวิชาการ/ศึกษาดูงาน/สัมมนาวิชาการ ",
-        "ขออนุมัติตัวบุคคลเป็นวิทยากร ",
-        "ขอห้องพักรับรอง ",
+        "ฝึกอบรม",
+        "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย",
+        "ขออนุมัติตัวบุคคลเป็นวิทยากร",
+        "ขอห้องพักรับรอง",
         "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ",
       ],
       internal: [
         "หนังสือเรียนเชิญวิทยากร",
-        "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์ ",
-        "ขอเข้าเยี่ยมศึกษาดูงาน ",
+        "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์",
+        "ขอเข้าเยี่ยมศึกษาดูงาน",
         "ขอเข้าไปจัดกิจกรรมโครงการ",
-        "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ) ",
+        "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)",
       ],
     };
 
-    const ROUTE_MAIN = {
-      train: "/Pro_letter/documents/form_Memo.php",
-      academic: "/Pro_letter/form_Memo/Request/infor_approve_pro.php",
-    };
-
     const ROUTE_SUB = {
-      "ระบบขอความอนุเคราะห์หนังสือฝึกงาน (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_intership.php",
-      "หนังสือเรียนเชิญวิทยากร (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_invite.php",
-      "ส่งตัวหนังสือขอออกฝึกงาน(ของนักศึกษา)": "#",
-      "หนังสือขอบคุณ (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_thankyou.php",
-      "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์ (ของนักศึกษา)": "/Pro_letter/form_Memo/Request/infor_research_data.php",
-      "หนังสือเรียนเชิญปริญญา(ของนักศึกษา)": "#",
+      "ฝึกอบรม": "/Pro_letter/documents/form_Memo.php",
+      "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย": "/Pro_letter/documents/infor_academic_presentation.php",
+      "ขออนุมัติตัวบุคคลเป็นวิทยากร": "/Pro_letter/documents/infor_speaker_workshop.php",
+      "ขอห้องพักรับรอง": "/Pro_letter/documents/infor_room_request.php",
+      "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ": "/Pro_letter/documents/infor_present.php",
 
-      "ขอเปลี่ยนแปลงตารางสอน (ของอาจารย์)": "#",
-      "ขอเปลี่ยนแปลงตารางสอบ (ของอาจารย์)": "/Pro_letter/form_Memo/Request/infor_change_exam.php",
-      "ขอสอบนอกตาราง (ของอาจารย์)": "/Pro_letter/form_Memo/Request/infor_extra_exam.php",
-      "ขอใช้อาคารวันหยุดราชการ (ของอาจารย์)": "/Pro_letter/user/Request_2.php",
-      "ขอสอนชดเชย (ของอาจารย์)": "#",
-      "ขอห้องพักรับรอง (ของอาจารย์)": "/Pro_letter/user/Request_3.php",
-      "ขออนุมัติตัวบุคคลเป็นวิทยากร (ของอาจารย์)": "/Pro_letter/user/Request_4.php",
-      "ขออนุมัติไม่เข้าร่วมโครงการ (ของอาจารย์)": "/Pro_letter/user/Request_5.php",
-      "การเผยแพร่งานวิจัยและเบิกค่าตอบแทนการตีพิมพ์ (ของอาจารย์)": "#",
-      "ขออนุมัติจัดทำโครงการ (ของอาจารย์)": "#",
-      "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ (ของอาจารย์)": "#",
-      "ขอแจ้งเรียนการเป็นผู้ร่วมวิจัย (ของอาจารย์)": "/Pro_letter/user/Request_7.php",
+      "หนังสือเรียนเชิญวิทยากร": "/Pro_letter/documents/infor_invite.php",
+      "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์": "/Pro_letter/documents/infor_research_data.php",
+      "ขอเข้าเยี่ยมศึกษาดูงาน": "/Pro_letter/documents/infor_study_visit.php",
+      "ขอเข้าไปจัดกิจกรรมโครงการ": "/Pro_letter/documents/infor_project_activity.php",
+      "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)": "/Pro_letter/documents/infor_coop_evaluation.php",
     };
 
     function renderSubOptions(list, selectedValue = "") {

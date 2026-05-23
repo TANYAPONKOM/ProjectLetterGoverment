@@ -665,10 +665,74 @@ $len = max(20, $len);
     /* ← เทียบเท่า 16pt จริงใน Word */
     font-weight: 400 !important;
   }
+  /* ===== PDF Loading Overlay ===== */
+.pdf-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(255, 255, 255, 0.72);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+
+.pdf-loading-box {
+  min-width: 260px;
+  padding: 28px 34px;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+  text-align: center;
+  font-family: "TH SarabunPSK", sans-serif;
+}
+
+.pdf-spinner {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 14px auto;
+  border: 6px solid rgba(20, 184, 166, 0.18);
+  border-top-color: #14b8a6;
+  border-right-color: #14b8a6;
+  border-radius: 50%;
+  animation: pdfSpin 0.85s linear infinite;
+}
+
+.pdf-loading-title {
+  color: #0f766e;
+  font-size: 22pt;
+  font-weight: bold;
+  line-height: 1.1;
+}
+
+.pdf-loading-subtitle {
+  margin-top: 4px;
+  color: #475569;
+  font-size: 16pt;
+  line-height: 1.1;
+}
+
+@keyframes pdfSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
   </style>
 </head>
 
 <body>
+
+<div id="pdfLoadingOverlay" class="pdf-loading-overlay">
+  <div class="pdf-loading-box">
+    <div class="pdf-spinner"></div>
+    <div class="pdf-loading-title">กำลังสร้าง PDF...</div>
+    <div class="pdf-loading-subtitle">กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร</div>
+  </div>
+</div>
   <?php if ($readonly): ?>
   <script>
   document.addEventListener("DOMContentLoaded", () => {
@@ -1107,6 +1171,21 @@ $len = max(20, $len);
 
   <script>
   async function downloadPdf() {
+    const loadingOverlay = document.getElementById("pdfLoadingOverlay");
+    const downloadButtons = document.querySelectorAll("button[onclick='downloadPdf()']");
+
+    if (loadingOverlay) {
+      loadingOverlay.style.display = "flex";
+    }
+
+    downloadButtons.forEach(btn => {
+      btn.disabled = true;
+      btn.dataset.oldText = btn.innerText;
+      btn.innerText = "กำลังสร้าง PDF...";
+      btn.style.opacity = "0.65";
+      btn.style.cursor = "not-allowed";
+    });
+
     try {
       const {
         jsPDF
@@ -1209,14 +1288,15 @@ $len = max(20, $len);
         document.body.appendChild(clone);
 
         const canvas = await html2canvas(clone, {
-          scale: 4,
+          scale: 1,
           useCORS: true,
           allowTaint: true,
           backgroundColor: "#ffffff",
           windowWidth: 794,
           windowHeight: 1123,
           scrollX: 0,
-          scrollY: 0
+          scrollY: 0,
+          logging: false
         });
 
         document.body.removeChild(clone);
@@ -1235,6 +1315,17 @@ $len = max(20, $len);
     } catch (error) {
       console.error(error);
       alert("สร้าง PDF ไม่สำเร็จ กรุณากด F12 ดู Console");
+    } finally {
+      if (loadingOverlay) {
+        loadingOverlay.style.display = "none";
+      }
+
+      downloadButtons.forEach(btn => {
+        btn.disabled = false;
+        btn.innerText = btn.dataset.oldText || "ดาวน์โหลด PDF";
+        btn.style.opacity = "1";
+        btn.style.cursor = "pointer";
+      });
     }
   }
   </script>
