@@ -1548,7 +1548,7 @@ $len = max(20, $len);
           chip.style.paddingRight = "0";
         });
         // แก้ไขตำแหน่งเส้นประในส่วน "เรื่อง" (ค้นหาบรรทัดประมาณที่ 835)
-        clone.querySelectorAll(".subject-line").forEach(line => {
+        clone.querySelectorAll(".subject-line").forEach((line, index) => {
           line.querySelectorAll(".pdf-subject-dot-line").forEach(el => el.remove());
 
           line.style.position = "relative";
@@ -1563,7 +1563,13 @@ $len = max(20, $len);
           line.style.paddingBottom = "16px";
 
           line.style.margin = "0";
-          line.style.borderBottom = "2px dotted #000"; // ใช้สไตล์เส้นประแบบเดิมที่คุณต้องการ
+
+          // ปรับเฉพาะ PDF: ถ้าเป็นเส้นเรื่องบรรทัดที่ 2 ขึ้นไป ให้ขยับขึ้น
+          if (index > 0) {
+            line.style.marginTop = "-10px";
+          }
+
+          line.style.borderBottom = "2px dotted #000";
           line.style.overflow = "visible";
           line.style.fontSize = "16pt";
           line.style.fontFamily = "TH SarabunPSK";
@@ -1652,27 +1658,38 @@ $len = max(20, $len);
 
         document.body.appendChild(clone);
 
-        const canvas = await html2canvas(clone, {
-          scale: 1,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: "#ffffff",
-          windowWidth: 794,
-          windowHeight: 1123,
-          scrollX: 0,
-          scrollY: 0,
-          logging: false
-        });
+       const PDF_SCALE = 2.2; // จุดสมดุล: เร็วขึ้น แต่ยังไม่ฟุ้งแบบ JPEG
 
-        document.body.removeChild(clone);
+    // รอให้ฟอนต์โหลดก่อน ช่วยลดอาการตัวหนังสือฟุ้ง/เพี้ยน
+    if (document.fonts && document.fonts.ready) {
+      await document.fonts.ready;
+    }
 
-        const imgData = canvas.toDataURL("image/png");
+    const canvas = await html2canvas(clone, {
+      scale: PDF_SCALE,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: "#ffffff",
+      windowWidth: 794,
+      windowHeight: 1123,
+      scrollX: 0,
+      scrollY: 0,
+      logging: false,
+      imageTimeout: 10000,
+      removeContainer: true
+    });
 
-        if (i > 0) {
-          pdf.addPage();
-        }
+    document.body.removeChild(clone);
 
-        pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
+    // ใช้ PNG เพราะเอกสารราชการมีตัวหนังสือ/เส้นประเยอะ ถ้าใช้ JPEG จะฟุ้ง
+    const imgData = canvas.toDataURL("image/png");
+
+    if (i > 0) {
+      pdf.addPage();
+    }
+
+    // FAST เร็วกว่า MEDIUM/SLOW และความคมของภาพยังคงดีกว่า JPEG
+    pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "FAST");
       }
 
       pdf.save("memo_<?= $docId ?>.pdf");

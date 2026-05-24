@@ -1082,26 +1082,38 @@ $len = max(20, $len);
 
         document.body.appendChild(clone);
 
-        const canvas = await html2canvas(clone, {
-          scale: 1,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: "#ffffff",
-          windowWidth: 794,
-          windowHeight: 1123,
-          scrollX: 0,
-          scrollY: 0,
-          logging: false
-        });
-        document.body.removeChild(clone);
+       const PDF_SCALE = 2.2; // จุดสมดุล: เร็วขึ้น แต่ยังไม่ฟุ้งแบบ JPEG
 
-        const imgData = canvas.toDataURL("image/png");
+    // รอให้ฟอนต์โหลดก่อน ช่วยลดอาการตัวหนังสือฟุ้ง/เพี้ยน
+    if (document.fonts && document.fonts.ready) {
+      await document.fonts.ready;
+    }
 
-        if (i > 0) {
-          pdf.addPage();
-        }
+    const canvas = await html2canvas(clone, {
+      scale: PDF_SCALE,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: "#ffffff",
+      windowWidth: 794,
+      windowHeight: 1123,
+      scrollX: 0,
+      scrollY: 0,
+      logging: false,
+      imageTimeout: 10000,
+      removeContainer: true
+    });
 
-        pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
+    document.body.removeChild(clone);
+
+    // ใช้ PNG เพราะเอกสารราชการมีตัวหนังสือ/เส้นประเยอะ ถ้าใช้ JPEG จะฟุ้ง
+    const imgData = canvas.toDataURL("image/png");
+
+    if (i > 0) {
+      pdf.addPage();
+    }
+
+    // FAST เร็วกว่า MEDIUM/SLOW และความคมของภาพยังคงดีกว่า JPEG
+    pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "FAST");
       }
 
       pdf.save("room_request_<?= $docId ?>.pdf");

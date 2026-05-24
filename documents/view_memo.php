@@ -399,6 +399,7 @@ $len = max(20, $len);
   .subject-line.blank-label-line {
     margin-left: 0;
   }
+  
 
   .subject-text {
     display: inline-block;
@@ -1269,7 +1270,7 @@ $len = max(20, $len);
         });
 
         // แก้ไขตำแหน่งเส้นประในส่วน "เรื่อง" (ค้นหาบรรทัดประมาณที่ 835)
-        clone.querySelectorAll(".subject-line").forEach(line => {
+       clone.querySelectorAll(".subject-line").forEach((line, index) => {
           line.querySelectorAll(".pdf-subject-dot-line").forEach(el => el.remove());
 
           line.style.position = "relative";
@@ -1284,7 +1285,13 @@ $len = max(20, $len);
           line.style.paddingBottom = "16px";
 
           line.style.margin = "0";
-          line.style.borderBottom = "2px dotted #000"; // ใช้สไตล์เส้นประแบบเดิมที่คุณต้องการ
+
+          // ปรับเฉพาะ PDF: ถ้าเป็นเส้นเรื่องบรรทัดที่ 2 ขึ้นไป ให้ขยับขึ้น
+          if (index > 0) {
+            line.style.marginTop = "-10px";
+          }
+
+          line.style.borderBottom = "2px dotted #000";
           line.style.overflow = "visible";
           line.style.fontSize = "16pt";
           line.style.fontFamily = "TH SarabunPSK";

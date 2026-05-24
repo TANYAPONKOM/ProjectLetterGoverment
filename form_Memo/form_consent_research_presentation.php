@@ -1310,27 +1310,40 @@ $len = max(20, $len);
           range.detach();
         });
 
-        const canvas = await html2canvas(clone, {
-          scale: 1,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: "#ffffff",
-          windowWidth: 794,
-          windowHeight: 1123,
-          scrollX: 0,
-          scrollY: 0,
-          logging: false
-        });
+      const PDF_SCALE = 2.15; // สมดุล: ชัดกว่า scale 1 มาก และยังไม่ช้าเกิน
 
-        document.body.removeChild(wrapper);
+// รอให้ฟอนต์โหลดก่อน ช่วยลดอาการตัวหนังสือฟุ้ง/เพี้ยน
+if (document.fonts && document.fonts.ready) {
+  await document.fonts.ready;
+}
 
-        const imgData = canvas.toDataURL("image/png");
+    const canvas = await html2canvas(clone, {
+      scale: PDF_SCALE,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: "#ffffff",
+      windowWidth: 794,
+      windowHeight: 1123,
+      scrollX: 0,
+      scrollY: 0,
+      logging: false,
+      imageTimeout: 10000,
+      removeContainer: true
+    });
 
-        if (i > 0) {
-          pdf.addPage();
-        }
+    // สำคัญ: ไฟล์นี้ต้องลบ wrapper ไม่ใช่ clone
+    if (wrapper && wrapper.parentNode) {
+      wrapper.parentNode.removeChild(wrapper);
+    }
 
-        pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
+    // ใช้ PNG เพราะเอกสารมีตัวหนังสือ/เส้นประเยอะ ถ้าใช้ JPEG จะฟุ้ง
+    const imgData = canvas.toDataURL("image/png");
+
+    if (i > 0) {
+      pdf.addPage();
+    }
+
+    pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "FAST");
       }
 
       pdf.save("consent_research_presentation_<?= $docId ?>.pdf");
