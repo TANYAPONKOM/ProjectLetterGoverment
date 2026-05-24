@@ -1190,11 +1190,17 @@ $len = max(20, $len);
                 นามี)<br /> หัวหน้า<?= h($displayDepartmentFull) ?> </div> -->
         <div class="footer-actions">
 
-          <!-- 🔵 ปุ่มแรก: พิมพ์/ดูตัวอย่าง (ทุก role ต้องมี และอยู่ลำดับแรก) -->
+          <!-- ปุ่มดาวน์โหลด PDF -->
           <button type="button" onclick="downloadPdf()"
-            class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+            class="bg-red-700 hover:bg-red-800 text-white px-6 py-2 rounded-md text-xl font-bold">
             ดาวน์โหลด PDF
           </button>
+
+          <!-- ปุ่มดาวน์โหลด Word -->
+          <a href="/Pro_letter/documents/download_word_request_research_data.php?id=<?= (int)$docId ?>"
+            class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-flex items-center justify-center">
+            ดาวน์โหลด Word
+          </a>
 
           <!-- ปุ่มแก้ไขเอกสาร: กลับไปหน้าแบบฟอร์มคำถามและดึงข้อมูลเดิมขึ้นมาแก้ -->
           <?php if ($canEdit || $roleId === 3 || $isAdmin || $isOfficer): ?>
@@ -1478,38 +1484,38 @@ $len = max(20, $len);
 
         document.body.appendChild(clone);
 
- const PDF_SCALE = 2.2; // จุดสมดุล: เร็วขึ้น แต่ยังไม่ฟุ้งแบบ JPEG
+        const PDF_SCALE = 2.2; // จุดสมดุล: เร็วขึ้น แต่ยังไม่ฟุ้งแบบ JPEG
 
-    // รอให้ฟอนต์โหลดก่อน ช่วยลดอาการตัวหนังสือฟุ้ง/เพี้ยน
-    if (document.fonts && document.fonts.ready) {
-      await document.fonts.ready;
-    }
+        // รอให้ฟอนต์โหลดก่อน ช่วยลดอาการตัวหนังสือฟุ้ง/เพี้ยน
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
 
-    const canvas = await html2canvas(clone, {
-      scale: PDF_SCALE,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: "#ffffff",
-      windowWidth: 794,
-      windowHeight: 1123,
-      scrollX: 0,
-      scrollY: 0,
-      logging: false,
-      imageTimeout: 10000,
-      removeContainer: true
-    });
+        const canvas = await html2canvas(clone, {
+          scale: PDF_SCALE,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          windowWidth: 794,
+          windowHeight: 1123,
+          scrollX: 0,
+          scrollY: 0,
+          logging: false,
+          imageTimeout: 10000,
+          removeContainer: true
+        });
 
-    document.body.removeChild(clone);
+        document.body.removeChild(clone);
 
-    // ใช้ PNG เพราะเอกสารราชการมีตัวหนังสือ/เส้นประเยอะ ถ้าใช้ JPEG จะฟุ้ง
-    const imgData = canvas.toDataURL("image/png");
+        // ใช้ PNG เพราะเอกสารราชการมีตัวหนังสือ/เส้นประเยอะ ถ้าใช้ JPEG จะฟุ้ง
+        const imgData = canvas.toDataURL("image/png");
 
-    if (i > 0) {
-      pdf.addPage();
-    }
+        if (i > 0) {
+          pdf.addPage();
+        }
 
-    // FAST เร็วกว่า MEDIUM/SLOW และความคมของภาพยังคงดีกว่า JPEG
-    pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "FAST");
+        // FAST เร็วกว่า MEDIUM/SLOW และความคมของภาพยังคงดีกว่า JPEG
+        pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "FAST");
       }
 
       pdf.save("research_data_<?= (int)$docId ?>.pdf");

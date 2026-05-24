@@ -14,7 +14,7 @@ require_once $autoload;
 
 // เรียกใช้ฟังก์ชันกลางสำหรับสร้าง Word
 require_once __DIR__ . '/word_templates/word_common.php';
-require_once __DIR__ . '/word_templates/word_academic_1.php';
+// require_once __DIR__ . '/word_templates/word_academic_1.php';
 
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\IOFactory;

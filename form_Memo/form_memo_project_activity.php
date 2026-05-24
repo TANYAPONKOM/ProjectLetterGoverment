@@ -137,6 +137,22 @@ foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
 //   return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
 // }
 
+function thai_digits($text)
+{
+  return strtr((string) $text, [
+    '0' => '๐',
+    '1' => '๑',
+    '2' => '๒',
+    '3' => '๓',
+    '4' => '๔',
+    '5' => '๕',
+    '6' => '๖',
+    '7' => '๗',
+    '8' => '๘',
+    '9' => '๙',
+  ]);
+}
+
 function thai_date($ymd)
 {
   if (!$ymd || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $ymd))
@@ -156,7 +172,7 @@ function thai_date($ymd)
     11 => "พฤศจิกายน",
     12 => "ธันวาคม"
   ];
-  return intval($d) . " " . $months[intval($m)] . " " . (intval($y) + 543);
+  return thai_digits(intval($d) . " " . $months[intval($m)] . " " . (intval($y) + 543));
 }
 
 /* --------------------------------------------------
@@ -264,7 +280,7 @@ $len = max(20, $len);
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>บันทึกข้อความ #<?= h($document['document_id']) ?></title>
+  <title>บันทึกข้อความ #<?= h(thai_digits($document['document_id'])) ?></title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -879,7 +895,7 @@ $len = max(20, $len);
       position:relative;
       top:-5px;
   ">
-            <?= h($displayFaculty) ?>
+            <?= h(thai_digits($displayFaculty)) ?>
           </div>
 
           <div style="
@@ -909,7 +925,7 @@ $len = max(20, $len);
 
   left:55px;
 ">
-        <?= h($thaiDocDate) ?>
+        <?= h(thai_digits($thaiDocDate)) ?>
       </div>
 
       <div style="
@@ -929,7 +945,7 @@ $len = max(20, $len);
 ">
           <div>เรื่อง</div>
 
-          <div><?= h($projectSubject) ?></div>
+          <div><?= h(thai_digits($projectSubject)) ?></div>
         </div>
 
         <!-- เรียน -->
@@ -942,7 +958,7 @@ $len = max(20, $len);
 ">
           <div>เรียน</div>
 
-          <div><?= h($projectToPerson) ?></div>
+          <div><?= h(thai_digits($projectToPerson)) ?></div>
         </div>
 
         <!-- สิ่งที่ส่งมาด้วย -->
@@ -981,14 +997,14 @@ $len = max(20, $len);
         text-indent:2cm;
         margin-bottom:2px;
     ">
-            ด้วย<?= h($displayDepartmentFull) ?>
-            <?= h($displayFaculty) ?>
+            ด้วย<?= h(thai_digits($displayDepartmentFull)) ?>
+            <?= h(thai_digits($displayFaculty)) ?>
             มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
-            วิทยาเขตปราจีนบุรี ได้ดำเนินการ <?= h($projectMainProject) ?>
-            ในกิจกรรมย่อย “<?= h($projectSubActivity) ?>”
-            โดยมีวัตถุประสงค์<?= h($projectObjectiveDetail) ?>
-            ให้แก่ <?= h($projectTargetGroup) ?> จำนวน <?= h($projectParticipantText) ?>
-            ณ <?= h($projectActivityPlace) ?> รายละเอียดโครงการตามสิ่งที่ส่งมาด้วย ๑
+            วิทยาเขตปราจีนบุรี ได้ดำเนินการ <?= h(thai_digits($projectMainProject)) ?>
+            ในกิจกรรมย่อย “<?= h(thai_digits($projectSubActivity)) ?>”
+            โดยมีวัตถุประสงค์<?= h(thai_digits($projectObjectiveDetail)) ?>
+            ให้แก่ <?= h(thai_digits($projectTargetGroup)) ?> จำนวน <?= h(thai_digits($projectParticipantText)) ?>
+            ณ <?= h(thai_digits($projectActivityPlace)) ?> รายละเอียดโครงการตามสิ่งที่ส่งมาด้วย ๑
           </p>
 
           <p style="
@@ -996,13 +1012,13 @@ $len = max(20, $len);
     margin-top:10px;
     margin-bottom:2px;
 ">
-            ในการนี้ <?= h($displayDepartmentFull) ?>
-            <?= h($displayFaculty) ?>
+            ในการนี้ <?= h(thai_digits($displayDepartmentFull)) ?>
+            <?= h(thai_digits($displayFaculty)) ?>
             มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
-            จึงขออนุญาตดำเนินการจัด “<?= h($projectSubActivity) ?>”
-            <?= h($projectActivityPeriod) ?> ให้แก่ <?= h($projectTargetGroup) ?>
-            ณ <?= h($projectActivityPlace) ?>
-            โดยมี <?= h($projectLecturerNames) ?>
+            จึงขออนุญาตดำเนินการจัด “<?= h(thai_digits($projectSubActivity)) ?>”
+            <?= h(thai_digits($projectActivityPeriod)) ?> ให้แก่ <?= h(thai_digits($projectTargetGroup)) ?>
+            ณ <?= h(thai_digits($projectActivityPlace)) ?>
+            โดยมี <?= h(thai_digits($projectLecturerNames)) ?>
             เป็นวิทยากรผู้ดำเนินกิจกรรมในโครงการฯ
             ตามวัน เวลา และสถานที่ดังกล่าวข้างต้น
           </p>
@@ -1029,11 +1045,11 @@ $len = max(20, $len);
           <div>ขอแสดงความนับถือ</div>
 
           <div style="margin-top:38px;">
-            (<?= h($projectReceiverName) ?>)
+            (<?= h(thai_digits($projectReceiverName)) ?>)
           </div>
 
           <div>
-            <?= h($projectReceiverPosition) ?>
+            <?= h(thai_digits($projectReceiverPosition)) ?>
           </div>
         </div>
 
@@ -1043,7 +1059,7 @@ $len = max(20, $len);
     font-size:13pt;
     line-height:1.2;
 ">
-          <?= h($displayDepartmentFull) ?><br>
+          <?= h(thai_digits($displayDepartmentFull)) ?><br>
           โทรศัพท์ ๐-๓๗๒๑-๗๓๔๐-๓ ต่อ ๗๐๖๕-๖<br>
           ไปรษณีย์อิเล็กทรอนิกส์ :
           <span style="color:#000; text-decoration:none;">IT@itm.kmutnb.ac.th</span>
@@ -1051,51 +1067,59 @@ $len = max(20, $len);
 
       </div>
 
-      <!-- <div style="font-family:'TH SarabunPSK'; font-size:16pt; line-height:1.2;"> เรียน <?= h($hdr_to) ?> </div>
+      <!-- <div style="font-family:'TH SarabunPSK'; font-size:16pt; line-height:1.2;"> เรียน <?= h(thai_digits($hdr_to)) ?> </div>
             <div class="content-block single align-to-dean"> เพื่อโปรดพิจารณาอนุมัติ </div>
             <div class="content-block single align-to-dean" style="margin-top:50px;;"> (ผู้ช่วยศาสตราจารย์ ดร. ขนิษฐา
-                นามี)<br /> หัวหน้า<?= h($displayDepartmentFull) ?> </div> -->
+                นามี)<br /> หัวหน้า<?= h(thai_digits($displayDepartmentFull)) ?> </div> -->
       <div class="footer-actions">
 
-        <!-- 🔵 ปุ่มแรก: พิมพ์/ดูตัวอย่าง (ทุก role ต้องมี และอยู่ลำดับแรก) -->
+        <!-- ปุ่มดาวน์โหลด PDF -->
         <button type="button" onclick="downloadPdf()"
-          class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+          class="bg-red-700 hover:bg-red-800 text-white px-6 py-2 rounded-md text-xl font-bold">
           ดาวน์โหลด PDF
         </button>
 
-        <!-- 🟩 USER: ปุ่มยืนยัน -->
-        <?php if ($roleId === 3): ?>
+        <!-- ปุ่มดาวน์โหลด Word -->
+        <a href="/Pro_letter/documents/download_word_project_activity.php?id=<?= (int)$docId ?>"
+          class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
+          ดาวน์โหลด Word
+        </a>
+
+        <!-- USER: ปุ่มแก้ไขเอกสาร -->
+        <?php if ($roleId === 3 && $canEdit): ?>
         <a href="/Pro_letter/documents/infor_project_activity.php?id=<?= (int)$docId ?>&edit=1"
           class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           แก้ไขเอกสาร
         </a>
         <?php endif; ?>
 
-        <!-- 🟦 OFFICER & ADMIN -->
+        <!-- OFFICER & ADMIN -->
         <?php if ($isAdmin || $isOfficer): ?>
 
-        <!-- ปุ่มอนุมัติ -->
+        <a href="/Pro_letter/documents/infor_project_activity.php?id=<?= (int)$docId ?>&edit=1"
+          class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
+          แก้ไขเอกสาร
+        </a>
+
         <button type="button" onclick="updateStatus('approved')"
           class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          ยืนยันการแก้ไข
+          ผ่านการตรวจสอบ
         </button>
 
-        <!-- ปุ่มไม่ผ่าน -->
         <button type="button" onclick="updateStatus('rejected')"
           class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          ไม่ผ่าน
+          ไม่ผ่านการตรวจสอบ
         </button>
 
         <?php endif; ?>
 
-        <!-- ปุ่มกลับหน้าหลัก (ทุก role มี) -->
+        <!-- ปุ่มกลับหน้าหลัก -->
         <a href="<?= $homePath ?>"
           class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md text-xl font-bold">
           กลับหน้าหลัก
         </a>
 
       </div>
-
     </form>
   </main>
   <?php if ($readonly && !($isAdmin || $isOfficer)): ?>
@@ -1304,38 +1328,38 @@ $len = max(20, $len);
 
         document.body.appendChild(clone);
 
-       const PDF_SCALE = 2.2; // จุดสมดุล: เร็วขึ้น แต่ยังไม่ฟุ้งแบบ JPEG
+        const PDF_SCALE = 2.2; // จุดสมดุล: เร็วขึ้น แต่ยังไม่ฟุ้งแบบ JPEG
 
-    // รอให้ฟอนต์โหลดก่อน ช่วยลดอาการตัวหนังสือฟุ้ง/เพี้ยน
-    if (document.fonts && document.fonts.ready) {
-      await document.fonts.ready;
-    }
+        // รอให้ฟอนต์โหลดก่อน ช่วยลดอาการตัวหนังสือฟุ้ง/เพี้ยน
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
 
-    const canvas = await html2canvas(clone, {
-      scale: PDF_SCALE,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: "#ffffff",
-      windowWidth: 794,
-      windowHeight: 1123,
-      scrollX: 0,
-      scrollY: 0,
-      logging: false,
-      imageTimeout: 10000,
-      removeContainer: true
-    });
+        const canvas = await html2canvas(clone, {
+          scale: PDF_SCALE,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          windowWidth: 794,
+          windowHeight: 1123,
+          scrollX: 0,
+          scrollY: 0,
+          logging: false,
+          imageTimeout: 10000,
+          removeContainer: true
+        });
 
-    document.body.removeChild(clone);
+        document.body.removeChild(clone);
 
-    // ใช้ PNG เพราะเอกสารราชการมีตัวหนังสือ/เส้นประเยอะ ถ้าใช้ JPEG จะฟุ้ง
-    const imgData = canvas.toDataURL("image/png");
+        // ใช้ PNG เพราะเอกสารราชการมีตัวหนังสือ/เส้นประเยอะ ถ้าใช้ JPEG จะฟุ้ง
+        const imgData = canvas.toDataURL("image/png");
 
-    if (i > 0) {
-      pdf.addPage();
-    }
+        if (i > 0) {
+          pdf.addPage();
+        }
 
-    // FAST เร็วกว่า MEDIUM/SLOW และความคมของภาพยังคงดีกว่า JPEG
-    pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "FAST");
+        // FAST เร็วกว่า MEDIUM/SLOW และความคมของภาพยังคงดีกว่า JPEG
+        pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "FAST");
       }
 
       pdf.save("project_activity_<?= (int)$docId ?>.pdf");
