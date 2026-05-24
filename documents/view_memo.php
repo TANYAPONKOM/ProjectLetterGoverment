@@ -399,7 +399,7 @@ $len = max(20, $len);
   .subject-line.blank-label-line {
     margin-left: 0;
   }
-  
+
 
   .subject-text {
     display: inline-block;
@@ -514,8 +514,6 @@ $len = max(20, $len);
       transform: rotate(360deg);
     }
   }
-
-  
   </style>
 </head>
 </head>
@@ -659,6 +657,11 @@ $len = max(20, $len);
         ดาวน์โหลด PDF
       </button>
 
+      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= $docId ?>"
+        class="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+        ดาวน์โหลด Word
+      </a>
+
       <a href="/Pro_letter/documents/form_Memo.php?id=<?= $docId ?>" id="editBtn"
         data-can-edit="<?= $canEdit ? '1' : '0' ?>" class="px-6 py-2 rounded-md text-xl font-bold
         <?= $canEdit
@@ -765,6 +768,11 @@ $len = max(20, $len);
         ดาวน์โหลด PDF
       </button>
 
+      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= $docId ?>"
+        class="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+        ดาวน์โหลด Word
+      </a>
+
       <a href="/Pro_letter/documents/form_Memo.php?id=<?= $docId ?>" id="editBtn"
         data-can-edit="<?= $canEdit ? '1' : '0' ?>" class="px-6 py-2 rounded-md text-xl font-bold
         <?= $canEdit
@@ -869,6 +877,11 @@ $len = max(20, $len);
         class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
         ดาวน์โหลด PDF
       </button>
+
+      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= $docId ?>"
+        class="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+        ดาวน์โหลด Word
+      </a>
 
       <a href="/Pro_letter/documents/form_Memo.php?id=<?= $docId ?>" id="editBtn"
         data-can-edit="<?= $canEdit ? '1' : '0' ?>" class="px-6 py-2 rounded-md text-xl font-bold
@@ -1037,9 +1050,14 @@ $len = max(20, $len);
       <input type="hidden" name="table_data" id="table_data">
       <div class="footer-actions">
         <button type="button" onclick="downloadPdf()"
-          class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+          class="bg-red-700 hover:bg-red-800 text-white px-6 py-2 rounded-md text-xl font-bold">
           ดาวน์โหลด PDF
         </button>
+
+        <a href="/Pro_letter/documents/download_word_memo.php?id=<?= $docId ?>"
+          class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+          ดาวน์โหลด Word
+        </a>
 
         <a href="/Pro_letter/documents/form_Memo.php?id=<?= $docId ?>" id="editBtn"
           data-can-edit="<?= $canEdit ? '1' : '0' ?>" class="px-6 py-2 rounded-md text-xl font-bold
@@ -1270,7 +1288,7 @@ $len = max(20, $len);
         });
 
         // แก้ไขตำแหน่งเส้นประในส่วน "เรื่อง" (ค้นหาบรรทัดประมาณที่ 835)
-       clone.querySelectorAll(".subject-line").forEach((line, index) => {
+        clone.querySelectorAll(".subject-line").forEach((line, index) => {
           line.querySelectorAll(".pdf-subject-dot-line").forEach(el => el.remove());
 
           line.style.position = "relative";
@@ -1387,38 +1405,38 @@ $len = max(20, $len);
         }
         document.body.appendChild(clone);
 
-    const PDF_SCALE = 2.2; // จุดสมดุล: เร็วขึ้น แต่ยังไม่ฟุ้งแบบ JPEG
+        const PDF_SCALE = 2.2; // จุดสมดุล: เร็วขึ้น แต่ยังไม่ฟุ้งแบบ JPEG
 
-    // รอให้ฟอนต์โหลดก่อน ช่วยลดอาการตัวหนังสือฟุ้ง/เพี้ยน
-    if (document.fonts && document.fonts.ready) {
-      await document.fonts.ready;
-    }
+        // รอให้ฟอนต์โหลดก่อน ช่วยลดอาการตัวหนังสือฟุ้ง/เพี้ยน
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
 
-    const canvas = await html2canvas(clone, {
-      scale: PDF_SCALE,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: "#ffffff",
-      windowWidth: 794,
-      windowHeight: 1123,
-      scrollX: 0,
-      scrollY: 0,
-      logging: false,
-      imageTimeout: 10000,
-      removeContainer: true
-    });
+        const canvas = await html2canvas(clone, {
+          scale: PDF_SCALE,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          windowWidth: 794,
+          windowHeight: 1123,
+          scrollX: 0,
+          scrollY: 0,
+          logging: false,
+          imageTimeout: 10000,
+          removeContainer: true
+        });
 
-    document.body.removeChild(clone);
+        document.body.removeChild(clone);
 
-    // ใช้ PNG เพราะเอกสารราชการมีตัวหนังสือ/เส้นประเยอะ ถ้าใช้ JPEG จะฟุ้ง
-    const imgData = canvas.toDataURL("image/png");
+        // ใช้ PNG เพราะเอกสารราชการมีตัวหนังสือ/เส้นประเยอะ ถ้าใช้ JPEG จะฟุ้ง
+        const imgData = canvas.toDataURL("image/png");
 
-    if (i > 0) {
-      pdf.addPage();
-    }
+        if (i > 0) {
+          pdf.addPage();
+        }
 
-    // FAST เร็วกว่า MEDIUM/SLOW และความคมของภาพยังคงดีกว่า JPEG
-    pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "FAST");
+        // FAST เร็วกว่า MEDIUM/SLOW และความคมของภาพยังคงดีกว่า JPEG
+        pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "FAST");
       }
 
       pdf.save("memo_<?= $docId ?>.pdf");
