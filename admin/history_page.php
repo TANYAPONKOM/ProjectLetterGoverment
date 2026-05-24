@@ -128,12 +128,6 @@ $stmt = $pdo->prepare($historySql);
 $stmt->execute($params);
 $filteredDocs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$totalUsers = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE is_active = 1")->fetchColumn();
-$totalDocs = (int)$pdo->query("SELECT COUNT(*) FROM documents")->fetchColumn();
-$approvedDocs = (int)$pdo->query("SELECT COUNT(*) FROM documents WHERE status = 'approved'")->fetchColumn();
-$pendingDocs = (int)$pdo->query("SELECT COUNT(*) FROM documents WHERE status IN ('submitted', 'reviewing')")->fetchColumn();
-$rejectedDocs = (int)$pdo->query("SELECT COUNT(*) FROM documents WHERE status = 'rejected'")->fetchColumn();
-
 function statusBadge($status)
 {
   if (in_array($status, ['submitted', 'reviewing'])) {
@@ -229,12 +223,14 @@ function statusBadge($status)
           ประวัติการใช้งานเอกสาร
         </div>
       </a>
+      <a href="/Pro_letter/admin/department_report_dashboard.php">
+        <div
+          class="px-4 py-2 rounded-[11px] font-bold transition
+        <?= $current === 'department_report_dashboard.php' ? 'bg-white text-teal-500 shadow' : 'text-white hover:bg-white hover:text-teal-500' ?>">
+          รายงานภาควิชา
+        </div>
+      </a>
 
-      <?php 
-      if (isset($_SESSION['permissions']) && in_array(3, $_SESSION['permissions'])): 
-        renderAdminExtraMenus(); 
-      endif; 
-    ?>
       <!-- เมนู: ตั้งค่าระบบเริ่มต้น -->
       <div class=" relative">
         <button id="templateBtn" class="px-4 py-2 rounded-[11px] font-bold transition 
@@ -249,6 +245,7 @@ function statusBadge($status)
         <div id="templateMenu" class="hidden absolute bg-white text-gray-700 mt-1 rounded-lg shadow-lg w-48 z-50">
           <a href="form_Templates.php" class="block px-4 py-2 hover:bg-teal-100">การจัดการเทมเพลต</a>
           <a href="department_Managerment.php" class="block px-4 py-2 hover:bg-teal-100">การจัดการภาควิชา</a>
+          <a href="permission_management.php" class="block px-4 py-2 hover:bg-teal-100">กำหนดสิทธิ์ผู้ใช้งาน</a>
         </div>
       </div>
 
@@ -290,39 +287,6 @@ function statusBadge($status)
 
   <!-- Main -->
   <main class="max-w-7xl w-full px-8 mx-auto bg-white mt-4 mb-12 p-6 rounded shadow min-h-[70vh]">
-
-    <!-- Operation History -->
-    <div class="mb-5">
-      <h2 class="text-xl font-bold mb-4">ประวัติการใช้งานเอกสาร</h2>
-
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-teal-500">
-          <div class="text-sm text-gray-500">จำนวนผู้ใช้งาน</div>
-          <div class="text-2xl font-bold text-gray-800"><?= number_format($totalUsers) ?></div>
-        </div>
-
-        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-sky-500">
-          <div class="text-sm text-gray-500">เอกสารทั้งหมด</div>
-          <div class="text-2xl font-bold text-gray-800"><?= number_format($totalDocs) ?></div>
-        </div>
-
-        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-yellow-400">
-          <div class="text-sm text-gray-500">รอตรวจสอบ</div>
-          <div class="text-2xl font-bold text-gray-800"><?= number_format($pendingDocs) ?></div>
-        </div>
-
-        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-500">
-          <div class="text-sm text-gray-500">อนุมัติแล้ว</div>
-          <div class="text-2xl font-bold text-gray-800"><?= number_format($approvedDocs) ?></div>
-        </div>
-
-        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-500">
-          <div class="text-sm text-gray-500">ถูกตีกลับ</div>
-          <div class="text-2xl font-bold text-gray-800"><?= number_format($rejectedDocs) ?></div>
-        </div>
-      </div>
-    </div>
-
     <!-- Tabs + ฟอร์มเลือกช่วงวัน -->
     <div class="flex items-center justify-between border-b mb-4">
       <!-- Tabs -->

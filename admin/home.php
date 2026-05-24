@@ -72,11 +72,11 @@ main {
             ประวัติการใช้งานเอกสาร
           </div>
         </a>
-        <?php 
-                if (isset($_SESSION['permissions']) && in_array(3, $_SESSION['permissions'])): 
-                renderAdminExtraMenus(); 
-            endif; 
-            ?>
+        <a href="department_report_dashboard.php">
+          <div class="px-4 py-2 rounded-[11px] font-bold transition text-white hover:bg-white hover:text-teal-500">
+            รายงานภาควิชา
+          </div>
+        </a>
 
         <!-- เมนู: ตั้งค่าระบบเริ่มต้น -->
         <div class="relative">
@@ -92,6 +92,7 @@ main {
           <div id="templateMenu" class="hidden absolute bg-white text-gray-700 mt-1 rounded-lg shadow-lg w-48 z-50">
             <a href="form_Templates.php" class="block px-4 py-2 hover:bg-teal-100">การจัดการเทมเพลต</a>
             <a href="department_Managerment.php" class="block px-4 py-2 hover:bg-teal-100">การจัดการภาควิชา</a>
+            <a href="user_Managerment.php" class="block px-4 py-2 hover:bg-teal-100">กำหนดสิทธิ์ผู้ใช้งาน</a>
           </div>
         </div>
 

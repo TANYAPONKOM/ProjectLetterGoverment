@@ -159,6 +159,10 @@ $amountStr = $valueMap[8] ?? "";
 $vehicle = $valueMap[9] ?? "";
 $faculty = $valueMap[10] ?? "";
 $department = $valueMap[11] ?? "";
+$displayFaculty = trim($faculty) !== '' ? trim($faculty) : "คณะเทคโนโลยีและการจัดการอุตสาหกรรม";
+$displayDepartment = trim($department) !== '' ? trim($department) : "เทคโนโลยีสารสนเทศ";
+$displayDepartmentFull = "ภาควิชา" . $displayDepartment;
+$displayFacultyDean = "คณบดี" . $displayFaculty;
 $presenterName = $valueMap[14] ?? "";
 $researchTitle = $valueMap[13] ?? "";
 $conferenceLevel = $valueMap[15] ?? "";
@@ -747,73 +751,73 @@ $len = max(20, $len);
   }
 
   /* ===== PDF Loading Overlay ===== */
-.pdf-loading-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  background: rgba(255, 255, 255, 0.72);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(2px);
-}
-
-.pdf-loading-box {
-  min-width: 260px;
-  padding: 28px 34px;
-  border-radius: 18px;
-  background: #ffffff;
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
-  text-align: center;
-  font-family: "TH SarabunPSK", sans-serif;
-}
-
-.pdf-spinner {
-  width: 58px;
-  height: 58px;
-  margin: 0 auto 14px auto;
-  border: 6px solid rgba(20, 184, 166, 0.18);
-  border-top-color: #14b8a6;
-  border-right-color: #14b8a6;
-  border-radius: 50%;
-  animation: pdfSpin 0.85s linear infinite;
-}
-
-.pdf-loading-title {
-  color: #0f766e;
-  font-size: 22pt;
-  font-weight: bold;
-  line-height: 1.1;
-}
-
-.pdf-loading-subtitle {
-  margin-top: 4px;
-  color: #475569;
-  font-size: 16pt;
-  line-height: 1.1;
-}
-
-@keyframes pdfSpin {
-  from {
-    transform: rotate(0deg);
+  .pdf-loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(255, 255, 255, 0.72);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
   }
 
-  to {
-    transform: rotate(360deg);
+  .pdf-loading-box {
+    min-width: 260px;
+    padding: 28px 34px;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+    text-align: center;
+    font-family: "TH SarabunPSK", sans-serif;
   }
-}
+
+  .pdf-spinner {
+    width: 58px;
+    height: 58px;
+    margin: 0 auto 14px auto;
+    border: 6px solid rgba(20, 184, 166, 0.18);
+    border-top-color: #14b8a6;
+    border-right-color: #14b8a6;
+    border-radius: 50%;
+    animation: pdfSpin 0.85s linear infinite;
+  }
+
+  .pdf-loading-title {
+    color: #0f766e;
+    font-size: 22pt;
+    font-weight: bold;
+    line-height: 1.1;
+  }
+
+  .pdf-loading-subtitle {
+    margin-top: 4px;
+    color: #475569;
+    font-size: 16pt;
+    line-height: 1.1;
+  }
+
+  @keyframes pdfSpin {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
+    }
+  }
   </style>
 </head>
 
 <body>
 
-<div id="pdfLoadingOverlay" class="pdf-loading-overlay">
-  <div class="pdf-loading-box">
-    <div class="pdf-spinner"></div>
-    <div class="pdf-loading-title">กำลังสร้าง PDF...</div>
-    <div class="pdf-loading-subtitle">กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร</div>
+  <div id="pdfLoadingOverlay" class="pdf-loading-overlay">
+    <div class="pdf-loading-box">
+      <div class="pdf-spinner"></div>
+      <div class="pdf-loading-title">กำลังสร้าง PDF...</div>
+      <div class="pdf-loading-subtitle">กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร</div>
+    </div>
   </div>
-</div>
   <?php if ($readonly): ?>
   <script>
   document.addEventListener("DOMContentLoaded", () => {
@@ -909,8 +913,8 @@ $len = max(20, $len);
       <div class="content-block paragraph">
         ข้าพเจ้า <span class="inline-dash"><?= h($ownerName) ?></span> ได้ยอมให้
         <span class="inline-dash"><?= h($presenterName) ?></span>
-        อาจารย์สังกัดภาควิชาเทคโนโลยีสารสนเทศ
-        คณะเทคโนโลยีและการจัดการอุตสาหกรรม
+        อาจารย์สังกัด<?= h($displayDepartmentFull) ?>
+        <?= h($displayFaculty) ?>
         มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
         วิทยาเขตปราจีนบุรี
         ได้นำเสนอผลงานวิจัย เรื่อง
@@ -1347,7 +1351,6 @@ $len = max(20, $len);
       });
     }
   }
-
   </script>
 </body>
 

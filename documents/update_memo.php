@@ -392,8 +392,83 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
   $carUsed = isset($_POST['car_used']) ? 1 : 0;
   $carPlate = trim($_POST['car_plate'] ?? '');
 
+  $departmentId = (int)($_POST['department_id'] ?? 0);
   $faculty = trim($_POST['faculty'] ?? '');
   $department = trim($_POST['department'] ?? '');
+
+  /*
+    คณะ/ภาควิชา:
+    - ใช้ department_id ที่ผู้ใช้เลือกจาก dropdown เป็นหลัก
+    - ถ้า department_id ไม่มา ให้ลองหา id จากชื่อภาควิชา/คณะ
+    - ถ้ายังไม่เจอ ให้ใช้ department_id เดิมของเอกสาร
+    - จากนั้นดึงชื่อคณะ/ภาควิชาจาก DB กลับมาใช้กับ document_values field_id 10/11
+  */
+  try {
+    if ($departmentId <= 0 && $department !== '') {
+      $findDeptSql = "
+        SELECT d.department_id, d.department_name, f.faculty_name
+        FROM departments d
+        JOIN faculties f ON f.faculty_id = d.faculty_id
+        WHERE d.department_name = :department_name
+      ";
+      $findDeptParams = [':department_name' => $department];
+
+      if ($faculty !== '') {
+        $findDeptSql .= " AND f.faculty_name = :faculty_name";
+        $findDeptParams[':faculty_name'] = $faculty;
+      }
+
+      $findDeptSql .= " LIMIT 1";
+      $findDeptStmt = $pdo->prepare($findDeptSql);
+      $findDeptStmt->execute($findDeptParams);
+      $foundDept = $findDeptStmt->fetch(PDO::FETCH_ASSOC);
+
+      if ($foundDept) {
+        $departmentId = (int)$foundDept['department_id'];
+      }
+    }
+
+    if ($departmentId <= 0) {
+      $oldDeptStmt = $pdo->prepare("
+        SELECT department_id
+        FROM documents
+        WHERE document_id = :document_id
+        LIMIT 1
+      ");
+      $oldDeptStmt->execute([':document_id' => $documentId]);
+      $departmentId = (int)$oldDeptStmt->fetchColumn();
+    }
+
+    if ($departmentId > 0) {
+      $orgStmt = $pdo->prepare("
+        SELECT
+          d.department_id,
+          d.department_name,
+          f.faculty_name
+        FROM departments d
+        JOIN faculties f ON f.faculty_id = d.faculty_id
+        WHERE d.department_id = :department_id
+        LIMIT 1
+      ");
+      $orgStmt->execute([':department_id' => $departmentId]);
+      $orgRow = $orgStmt->fetch(PDO::FETCH_ASSOC);
+
+      if ($orgRow) {
+        $departmentId = (int)$orgRow['department_id'];
+        $faculty = trim((string)$orgRow['faculty_name']);
+        $department = trim((string)$orgRow['department_name']);
+      }
+    }
+
+    if ($departmentId <= 0) {
+      throw new Exception('Invalid department_id');
+    }
+  } catch (Throwable $orgError) {
+    $departmentId = $departmentId > 0 ? $departmentId : 1;
+    $faculty = $faculty !== '' ? $faculty : 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม';
+    $department = $department !== '' ? $department : 'เทคโนโลยีสารสนเทศ';
+  }
+
   $headerText = trim($_POST['header_text'] ?? '');
 
   // ถ้าหน้าแบบฟอร์มไม่ได้ส่ง header_text มา อย่าล้างค่าเดิมใน documents.header_text
@@ -751,6 +826,7 @@ if (!$canEditThisDocument) {
   $up = $pdo->prepare("
     UPDATE documents 
     SET doc_no = :doc_no,
+        department_id = :department_id,
         doc_date = :doc_date,
         subject = :subject,
         header_text = :header_text,
@@ -759,6 +835,7 @@ if (!$canEditThisDocument) {
 ");
   $up->execute([
     ':doc_no' => $docNo,
+    ':department_id' => $departmentId,
     ':doc_date' => $docDate,
     ':subject' => $subject,
     ':header_text' => $headerText,

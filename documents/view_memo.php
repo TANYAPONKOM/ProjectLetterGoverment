@@ -348,14 +348,14 @@ $len = max(20, $len);
     font-size: 16pt;
     width: 1.15cm;
     flex: 0 0 1.15cm;
-    line-height: 1;
+    line-height: 2;
   }
 
   .memo-to-row .memo-to-text {
     font-family: "TH SarabunPSK";
     font-size: 16pt;
     font-weight: 300;
-    line-height: 1;
+    line-height: 2;
     padding-left: 14px;
   }
 
@@ -372,15 +372,22 @@ $len = max(20, $len);
     margin: 0 0 0cm 0;
   }
 
+  .subject-row .subject-label {
+    width: 1.15cm !important;
+    flex: 0 0 1.15cm !important;
+  }
+
   .subject-wrap {
     flex: 1;
+    padding-left: 0;
+    margin-left: -8px;
   }
 
   .subject-line {
     min-height: 22px;
     line-height: 1.05;
     border-bottom: 2px dotted #000;
-    padding-left: 4px;
+    padding-left: 19px;
     padding-top: 4px;
     font-family: "TH SarabunPSK";
     font-size: 16pt;
@@ -411,9 +418,9 @@ $len = max(20, $len);
     font-size: 16pt;
     font-weight: 400;
 
-    line-height: 1.06 !important;
+    line-height: 1.34 !important;
     margin-top: 0 !important;
-    margin-bottom: 1px !important;
+    margin-bottom: 6px !important;
 
     text-indent: 2.5cm;
 
@@ -451,74 +458,74 @@ $len = max(20, $len);
   }
 
   /* ===== PDF Loading Overlay ===== */
-.pdf-loading-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  background: rgba(255, 255, 255, 0.72);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(2px);
-}
-
-.pdf-loading-box {
-  min-width: 260px;
-  padding: 28px 34px;
-  border-radius: 18px;
-  background: #ffffff;
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
-  text-align: center;
-  font-family: "TH SarabunPSK", sans-serif;
-}
-
-.pdf-spinner {
-  width: 58px;
-  height: 58px;
-  margin: 0 auto 14px auto;
-  border: 6px solid rgba(20, 184, 166, 0.18);
-  border-top-color: #14b8a6;
-  border-right-color: #14b8a6;
-  border-radius: 50%;
-  animation: pdfSpin 0.85s linear infinite;
-}
-
-.pdf-loading-title {
-  color: #0f766e;
-  font-size: 22pt;
-  font-weight: bold;
-  line-height: 1.1;
-}
-
-.pdf-loading-subtitle {
-  margin-top: 4px;
-  color: #475569;
-  font-size: 16pt;
-  line-height: 1.1;
-}
-
-@keyframes pdfSpin {
-  from {
-    transform: rotate(0deg);
+  .pdf-loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(255, 255, 255, 0.72);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
   }
 
-  to {
-    transform: rotate(360deg);
+  .pdf-loading-box {
+    min-width: 260px;
+    padding: 28px 34px;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+    text-align: center;
+    font-family: "TH SarabunPSK", sans-serif;
   }
-}
+
+  .pdf-spinner {
+    width: 58px;
+    height: 58px;
+    margin: 0 auto 14px auto;
+    border: 6px solid rgba(20, 184, 166, 0.18);
+    border-top-color: #14b8a6;
+    border-right-color: #14b8a6;
+    border-radius: 50%;
+    animation: pdfSpin 0.85s linear infinite;
+  }
+
+  .pdf-loading-title {
+    color: #0f766e;
+    font-size: 22pt;
+    font-weight: bold;
+    line-height: 1.1;
+  }
+
+  .pdf-loading-subtitle {
+    margin-top: 4px;
+    color: #475569;
+    font-size: 16pt;
+    line-height: 1.1;
+  }
+
+  @keyframes pdfSpin {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
+    }
+  }
   </style>
 </head>
 </head>
 
 <body class="view-document">
 
-<div id="pdfLoadingOverlay" class="pdf-loading-overlay">
-  <div class="pdf-loading-box">
-    <div class="pdf-spinner"></div>
-    <div class="pdf-loading-title">กำลังสร้าง PDF...</div>
-    <div class="pdf-loading-subtitle">กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร</div>
+  <div id="pdfLoadingOverlay" class="pdf-loading-overlay">
+    <div class="pdf-loading-box">
+      <div class="pdf-spinner"></div>
+      <div class="pdf-loading-title">กำลังสร้าง PDF...</div>
+      <div class="pdf-loading-subtitle">กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร</div>
+    </div>
   </div>
-</div>
   <?php if ($readonly && !($isAdmin || $isOfficer)): ?>
   <script>
   document.addEventListener("DOMContentLoaded", () => {
@@ -587,8 +594,8 @@ $len = max(20, $len);
       $mainSubjectLine1 = mb_substr($mainSubjectText, 0, 82, 'UTF-8');
       $mainSubjectLine2 = mb_substr($mainSubjectText, 82, null, 'UTF-8');
     ?>
-    <div class="doc-row" style="align-items:flex-start;">
-      <div class="doc-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
+    <div class="doc-row subject-row" style="align-items:flex-start;">
+      <div class="doc-label subject-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
       <div class="subject-wrap">
         <div class="subject-line"><span class="subject-text"><?= h($mainSubjectLine1) ?></span></div>
         <?php if (trim($mainSubjectLine2) !== ''): ?>
@@ -699,8 +706,8 @@ $len = max(20, $len);
       $expenseSubjectLine1 = mb_substr($expenseSubjectText, 0, 82, 'UTF-8');
       $expenseSubjectLine2 = mb_substr($expenseSubjectText, 82, null, 'UTF-8');
     ?>
-    <div class="doc-row" style="align-items:flex-start;">
-      <div class="doc-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
+    <div class="doc-row subject-row" style="align-items:flex-start;">
+      <div class="doc-label subject-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
       <div class="subject-wrap">
         <div class="subject-line"><span class="subject-text"><?= h($expenseSubjectLine1) ?></span></div>
         <?php if (trim($expenseSubjectLine2) !== ''): ?>
@@ -807,8 +814,8 @@ $len = max(20, $len);
       $carSubjectLine1 = mb_substr($carSubjectText, 0, 82, 'UTF-8');
       $carSubjectLine2 = mb_substr($carSubjectText, 82, null, 'UTF-8');
     ?>
-    <div class="doc-row" style="align-items:flex-start;">
-      <div class="doc-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
+    <div class="doc-row subject-row" style="align-items:flex-start;">
+      <div class="doc-label subject-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
       <div class="subject-wrap">
         <div class="subject-line"><span class="subject-text"><?= h($carSubjectLine1) ?></span></div>
         <?php if (trim($carSubjectLine2) !== ''): ?>
@@ -1212,7 +1219,8 @@ $len = max(20, $len);
           block.style.setProperty("text-justify", "inter-character", "important");
           block.style.setProperty("word-spacing", "-1.2px", "important");
           block.style.setProperty("letter-spacing", "-0.05px", "important");
-          block.style.setProperty("line-height", "1.06", "important");
+          block.style.setProperty("line-height", "1.34", "important");
+          block.style.setProperty("margin-bottom", "4px", "important");
         });
 
         clone.querySelectorAll(".content-block.paragraph .chip, .content-block.paragraph .keep").forEach(el => {
@@ -1266,7 +1274,7 @@ $len = max(20, $len);
           line.style.height = "auto";
           line.style.minHeight = "20px"; // เพิ่มความสูงขั้นต่ำเพื่อให้มีพื้นที่ดึงเส้นลงมา
           line.style.lineHeight = "1.2"; // ปรับระยะบรรทัดให้โปร่งขึ้นเล็กน้อย
-          line.style.paddingLeft = "4px";
+          line.style.paddingLeft = "18px";
           line.style.paddingTop = "0";
 
           // --- จุดสำคัญ: ปรับค่า padding-bottom เพื่อดึงเส้นประลงมา ---

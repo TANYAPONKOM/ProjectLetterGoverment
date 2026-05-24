@@ -107,7 +107,7 @@ function db(): PDO {
 function renderAdminExtraMenus() {
     $current = basename($_SERVER['PHP_SELF']); // ดึงชื่อไฟล์ปัจจุบัน เช่น home.php
 ?>
-<a href="/Pro_letter/user_Managerment.php">
+<a href="/Pro_letter/admin/user_Managerment.php">
   <div class="px-4 py-2 rounded-[11px] font-bold transition 
             <?= ($current === 'user_Managerment.php') 
                 ? 'bg-white text-teal-500 shadow' 

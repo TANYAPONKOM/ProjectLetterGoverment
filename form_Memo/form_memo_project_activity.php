@@ -173,6 +173,10 @@ $amountStr = $valueMap[8] ?? "";
 $vehicle = $valueMap[9] ?? "";
 $faculty = $valueMap[10] ?? "";
 $department = $valueMap[11] ?? "";
+$displayFaculty = trim($faculty) !== '' ? trim($faculty) : "คณะเทคโนโลยีและการจัดการอุตสาหกรรม";
+$displayDepartment = trim($department) !== '' ? trim($department) : "เทคโนโลยีสารสนเทศ";
+$displayDepartmentFull = "ภาควิชา" . $displayDepartment;
+$displayFacultyDean = "คณบดี" . $displayFaculty;
 $eventDate  = $valueMap[12] ?? "";
 $eventPlace = $valueMap[13] ?? "";
 
@@ -187,7 +191,7 @@ $projectParticipantCount = $valueByKey['project_participant_count'] ?? '';
 $projectActivityPeriod = $valueByKey['project_activity_period'] ?? '';
 $projectLecturerNames = $valueByKey['project_lecturer_names'] ?? '';
 $projectReceiverName = $valueByKey['project_receiver_name'] ?? 'ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์';
-$projectReceiverPosition = $valueByKey['project_receiver_position'] ?? 'คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม';
+$projectReceiverPosition = $valueByKey['project_receiver_position'] ?? $displayFacultyDean;
 
 $projectParticipantText = trim((string)$projectParticipantCount);
 if ($projectParticipantText !== '' && mb_strpos($projectParticipantText, 'คน') === false) {
@@ -658,73 +662,74 @@ $len = max(20, $len);
     /* ← เทียบเท่า 16pt จริงใน Word */
     font-weight: 400 !important;
   }
+
   /* ===== PDF Loading Overlay ===== */
-.pdf-loading-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  background: rgba(255, 255, 255, 0.72);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(2px);
-}
-
-.pdf-loading-box {
-  min-width: 260px;
-  padding: 28px 34px;
-  border-radius: 18px;
-  background: #ffffff;
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
-  text-align: center;
-  font-family: "TH SarabunPSK", sans-serif;
-}
-
-.pdf-spinner {
-  width: 58px;
-  height: 58px;
-  margin: 0 auto 14px auto;
-  border: 6px solid rgba(20, 184, 166, 0.18);
-  border-top-color: #14b8a6;
-  border-right-color: #14b8a6;
-  border-radius: 50%;
-  animation: pdfSpin 0.85s linear infinite;
-}
-
-.pdf-loading-title {
-  color: #0f766e;
-  font-size: 22pt;
-  font-weight: bold;
-  line-height: 1.1;
-}
-
-.pdf-loading-subtitle {
-  margin-top: 4px;
-  color: #475569;
-  font-size: 16pt;
-  line-height: 1.1;
-}
-
-@keyframes pdfSpin {
-  from {
-    transform: rotate(0deg);
+  .pdf-loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(255, 255, 255, 0.72);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
   }
 
-  to {
-    transform: rotate(360deg);
+  .pdf-loading-box {
+    min-width: 260px;
+    padding: 28px 34px;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+    text-align: center;
+    font-family: "TH SarabunPSK", sans-serif;
   }
-}
+
+  .pdf-spinner {
+    width: 58px;
+    height: 58px;
+    margin: 0 auto 14px auto;
+    border: 6px solid rgba(20, 184, 166, 0.18);
+    border-top-color: #14b8a6;
+    border-right-color: #14b8a6;
+    border-radius: 50%;
+    animation: pdfSpin 0.85s linear infinite;
+  }
+
+  .pdf-loading-title {
+    color: #0f766e;
+    font-size: 22pt;
+    font-weight: bold;
+    line-height: 1.1;
+  }
+
+  .pdf-loading-subtitle {
+    margin-top: 4px;
+    color: #475569;
+    font-size: 16pt;
+    line-height: 1.1;
+  }
+
+  @keyframes pdfSpin {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
+    }
+  }
   </style>
 </head>
 
 <body>
   <div id="pdfLoadingOverlay" class="pdf-loading-overlay">
-  <div class="pdf-loading-box">
-    <div class="pdf-spinner"></div>
-    <div class="pdf-loading-title">กำลังสร้าง PDF...</div>
-    <div class="pdf-loading-subtitle">กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร</div>
+    <div class="pdf-loading-box">
+      <div class="pdf-spinner"></div>
+      <div class="pdf-loading-title">กำลังสร้าง PDF...</div>
+      <div class="pdf-loading-subtitle">กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร</div>
+    </div>
   </div>
-</div>
   <?php if ($readonly): ?>
   <script>
   document.addEventListener("DOMContentLoaded", () => {
@@ -874,7 +879,7 @@ $len = max(20, $len);
       position:relative;
       top:-5px;
   ">
-            คณะเทคโนโลยีและการจัดการอุตสาหกรรม
+            <?= h($displayFaculty) ?>
           </div>
 
           <div style="
@@ -976,8 +981,8 @@ $len = max(20, $len);
         text-indent:2cm;
         margin-bottom:2px;
     ">
-            ด้วยภาควิชาเทคโนโลยีสารสนเทศ
-            คณะเทคโนโลยีและการจัดการอุตสาหกรรม
+            ด้วย<?= h($displayDepartmentFull) ?>
+            <?= h($displayFaculty) ?>
             มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
             วิทยาเขตปราจีนบุรี ได้ดำเนินการ <?= h($projectMainProject) ?>
             ในกิจกรรมย่อย “<?= h($projectSubActivity) ?>”
@@ -991,8 +996,8 @@ $len = max(20, $len);
     margin-top:10px;
     margin-bottom:2px;
 ">
-            ในการนี้ ภาควิชาเทคโนโลยีสารสนเทศ
-            คณะเทคโนโลยีและการจัดการอุตสาหกรรม
+            ในการนี้ <?= h($displayDepartmentFull) ?>
+            <?= h($displayFaculty) ?>
             มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
             จึงขออนุญาตดำเนินการจัด “<?= h($projectSubActivity) ?>”
             <?= h($projectActivityPeriod) ?> ให้แก่ <?= h($projectTargetGroup) ?>
@@ -1038,9 +1043,9 @@ $len = max(20, $len);
     font-size:13pt;
     line-height:1.2;
 ">
-          ภาควิชาเทคโนโลยีสารสนเทศ<br>
+          <?= h($displayDepartmentFull) ?><br>
           โทรศัพท์ ๐-๓๗๒๑-๗๓๔๐-๓ ต่อ ๗๐๖๕-๖<br>
-          ไปรษณีย์อิเล็กทรอนิกส์  :
+          ไปรษณีย์อิเล็กทรอนิกส์ :
           <span style="color:#000; text-decoration:none;">IT@itm.kmutnb.ac.th</span>
         </div>
 
@@ -1049,7 +1054,7 @@ $len = max(20, $len);
       <!-- <div style="font-family:'TH SarabunPSK'; font-size:16pt; line-height:1.2;"> เรียน <?= h($hdr_to) ?> </div>
             <div class="content-block single align-to-dean"> เพื่อโปรดพิจารณาอนุมัติ </div>
             <div class="content-block single align-to-dean" style="margin-top:50px;;"> (ผู้ช่วยศาสตราจารย์ ดร. ขนิษฐา
-                นามี)<br /> หัวหน้าภาควิชาเทคโนโลยีสารสนเทศ </div> -->
+                นามี)<br /> หัวหน้า<?= h($displayDepartmentFull) ?> </div> -->
       <div class="footer-actions">
 
         <!-- 🔵 ปุ่มแรก: พิมพ์/ดูตัวอย่าง (ทุก role ต้องมี และอยู่ลำดับแรก) -->
@@ -1299,17 +1304,17 @@ $len = max(20, $len);
 
         document.body.appendChild(clone);
 
-      const canvas = await html2canvas(clone, {
-        scale: 1,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        windowWidth: 794,
-        windowHeight: 1123,
-        scrollX: 0,
-        scrollY: 0,
-        logging: false
-      });
+        const canvas = await html2canvas(clone, {
+          scale: 1,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          windowWidth: 794,
+          windowHeight: 1123,
+          scrollX: 0,
+          scrollY: 0,
+          logging: false
+        });
 
         document.body.removeChild(clone);
 

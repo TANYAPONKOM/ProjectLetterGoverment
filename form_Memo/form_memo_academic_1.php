@@ -237,6 +237,10 @@ $amountStr = $valueMap[8] ?? "";
 $vehicle = $valueMap[9] ?? "";
 $faculty = $valueMap[10] ?? "";
 $department = $valueMap[11] ?? "";
+$displayFaculty = trim($faculty) !== '' ? trim($faculty) : "คณะเทคโนโลยีและการจัดการอุตสาหกรรม";
+$displayDepartment = trim($department) !== '' ? trim($department) : "เทคโนโลยีสารสนเทศ";
+$displayDepartmentFull = "ภาควิชา" . $displayDepartment;
+$displayFacultyDean = "คณบดี" . $displayFaculty;
 $academicTopic = $valueMap[13] ?? "";
 $memoSubject   = $valueMap[14] ?? ($document['subject'] ?? "");
 $sectionSubject = cleanSectionSubject($memoSubject ?: $subject ?: 'ขออนุมัติ...');
@@ -817,72 +821,72 @@ $len = max(20, $len);
   }
 
   /* ===== PDF Loading Overlay ===== */
-.pdf-loading-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  background: rgba(255, 255, 255, 0.72);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(2px);
-}
-
-.pdf-loading-box {
-  min-width: 260px;
-  padding: 28px 34px;
-  border-radius: 18px;
-  background: #ffffff;
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
-  text-align: center;
-  font-family: "TH SarabunPSK", sans-serif;
-}
-
-.pdf-spinner {
-  width: 58px;
-  height: 58px;
-  margin: 0 auto 14px auto;
-  border: 6px solid rgba(20, 184, 166, 0.18);
-  border-top-color: #14b8a6;
-  border-right-color: #14b8a6;
-  border-radius: 50%;
-  animation: pdfSpin 0.85s linear infinite;
-}
-
-.pdf-loading-title {
-  color: #0f766e;
-  font-size: 22pt;
-  font-weight: bold;
-  line-height: 1.1;
-}
-
-.pdf-loading-subtitle {
-  margin-top: 4px;
-  color: #475569;
-  font-size: 16pt;
-  line-height: 1.1;
-}
-
-@keyframes pdfSpin {
-  from {
-    transform: rotate(0deg);
+  .pdf-loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(255, 255, 255, 0.72);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
   }
 
-  to {
-    transform: rotate(360deg);
+  .pdf-loading-box {
+    min-width: 260px;
+    padding: 28px 34px;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+    text-align: center;
+    font-family: "TH SarabunPSK", sans-serif;
   }
-}
+
+  .pdf-spinner {
+    width: 58px;
+    height: 58px;
+    margin: 0 auto 14px auto;
+    border: 6px solid rgba(20, 184, 166, 0.18);
+    border-top-color: #14b8a6;
+    border-right-color: #14b8a6;
+    border-radius: 50%;
+    animation: pdfSpin 0.85s linear infinite;
+  }
+
+  .pdf-loading-title {
+    color: #0f766e;
+    font-size: 22pt;
+    font-weight: bold;
+    line-height: 1.1;
+  }
+
+  .pdf-loading-subtitle {
+    margin-top: 4px;
+    color: #475569;
+    font-size: 16pt;
+    line-height: 1.1;
+  }
+
+  @keyframes pdfSpin {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
+    }
+  }
   </style>
 </head>
 
 <body class="view-document">
   <div id="pdfLoadingOverlay" class="pdf-loading-overlay">
-  <div class="pdf-loading-box">
-    <div class="pdf-spinner"></div>
-    <div class="pdf-loading-title">กำลังสร้าง PDF...</div>
-    <div class="pdf-loading-subtitle">กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร</div>
+    <div class="pdf-loading-box">
+      <div class="pdf-spinner"></div>
+      <div class="pdf-loading-title">กำลังสร้าง PDF...</div>
+      <div class="pdf-loading-subtitle">กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร</div>
+    </div>
   </div>
-</div>
   <?php if ($readonly): ?>
   <script>
   document.addEventListener("DOMContentLoaded", () => {
@@ -1047,7 +1051,7 @@ $len = max(20, $len);
         font-size:16pt;
         font-weight:400;
         line-height:1.05;
-      ">คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม</span>
+      "><?= h($displayFacultyDean) ?></span>
       </div>
 
 
@@ -1057,8 +1061,8 @@ $len = max(20, $len);
         <span class="chip" contenteditable="true" data-target="ownerName">
           <?= h($ownerName ?: '................................') ?>
         </span>
-        พนักงานมหาวิทยาลัย สังกัดภาควิชาเทคโนโลยีสารสนเทศ
-        คณะเทคโนโลยีและการจัดการอุตสาหกรรม มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
+        พนักงานมหาวิทยาลัย สังกัด<?= h($displayDepartmentFull) ?>
+        <?= h($displayFaculty) ?> มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
         วิทยาเขตปราจีนบุรี ได้รับอนุมัติตัวบุคคลให้เข้าร่วมนำเสนอผลงานวิจัย
         <span class="chip" contenteditable="true" data-target="courseName">
           <?= h($courseName ?: 'ในงานประชุมวิชาการระดับนานาชาติ The 5th Asia Conference on Information Engineering (ACIE 2025)') ?>
@@ -1095,7 +1099,7 @@ $len = max(20, $len);
         <span class="chip" contenteditable="true" data-target="fiscal_year_display">
           <?= h($thaiYear ?: date('Y') + 543) ?>
         </span>
-        ในส่วนของสาขาเทคโนโลยีสารสนเทศ แผนงานจัดการศึกษาระดับอุดมศึกษา
+        ในส่วนของ<?= h($displayDepartmentFull) ?> แผนงานจัดการศึกษาระดับอุดมศึกษา
         หมวดค่าใช้สอย (รายละเอียดตามเอกสารแนบ)
       </div>
 
@@ -1109,7 +1113,7 @@ $len = max(20, $len);
       <div class="signature-wrapper">
         <div class="signature-block" id="signatureBlock">
           <div class="sig-name">(ผู้ช่วยศาสตราจารย์ ดร.ขนิษฐา นามี)</div>
-          <div class="sig-position">หัวหน้าภาควิชาเทคโนโลยีสารสนเทศ</div>
+          <div class="sig-position">หัวหน้า<?= h($displayDepartmentFull) ?></div>
         </div>
       </div>
 
@@ -1192,7 +1196,7 @@ $len = max(20, $len);
     </div>
 
     <div class="content-block single">
-      เรียน คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม
+      เรียน <?= h($displayFacultyDean) ?>
     </div>
 
     <div class="content-block paragraph">
@@ -1210,7 +1214,7 @@ $len = max(20, $len);
       (<span class="chip"><?= h($displayAmountThai) ?></span>)
       โดยขอใช้แหล่งเงินจัดสรรให้หน่วยงาน ประจำปีงบประมาณ
       <span class="chip"><?= h($thaiYear ? 'พ.ศ. ' . $thaiYear : 'พ.ศ. ....') ?></span>
-      ในส่วนของภาควิชาเทคโนโลยีสารสนเทศ แผนงานจัดการศึกษาระดับอุดมศึกษา
+      ในส่วนของ<?= h($displayDepartmentFull) ?> แผนงานจัดการศึกษาระดับอุดมศึกษา
       กองทุนพัฒนาบุคลากร หมวดค่าใช้สอย
       <span class="keep">(รายละเอียดตามเอกสารแนบ)</span>
     </div>
@@ -1269,7 +1273,7 @@ $len = max(20, $len);
     </div>
 
     <div class="content-block single">
-      เรียน คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม
+      เรียน <?= h($displayFacultyDean) ?>
     </div>
 
     <div class="content-block paragraph">

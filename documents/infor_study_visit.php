@@ -17,6 +17,94 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+$roleIdForHome = (int)($_SESSION['role_id'] ?? 0);
+if ($roleIdForHome === 1) {
+    $homePath = '/Pro_letter/admin/home.php';
+} elseif ($roleIdForHome === 2) {
+    $homePath = '/Pro_letter/officer/home.php';
+} else {
+    $homePath = '/Pro_letter/user/home.php';
+}
+
+
+
+/* ===== โหลดคณะ/ภาควิชา =====
+   - ค่าเริ่มต้น = คณะ/ภาควิชาของ user ที่ล็อกอิน
+   - แต่ dropdown ยังเปลี่ยนไปเลือกคณะ/ภาควิชาอื่นได้
+   - department_id hidden จะเปลี่ยนตามภาควิชาที่เลือก
+*/
+$currentUserFacultyId = 0;
+$currentUserDepartmentId = 0;
+$currentUserFacultyName = 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม';
+$currentUserDepartmentName = 'เทคโนโลยีสารสนเทศ';
+
+$facultyOptions = [];
+$departmentOptions = [];
+
+try {
+    $userOrgPdo = db();
+
+    // 1) โหลดคณะ/ภาควิชาของ user ที่ล็อกอิน เพื่อใช้เป็นค่า default
+    $userOrgStmt = $userOrgPdo->prepare("
+        SELECT
+            u.department_id,
+            d.department_name,
+            d.faculty_id,
+            f.faculty_name
+        FROM users u
+        LEFT JOIN departments d ON d.department_id = u.department_id
+        LEFT JOIN faculties f ON f.faculty_id = d.faculty_id
+        WHERE u.user_id = :user_id
+        LIMIT 1
+    ");
+    $userOrgStmt->execute([':user_id' => (int)$_SESSION['user_id']]);
+    $userOrg = $userOrgStmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($userOrg) {
+        $currentUserDepartmentId = (int)($userOrg['department_id'] ?? 0);
+        $currentUserFacultyId = (int)($userOrg['faculty_id'] ?? 0);
+        $currentUserFacultyName = trim((string)($userOrg['faculty_name'] ?? '')) ?: $currentUserFacultyName;
+        $currentUserDepartmentName = trim((string)($userOrg['department_name'] ?? '')) ?: $currentUserDepartmentName;
+    }
+
+    // 2) โหลดคณะทั้งหมด เพื่อให้ dropdown เลือกเปลี่ยนได้
+    $facultyStmt = $userOrgPdo->query("
+        SELECT faculty_id, faculty_name
+        FROM faculties
+        ORDER BY faculty_name ASC
+    ");
+    $facultyOptions = $facultyStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // 3) โหลดภาควิชาทั้งหมด พร้อม faculty_id เพื่อใช้ filter ตามคณะที่เลือก
+    $departmentStmt = $userOrgPdo->query("
+        SELECT department_id, department_name, faculty_id
+        FROM departments
+        ORDER BY faculty_id ASC, department_name ASC
+    ");
+    $departmentOptions = $departmentStmt->fetchAll(PDO::FETCH_ASSOC);
+
+} catch (Throwable $e) {
+    // ถ้าดึงข้อมูลไม่ได้ ให้ใช้ค่า default เพื่อไม่ให้หน้าแบบฟอร์มพัง
+    $facultyOptions = [];
+    $departmentOptions = [];
+}
+
+// fallback กัน dropdown ว่าง ถ้าฐานข้อมูลยังไม่มีข้อมูลคณะ/ภาควิชา
+if (empty($facultyOptions)) {
+    $facultyOptions[] = [
+        'faculty_id' => $currentUserFacultyId ?: 1,
+        'faculty_name' => $currentUserFacultyName
+    ];
+}
+
+if (empty($departmentOptions)) {
+    $departmentOptions[] = [
+        'department_id' => $currentUserDepartmentId ?: 1,
+        'department_name' => $currentUserDepartmentName,
+        'faculty_id' => $currentUserFacultyId ?: 1
+    ];
+}
+
 $pdo = db();
 
 $documentId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -56,6 +144,106 @@ if ($isEditMode) {
         }
     }
 }
+
+
+/* ===== โหมดแก้ไขเอกสาร: ใช้คณะ/ภาควิชาจากเอกสารเดิมก่อนข้อมูล user =====
+   ใช้เฉพาะตอนเปิดฟอร์มแก้ไข เพื่อให้ dropdown แสดงค่าที่เคยบันทึกไว้กับเอกสารนั้น
+*/
+$__editOrgDocId = 0;
+foreach (['docId', 'editDocId', 'documentId'] as $__editOrgIdVar) {
+    if (isset($$__editOrgIdVar) && (int)$$__editOrgIdVar > 0) {
+        $__editOrgDocId = (int)$$__editOrgIdVar;
+        break;
+    }
+}
+
+if ($__editOrgDocId > 0) {
+    try {
+        $__editOrgPdo = (isset($pdo) && $pdo instanceof PDO) ? $pdo : db();
+
+        // 1) ให้ความสำคัญกับ documents.department_id ก่อน เพราะเป็นค่าภาควิชาของเอกสารจริง
+        $__editOrgStmt = $__editOrgPdo->prepare("
+            SELECT
+                doc.department_id,
+                dep.department_name,
+                dep.faculty_id,
+                fac.faculty_name
+            FROM documents doc
+            LEFT JOIN departments dep ON dep.department_id = doc.department_id
+            LEFT JOIN faculties fac ON fac.faculty_id = dep.faculty_id
+            WHERE doc.document_id = :id
+            LIMIT 1
+        ");
+        $__editOrgStmt->execute([':id' => $__editOrgDocId]);
+        $__editOrg = $__editOrgStmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($__editOrg && (int)($__editOrg['department_id'] ?? 0) > 0) {
+            $currentUserDepartmentId = (int)($__editOrg['department_id'] ?? 0);
+            $currentUserFacultyId = (int)($__editOrg['faculty_id'] ?? 0);
+            $currentUserDepartmentName = trim((string)($__editOrg['department_name'] ?? '')) ?: $currentUserDepartmentName;
+            $currentUserFacultyName = trim((string)($__editOrg['faculty_name'] ?? '')) ?: $currentUserFacultyName;
+        } else {
+            // 2) fallback: ถ้าเอกสารเก่าไม่มี documents.department_id ให้ลองเทียบจาก document_values field_id 10/11
+            $__savedFacultyName = '';
+            $__savedDepartmentName = '';
+
+            if (isset($formData) && is_array($formData)) {
+                $__savedFacultyName = trim((string)($formData[10] ?? ''));
+                $__savedDepartmentName = trim((string)($formData[11] ?? ''));
+            }
+            if (isset($formDataById) && is_array($formDataById)) {
+                $__savedFacultyName = $__savedFacultyName ?: trim((string)($formDataById[10] ?? ''));
+                $__savedDepartmentName = $__savedDepartmentName ?: trim((string)($formDataById[11] ?? ''));
+            }
+            if (isset($valueMap) && is_array($valueMap)) {
+                $__savedFacultyName = $__savedFacultyName ?: trim((string)($valueMap[10] ?? ''));
+                $__savedDepartmentName = $__savedDepartmentName ?: trim((string)($valueMap[11] ?? ''));
+            }
+            if (isset($editValuesByFieldId) && is_array($editValuesByFieldId)) {
+                $__savedFacultyName = $__savedFacultyName ?: trim((string)($editValuesByFieldId[10] ?? ''));
+                $__savedDepartmentName = $__savedDepartmentName ?: trim((string)($editValuesByFieldId[11] ?? ''));
+            }
+            if (isset($editValuesByKey) && is_array($editValuesByKey)) {
+                $__savedFacultyName = $__savedFacultyName ?: trim((string)($editValuesByKey['faculty'] ?? ''));
+                $__savedDepartmentName = $__savedDepartmentName ?: trim((string)($editValuesByKey['department'] ?? ''));
+            }
+
+            if ($__savedDepartmentName !== '') {
+                $__fallbackSql = "
+                    SELECT
+                        dep.department_id,
+                        dep.department_name,
+                        dep.faculty_id,
+                        fac.faculty_name
+                    FROM departments dep
+                    LEFT JOIN faculties fac ON fac.faculty_id = dep.faculty_id
+                    WHERE dep.department_name = :department_name
+                ";
+                $__fallbackParams = [':department_name' => $__savedDepartmentName];
+
+                if ($__savedFacultyName !== '') {
+                    $__fallbackSql .= " AND fac.faculty_name = :faculty_name";
+                    $__fallbackParams[':faculty_name'] = $__savedFacultyName;
+                }
+
+                $__fallbackSql .= " LIMIT 1";
+                $__fallbackStmt = $__editOrgPdo->prepare($__fallbackSql);
+                $__fallbackStmt->execute($__fallbackParams);
+                $__fallbackOrg = $__fallbackStmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($__fallbackOrg && (int)($__fallbackOrg['department_id'] ?? 0) > 0) {
+                    $currentUserDepartmentId = (int)($__fallbackOrg['department_id'] ?? 0);
+                    $currentUserFacultyId = (int)($__fallbackOrg['faculty_id'] ?? 0);
+                    $currentUserDepartmentName = trim((string)($__fallbackOrg['department_name'] ?? '')) ?: $currentUserDepartmentName;
+                    $currentUserFacultyName = trim((string)($__fallbackOrg['faculty_name'] ?? '')) ?: $currentUserFacultyName;
+                }
+            }
+        }
+    } catch (Throwable $e) {
+        // ถ้าโหลดค่าจากเอกสารเดิมไม่ได้ ให้ใช้ค่า default จาก user ตามเดิม
+    }
+}
+unset($__editOrgDocId, $__editOrgIdVar, $__editOrg, $__editOrgStmt, $__editOrgPdo, $__savedFacultyName, $__savedDepartmentName, $__fallbackStmt, $__fallbackOrg, $__fallbackSql, $__fallbackParams);
 
 function fv($fieldId, $fieldKey = null, $default = '') {
     global $formData, $formDataByKey, $docRow;
@@ -435,7 +623,7 @@ if ($studyTeacherCount < count($studyTeachers)) {
       </div>
     </div>
     <div class="flex items-center space-x-4">
-      <a href="/Pro_letter/user/home.php">
+      <a href="<?= h($homePath) ?>">
         <div class="px-4 py-2 rounded-[11px] font-bold transition text-white">
           หน้าหลัก
         </div>
@@ -487,6 +675,7 @@ if ($studyTeacherCount < count($studyTeachers)) {
 
   <form method="post" action="<?= $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo.php' ?>"
     id="memoForm">
+    <input type="hidden" name="department_id" id="selectedDepartmentId" value="<?= (int)$currentUserDepartmentId ?>">
     <?php if ($isEditMode): ?>
     <input type="hidden" name="document_id" value="<?= (int)$documentId ?>">
     <?php endif; ?>
@@ -499,7 +688,7 @@ if ($studyTeacherCount < count($studyTeachers)) {
     <!-- กล่องเนื้อหา -->
     <div class="w-[900px] mx-auto mt-16 mb-6 bg-white shadow-md rounded-md p-8" style="min-height: 1122px">
       <h1 class="text-center font-bold mb-6 text-black">
-        แบบฟอร์มบันทึกข้อความ
+        แบบฟอร์มขอเข้าเยี่ยมศึกษาดูงาน
       </h1>
 
       <!-- หมวดหมู่ -->
@@ -534,16 +723,41 @@ if ($studyTeacherCount < count($studyTeachers)) {
         <div class="flex items-center gap-3">
           <label class="lbl text-gray-800 w-28 text-right">คณะ:</label>
           <div class="relative w-full">
-            <select name="faculty" class="custom-select w-full" id="faculty">
-              <option>คณะเทคโนโลยีและการจัดการอุตสาหกรรม</option>
+            <select name="faculty" class="custom-select w-full" id="faculty"
+              data-current-faculty-id="<?= (int)$currentUserFacultyId ?>">
+              <?php foreach ($facultyOptions as $fac): ?>
+              <?php
+                    $facId = (int)($fac['faculty_id'] ?? 0);
+                    $facName = trim((string)($fac['faculty_name'] ?? ''));
+                  ?>
+              <option value="<?= h($facName) ?>" data-faculty-id="<?= $facId ?>"
+                <?= ($facId === (int)$currentUserFacultyId || $facName === $currentUserFacultyName) ? 'selected' : '' ?>>
+                <?= h($facName) ?>
+              </option>
+              <?php endforeach; ?>
             </select>
           </div>
         </div>
         <div class="flex items-center gap-3">
           <label class="lbl text-gray-800 w-28 text-right">ภาควิชา:</label>
           <div class="relative w-full">
-            <select name="department" class="custom-select w-full" id="dept">
-              <option>เทคโนโลยีสารสนเทศ</option>
+            <select name="department" class="custom-select w-full" id="dept"
+              data-current-department-id="<?= (int)$currentUserDepartmentId ?>">
+              <?php foreach ($departmentOptions as $deptRow): ?>
+              <?php
+                    $deptId = (int)($deptRow['department_id'] ?? 0);
+                    $deptFacultyId = (int)($deptRow['faculty_id'] ?? 0);
+                    $deptName = trim((string)($deptRow['department_name'] ?? ''));
+                    $isCurrentFacultyDept = ($currentUserFacultyId <= 0 || $deptFacultyId === (int)$currentUserFacultyId);
+                  ?>
+              <?php if ($isCurrentFacultyDept): ?>
+              <option value="<?= h($deptName) ?>" data-department-id="<?= $deptId ?>"
+                data-faculty-id="<?= $deptFacultyId ?>"
+                <?= ($deptId === (int)$currentUserDepartmentId || $deptName === $currentUserDepartmentName) ? 'selected' : '' ?>>
+                <?= h($deptName) ?>
+              </option>
+              <?php endif; ?>
+              <?php endforeach; ?>
             </select>
           </div>
         </div>
@@ -1741,6 +1955,82 @@ if ($studyTeacherCount < count($studyTeachers)) {
     syncUI();
   });
   </script>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const facultySelect = document.getElementById("faculty");
+    const departmentSelect = document.getElementById("dept");
+    const departmentIdInput = document.getElementById("selectedDepartmentId");
+
+    if (!facultySelect || !departmentSelect || !departmentIdInput) return;
+
+    const DEPARTMENT_OPTIONS =
+      <?= json_encode($departmentOptions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+
+    function getSelectedFacultyId() {
+      const selectedOption = facultySelect.options[facultySelect.selectedIndex];
+      return String(selectedOption?.dataset?.facultyId || "");
+    }
+
+    function renderDepartmentOptions(keepCurrent = true) {
+      const facultyId = getSelectedFacultyId();
+      const currentDepartmentId = keepCurrent ?
+        String(departmentSelect.dataset.currentDepartmentId || departmentIdInput.value || "") :
+        "";
+
+      departmentSelect.innerHTML = "";
+
+      const filteredDepartments = DEPARTMENT_OPTIONS.filter(item => {
+        return String(item.faculty_id || "") === facultyId;
+      });
+
+      filteredDepartments.forEach(item => {
+        const opt = document.createElement("option");
+        opt.value = item.department_name || "";
+        opt.textContent = item.department_name || "";
+        opt.dataset.departmentId = item.department_id || "";
+        opt.dataset.facultyId = item.faculty_id || "";
+
+        if (currentDepartmentId && String(item.department_id || "") === currentDepartmentId) {
+          opt.selected = true;
+        }
+
+        departmentSelect.appendChild(opt);
+      });
+
+      // ถ้าเปลี่ยนคณะแล้วภาควิชาเดิมไม่อยู่ในคณะนั้น ให้เลือกตัวแรกของคณะใหม่อัตโนมัติ
+      if (departmentSelect.options.length > 0 && departmentSelect.selectedIndex < 0) {
+        departmentSelect.selectedIndex = 0;
+      }
+
+      syncSelectedDepartmentId();
+    }
+
+    function syncSelectedDepartmentId() {
+      const selectedOption = departmentSelect.options[departmentSelect.selectedIndex];
+
+      if (!selectedOption) {
+        departmentIdInput.value = "";
+        departmentSelect.dataset.currentDepartmentId = "";
+        return;
+      }
+
+      const selectedDepartmentId = selectedOption.dataset.departmentId || "";
+      departmentIdInput.value = selectedDepartmentId;
+      departmentSelect.dataset.currentDepartmentId = selectedDepartmentId;
+    }
+
+    facultySelect.addEventListener("change", () => {
+      renderDepartmentOptions(false);
+    });
+
+    departmentSelect.addEventListener("change", syncSelectedDepartmentId);
+
+    // โหลดหน้า: แสดงค่าของ user ก่อน แต่ยังเปลี่ยนเลือกคณะ/ภาควิชาอื่นได้
+    renderDepartmentOptions(true);
+  });
+  </script>
+
 </body>
 
 </html>

@@ -181,6 +181,10 @@ $teacherCount = trim($valueMap[8] ?? "");
 $visitTime = trim($valueMap[9] ?? "");
 $faculty = trim($valueMap[10] ?? "");
 $department = trim($valueMap[11] ?? "");
+$displayFaculty = trim($faculty) !== '' ? trim($faculty) : "คณะเทคโนโลยีและการจัดการอุตสาหกรรม";
+$displayDepartment = trim($department) !== '' ? trim($department) : "เทคโนโลยีสารสนเทศ";
+$displayDepartmentFull = "ภาควิชา" . $displayDepartment;
+$displayFacultyDean = "คณบดี" . $displayFaculty;
 $subjectFromValue = trim($valueMap[14] ?? "");
 $objectiveText = trim($valueMap[25] ?? "");
 $toPerson = trim($valueMap[26] ?? "");
@@ -708,72 +712,72 @@ $len = max(20, $len);
   }
 
   /* ===== PDF Loading Overlay ===== */
-.pdf-loading-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  background: rgba(255, 255, 255, 0.72);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(2px);
-}
-
-.pdf-loading-box {
-  min-width: 260px;
-  padding: 28px 34px;
-  border-radius: 18px;
-  background: #ffffff;
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
-  text-align: center;
-  font-family: "TH SarabunPSK", sans-serif;
-}
-
-.pdf-spinner {
-  width: 58px;
-  height: 58px;
-  margin: 0 auto 14px auto;
-  border: 6px solid rgba(20, 184, 166, 0.18);
-  border-top-color: #14b8a6;
-  border-right-color: #14b8a6;
-  border-radius: 50%;
-  animation: pdfSpin 0.85s linear infinite;
-}
-
-.pdf-loading-title {
-  color: #0f766e;
-  font-size: 22pt;
-  font-weight: bold;
-  line-height: 1.1;
-}
-
-.pdf-loading-subtitle {
-  margin-top: 4px;
-  color: #475569;
-  font-size: 16pt;
-  line-height: 1.1;
-}
-
-@keyframes pdfSpin {
-  from {
-    transform: rotate(0deg);
+  .pdf-loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(255, 255, 255, 0.72);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
   }
 
-  to {
-    transform: rotate(360deg);
+  .pdf-loading-box {
+    min-width: 260px;
+    padding: 28px 34px;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+    text-align: center;
+    font-family: "TH SarabunPSK", sans-serif;
   }
-}
+
+  .pdf-spinner {
+    width: 58px;
+    height: 58px;
+    margin: 0 auto 14px auto;
+    border: 6px solid rgba(20, 184, 166, 0.18);
+    border-top-color: #14b8a6;
+    border-right-color: #14b8a6;
+    border-radius: 50%;
+    animation: pdfSpin 0.85s linear infinite;
+  }
+
+  .pdf-loading-title {
+    color: #0f766e;
+    font-size: 22pt;
+    font-weight: bold;
+    line-height: 1.1;
+  }
+
+  .pdf-loading-subtitle {
+    margin-top: 4px;
+    color: #475569;
+    font-size: 16pt;
+    line-height: 1.1;
+  }
+
+  @keyframes pdfSpin {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
+    }
+  }
   </style>
 </head>
 
 <body>
   <div id="pdfLoadingOverlay" class="pdf-loading-overlay">
-  <div class="pdf-loading-box">
-    <div class="pdf-spinner"></div>
-    <div class="pdf-loading-title">กำลังสร้าง PDF...</div>
-    <div class="pdf-loading-subtitle">กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร</div>
+    <div class="pdf-loading-box">
+      <div class="pdf-spinner"></div>
+      <div class="pdf-loading-title">กำลังสร้าง PDF...</div>
+      <div class="pdf-loading-subtitle">กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร</div>
+    </div>
   </div>
-</div>
   <?php if ($readonly): ?>
   <script>
   document.addEventListener("DOMContentLoaded", () => {
@@ -964,8 +968,8 @@ $len = max(20, $len);
   ">
           ด้วย <span contenteditable="false" data-target="ownerName"><?= h($ownerName) ?></span>
           <span contenteditable="false" data-target="position"><?= h($position) ?></span>
-          สังกัด <?= $department !== '' ? 'ภาควิชา' . h($department) : 'ภาควิชาเทคโนโลยีสารสนเทศ' ?>
-          <?= $faculty !== '' ? h($faculty) : 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม' ?>
+          สังกัด <?= h($displayDepartmentFull) ?>
+          <?= h($displayFaculty) ?>
           มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
           มีความประสงค์จะขออนุญาตเข้าเยี่ยมชม
           <span contenteditable="false" data-target="visit_place"><?= h($visitPlace) ?></span>
@@ -995,7 +999,7 @@ $len = max(20, $len);
           <?php else: ?>
           <div style="display:grid; grid-template-columns: 7.2cm 1fr;">
             <div>๑. ........................................................</div>
-            <div><?= h($faculty ?: 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม') ?></div>
+            <div><?= h($displayFaculty) ?></div>
           </div>
           <?php endif; ?>
         </div>
@@ -1033,7 +1037,7 @@ $len = max(20, $len);
     letter-spacing:-0.05px;
     color:#111;
   ">
-          ภาควิชาเทคโนโลยีสารสนเทศ<br>
+          <?= h($displayDepartmentFull) ?><br>
           โทรศัพท์ ๐-๓๗๒๑-๗๓๔๐-๓ ต่อ ๗๐๖๕-๖<br>
           ไปรษณีย์อิเล็กทรอนิกส์ Ladda.t@fitm.kmutnb.ac.th
         </div>
@@ -1043,7 +1047,7 @@ $len = max(20, $len);
       <!-- <div style="font-family:'TH SarabunPSK'; font-size:16pt; line-height:1.2;"> เรียน <?= h($hdr_to) ?> </div>
             <div class="content-block single align-to-dean"> เพื่อโปรดพิจารณาอนุมัติ </div>
             <div class="content-block single align-to-dean" style="margin-top:50px;;"> (ผู้ช่วยศาสตราจารย์ ดร. ขนิษฐา
-                นามี)<br /> หัวหน้าภาควิชาเทคโนโลยีสารสนเทศ </div> -->
+                นามี)<br /> หัวหน้า<?= h($displayDepartmentFull) ?> </div> -->
       <div class="footer-actions">
 
         <!-- 🔵 ปุ่มแรก: พิมพ์/ดูตัวอย่าง (ทุก role ต้องมี และอยู่ลำดับแรก) -->

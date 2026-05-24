@@ -168,6 +168,10 @@ $position = $valueMap[3] ?? "";
 
 $faculty = $valueMap[10] ?? "";
 $department = $valueMap[11] ?? "";
+$displayFaculty = trim($faculty) !== '' ? trim($faculty) : "คณะเทคโนโลยีและการจัดการอุตสาหกรรม";
+$displayDepartment = trim($department) !== '' ? trim($department) : "เทคโนโลยีสารสนเทศ";
+$displayDepartmentFull = "ภาควิชา" . $displayDepartment;
+$displayFacultyDean = "คณบดี" . $displayFaculty;
 
 $toPerson = $valueMap[26] ?? "ประธานคณะกรรมการบ้านพัก มจพ. วิทยาเขตปราจีนบุรี";
 $roomRequest = $valueMap[27] ?? "";
@@ -187,9 +191,6 @@ $personTypeText = (trim($personType) === "อื่น ๆ" && trim($personTypeO
 $reasonText = (trim($reason) === "อื่น ๆ" && trim($reasonOther) !== "") ? $reasonOther : $reason;
 $stayDateText = (trim($dateOption) === "range" && trim($rangeDate) !== "") ? $rangeDate : $singleDate;
 
-$displayFaculty = $faculty ?: "เทคโนโลยีและการจัดการอุตสาหกรรม";
-$displayDepartment = $department ?: "เทคโนโลยีสารสนเทศ";
-
 /* --------------------------------------------------
    ⭐⭐⭐ สำคัญที่สุด — แก้ให้ส่วนหัวขึ้น ⭐⭐⭐
 -------------------------------------------------- */
@@ -208,7 +209,7 @@ $prettyAmount = "";
 /* --------------------------------------------------
    สร้างข้อความส่วนหัวที่ใช้ในเนื้อหา
 -------------------------------------------------- */
-$hdr_agency = trim("คณะ" . $displayFaculty . " ภาควิชา" . $displayDepartment);
+$hdr_agency = trim($displayFaculty . " " . $displayDepartmentFull);
 
 $hdr_subject = "ขออนุมัติใช้ห้องพักรับรอง";
 $hdr_to = $toPerson ?: "ประธานคณะกรรมการบ้านพัก มจพ. วิทยาเขตปราจีนบุรี";
@@ -650,72 +651,72 @@ $len = max(20, $len);
   }
 
   /* ===== PDF Loading Overlay ===== */
-.pdf-loading-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  background: rgba(255, 255, 255, 0.72);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(2px);
-}
-
-.pdf-loading-box {
-  min-width: 260px;
-  padding: 28px 34px;
-  border-radius: 18px;
-  background: #ffffff;
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
-  text-align: center;
-  font-family: "TH SarabunPSK", sans-serif;
-}
-
-.pdf-spinner {
-  width: 58px;
-  height: 58px;
-  margin: 0 auto 14px auto;
-  border: 6px solid rgba(20, 184, 166, 0.18);
-  border-top-color: #14b8a6;
-  border-right-color: #14b8a6;
-  border-radius: 50%;
-  animation: pdfSpin 0.85s linear infinite;
-}
-
-.pdf-loading-title {
-  color: #0f766e;
-  font-size: 22pt;
-  font-weight: bold;
-  line-height: 1.1;
-}
-
-.pdf-loading-subtitle {
-  margin-top: 4px;
-  color: #475569;
-  font-size: 16pt;
-  line-height: 1.1;
-}
-
-@keyframes pdfSpin {
-  from {
-    transform: rotate(0deg);
+  .pdf-loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(255, 255, 255, 0.72);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
   }
 
-  to {
-    transform: rotate(360deg);
+  .pdf-loading-box {
+    min-width: 260px;
+    padding: 28px 34px;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+    text-align: center;
+    font-family: "TH SarabunPSK", sans-serif;
   }
-}
+
+  .pdf-spinner {
+    width: 58px;
+    height: 58px;
+    margin: 0 auto 14px auto;
+    border: 6px solid rgba(20, 184, 166, 0.18);
+    border-top-color: #14b8a6;
+    border-right-color: #14b8a6;
+    border-radius: 50%;
+    animation: pdfSpin 0.85s linear infinite;
+  }
+
+  .pdf-loading-title {
+    color: #0f766e;
+    font-size: 22pt;
+    font-weight: bold;
+    line-height: 1.1;
+  }
+
+  .pdf-loading-subtitle {
+    margin-top: 4px;
+    color: #475569;
+    font-size: 16pt;
+    line-height: 1.1;
+  }
+
+  @keyframes pdfSpin {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
+    }
+  }
   </style>
 </head>
 
 <body>
   <div id="pdfLoadingOverlay" class="pdf-loading-overlay">
-  <div class="pdf-loading-box">
-    <div class="pdf-spinner"></div>
-    <div class="pdf-loading-title">กำลังสร้าง PDF...</div>
-    <div class="pdf-loading-subtitle">กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร</div>
+    <div class="pdf-loading-box">
+      <div class="pdf-spinner"></div>
+      <div class="pdf-loading-title">กำลังสร้าง PDF...</div>
+      <div class="pdf-loading-subtitle">กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร</div>
+    </div>
   </div>
-</div>
   <script>
   document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll("[contenteditable]").forEach(e => {
@@ -806,7 +807,7 @@ $len = max(20, $len);
 
       <!-- ย่อหน้า 1 -->
       <div class="content-block paragraph">
-        ตามที่ ภาควิชา<?= h($displayDepartment) ?> คณะ<?= h($displayFaculty) ?>
+        ตามที่ <?= h($displayDepartmentFull) ?> <?= h($displayFaculty) ?>
         มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
         มีความประสงค์ขออนุมัติใช้ห้องพักรับรองสำหรับ
         <?= h($roomRequestText ?: "................................") ?>
@@ -821,7 +822,7 @@ $len = max(20, $len);
 
       <!-- ย่อหน้า 2 -->
       <div class="content-block paragraph">
-        ในการนี้ ภาควิชา<?= h($displayDepartment) ?>
+        ในการนี้ <?= h($displayDepartmentFull) ?>
         จึงมีความประสงค์ขออนุมัติใช้ห้องพักรับรอง
         ณ
         <?= h($roomType ?: "................................") ?>
@@ -842,7 +843,7 @@ $len = max(20, $len);
       <div class="signature-wrapper">
         <div class="signature-block" id="signatureBlock">
           <div class="sig-name">(ผู้ช่วยศาสตราจารย์ ดร.ขนิษฐา นามี)</div>
-          <div class="sig-position">หัวหน้าภาควิชาเทคโนโลยีสารสนเทศ</div>
+          <div class="sig-position">หัวหน้า<?= h($displayDepartmentFull) ?></div>
         </div>
       </div>
 
@@ -1104,22 +1105,22 @@ $len = max(20, $len);
       }
 
       pdf.save("room_request_<?= $docId ?>.pdf");
-      } catch (error) {
-        console.error(error);
-        alert("สร้าง PDF ไม่สำเร็จ กรุณากด F12 ดู Console");
-      } finally {
-        if (loadingOverlay) {
-          loadingOverlay.style.display = "none";
-        }
-
-        downloadButtons.forEach(btn => {
-          btn.disabled = false;
-          btn.innerText = btn.dataset.oldText || "ดาวน์โหลด PDF";
-          btn.style.opacity = "1";
-          btn.style.cursor = "pointer";
-        });
+    } catch (error) {
+      console.error(error);
+      alert("สร้าง PDF ไม่สำเร็จ กรุณากด F12 ดู Console");
+    } finally {
+      if (loadingOverlay) {
+        loadingOverlay.style.display = "none";
       }
+
+      downloadButtons.forEach(btn => {
+        btn.disabled = false;
+        btn.innerText = btn.dataset.oldText || "ดาวน์โหลด PDF";
+        btn.style.opacity = "1";
+        btn.style.cursor = "pointer";
+      });
     }
+  }
   </script>
 </body>
 

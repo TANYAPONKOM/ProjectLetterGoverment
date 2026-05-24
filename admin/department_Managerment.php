@@ -7,6 +7,7 @@ if (!isset($_SESSION['role_id']) || $_SESSION['role_id'] != 1) {
 
 require_once __DIR__ . '/../functions.php';
 $pdo = getPDO();
+$current = basename($_SERVER['PHP_SELF']);
 
 // ดึงข้อมูลภาควิชาทั้งหมด
 $sql = "SELECT d.department_id, d.faculty_id, d.department_name,
@@ -34,11 +35,8 @@ $departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
       <div class="w-[56px] h-[56px] flex items-center justify-center relative overflow-visible">
         <svg xmlns="http://www.w3.org/2000/svg" class="absolute scale-[1.4] text-white"
           style="width: 60px; height: 60px" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m0 
-                           0a2 2 0 00-2-2H5a2 2 0 
-                           00-2 2m18 0v8a2 2 0 
-                           01-2 2H5a2 2 0 
-                           01-2-2V8" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m0 0a2 2 0 00-2-2H5a2 2 0 00-2 2m18 0v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8" />
         </svg>
       </div>
       <div class="leading-tight">
@@ -47,48 +45,63 @@ $departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <div class="text-[13px] mt-[0px]">Letter Assistant System</div>
       </div>
     </div>
+
     <div class="flex items-center space-x-4">
       <a href="home.php">
-        <div class="px-4 py-2 rounded-[11px] font-bold transition  text-white hover:bg-white hover:text-teal-500">
+        <div
+          class="px-4 py-2 rounded-[11px] font-bold transition <?= $current === 'home.php' ? 'bg-white text-teal-500 shadow' : 'text-white hover:bg-white hover:text-teal-500' ?>">
           หน้าหลัก
         </div>
       </a>
-      <a href="/Pro_letter/admin/history_page.php">
+
+      <a href="history_page.php">
         <div
-          class="px-4 py-2 rounded-[11px] font-bold transition 
-        <?= $current === 'history_page.php' ? 'bg-white text-teal-500 shadow' : 'text-white hover:bg-white hover:text-teal-500' ?>">
+          class="px-4 py-2 rounded-[11px] font-bold transition <?= $current === 'history_page.php' ? 'bg-white text-teal-500 shadow' : 'text-white hover:bg-white hover:text-teal-500' ?>">
           ประวัติการใช้งานเอกสาร
         </div>
       </a>
-      <?php 
-// ✅ แสดงเมนู "กำหนดสิทธิ์" ก็ต่อเมื่อผู้ใช้มี perm_id = 3
-if (isset($_SESSION['permissions']) && in_array(3, $_SESSION['permissions'])): 
-?>
-      <?php renderAdminExtraMenus(); ?>
-      <?php endif; ?>
 
-      <!-- Dropdown จัดการเทมเพลต -->
+      <a href="department_report_dashboard.php">
+        <div
+          class="px-4 py-2 rounded-[11px] font-bold transition <?= $current === 'department_report_dashboard.php' ? 'bg-white text-teal-500 shadow' : 'text-white hover:bg-white hover:text-teal-500' ?>">
+          รายงานภาควิชา
+        </div>
+      </a>
+
+      <!-- Dropdown ตั้งค่าระบบเริ่มต้น -->
       <div class="relative">
         <button id="templateBtn"
-          class="px-4 py-2 rounded-[11px] font-bold transition bg-white text-teal-500 shadow flex items-center space-x-1">
+          class="px-4 py-2 rounded-[11px] font-bold transition <?= in_array($current, ['form_Templates.php', 'department_Managerment.php', 'permission_management.php']) ? 'bg-white text-teal-500 shadow' : 'text-white hover:bg-white hover:text-teal-500' ?> flex items-center space-x-1">
           <span>ตั้งค่าระบบเริ่มต้น</span>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
 
-        <!-- เมนูย่อย -->
-        <div id="templateMenu" class="hidden absolute bg-white text-gray-700 mt-1 rounded-lg shadow-lg w-48 z-50">
-          <a href="form_Templates.php" class="block px-4 py-2 hover:bg-teal-100">การจัดการเทมเพลต</a>
-          <a href="department_Managerment.php" class="block px-4 py-2 hover:bg-teal-100">การจัดการภาควิชา</a>
+        <div id="templateMenu" class="hidden absolute bg-white text-gray-700 mt-1 rounded-lg shadow-lg w-56 z-50">
+          <a href="form_Templates.php"
+            class="block px-4 py-2 hover:bg-teal-100 <?= $current === 'form_Templates.php' ? 'bg-teal-50 text-teal-600 font-semibold' : '' ?>">
+            การจัดการเทมเพลต
+          </a>
+          <a href="department_Managerment.php"
+            class="block px-4 py-2 hover:bg-teal-100 <?= $current === 'department_Managerment.php' ? 'bg-teal-50 text-teal-600 font-semibold' : '' ?>">
+            การจัดการภาควิชา
+          </a>
+          <?php if (isset($_SESSION['permissions']) && in_array(3, $_SESSION['permissions'])): ?>
+          <a href="user_Managerment.php"
+            class="block px-4 py-2 hover:bg-teal-100 <?= $current === 'user_Managerment.php' ? 'bg-teal-50 text-teal-600 font-semibold' : '' ?>">
+            กำหนดสิทธิ์ผู้ใช้งาน
+          </a>
+          <?php endif; ?>
         </div>
       </div>
+
       <div class="relative">
         <button id="profileBtn"
           class="bg-white text-teal-500 px-4 py-2 rounded-[11px] shadow flex items-center space-x-2 hover:bg-gray-100">
           <div class="text-right leading-tight">
-            <div class="font-bold text-[14px]"><?= htmlspecialchars($_SESSION['fullname']) ?></div>
-            <div class="text-[12px]"><?= htmlspecialchars($_SESSION['role_name']) ?></div>
+            <div class="font-bold text-[14px]"><?= htmlspecialchars($_SESSION['fullname'] ?? '') ?></div>
+            <div class="text-[12px]"><?= htmlspecialchars($_SESSION['role_name'] ?? '') ?></div>
           </div>
           <div class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
@@ -98,10 +111,11 @@ if (isset($_SESSION['permissions']) && in_array(3, $_SESSION['permissions'])):
             </svg>
           </div>
         </button>
-        <!-- เมนู Dropdown -->
+
         <div id="profileMenu" class="hidden absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-lg z-50">
           <a href="../logout.php" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">ออกจากระบบ</a>
-          <button onclick="closeMenu()" class="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">
+          <button type="button" onclick="closeMenu()"
+            class="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">
             อยู่ต่อ
           </button>
         </div>
@@ -179,6 +193,13 @@ if (isset($_SESSION['permissions']) && in_array(3, $_SESSION['permissions'])):
   <script>
   const profileBtn = document.getElementById("profileBtn");
   const profileMenu = document.getElementById("profileMenu");
+
+  function closeMenu() {
+    if (profileMenu) {
+      profileMenu.classList.add("hidden");
+    }
+  }
+
   if (profileBtn) {
     profileBtn.addEventListener("click", () => {
       profileMenu.classList.toggle("hidden");
@@ -200,12 +221,14 @@ if (isset($_SESSION['permissions']) && in_array(3, $_SESSION['permissions'])):
   const templateBtn = document.getElementById("templateBtn");
   const templateMenu = document.getElementById("templateMenu");
 
-  templateBtn.addEventListener("click", () => {
-    templateMenu.classList.toggle("hidden");
-  });
+  if (templateBtn && templateMenu) {
+    templateBtn.addEventListener("click", () => {
+      templateMenu.classList.toggle("hidden");
+    });
+  }
 
   document.addEventListener("click", (e) => {
-    if (!templateBtn.contains(e.target) && !templateMenu.contains(e.target)) {
+    if (templateBtn && templateMenu && !templateBtn.contains(e.target) && !templateMenu.contains(e.target)) {
       templateMenu.classList.add("hidden");
     }
   });

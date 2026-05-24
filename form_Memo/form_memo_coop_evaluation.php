@@ -280,6 +280,10 @@ $amountStr = $valueMap[8] ?? "";
 $vehicle = $valueMap[9] ?? "";
 $faculty = $valueMap[10] ?? "";
 $department = $valueMap[11] ?? "";
+$displayFaculty = trim($faculty) !== '' ? trim($faculty) : "คณะเทคโนโลยีและการจัดการอุตสาหกรรม";
+$displayDepartment = trim($department) !== '' ? trim($department) : "เทคโนโลยีสารสนเทศ";
+$displayDepartmentFull = "ภาควิชา" . $displayDepartment;
+$displayFacultyDean = "คณบดี" . $displayFaculty;
 $eventDate  = $valueMap[12] ?? "";
 $eventPlace = $valueMap[13] ?? "";
 
@@ -298,7 +302,7 @@ $coopEndDate = $valueKeyMap['coop_end_date'] ?? ($valueMap[78] ?? '');
 $coopAdvisorName = $valueKeyMap['coop_advisor_name'] ?? ($valueMap[79] ?? 'พนักงานที่ปรึกษา');
 $coopAdditionalDetail = $valueKeyMap['coop_additional_detail'] ?? ($valueMap[81] ?? '');
 $coopReceiverName = $valueKeyMap['coop_receiver_name'] ?? ($valueMap[82] ?? 'ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์');
-$coopReceiverPosition = $valueKeyMap['coop_receiver_position'] ?? ($valueMap[83] ?? 'คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม');
+$coopReceiverPosition = $valueKeyMap['coop_receiver_position'] ?? ($valueMap[83] ?? $displayFacultyDean);
 
 if ($coopStudentListText === '' && $coopStudentsJson !== '') {
   $decodedStudents = json_decode($coopStudentsJson, true);
@@ -1067,7 +1071,7 @@ $len = max(20, $len);
       position:relative;
       top:-5px;
   ">
-            คณะเทคโนโลยีและการจัดการอุตสาหกรรม
+            <?= h($displayFaculty) ?>
           </div>
 
           <div style="
@@ -1153,8 +1157,8 @@ $len = max(20, $len);
         margin-bottom:4px;
     ">
             ตามที่ <?= h($coopOrganizationName ?: 'หน่วยงานของท่าน') ?>
-            ได้ให้ความอนุเคราะห์รับนักศึกษาภาควิชาเทคโนโลยีสารสนเทศ
-            คณะเทคโนโลยีและการจัดการอุตสาหกรรม มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
+            ได้ให้ความอนุเคราะห์รับนักศึกษา<?= h($displayDepartmentFull) ?>
+            <?= h($displayFaculty) ?> มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
             วิทยาเขตปราจีนบุรี ได้แก่
           </p>
 
@@ -1166,7 +1170,7 @@ $len = max(20, $len);
             <?php if (!empty($coopStudentRows)): ?>
             <?php foreach ($coopStudentRows as $studentRow): ?>
             <div style="display:flex; align-items:baseline; white-space:nowrap;">
-              <span style="display:inline-block; min-width:5cm;">
+              <span style="display:inline-block; min-width:4.5cm;">
                 <?= h(thai_digits($studentRow['name'] ?? '')) ?>
               </span>
               <span style="display:inline-block; min-width:2.35cm;">
@@ -1204,7 +1208,7 @@ $len = max(20, $len);
         text-indent:2.5cm;
         margin-bottom:4px;
     ">
-            ในการนี้ ภาควิชาเทคโนโลยีสารสนเทศ ขอความอนุเคราะห์ตอบแบบประเมินผลรายงาน
+            ในการนี้ <?= h($displayDepartmentFull) ?> ขอความอนุเคราะห์ตอบแบบประเมินผลรายงาน
             การปฏิบัติงานของนักศึกษาสหกิจศึกษา และแบบสำรวจคุณลักษณะของนักศึกษาปฏิบัติงาน
             สหกิจศึกษาที่พึงประสงค์ตามความต้องการของสถานประกอบการ (ในปีถัดไป)
             โดยภาควิชาขออนุญาตส่งแบบประเมินและแบบสำรวจดังกล่าวให้กับ “<?= h($coopAdvisorName ?: 'พนักงานที่ปรึกษา') ?>”
@@ -1218,7 +1222,7 @@ $len = max(20, $len);
         text-indent:2.5cm;
         margin-bottom:4px;
     ">
-            สุดท้ายนี้ ภาควิชาเทคโนโลยีสารสนเทศ ขอขอบคุณในความอนุเคราะห์ของท่านเป็นอย่างยิ่ง
+            สุดท้ายนี้ <?= h($displayDepartmentFull) ?> ขอขอบคุณในความอนุเคราะห์ของท่านเป็นอย่างยิ่ง
             และหวังว่าจะได้รับความอนุเคราะห์จากท่านอีกในโอกาสต่อไป
           </p>
 
@@ -1246,7 +1250,7 @@ $len = max(20, $len);
           </div>
 
           <div>
-            <?= h($coopReceiverPosition ?: 'คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม') ?>
+            <?= h($coopReceiverPosition ?: $displayFacultyDean) ?>
           </div>
         </div>
 
@@ -1256,7 +1260,7 @@ $len = max(20, $len);
     font-size:14pt;
     line-height:1.35;
 ">
-          ภาควิชาเทคโนโลยีสารสนเทศ<br>
+          <?= h($displayDepartmentFull) ?><br>
           โทร. ๐ ๓๗๒๑ ๗๓๔๐ ต่อ ๗๐๖๕-๖<br>
           ไปรษณีย์อิเล็กทรอนิกส์ : it@itm.kmutnb.ac.th<br>
           <br>
@@ -1267,7 +1271,7 @@ $len = max(20, $len);
       <!-- <div style="font-family:'TH SarabunPSK'; font-size:16pt; line-height:1.2;"> เรียน <?= h($hdr_to) ?> </div>
             <div class="content-block single align-to-dean"> เพื่อโปรดพิจารณาอนุมัติ </div>
             <div class="content-block single align-to-dean" style="margin-top:50px;;"> (ผู้ช่วยศาสตราจารย์ ดร. ขนิษฐา
-                นามี)<br /> หัวหน้าภาควิชาเทคโนโลยีสารสนเทศ </div> -->
+                นามี)<br /> หัวหน้า<?= h($displayDepartmentFull) ?> </div> -->
       <div class="footer-actions">
 
         <!-- 🔵 ปุ่มแรก: พิมพ์/ดูตัวอย่าง (ทุก role ต้องมี และอยู่ลำดับแรก) -->
