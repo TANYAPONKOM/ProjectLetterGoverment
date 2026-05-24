@@ -1223,13 +1223,19 @@ $len = max(20, $len);
                 นามี)<br /> หัวหน้า<?= h($displayDepartmentFull) ?> </div> -->
       <div class="footer-actions">
 
-        <!-- 🔵 ปุ่มแรก: พิมพ์/ดูตัวอย่าง (ทุก role ต้องมี และอยู่ลำดับแรก) -->
+        <!-- ปุ่มดาวน์โหลด PDF -->
         <button type="button" onclick="downloadPdf()"
-          class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+          class="bg-red-700 hover:bg-red-800 text-white px-6 py-2 rounded-md text-xl font-bold">
           ดาวน์โหลด PDF
         </button>
 
-        <!-- 🟩 USER: ปุ่มแก้ไขเอกสาร กลับไปหน้า infor_invite.php พร้อม id เดิม -->
+        <!-- ปุ่มดาวน์โหลด Word -->
+        <a href="/Pro_letter/documents/download_word_invite_speaker.php?id=<?= (int)$docId ?>"
+          class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
+          ดาวน์โหลด Word
+        </a>
+
+        <!-- USER: ปุ่มแก้ไขเอกสาร กลับไปหน้า infor_invite.php พร้อม id เดิม -->
         <?php if ($roleId === 3 && $canEdit): ?>
         <a href="<?= h($editQuestionUrl) ?>"
           class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
@@ -1237,7 +1243,7 @@ $len = max(20, $len);
         </a>
         <?php endif; ?>
 
-        <!-- 🟦 OFFICER & ADMIN -->
+        <!-- OFFICER & ADMIN -->
         <?php if ($isAdmin || $isOfficer): ?>
 
         <a href="<?= h($editQuestionUrl) ?>"
@@ -1245,21 +1251,21 @@ $len = max(20, $len);
           แก้ไขเอกสาร
         </a>
 
-        <!-- ปุ่มอนุมัติ -->
+        <!-- ปุ่มผ่านการตรวจสอบ -->
         <button type="button" onclick="updateStatus('approved')"
           class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          ยืนยันการแก้ไข
+          ผ่านการตรวจสอบ
         </button>
 
-        <!-- ปุ่มไม่ผ่าน -->
+        <!-- ปุ่มไม่ผ่านการตรวจสอบ -->
         <button type="button" onclick="updateStatus('rejected')"
           class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          ไม่ผ่าน
+          ไม่ผ่านการตรวจสอบ
         </button>
 
         <?php endif; ?>
 
-        <!-- ปุ่มกลับหน้าหลัก (ทุก role มี) -->
+        <!-- ปุ่มกลับหน้าหลัก -->
         <a href="<?= $homePath ?>"
           class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md text-xl font-bold">
           กลับหน้าหลัก
@@ -1475,38 +1481,38 @@ $len = max(20, $len);
 
         document.body.appendChild(clone);
 
-       const PDF_SCALE = 2.2; // จุดสมดุล: เร็วขึ้น แต่ยังไม่ฟุ้งแบบ JPEG
+        const PDF_SCALE = 2.2; // จุดสมดุล: เร็วขึ้น แต่ยังไม่ฟุ้งแบบ JPEG
 
-    // รอให้ฟอนต์โหลดก่อน ช่วยลดอาการตัวหนังสือฟุ้ง/เพี้ยน
-    if (document.fonts && document.fonts.ready) {
-      await document.fonts.ready;
-    }
+        // รอให้ฟอนต์โหลดก่อน ช่วยลดอาการตัวหนังสือฟุ้ง/เพี้ยน
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
 
-    const canvas = await html2canvas(clone, {
-      scale: PDF_SCALE,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: "#ffffff",
-      windowWidth: 794,
-      windowHeight: 1123,
-      scrollX: 0,
-      scrollY: 0,
-      logging: false,
-      imageTimeout: 10000,
-      removeContainer: true
-    });
+        const canvas = await html2canvas(clone, {
+          scale: PDF_SCALE,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          windowWidth: 794,
+          windowHeight: 1123,
+          scrollX: 0,
+          scrollY: 0,
+          logging: false,
+          imageTimeout: 10000,
+          removeContainer: true
+        });
 
-    document.body.removeChild(clone);
+        document.body.removeChild(clone);
 
-    // ใช้ PNG เพราะเอกสารราชการมีตัวหนังสือ/เส้นประเยอะ ถ้าใช้ JPEG จะฟุ้ง
-    const imgData = canvas.toDataURL("image/png");
+        // ใช้ PNG เพราะเอกสารราชการมีตัวหนังสือ/เส้นประเยอะ ถ้าใช้ JPEG จะฟุ้ง
+        const imgData = canvas.toDataURL("image/png");
 
-    if (i > 0) {
-      pdf.addPage();
-    }
+        if (i > 0) {
+          pdf.addPage();
+        }
 
-    // FAST เร็วกว่า MEDIUM/SLOW และความคมของภาพยังคงดีกว่า JPEG
-    pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "FAST");
+        // FAST เร็วกว่า MEDIUM/SLOW และความคมของภาพยังคงดีกว่า JPEG
+        pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "FAST");
       }
 
       pdf.save("speaker_invitation_<?= (int)$docId ?>.pdf");
