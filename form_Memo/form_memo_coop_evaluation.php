@@ -1274,37 +1274,44 @@ $len = max(20, $len);
                 นามี)<br /> หัวหน้า<?= h($displayDepartmentFull) ?> </div> -->
       <div class="footer-actions">
 
-        <!-- 🔵 ปุ่มแรก: พิมพ์/ดูตัวอย่าง (ทุก role ต้องมี และอยู่ลำดับแรก) -->
+        <!-- ปุ่มดาวน์โหลด PDF -->
         <button type="button" onclick="downloadPdf()"
-          class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+          class="bg-red-700 hover:bg-red-800 text-white px-6 py-2 rounded-md text-xl font-bold">
           ดาวน์โหลด PDF
         </button>
-        <!-- 🟩 USER: ปุ่มแก้ไขเอกสาร -->
+
+        <!-- ปุ่มดาวน์โหลด Word -->
+        <a href="/Pro_letter/documents/download_word_coop_evaluation.php?id=<?= (int)$docId ?>"
+          class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
+          ดาวน์โหลด Word
+        </a>
+
+        <!-- USER: ปุ่มแก้ไขเอกสาร -->
         <?php if ($roleId === 3): ?>
         <a href="/Pro_letter/documents/infor_coop_evaluation.php?id=<?= urlencode((string)$document['document_id']) ?>&edit=1"
-          class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+          class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           แก้ไขเอกสาร
         </a>
         <?php endif; ?>
 
-        <!-- 🟦 OFFICER & ADMIN -->
+        <!-- OFFICER & ADMIN -->
         <?php if ($isAdmin || $isOfficer): ?>
         <!-- ปุ่มแก้ไขเอกสาร -->
         <a href="/Pro_letter/documents/infor_coop_evaluation.php?id=<?= urlencode((string)$document['document_id']) ?>&edit=1"
-          class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+          class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           แก้ไขเอกสาร
         </a>
 
         <!-- ปุ่มผ่านการตรวจสอบ -->
         <button type="button" onclick="updateStatus('approved')"
-          class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+          class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
           ผ่านการตรวจสอบ
         </button>
 
-        <!-- ปุ่มไม่ผ่าน -->
+        <!-- ปุ่มไม่ผ่านการตรวจสอบ -->
         <button type="button" onclick="updateStatus('rejected')"
           class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          ไม่ผ่าน
+          ไม่ผ่านการตรวจสอบ
         </button>
 
         <?php endif; ?>
@@ -1526,38 +1533,38 @@ $len = max(20, $len);
 
         document.body.appendChild(clone);
 
-      const PDF_SCALE = 2.2; // จุดสมดุล: เร็วขึ้น แต่ยังไม่ฟุ้งแบบ JPEG
+        const PDF_SCALE = 2.2; // จุดสมดุล: เร็วขึ้น แต่ยังไม่ฟุ้งแบบ JPEG
 
-    // รอให้ฟอนต์โหลดก่อน ช่วยลดอาการตัวหนังสือฟุ้ง/เพี้ยน
-    if (document.fonts && document.fonts.ready) {
-      await document.fonts.ready;
-    }
+        // รอให้ฟอนต์โหลดก่อน ช่วยลดอาการตัวหนังสือฟุ้ง/เพี้ยน
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
 
-    const canvas = await html2canvas(clone, {
-      scale: PDF_SCALE,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: "#ffffff",
-      windowWidth: 794,
-      windowHeight: 1123,
-      scrollX: 0,
-      scrollY: 0,
-      logging: false,
-      imageTimeout: 10000,
-      removeContainer: true
-    });
+        const canvas = await html2canvas(clone, {
+          scale: PDF_SCALE,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          windowWidth: 794,
+          windowHeight: 1123,
+          scrollX: 0,
+          scrollY: 0,
+          logging: false,
+          imageTimeout: 10000,
+          removeContainer: true
+        });
 
-    document.body.removeChild(clone);
+        document.body.removeChild(clone);
 
-    // ใช้ PNG เพราะเอกสารราชการมีตัวหนังสือ/เส้นประเยอะ ถ้าใช้ JPEG จะฟุ้ง
-    const imgData = canvas.toDataURL("image/png");
+        // ใช้ PNG เพราะเอกสารราชการมีตัวหนังสือ/เส้นประเยอะ ถ้าใช้ JPEG จะฟุ้ง
+        const imgData = canvas.toDataURL("image/png");
 
-    if (i > 0) {
-      pdf.addPage();
-    }
+        if (i > 0) {
+          pdf.addPage();
+        }
 
-    // FAST เร็วกว่า MEDIUM/SLOW และความคมของภาพยังคงดีกว่า JPEG
-    pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "FAST");
+        // FAST เร็วกว่า MEDIUM/SLOW และความคมของภาพยังคงดีกว่า JPEG
+        pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "FAST");
       }
 
       pdf.save("coop_evaluation_<?= (int)$docId ?>.pdf");

@@ -305,7 +305,7 @@ function addInviteHeader($section, $displayFaculty, $thaiDocDate) {
         'cellMargin' => 0,
         'cellSpacing' => 0,
         'layout' => 'fixed',
-        'width' => 9072,
+        'width' => Converter::cmToTwip(17.10),
     ]);
 
     $table->addRow(Converter::cmToTwip(3.1));
@@ -324,7 +324,7 @@ function addInviteHeader($section, $displayFaculty, $thaiDocDate) {
         $middle->addText('');
     }
 
-    $right = $table->addCell(Converter::cmToTwip(7.50), inviteNoBorderCell('top'));
+    $right = $table->addCell(Converter::cmToTwip(8.60), inviteNoBorderCell('top'));
     $right->addText('', 'normalFont', ['spaceAfter' => 720, 'lineHeight' => 0.95]);
     $right->addText(inviteClean($displayFaculty), 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
     $right->addText('มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ', 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
