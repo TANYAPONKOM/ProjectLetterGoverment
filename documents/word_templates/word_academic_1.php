@@ -1,5 +1,5 @@
 <?php
-// documents/word_templates/word_academic_1.php
+// documents/word_templates/word_academic_1.php.
 
 // ฟังก์ชันปรับปรุงการแทรกตัวตัดคำ (Zero-Width Space) ให้ถี่และกระจายตัวได้เนียนตาขึ้น
 function insertThaiWordBreaks($text) {

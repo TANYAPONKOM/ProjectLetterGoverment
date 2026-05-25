@@ -1,5 +1,5 @@
 <?php
-// Pro_letter/documents/word_templates/word_common.php
+// Pro_letter/documents/word_templates/word_common.php.
 
 use PhpOffice\PhpWord\Shared\Converter;
 use PhpOffice\PhpWord\SimpleType\Jc;

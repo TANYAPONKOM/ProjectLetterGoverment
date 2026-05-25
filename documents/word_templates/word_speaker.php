@@ -1,5 +1,5 @@
 <?php
-// documents/word_templates/word_speaker.php
+// documents/word_templates/word_speaker.php.
 
 // ฟังก์ชันช่วยแทรกตัวตัดคำล่องหนแยกเฉพาะไฟล์วิทยากร ปรับปรุงพจนานุกรมคำให้คมชัดขึ้น
 function insertSpeakerThaiWordBreaks($text) {

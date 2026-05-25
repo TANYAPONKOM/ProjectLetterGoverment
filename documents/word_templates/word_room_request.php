@@ -1,5 +1,5 @@
 <?php
-// documents/word_templates/word_room_request.php
+// documents/word_templates/word_room_request.php.
 
 // ------------------------------------------------------------
 // จุดแก้ไขที่ 1: เปลี่ยนชื่อฟังก์ชันจาก insertThaiWordBreaks เป็น insertRoomThaiWordBreaks

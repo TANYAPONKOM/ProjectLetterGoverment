@@ -14,7 +14,8 @@ require_once $autoload;
 
 // เรียกใช้ฟังก์ชันกลางสำหรับสร้าง Word
 require_once __DIR__ . '/word_templates/word_common.php';
-require_once DIR . '/word_templates/word_academic_1.php';
+require_once __DIR__ . '/word_templates/word_academic_1.php';
+
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\Shared\Converter;
@@ -116,32 +117,108 @@ $phpWord = new PhpWord();
 setupWordDefaults($phpWord);
 
 
+// ==========================================
+// ฟังก์ชันจัดการระยะและการตัดคำภาษาไทยที่ได้รับการปรับปรุงกลุ่มคำเฉพาะ
+// ==========================================
+
+function insertThaiWordBreaksMemo($text) {
+    $words = [
+        'ตามที่', 'กำหนดจัด', 'อบรมหลักสูตร', 'ระหว่างวันที่', 'ณ', 'นั้น', 'ซึ่งหลักสูตร', 
+        'ดังกล่าวเป็น', 'ประโยชน์ต่อ', 'การพัฒนา', 'กระบวนการ', 'จัดการเรียน', 'การสอน', 
+        'การนี้', 'ข้าพเจ้า', 'สังกัดภาควิชา', 'มหาวิทยาลัย', 'เทคโนโลยี', 'พระจอมเกล้า', 
+        'พระนครเหนือ', 'วิทยาเขต', 'ปราจีนบุรี', 'มีความประสงค์', 'ที่จะขอ', 'อนุมัติ', 
+        'เข้ารับการอบรม', 'เป็นเงินจำนวน', 'บาท', 'โดยขอใช้', 'แหล่งเงิน', 'จัดสรรให้', 
+        'หน่วยงาน', 'ประจำปี', 'งบประมาณ', 'พ.ศ.', 'แผนงาน', 'จัดการศึกษา', 'ระดับอุดมศึกษา', 
+        'กองทุนพัฒนาบุคลากร', 'หมวดค่าใช้สอย', 'รายละเอียด', 'ตามเอกสารแนบ', 'โดยไม่เบิก', 
+        'ค่าใช้จ่ายใดๆ', 'ทั้งสิ้น', 'จึงเรียนมา', 'เพื่อโปรด', 'พิจารณาอนุมัติ', 'เดินทางไป', 
+        'รถยนต์ส่วนบุคคล', 'หมายเลขทะเบียน', 'ตามวัน', 'เวลา', 'และสถานที่', 'หลักเกณฑ์', 'วิธีของ'
+    ];
+    
+    foreach ($words as $word) {
+        $text = str_replace($word, $word . "\u{200B}", $text);
+    }
+    
+    // คลีนตัวตัดคำมั่วซั่วที่เกิดขึ้นรอยต่อระหว่างคำศัพท์ เช่น เทคโนโลยี\u{200B}สารสนเทศ หรือ สารสนเทศ\u{200B}
+    $text = str_replace("เทคโนโลยี\u{200B}สารสนเทศ", "เทคโนโลยีสารสนเทศ", $text);
+    $text = str_replace("สารสนเทศ\u{200B}", "สารสนเทศ", $text);
+    
+    return $text;
+}
+
+function addMemoManualPara($section, array $textParts, $spaceAfter = 80) {
+    $run = $section->addTextRun([
+        'alignment' => Jc::BOTH, 
+        'lineHeight' => 1.15,
+        'spaceBefore' => 0,
+        'spaceAfter' => $spaceAfter,
+        'indentation' => [
+            'firstLine' => Converter::cmToTwip(2.5)
+        ],
+    ]);
+
+    $fullText = '';
+    foreach ($textParts as $part) {
+        if (is_array($part)) {
+            $fullText .= $part[0];
+        } else {
+            $fullText .= $part;
+        }
+    }
+
+    $processedText = insertThaiWordBreaksMemo(cleanWordText($fullText));
+    $run->addText($processedText, 'normalFont');
+}
+
+
+// ==========================================
+// ปรับปรุงฟังก์ชันสร้างหน้าบันทึกข้อความเดิม
+// ==========================================
+
 function addMainMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $subjectText, $toText, $ownerName, $position, $department, $faculty, $courseName, $joinDates, $location, $hasExpense, $displayAmountNumber, $displayAmountThai, $thaiYear) {
     $section = addSectionPage($phpWord);
     addMemoHeader($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText);
-    addTextRunPara($section, [
+    
+    // ย่อหน้า 1
+    addMemoManualPara($section, [
         'ตามที่ กำหนดจัดอบรมหลักสูตร ', [$courseName ?: 'ชื่อหลักสูตร', true],
         ' ระหว่างวันที่ ', [$joinDates ?: '...', true],
         ' ณ ', [$location ?: '...', true],
         ' นั้น ซึ่งหลักสูตรดังกล่าวเป็นประโยชน์ต่อการพัฒนาทั้งกระบวนการจัดการเรียนการสอน'
     ]);
+    
+    // ย่อหน้า 2
     $expenseText = $hasExpense
         ? ' เป็นเงินจำนวน ' . $displayAmountNumber . ' บาท (' . $displayAmountThai . ') โดยขอใช้แหล่งเงินจัดสรรให้หน่วยงาน ประจำปีงบประมาณ ' . ($thaiYear ? 'พ.ศ. ' . $thaiYear : 'พ.ศ. ....') . ' แผนงานจัดการศึกษาระดับอุดมศึกษา กองทุนพัฒนาบุคลากร หมวดค่าใช้สอย (รายละเอียดตามเอกสารแนบ)'
         : ' โดยไม่เบิกค่าใช้จ่ายใดๆ ทั้งสิ้น';
-    addTextRunPara($section, [
+        
+    addMemoManualPara($section, [
         'การนี้ ข้าพเจ้า ', [$ownerName ?: 'ชื่อ-นามสกุล', true], ' ', [$position ?: '', true],
         ' สังกัดภาควิชา', [$department ?: '...', true], ' ', [$faculty ?: '...', true],
         ' มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี จึงมีความประสงค์ที่จะขออนุมัติ เข้ารับการอบรมหลักสูตร ',
         [$courseName ?: 'ชื่อหลักสูตร', true], ' ระหว่างวันที่ ', [$joinDates ?: '', true], ' ณ ', [$location ?: '', true], $expenseText
     ]);
-    addTextRunPara($section, ['จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ']);
-    addSignature($section, $ownerName, $position);
+    
+    $runClose = $section->addTextRun([
+        'alignment' => Jc::LEFT,
+        'lineHeight' => 1.15,
+        'spaceAfter' => 120,
+        'indentation' => [
+            'firstLine' => Converter::cmToTwip(2.5)
+        ],
+    ]);
+    $runClose->addText('จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ', 'normalFont');
+    
+    // เคลียร์ค่ารหัสแบ่งคำหลุดในข้อมูลส่วนลายเซ็นท้ายเอกสาร
+    $cleanOwner = str_replace(["\u{200B}", " "], ["", " "], $ownerName);
+    $cleanPosition = str_replace("เทคโนโลยี\u{200B}สารสนเทศ", "เทคโนโลยีสารสนเทศ", $position);
+    addSignature($section, $cleanOwner, $cleanPosition);
 }
 
 function addExpenseMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $subjectText, $toText, $ownerName, $position, $department, $faculty, $subject, $joinDates, $location, $displayAmountNumber, $displayAmountThai, $thaiYear) {
     $section = addSectionPage($phpWord);
     addMemoHeader($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText);
-    addTextRunPara($section, [
+    
+    addMemoManualPara($section, [
         'การนี้ ข้าพเจ้า ', [$ownerName ?: 'ชื่อ-นามสกุล', true], ' ', [$position ?: '', true],
         ' สังกัดภาควิชา', [$department ?: '...', true], ' ', [$faculty ?: '...', true],
         ' มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี จึงมีความประสงค์ขออนุมัติค่าใช้จ่ายในการเข้าร่วม ',
@@ -149,25 +226,51 @@ function addExpenseMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $subjec
         ' วงเงินทั้งสิ้น ', [$displayAmountNumber, true], ' บาท (', [$displayAmountThai, true], ') โดยขอใช้แหล่งเงินจัดสรรให้หน่วยงาน ประจำปีงบประมาณ ',
         [($thaiYear ? 'พ.ศ. ' . $thaiYear : 'พ.ศ. ....'), true], ' ในส่วนของภาควิชา', [$department ?: '...', true], ' แผนงานจัดการศึกษาระดับอุดมศึกษา กองทุนพัฒนาบุคลากร หมวดค่าใช้สอย (รายละเอียดตามเอกสารแนบ)'
     ]);
-    addTextRunPara($section, ['จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ']);
-    addSignature($section, $ownerName, $position);
+    
+    $runClose = $section->addTextRun([
+        'alignment' => Jc::LEFT,
+        'lineHeight' => 1.15,
+        'spaceAfter' => 120,
+        'indentation' => [
+            'firstLine' => Converter::cmToTwip(2.5)
+        ],
+    ]);
+    $runClose->addText('จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ', 'normalFont');
+    
+    $cleanOwner = str_replace(["\u{200B}", " "], ["", " "], $ownerName);
+    $cleanPosition = str_replace("เทคโนโลยี\u{200B}สารสนเทศ", "เทคโนโลยีสารสนเทศ", $position);
+    addSignature($section, $cleanOwner, $cleanPosition);
 }
 
 function addCarMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $subjectText, $toText, $ownerName, $position, $department, $faculty, $courseName, $joinDates, $location, $vehicle, $subject) {
     $section = addSectionPage($phpWord);
     addMemoHeader($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText);
-    addTextRunPara($section, [
+    
+    addMemoManualPara($section, [
         'ตามที่ ข้าพเจ้า ', [$ownerName ?: 'ชื่อ-นามสกุล', true], ' ', [$position ?: '', true],
         ' สังกัดภาควิชา', [$department ?: '...', true], ' ', [$faculty ?: '...', true],
         ' มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี จึงมีความประสงค์ที่จะขออนุมัติ เข้ารับการอบรมหลักสูตร ',
         [$courseName ?: 'ชื่อหลักสูตร', true], ' ระหว่างวันที่ ', [$joinDates ?: '', true], ' ณ ', [$location ?: '', true], ' นั้น'
     ]);
-    addTextRunPara($section, [
+    
+    addMemoManualPara($section, [
         'ในการนี้ ข้าพเจ้าจึงขออนุมัติใช้รถยนต์ส่วนบุคคล หมายเลขทะเบียน ', [$vehicle ?: '...', true],
         ' ในการเดินทางไป', [$subject ?: 'ชื่อหลักสูตร', true], ' ตามวัน เวลา และสถานที่ดังกล่าว ทั้งนี้ โดยให้เป็นไปตามหลักเกณฑ์และวิธีการของมหาวิทยาลัย'
     ]);
-    addTextRunPara($section, ['จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ']);
-    addSignature($section, $ownerName, $position);
+    
+    $runClose = $section->addTextRun([
+        'alignment' => Jc::LEFT,
+        'lineHeight' => 1.15,
+        'spaceAfter' => 120,
+        'indentation' => [
+            'firstLine' => Converter::cmToTwip(2.5)
+        ],
+    ]);
+    $runClose->addText('จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ', 'normalFont');
+    
+    $cleanOwner = str_replace(["\u{200B}", " "], ["", " "], $ownerName);
+    $cleanPosition = str_replace("เทคโนโลยี\u{200B}สารสนเทศ", "เทคโนโลยีสารสนเทศ", $position);
+    addSignature($section, $cleanOwner, $cleanPosition);
 }
 
 function addExpenseTablePage($phpWord, $budgetItems, $budgetTotal, $purposeCode, $ownerName, $department, $faculty, $courseName, $joinDates, $location, $researchTitle, $joinType) {

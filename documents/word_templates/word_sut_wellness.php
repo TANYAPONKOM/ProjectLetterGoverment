@@ -123,7 +123,7 @@ $dateCell->addText('๒๔ พฤษภาคม ๒๕๖๙', 'normalFont', ['
     // 2) ส่วน เรื่อง / เรียน
     // ======================================================================
     $runSubject = $section->addTextRun(['alignment' => 'left', 'spaceAfter' => 120]);
-    $runSubject->addText('เรื่อง  ', 'boldFont');
+    $runSubject->addText('เรื่อง TEST  ', 'boldFont');
     $runSubject->addText('เข้าร่วมประชุมวิชาการในงานประชุมเรื่องการแต่งกายนักศึกษาหญิงและระเบียบการเข้าสังคมของคน', 'normalFont');
 
     $runTo = $section->addTextRun(['alignment' => 'left', 'spaceAfter' => 200]);
