@@ -409,29 +409,47 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
   function confirmUserAction(action, id = null) {
     let username = prompt("กรุณากรอกชื่อผู้ใช้:");
     if (!username) return;
+
     let password = prompt("กรุณากรอกรหัสผ่าน:");
     if (!password) return;
-    fetch("admin/verify_user.php", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: "username=" + encodeURIComponent(username) + "&password=" + encodeURIComponent(password)
-    }).then(res => res.json()).then(data => {
-      if (data.success) {
-        if (action === "add") {
-          window.location.href = "admin/user_Add.php";
-        } else if (action === "edit") {
-          window.location.href = "admin/user_Edit.php?id=" + id;
-        } else if (action === "delete") {
-          if (confirm("คุณแน่ใจว่าต้องการลบผู้ใช้นี้หรือไม่?")) {
-            window.location.href = "admin/user_Delete.php?id=" + id;
-          }
+
+    fetch("verify_user.php", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: "username=" + encodeURIComponent(username) +
+          "&password=" + encodeURIComponent(password)
+      })
+      .then(async (res) => {
+        const text = await res.text();
+
+        try {
+          return JSON.parse(text);
+        } catch (e) {
+          console.error("Response is not JSON:", text);
+          throw new Error(
+            "ไฟล์ verify_user.php ไม่ได้ส่ง JSON กลับมา อาจเกิดจาก path ผิด, redirect ไป login, หรือมี PHP error");
         }
-      } else {
-        alert("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
-      }
-    }).catch(err => alert("เกิดข้อผิดพลาด: " + err));
+      })
+      .then((data) => {
+        if (data.success) {
+          if (action === "add") {
+            window.location.href = "user_Add.php";
+          } else if (action === "edit") {
+            window.location.href = "user_Edit.php?id=" + id;
+          } else if (action === "delete") {
+            if (confirm("คุณแน่ใจว่าต้องการลบผู้ใช้นี้หรือไม่?")) {
+              window.location.href = "user_Delete.php?id=" + id;
+            }
+          }
+        } else {
+          alert(data.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
+        }
+      })
+      .catch((err) => {
+        alert("เกิดข้อผิดพลาด: " + err.message);
+      });
   }
   </script>
 

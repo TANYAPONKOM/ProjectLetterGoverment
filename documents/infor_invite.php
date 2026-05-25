@@ -1402,35 +1402,7 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
       const remainingErrors = filterApprovedErrors(state.errors || []);
 
       if (state.apiError) {
-        if (err.name === "AbortError") {
-          console.warn("Spell check timeout: API response too slow", err);
-
-          showSpellBox(fieldName, `
-    <div class="spell-warning">
-      ระบบตรวจคำผิดใช้เวลานานเกินไป กรุณาลองตรวจอีกครั้ง
-    </div>
-  `);
-
-          return {
-            ok: false,
-            timeout: true,
-            errors: []
-          };
-        }
-
-        console.error("Spell check API error:", err);
-
-        showSpellBox(fieldName, `
-  <div class="spell-warning">
-    ระบบตรวจคำผิดเชื่อมต่อไม่ได้ กรุณาตรวจสอบ API อีกครั้ง
-  </div>
-`);
-
-        return {
-          ok: false,
-          apiError: true,
-          errors: []
-        };
+        alert("ระบบตรวจคำผิดเชื่อมต่อไม่ได้ กรุณาตรวจสอบว่า API เปิดอยู่ แล้วลองกดดำเนินการอีกครั้ง");
         return false;
       }
 
@@ -1480,10 +1452,8 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
   });
 
   spellFields.forEach((el) => {
-    el.addEventListener("blur", () => {
-      checkSpellField(el);
-    });
-
+    // ไม่ตรวจคำผิดระหว่างพิมพ์หรือเมื่อออกจากช่อง
+    // ให้ตรวจเฉพาะตอนกดปุ่ม "ดำเนินการ" ผ่าน checkAllSpellFields() เท่านั้น
     el.addEventListener("input", () => {
       const fieldName = getFieldName(el);
       const state = spellState[fieldName];
@@ -1500,8 +1470,166 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
     });
   });
 
+  function getTrimValue(el) {
+    return (el?.value || "").trim();
+  }
+
+  function getErrorTarget(el) {
+    if (!el) return null;
+
+    if (el.id === "docDate") return byId("docDateDisplay");
+    if (el.id === "internPeriod") return byId("eventDateDisplay");
+
+    return el;
+  }
+
+  function clearFieldError(el) {
+    const target = getErrorTarget(el);
+    if (!target) return;
+
+    target.classList.remove("error", "shake");
+
+    const next = target.nextElementSibling;
+    if (next && next.classList.contains("hint")) {
+      next.remove();
+    }
+  }
+
+  function setFieldError(el, message) {
+    const target = getErrorTarget(el);
+    if (!target) return null;
+
+    clearFieldError(target);
+
+    target.classList.add("error", "shake");
+    setTimeout(() => target.classList.remove("shake"), 450);
+
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+        viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+      <span>${message}</span>
+    `;
+
+    target.insertAdjacentElement("afterend", hint);
+    return target;
+  }
+
+  function scrollToFirstError(el) {
+    if (!el) return;
+
+    el.scrollIntoView({
+      behavior: "smooth",
+      block: "center"
+    });
+
+    setTimeout(() => {
+      try {
+        el.focus({
+          preventScroll: true
+        });
+      } catch (err) {
+        el.focus();
+      }
+    }, 350);
+  }
+
+  function validateRequiredFields() {
+    if (typeof updateEventTime === "function") {
+      updateEventTime();
+    }
+
+    const mainCategory = byId("mainCategory");
+    const subCategory = byId("subCategory");
+    const faculty = byId("faculty");
+    const dept = byId("dept");
+    const selectedDepartmentId = byId("selectedDepartmentId");
+    const docDate = byId("docDate");
+    const eventDate = byId("internPeriod");
+    const timeStartInput = byId("timeStart");
+    const timeEndInput = byId("timeEnd");
+
+    const requiredFields = [
+      [mainCategory, "กรุณาเลือกหมวดหลัก"],
+      [subCategory, "กรุณาเลือกหมวดย่อย"],
+      [faculty, "กรุณาเลือกคณะ"],
+      [dept, "กรุณาเลือกภาควิชา"],
+      [subjectInput, "กรุณากรอกเรื่อง"],
+      [toPerson, "กรุณากรอกข้อมูลผู้รับหนังสือ"],
+      [docDate, "กรุณาเลือกวัน เดือน ปี"],
+      [projectTitle, "กรุณากรอกชื่อโครงการ / ชื่ออบรม"],
+      [inviteStatement, "กรุณากรอกคำกล่าวเชิญ"],
+      [objectiveInput, "กรุณากรอกวัตถุประสงค์"],
+      [eventDate, "กรุณาเลือกวันที่จัดกิจกรรม"],
+      [timeStartInput, "กรุณาเลือกเวลาเริ่มกิจกรรม"],
+      [timeEndInput, "กรุณาเลือกเวลาสิ้นสุดกิจกรรม"],
+      [locationInput, "กรุณากรอกสถานที่จัดกิจกรรม"]
+    ];
+
+    let firstError = null;
+
+    requiredFields.forEach(([el, message]) => {
+      clearFieldError(el);
+
+      if (!getTrimValue(el)) {
+        const target = setFieldError(el, message);
+        if (!firstError && target) firstError = target;
+      }
+    });
+
+    clearFieldError(selectedDepartmentId);
+    if (!getTrimValue(selectedDepartmentId)) {
+      const target = setFieldError(dept, "กรุณาเลือกภาควิชาที่ถูกต้อง");
+      if (!firstError && target) firstError = target;
+    }
+
+    const startTime = getTrimValue(timeStartInput);
+    const endTime = getTrimValue(timeEndInput);
+    if (startTime && endTime && endTime <= startTime) {
+      const target = setFieldError(timeEndInput, "เวลาสิ้นสุดต้องมากกว่าเวลาเริ่ม");
+      if (!firstError && target) firstError = target;
+    }
+
+    if (firstError) {
+      scrollToFirstError(firstError);
+      return false;
+    }
+
+    return true;
+  }
+
+  [
+    byId("mainCategory"),
+    byId("subCategory"),
+    byId("faculty"),
+    byId("dept"),
+    subjectInput,
+    toPerson,
+    byId("docDateDisplay"),
+    byId("docDate"),
+    projectTitle,
+    inviteStatement,
+    objectiveInput,
+    byId("eventDateDisplay"),
+    byId("internPeriod"),
+    byId("timeStart"),
+    byId("timeEnd"),
+    locationInput
+  ].filter(Boolean).forEach((el) => {
+    el.addEventListener("input", () => clearFieldError(el));
+    el.addEventListener("change", () => clearFieldError(el));
+  });
+
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
+
+    if (!validateRequiredFields()) return;
 
     const okSpell = await checkAllSpellFields();
     if (!okSpell) return;
