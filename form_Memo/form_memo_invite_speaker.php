@@ -862,8 +862,8 @@ $len = max(20, $len);
   <div id="pdfLoadingOverlay" class="pdf-loading-overlay">
     <div class="pdf-loading-box">
       <div class="pdf-spinner"></div>
-      <div class="pdf-loading-title">กำลังสร้าง PDF...</div>
-      <div class="pdf-loading-subtitle">กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร</div>
+      <div id="downloadLoadingTitle" class="pdf-loading-title">กำลังสร้าง PDF...</div>
+      <div id="downloadLoadingSubtitle" class="pdf-loading-subtitle">กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร</div>
     </div>
   </div>
   <?php if ($readonly): ?>
@@ -1231,6 +1231,7 @@ $len = max(20, $len);
 
         <!-- ปุ่มดาวน์โหลด Word -->
         <a href="/Pro_letter/documents/download_word_invite_speaker.php?id=<?= (int)$docId ?>"
+          data-word-download="1" onclick="return downloadWord(this);"
           class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           ดาวน์โหลด Word
         </a>
@@ -1419,9 +1420,59 @@ $len = max(20, $len);
   </script>
 
   <script>
+
+  function downloadWord(link) {
+    const loadingOverlay = document.getElementById("pdfLoadingOverlay");
+    const loadingTitle = document.getElementById("downloadLoadingTitle");
+    const loadingSubtitle = document.getElementById("downloadLoadingSubtitle");
+    const wordLinks = document.querySelectorAll("a[data-word-download='1']");
+
+    if (loadingTitle) loadingTitle.innerText = "กำลังดาวน์โหลด Word...";
+    if (loadingSubtitle) loadingSubtitle.innerText = "กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร";
+
+    if (loadingOverlay) {
+      loadingOverlay.style.display = "flex";
+    }
+
+    wordLinks.forEach(btn => {
+      if (!btn.dataset.oldText) {
+        btn.dataset.oldText = btn.innerText;
+      }
+
+      btn.innerText = "กำลังดาวน์โหลด Word...";
+      btn.style.opacity = "0.65";
+      btn.style.cursor = "wait";
+    });
+
+    const downloadUrl = new URL(link.href, window.location.href);
+    downloadUrl.searchParams.set("_download_time", Date.now().toString());
+    link.href = downloadUrl.toString();
+
+    const resetWordDownloadUI = () => {
+      if (loadingOverlay) {
+        loadingOverlay.style.display = "none";
+      }
+
+      wordLinks.forEach(btn => {
+        btn.innerText = btn.dataset.oldText || "ดาวน์โหลด Word";
+        btn.style.opacity = "1";
+        btn.style.removeProperty("cursor");
+      });
+    };
+
+    setTimeout(resetWordDownloadUI, 700);
+
+    return true;
+  }
+
   async function downloadPdf() {
     const loadingOverlay = document.getElementById("pdfLoadingOverlay");
+    const loadingTitle = document.getElementById("downloadLoadingTitle");
+    const loadingSubtitle = document.getElementById("downloadLoadingSubtitle");
     const downloadButtons = document.querySelectorAll("button[onclick='downloadPdf()']");
+
+    if (loadingTitle) loadingTitle.innerText = "กำลังสร้าง PDF...";
+    if (loadingSubtitle) loadingSubtitle.innerText = "กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร";
 
     if (loadingOverlay) {
       loadingOverlay.style.display = "flex";

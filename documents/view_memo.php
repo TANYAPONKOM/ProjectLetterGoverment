@@ -523,8 +523,8 @@ $len = max(20, $len);
   <div id="pdfLoadingOverlay" class="pdf-loading-overlay">
     <div class="pdf-loading-box">
       <div class="pdf-spinner"></div>
-      <div class="pdf-loading-title">กำลังสร้าง PDF...</div>
-      <div class="pdf-loading-subtitle">กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร</div>
+      <div id="downloadLoadingTitle" class="pdf-loading-title">กำลังสร้าง PDF...</div>
+      <div id="downloadLoadingSubtitle" class="pdf-loading-subtitle">กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร</div>
     </div>
   </div>
   <?php if ($readonly && !($isAdmin || $isOfficer)): ?>
@@ -653,16 +653,17 @@ $len = max(20, $len);
     <?php if (!$hasExpense): ?>
     <div class="footer-actions">
       <button type="button" onclick="downloadPdf()"
-        class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+        class="bg-red-700 hover:bg-red-800 text-white px-6 py-2 rounded-md text-xl font-bold">
         ดาวน์โหลด PDF
       </button>
 
-      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= $docId ?>"
-        class="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>"
+        data-word-download="1" onclick="return downloadWord(this);"
+        class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
         ดาวน์โหลด Word
       </a>
 
-      <a href="/Pro_letter/documents/form_Memo.php?id=<?= $docId ?>" id="editBtn"
+      <a href="/Pro_letter/documents/form_Memo.php?id=<?= (int)$docId ?>" id="editBtn"
         data-can-edit="<?= $canEdit ? '1' : '0' ?>" class="px-6 py-2 rounded-md text-xl font-bold
         <?= $canEdit
           ? "bg-teal-500 hover:bg-teal-600 text-white"
@@ -764,16 +765,17 @@ $len = max(20, $len);
     <?php if (!$hasExpense): ?>
     <div class="footer-actions">
       <button type="button" onclick="downloadPdf()"
-        class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+        class="bg-red-700 hover:bg-red-800 text-white px-6 py-2 rounded-md text-xl font-bold">
         ดาวน์โหลด PDF
       </button>
 
-      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= $docId ?>"
-        class="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>"
+        data-word-download="1" onclick="return downloadWord(this);"
+        class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
         ดาวน์โหลด Word
       </a>
 
-      <a href="/Pro_letter/documents/form_Memo.php?id=<?= $docId ?>" id="editBtn"
+      <a href="/Pro_letter/documents/form_Memo.php?id=<?= (int)$docId ?>" id="editBtn"
         data-can-edit="<?= $canEdit ? '1' : '0' ?>" class="px-6 py-2 rounded-md text-xl font-bold
         <?= $canEdit
           ? "bg-teal-500 hover:bg-teal-600 text-white"
@@ -874,16 +876,17 @@ $len = max(20, $len);
     <?php if (!$hasExpense): ?>
     <div class="footer-actions">
       <button type="button" onclick="downloadPdf()"
-        class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+        class="bg-red-700 hover:bg-red-800 text-white px-6 py-2 rounded-md text-xl font-bold">
         ดาวน์โหลด PDF
       </button>
 
-      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= $docId ?>"
-        class="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>"
+        data-word-download="1" onclick="return downloadWord(this);"
+        class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
         ดาวน์โหลด Word
       </a>
 
-      <a href="/Pro_letter/documents/form_Memo.php?id=<?= $docId ?>" id="editBtn"
+      <a href="/Pro_letter/documents/form_Memo.php?id=<?= (int)$docId ?>" id="editBtn"
         data-can-edit="<?= $canEdit ? '1' : '0' ?>" class="px-6 py-2 rounded-md text-xl font-bold
         <?= $canEdit
           ? "bg-teal-500 hover:bg-teal-600 text-white"
@@ -1054,12 +1057,13 @@ $len = max(20, $len);
           ดาวน์โหลด PDF
         </button>
 
-        <a href="/Pro_letter/documents/download_word_memo.php?id=<?= $docId ?>"
-          class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+        <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>"
+          data-word-download="1" onclick="return downloadWord(this);"
+          class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           ดาวน์โหลด Word
         </a>
 
-        <a href="/Pro_letter/documents/form_Memo.php?id=<?= $docId ?>" id="editBtn"
+        <a href="/Pro_letter/documents/form_Memo.php?id=<?= (int)$docId ?>" id="editBtn"
           data-can-edit="<?= $canEdit ? '1' : '0' ?>" class="px-6 py-2 rounded-md text-xl font-bold
    <?= $canEdit
       ? "bg-teal-500 hover:bg-teal-600 text-white"
@@ -1179,9 +1183,60 @@ $len = max(20, $len);
       });
     }
   });
+  function downloadWord(link) {
+    const loadingOverlay = document.getElementById("pdfLoadingOverlay");
+    const loadingTitle = document.getElementById("downloadLoadingTitle");
+    const loadingSubtitle = document.getElementById("downloadLoadingSubtitle");
+    const wordLinks = document.querySelectorAll("a[data-word-download='1']");
+
+    if (loadingTitle) loadingTitle.innerText = "กำลังดาวน์โหลด Word...";
+    if (loadingSubtitle) loadingSubtitle.innerText = "กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร";
+
+    if (loadingOverlay) {
+      loadingOverlay.style.display = "flex";
+    }
+
+    wordLinks.forEach(btn => {
+      if (!btn.dataset.oldText) {
+        btn.dataset.oldText = btn.innerText;
+      }
+
+      btn.innerText = "กำลังดาวน์โหลด Word...";
+      btn.style.opacity = "0.65";
+      btn.style.cursor = "wait";
+    });
+
+    const downloadUrl = new URL(link.href, window.location.href);
+    downloadUrl.searchParams.set("_download_time", Date.now().toString());
+    link.href = downloadUrl.toString();
+
+    const resetWordDownloadUI = () => {
+      if (loadingOverlay) {
+        loadingOverlay.style.display = "none";
+      }
+
+      wordLinks.forEach(btn => {
+        btn.innerText = btn.dataset.oldText || "ดาวน์โหลด Word";
+        btn.style.opacity = "1";
+        btn.style.removeProperty("cursor");
+      });
+    };
+
+    // ซ่อน popup ให้เร็วขึ้น เพราะการดาวน์โหลดแบบลิงก์ปกติไม่สามารถตรวจจับจังหวะที่ไฟล์ถูกบันทึกเสร็จได้โดยตรง
+    // ค่านี้ใช้ให้ popup ขึ้นทันทีตอนกด แล้วหายหลัง browser เริ่มรับไฟล์ดาวน์โหลดแล้ว
+    setTimeout(resetWordDownloadUI, 700);
+
+    return true;
+  }
+
   async function downloadPdf() {
     const loadingOverlay = document.getElementById("pdfLoadingOverlay");
+    const loadingTitle = document.getElementById("downloadLoadingTitle");
+    const loadingSubtitle = document.getElementById("downloadLoadingSubtitle");
     const downloadButtons = document.querySelectorAll("button[onclick='downloadPdf()']");
+
+    if (loadingTitle) loadingTitle.innerText = "กำลังสร้าง PDF...";
+    if (loadingSubtitle) loadingSubtitle.innerText = "กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร";
 
     if (loadingOverlay) {
       loadingOverlay.style.display = "flex";

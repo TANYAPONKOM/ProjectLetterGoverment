@@ -171,12 +171,219 @@ function addMemoManualPara($section, array $textParts, $spaceAfter = 80) {
 
 
 // ==========================================
+// แก้เฉพาะส่วนลายเซ็น: กันคำว่า "สารสนเทศ" ไม่ให้ตัว ศ ตกบรรทัด
+// อ้างอิงแนวจัดบล็อกจาก download_word_speaker.php
+// ==========================================
+function memoSignatureNoBorderCellFixed($valign = 'top', $noWrap = false) {
+    return [
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'valign' => $valign,
+        'marginTop' => 0,
+        'marginBottom' => 0,
+        'marginLeft' => 0,
+        'marginRight' => 0,
+        'noWrap' => $noWrap,
+    ];
+}
+
+function memoKeepSignatureWordsTogether($text) {
+    $text = trim(str_replace(["\r", "\n", "\t", "\u{200B}", "\u{2060}"], ' ', (string)$text));
+    $text = preg_replace('/[ ]{2,}/u', ' ', $text);
+
+    $joiner = "\u{2060}";
+    $keepWords = [
+        'เทคโนโลยีสารสนเทศ',
+        'สารสนเทศ',
+    ];
+
+    foreach ($keepWords as $word) {
+        $chars = preg_split('//u', $word, -1, PREG_SPLIT_NO_EMPTY);
+        if ($chars) {
+            $text = str_replace($word, implode($joiner, $chars), $text);
+        }
+    }
+
+    return $text;
+}
+
+function addMemoSignatureFixed($section, $ownerName, $position) {
+    $section->addText('', 'normalFont', [
+        'spaceBefore' => 520,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+
+    $sigTable = $section->addTable([
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'cellMargin' => 0,
+        'cellSpacing' => 0,
+        'layout' => 'fixed',
+        'width' => Converter::cmToTwip(16.0),
+    ]);
+
+    $sigTable->addRow(null, ['exactHeight' => false]);
+    $sigTable->addCell(Converter::cmToTwip(5.75), memoSignatureNoBorderCellFixed('top'))
+        ->addText('', 'normalFont', ['spaceAfter' => 0]);
+
+    $sigCell = $sigTable->addCell(Converter::cmToTwip(10.25), memoSignatureNoBorderCellFixed('top', true));
+
+    $sigCell->addText('(' . cleanWordText($ownerName ?: '................................') . ')', 'normalFont', [
+        'alignment' => Jc::CENTER,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+
+    $sigCell->addText(memoKeepSignatureWordsTogether($position ?: '................................'), [
+        'name' => 'TH SarabunPSK',
+        'size' => 15,
+    ], [
+        'alignment' => Jc::CENTER,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+}
+
+
+// ==========================================
+// แก้เฉพาะส่วนหัวข้อ "เรื่อง" ให้ใช้รูปแบบตัดบรรทัดแบบ download_word_academic_1.php
+// เพื่อไม่ให้ตัดคำเร็วเกินไปทั้งที่ยังมีพื้นที่เหลือ
+// ==========================================
+function memoSubjectNoBorderCellFixed($valign = 'bottom') {
+    return [
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'valign' => $valign,
+        'marginTop' => 0,
+        'marginBottom' => 0,
+        'marginLeft' => 0,
+        'marginRight' => 0,
+    ];
+}
+
+function memoSubjectDottedBottomCellFixed($valign = 'bottom') {
+    return [
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'borderBottomSize' => 12,
+        'borderBottomColor' => '000000',
+        'borderBottomStyle' => 'dotted',
+        'valign' => $valign,
+        'marginTop' => 0,
+        'marginBottom' => 20,
+        'marginLeft' => 0,
+        'marginRight' => 0,
+    ];
+}
+
+function memoSubjectHeaderParaFixed($align = Jc::LEFT, $spaceAfter = 0) {
+    return [
+        'alignment' => $align,
+        'spaceBefore' => 0,
+        'spaceAfter' => $spaceAfter,
+        'lineHeight' => 1.0,
+    ];
+}
+
+function memoSplitSubjectLinesFixed($text, $limit = 86) {
+    $text = trim(preg_replace('/\s+/u', ' ', cleanWordText((string)$text)));
+    if ($text === '') {
+        return [''];
+    }
+
+    $lines = [];
+    while (mb_strlen($text, 'UTF-8') > $limit) {
+        $cut = mb_substr($text, 0, $limit, 'UTF-8');
+        $spacePos = mb_strrpos($cut, ' ', 0, 'UTF-8');
+
+        if ($spacePos !== false && $spacePos > 25) {
+            $lines[] = trim(mb_substr($text, 0, $spacePos, 'UTF-8'));
+            $text = trim(mb_substr($text, $spacePos + 1, null, 'UTF-8'));
+        } else {
+            $lines[] = trim($cut);
+            $text = trim(mb_substr($text, $limit, null, 'UTF-8'));
+        }
+    }
+
+    if ($text !== '') {
+        $lines[] = $text;
+    }
+    return $lines;
+}
+
+function addMemoHeaderSubjectFixed($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText, $subjectMaxLines = 2) {
+    addMemoTitle($section);
+
+    $labelW = Converter::cmToTwip(2.45);
+    $valueW = MEMO_CONTENT_TWIP - $labelW;
+
+    addDottedRow(
+        $section,
+        'ส่วนราชการ',
+        $headerText ?: 'คณะ... ภาค... โทร...',
+        $labelW,
+        $valueW,
+        0,
+        10
+    );
+
+    addDocNoDateRow($section, $docNo, $thaiDocDate);
+
+    // แก้เฉพาะหัวข้อ "เรื่อง": ใช้ตารางแยก label/value แบบ academic_1
+    // และเพิ่ม limit เป็น 86 ตัวอักษร เพื่อให้บรรทัดแรกยาวขึ้นก่อนตัดบรรทัด
+    $subjectLines = memoSplitSubjectLinesFixed($subjectText, 86);
+    $subjectTable = $section->addTable([
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'cellMargin' => 0,
+        'cellSpacing' => 0,
+        'layout' => 'fixed',
+        'width' => MEMO_CONTENT_TWIP,
+    ]);
+
+    foreach ($subjectLines as $index => $line) {
+        $subjectTable->addRow(null, ['exactHeight' => false]);
+        $subjectTable->addCell(Converter::cmToTwip(0.90), memoSubjectNoBorderCellFixed())->addText(
+            $index === 0 ? 'เรื่อง' : '',
+            'boldFont',
+            memoSubjectHeaderParaFixed()
+        );
+        $subjectTable->addCell(Converter::cmToTwip(15.10), memoSubjectDottedBottomCellFixed())->addText(
+            cleanWordText($line),
+            'normalFont',
+            memoSubjectHeaderParaFixed()
+        );
+    }
+
+    $subjectLabelW = Converter::cmToTwip(0.95);
+    $subjectValueW = MEMO_CONTENT_TWIP - $subjectLabelW;
+
+    $learnTable = addMemoTable($section);
+    $learnTable->addRow(Converter::cmToTwip(0.42), ['exactHeight' => false]);
+
+    $learnLabel = $learnTable->addCell($subjectLabelW, wordCellNoBorder(0, 0, true));
+    addInlineText($learnLabel, 'เรียน', 'normalFont');
+
+    $learnText = $learnTable->addCell($subjectValueW, wordCellNoBorder(360, 10));
+    addInlineText($learnText, cleanWordText($toText), 'normalFont');
+
+    $section->addText('', 'normalFont', [
+        'spaceAfter' => 220,
+        'lineHeight' => 1.0
+    ]);
+}
+
+
+// ==========================================
 // ปรับปรุงฟังก์ชันสร้างหน้าบันทึกข้อความเดิม
 // ==========================================
 
 function addMainMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $subjectText, $toText, $ownerName, $position, $department, $faculty, $courseName, $joinDates, $location, $hasExpense, $displayAmountNumber, $displayAmountThai, $thaiYear) {
     $section = addSectionPage($phpWord);
-    addMemoHeader($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText);
+    addMemoHeaderSubjectFixed($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText);
     
     // ย่อหน้า 1
     addMemoManualPara($section, [
@@ -211,12 +418,12 @@ function addMainMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $subjectTe
     // เคลียร์ค่ารหัสแบ่งคำหลุดในข้อมูลส่วนลายเซ็นท้ายเอกสาร
     $cleanOwner = str_replace(["\u{200B}", " "], ["", " "], $ownerName);
     $cleanPosition = str_replace("เทคโนโลยี\u{200B}สารสนเทศ", "เทคโนโลยีสารสนเทศ", $position);
-    addSignature($section, $cleanOwner, $cleanPosition);
+    addMemoSignatureFixed($section, $cleanOwner, $cleanPosition);
 }
 
 function addExpenseMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $subjectText, $toText, $ownerName, $position, $department, $faculty, $subject, $joinDates, $location, $displayAmountNumber, $displayAmountThai, $thaiYear) {
     $section = addSectionPage($phpWord);
-    addMemoHeader($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText);
+    addMemoHeaderSubjectFixed($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText);
     
     addMemoManualPara($section, [
         'การนี้ ข้าพเจ้า ', [$ownerName ?: 'ชื่อ-นามสกุล', true], ' ', [$position ?: '', true],
@@ -239,12 +446,12 @@ function addExpenseMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $subjec
     
     $cleanOwner = str_replace(["\u{200B}", " "], ["", " "], $ownerName);
     $cleanPosition = str_replace("เทคโนโลยี\u{200B}สารสนเทศ", "เทคโนโลยีสารสนเทศ", $position);
-    addSignature($section, $cleanOwner, $cleanPosition);
+    addMemoSignatureFixed($section, $cleanOwner, $cleanPosition);
 }
 
 function addCarMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $subjectText, $toText, $ownerName, $position, $department, $faculty, $courseName, $joinDates, $location, $vehicle, $subject) {
     $section = addSectionPage($phpWord);
-    addMemoHeader($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText);
+    addMemoHeaderSubjectFixed($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText);
     
     addMemoManualPara($section, [
         'ตามที่ ข้าพเจ้า ', [$ownerName ?: 'ชื่อ-นามสกุล', true], ' ', [$position ?: '', true],
@@ -270,7 +477,7 @@ function addCarMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $subjectTex
     
     $cleanOwner = str_replace(["\u{200B}", " "], ["", " "], $ownerName);
     $cleanPosition = str_replace("เทคโนโลยี\u{200B}สารสนเทศ", "เทคโนโลยีสารสนเทศ", $position);
-    addSignature($section, $cleanOwner, $cleanPosition);
+    addMemoSignatureFixed($section, $cleanOwner, $cleanPosition);
 }
 
 function addExpenseTablePage($phpWord, $budgetItems, $budgetTotal, $purposeCode, $ownerName, $department, $faculty, $courseName, $joinDates, $location, $researchTitle, $joinType) {
