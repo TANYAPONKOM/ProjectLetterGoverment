@@ -941,11 +941,17 @@ $len = max(20, $len);
 
       <div class="footer-actions">
 
-        <!-- 🔵 ปุ่มดาวน์โหลด PDF -->
+        <!-- ปุ่มดาวน์โหลด PDF -->
         <button type="button" onclick="downloadPdf()"
-          class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+          class="bg-red-700 hover:bg-red-800 text-white px-6 py-2 rounded-md text-xl font-bold">
           ดาวน์โหลด PDF
         </button>
+
+        <!-- ปุ่มดาวน์โหลด Word -->
+        <a href="/Pro_letter/documents/download_word_consent_research_presentation.php?id=<?= (int)$docId ?>"
+          class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
+          ดาวน์โหลด Word
+        </a>
 
         <!-- 🟩 USER: ปุ่มแก้ไขเอกสาร -->
         <?php if ($roleId === 3): ?>
@@ -961,16 +967,16 @@ $len = max(20, $len);
         <!-- 🟦 OFFICER & ADMIN -->
         <?php if ($isAdmin || $isOfficer): ?>
 
-        <!-- ปุ่มอนุมัติ -->
+        <!-- ปุ่มผ่านการตรวจสอบ -->
         <button type="button" onclick="updateStatus('approved')"
           class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          ยืนยันการแก้ไข
+          ผ่านการตรวจสอบ
         </button>
 
-        <!-- ปุ่มไม่ผ่าน -->
+        <!-- ปุ่มไม่ผ่านการตรวจสอบ -->
         <button type="button" onclick="updateStatus('rejected')"
           class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          ไม่ผ่าน
+          ไม่ผ่านการตรวจสอบ
         </button>
 
         <?php endif; ?>
@@ -1310,40 +1316,40 @@ $len = max(20, $len);
           range.detach();
         });
 
-      const PDF_SCALE = 2.15; // สมดุล: ชัดกว่า scale 1 มาก และยังไม่ช้าเกิน
+        const PDF_SCALE = 2.15; // สมดุล: ชัดกว่า scale 1 มาก และยังไม่ช้าเกิน
 
-// รอให้ฟอนต์โหลดก่อน ช่วยลดอาการตัวหนังสือฟุ้ง/เพี้ยน
-if (document.fonts && document.fonts.ready) {
-  await document.fonts.ready;
-}
+        // รอให้ฟอนต์โหลดก่อน ช่วยลดอาการตัวหนังสือฟุ้ง/เพี้ยน
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
 
-    const canvas = await html2canvas(clone, {
-      scale: PDF_SCALE,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: "#ffffff",
-      windowWidth: 794,
-      windowHeight: 1123,
-      scrollX: 0,
-      scrollY: 0,
-      logging: false,
-      imageTimeout: 10000,
-      removeContainer: true
-    });
+        const canvas = await html2canvas(clone, {
+          scale: PDF_SCALE,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          windowWidth: 794,
+          windowHeight: 1123,
+          scrollX: 0,
+          scrollY: 0,
+          logging: false,
+          imageTimeout: 10000,
+          removeContainer: true
+        });
 
-    // สำคัญ: ไฟล์นี้ต้องลบ wrapper ไม่ใช่ clone
-    if (wrapper && wrapper.parentNode) {
-      wrapper.parentNode.removeChild(wrapper);
-    }
+        // สำคัญ: ไฟล์นี้ต้องลบ wrapper ไม่ใช่ clone
+        if (wrapper && wrapper.parentNode) {
+          wrapper.parentNode.removeChild(wrapper);
+        }
 
-    // ใช้ PNG เพราะเอกสารมีตัวหนังสือ/เส้นประเยอะ ถ้าใช้ JPEG จะฟุ้ง
-    const imgData = canvas.toDataURL("image/png");
+        // ใช้ PNG เพราะเอกสารมีตัวหนังสือ/เส้นประเยอะ ถ้าใช้ JPEG จะฟุ้ง
+        const imgData = canvas.toDataURL("image/png");
 
-    if (i > 0) {
-      pdf.addPage();
-    }
+        if (i > 0) {
+          pdf.addPage();
+        }
 
-    pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "FAST");
+        pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "FAST");
       }
 
       pdf.save("consent_research_presentation_<?= $docId ?>.pdf");
