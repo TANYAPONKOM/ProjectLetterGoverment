@@ -955,7 +955,7 @@ $len = max(20, $len);
         </a>
 
         <!-- 🟩 USER: ปุ่มแก้ไขเอกสาร -->
-        <?php if ($roleId === 3): ?>
+        <?php if ($canEdit || $roleId === 3 || $isAdmin || $isOfficer): ?>
         <a href="/Pro_letter/documents/infor_present.php?id=<?= $docId ?>" id="editBtn"
           data-can-edit="<?= $canEdit ? '1' : '0' ?>" class="px-6 py-2 rounded-md text-xl font-bold
   <?= $canEdit
@@ -965,22 +965,7 @@ $len = max(20, $len);
         </a>
         <?php endif; ?>
 
-        <!-- 🟦 OFFICER & ADMIN -->
-        <?php if ($isAdmin || $isOfficer): ?>
 
-        <!-- ปุ่มผ่านการตรวจสอบ -->
-        <button type="button" onclick="updateStatus('approved')"
-          class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          ผ่านการตรวจสอบ
-        </button>
-
-        <!-- ปุ่มไม่ผ่านการตรวจสอบ -->
-        <button type="button" onclick="updateStatus('rejected')"
-          class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          ไม่ผ่านการตรวจสอบ
-        </button>
-
-        <?php endif; ?>
 
         <!-- ปุ่มกลับหน้าหลัก (ทุก role มี) -->
         <a href="<?= $homePath ?>"

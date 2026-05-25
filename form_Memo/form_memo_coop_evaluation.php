@@ -1281,41 +1281,23 @@ $len = max(20, $len);
         </button>
 
         <!-- ปุ่มดาวน์โหลด Word -->
-        <a href="/Pro_letter/documents/download_word_coop_evaluation.php?id=<?= (int)$docId ?>"
-          data-word-download="1" onclick="return downloadWord(this);"
+        <a href="/Pro_letter/documents/download_word_coop_evaluation.php?id=<?= (int)$docId ?>" data-word-download="1"
+          onclick="return downloadWord(this);"
           class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           ดาวน์โหลด Word
         </a>
 
         <!-- USER: ปุ่มแก้ไขเอกสาร -->
-        <?php if ($roleId === 3): ?>
+        <?php if ($canEdit || $roleId === 3 || $isAdmin || $isOfficer): ?>
         <a href="/Pro_letter/documents/infor_coop_evaluation.php?id=<?= urlencode((string)$document['document_id']) ?>&edit=1"
           class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           แก้ไขเอกสาร
         </a>
         <?php endif; ?>
 
-        <!-- OFFICER & ADMIN -->
-        <?php if ($isAdmin || $isOfficer): ?>
-        <!-- ปุ่มแก้ไขเอกสาร -->
-        <a href="/Pro_letter/documents/infor_coop_evaluation.php?id=<?= urlencode((string)$document['document_id']) ?>&edit=1"
-          class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
-          แก้ไขเอกสาร
-        </a>
 
-        <!-- ปุ่มผ่านการตรวจสอบ -->
-        <button type="button" onclick="updateStatus('approved')"
-          class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          ผ่านการตรวจสอบ
-        </button>
 
-        <!-- ปุ่มไม่ผ่านการตรวจสอบ -->
-        <button type="button" onclick="updateStatus('rejected')"
-          class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-          ไม่ผ่านการตรวจสอบ
-        </button>
 
-        <?php endif; ?>
 
         <!-- ปุ่มกลับหน้าหลัก (ทุก role มี) -->
         <a href="<?= $homePath ?>"
