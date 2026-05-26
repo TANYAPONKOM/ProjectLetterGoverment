@@ -1,7 +1,7 @@
 <?php
 // pro_letter/documents/form_Memo.php
 $CURRENT_MAIN = "external";
-$CURRENT_SUB  = "ฝึกอบรม ";
+$CURRENT_SUB  = "";
 
 session_start();
 require_once __DIR__ . '/../functions.php';
@@ -87,6 +87,71 @@ if (empty($departmentOptions)) {
         'department_name' => $currentUserDepartmentName,
         'faculty_id' => $currentUserFacultyId ?: 1
     ];
+}
+
+/* ===== โหลดรายการเทมเพลตสำหรับ dropdown หมวดหลัก/หมวดย่อย =====
+   ใช้เฉพาะ templates.is_active = 1 เท่านั้น
+   เพื่อให้หน้า admin เปิด/ปิดเทมเพลตแล้ว dropdown แสดงผลตามฐานข้อมูลจริง
+*/
+$templateDropdownOptions = [
+    'internal' => [],
+    'external' => []
+];
+
+try {
+    $templatePdo = db();
+    $templateStmt = $templatePdo->query("
+        SELECT
+            template_id,
+            template_code,
+            template_name,
+            question_path,
+            template_group,
+            is_active,
+            sort_order
+        FROM templates
+        WHERE is_active = 1
+          AND question_path IS NOT NULL
+          AND question_path <> ''
+          AND template_group IN ('internal', 'external')
+        ORDER BY sort_order ASC, template_id ASC
+    ");
+
+    $templateRows = $templateStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($templateRows as $tpl) {
+        $group = strtolower(trim((string)($tpl['template_group'] ?? '')));
+        $name  = trim((string)($tpl['template_name'] ?? ''));
+        $url   = trim((string)($tpl['question_path'] ?? ''));
+
+        if (!in_array($group, ['internal', 'external'], true)) {
+            continue;
+        }
+
+        if ($name === '' || $url === '') {
+            continue;
+        }
+
+        $templateDropdownOptions[$group][] = [
+            'id' => (int)($tpl['template_id'] ?? 0),
+            'code' => (string)($tpl['template_code'] ?? ''),
+            'name' => $name,
+            'url' => $url,
+            'group' => $group,
+            'is_active' => 1
+        ];
+
+        if ($url === '/documents/form_Memo.php') {
+            $CURRENT_MAIN = $group;
+            $CURRENT_SUB = $name;
+        }
+    }
+} catch (Throwable $e) {
+    $templateDropdownOptions = [
+        'internal' => [],
+        'external' => []
+    ];
+    $CURRENT_SUB = "";
 }
 
 $docId  = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -3874,85 +3939,123 @@ if ($roleIdForHome === 1) {
     const sub = document.getElementById("subCategory");
     if (!main || !sub) return;
 
+    const TEMPLATE_OPTIONS =
+      <?= json_encode($templateDropdownOptions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?> || {
+        internal: [],
+        external: []
+      };
 
-    const SUB_OPTIONS = {
-      external: [
-        "ฝึกอบรม",
-        "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย",
-        "ขออนุมัติตัวบุคคลเป็นวิทยากร",
-        "ขอห้องพักรับรอง",
-        "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ",
-      ],
-      internal: [
-        "หนังสือเรียนเชิญวิทยากร",
-        "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์",
-        "ขอเข้าเยี่ยมศึกษาดูงาน",
-        "ขอเข้าไปจัดกิจกรรมโครงการ",
-        "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)",
-      ],
-    };
+    function buildTemplateUrl(path) {
+      const cleanPath = String(path || "").trim();
+      if (!cleanPath) return "";
+      if (/^https?:\/\//i.test(cleanPath) || cleanPath.startsWith("/Pro_letter/")) {
+        return cleanPath;
+      }
+      return "/Pro_letter" + (cleanPath.startsWith("/") ? cleanPath : "/" + cleanPath);
+    }
 
-    const ROUTE_SUB = {
-      "ฝึกอบรม": "/Pro_letter/documents/form_Memo.php",
-      "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย": "/Pro_letter/documents/infor_academic_presentation.php",
-      "ขออนุมัติตัวบุคคลเป็นวิทยากร": "/Pro_letter/documents/infor_speaker_workshop.php",
-      "ขอห้องพักรับรอง": "/Pro_letter/documents/infor_room_request.php",
-      "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ": "/Pro_letter/documents/infor_present.php",
+    function withSelection(url, mainVal, subVal = "") {
+      if (!url || url === "#") return "#";
 
-      "หนังสือเรียนเชิญวิทยากร": "/Pro_letter/documents/infor_invite.php",
-      "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์": "/Pro_letter/documents/infor_research_data.php",
-      "ขอเข้าเยี่ยมศึกษาดูงาน": "/Pro_letter/documents/infor_study_visit.php",
-      "ขอเข้าไปจัดกิจกรรมโครงการ": "/Pro_letter/documents/infor_project_activity.php",
-      "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)": "/Pro_letter/documents/infor_coop_evaluation.php",
-    };
+      const targetUrl = new URL(url, window.location.origin);
+      if (mainVal) targetUrl.searchParams.set("main", mainVal);
+      if (subVal) targetUrl.searchParams.set("sub", subVal);
 
-    function renderSubOptions(list, selectedValue = "") {
+      return targetUrl.toString();
+    }
+
+    function getActiveTemplates(group) {
+      const groupName = String(group || "").trim().toLowerCase();
+      const rows = Array.isArray(TEMPLATE_OPTIONS[groupName]) ? TEMPLATE_OPTIONS[groupName] : [];
+
+      return rows.filter(item => {
+        const isActive = Number(item?.is_active || 0) === 1;
+        const itemGroup = String(item?.group || "").trim().toLowerCase();
+        const name = String(item?.name || "").trim();
+        const url = String(item?.url || "").trim();
+
+        return isActive && itemGroup === groupName && name !== "" && url !== "";
+      });
+    }
+
+    function renderSubOptions(group, selectedValue = "") {
+      const selectedText = String(selectedValue || "").trim();
+      const list = getActiveTemplates(group);
+      let hasSelectedText = false;
+
       sub.innerHTML = '<option value="" selected>-- เลือกหมวดย่อย --</option>';
-      list.forEach(text => {
+
+      list.forEach(item => {
+        const name = String(item.name || "").trim();
+        const url = String(item.url || "").trim();
+
         const opt = document.createElement("option");
-        opt.value = text;
-        opt.textContent = text;
-        if (selectedValue && text === selectedValue) opt.selected = true;
+        opt.value = name;
+        opt.textContent = name;
+        opt.dataset.url = url;
+        opt.dataset.templateId = item.id || "";
+        opt.dataset.templateCode = item.code || "";
+
+        if (selectedText && name === selectedText) {
+          opt.selected = true;
+          hasSelectedText = true;
+        }
+
         sub.appendChild(opt);
       });
 
-      // ถ้าไม่มีค่าเดิมจริง ๆ ให้ล็อกไว้ที่ตัวเลือก placeholder เสมอ
-      if (!selectedValue) sub.value = "";
+      if (!selectedText || !hasSelectedText) {
+        sub.selectedIndex = 0;
+        sub.value = "";
+        sub.dataset.current = "";
+      }
     }
 
     function syncUI(keepCurrentSub = false) {
-      const mainVal = (main.value || "").trim();
-      const currentSub = keepCurrentSub ? (sub.dataset.current || "").trim() : "";
+      const mainVal = String(main.value || "").trim().toLowerCase();
+      const currentSub = keepCurrentSub ? String(sub.dataset.current || "").trim() : "";
 
       if (mainVal === "internal" || mainVal === "external") {
         sub.disabled = false;
-        renderSubOptions(SUB_OPTIONS[mainVal] || [], currentSub);
+        renderSubOptions(mainVal, currentSub);
       } else {
         sub.disabled = true;
         sub.dataset.current = "";
         sub.innerHTML = '<option value="" selected>-- เลือกหมวดย่อย --</option>';
+        sub.value = "";
       }
     }
 
     main.addEventListener("change", () => {
-      // เปลี่ยนหมวดหลักแล้วต้องยังไม่เลือกหมวดย่อยให้เอง
       sub.dataset.current = "";
       syncUI(false);
     });
 
-    sub.addEventListener("change", () => {
-      const subVal = (sub.value || "").trim();
-      sub.dataset.current = subVal;
-
-      // ยังอยู่ที่ placeholder ห้ามเปลี่ยนหน้า
-      if (!subVal) return;
-
-      const target = ROUTE_SUB[subVal];
-      if (!target || target === "#") return;
-      window.location.href = target;
+    sub.addEventListener("focus", () => {
+      syncUI(true);
     });
 
-    // ตอนโหลดหน้า ถ้ามีค่าเดิมจาก PHP ค่อยเลือกหมวดย่อยเดิมให้ เฉพาะกรณี edit/preselect เท่านั้น
+    sub.addEventListener("pointerdown", () => {
+      syncUI(true);
+    });
+
+    sub.addEventListener("change", () => {
+      const subVal = String(sub.value || "").trim();
+      sub.dataset.current = subVal;
+
+      if (!subVal) return;
+
+      const selectedOption = sub.options[sub.selectedIndex];
+      const target = buildTemplateUrl(selectedOption?.dataset?.url || "");
+
+      if (!target || target === "#") return;
+      window.location.href = withSelection(target, String(main.value || "").trim(), subVal);
+    });
+
+    window.addEventListener("pageshow", () => {
+      syncUI(true);
+    });
+
     syncUI(true);
   });
   </script>

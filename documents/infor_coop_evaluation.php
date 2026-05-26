@@ -105,6 +105,68 @@ if (empty($departmentOptions)) {
     ];
 }
 
+
+/* ===== โหลดรายการเทมเพลตสำหรับ dropdown หมวดหลัก/หมวดย่อย =====
+   ดึงเฉพาะ templates.is_active = 1 เพื่อให้หน้า Admin เปิด/ปิดเทมเพลตได้จริง
+*/
+$templateDropdownOptions = [
+    'internal' => [],
+    'external' => []
+];
+
+try {
+    $templatePdo = db();
+    $templateStmt = $templatePdo->query("
+        SELECT
+            template_id,
+            template_code,
+            template_name,
+            question_path,
+            LOWER(TRIM(template_group)) AS template_group,
+            sort_order,
+            is_active
+        FROM templates
+        WHERE CAST(COALESCE(is_active, 0) AS UNSIGNED) = 1
+          AND LOWER(TRIM(template_group)) IN ('internal', 'external')
+        ORDER BY sort_order ASC, template_id ASC
+    ");
+    $templateRows = $templateStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($templateRows as $tpl) {
+        if ((int)($tpl['is_active'] ?? 0) !== 1) {
+            continue;
+        }
+
+        $group = strtolower(trim((string)($tpl['template_group'] ?? '')));
+        if ($group !== 'internal' && $group !== 'external') {
+            continue;
+        }
+
+        $templateName = trim((string)($tpl['template_name'] ?? ''));
+        $questionPath = trim((string)($tpl['question_path'] ?? ''));
+
+        if ($templateName === '' || $questionPath === '') {
+            continue;
+        }
+
+        $templateDropdownOptions[$group][] = [
+            'id' => (int)($tpl['template_id'] ?? 0),
+            'code' => trim((string)($tpl['template_code'] ?? '')),
+            'name' => $templateName,
+            'url' => $questionPath,
+            'is_active' => (int)($tpl['is_active'] ?? 0)
+        ];
+    }
+
+    $templateDropdownOptions['internal'] = array_values($templateDropdownOptions['internal']);
+    $templateDropdownOptions['external'] = array_values($templateDropdownOptions['external']);
+} catch (Throwable $e) {
+    $templateDropdownOptions = [
+        'internal' => [],
+        'external' => []
+    ];
+}
+
 // ===== รองรับบันทึกใหม่ + แก้ไขเอกสารเดิม =====
 $docId  = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $isEdit = $docId > 0;
@@ -1811,107 +1873,92 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
     const sub = document.getElementById("subCategory");
     if (!main || !sub) return;
 
-    const SUB_OPTIONS = {
-      external: [
-        "ฝึกอบรม",
-        "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย",
-        "ขออนุมัติตัวบุคคลเป็นวิทยากร",
-        "ขอห้องพักรับรอง",
-        "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ",
-      ],
-      internal: [
-        "หนังสือเรียนเชิญวิทยากร",
-        "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์",
-        "ขอเข้าเยี่ยมศึกษาดูงาน",
-        "ขอเข้าไปจัดกิจกรรมโครงการ",
-        "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)",
-      ],
-    };
+    const TEMPLATE_OPTIONS =
+      <?= json_encode($templateDropdownOptions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 
-    const ROUTE_SUB = {
-      "ฝึกอบรม": "/Pro_letter/documents/form_Memo.php",
-      "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย": "/Pro_letter/documents/infor_academic_presentation.php",
-      "ขออนุมัติตัวบุคคลเป็นวิทยากร": "/Pro_letter/documents/infor_speaker_workshop.php",
-      "ขอห้องพักรับรอง": "/Pro_letter/documents/infor_room_request.php",
-      "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ": "/Pro_letter/documents/infor_present.php",
-
-      "หนังสือเรียนเชิญวิทยากร": "/Pro_letter/documents/infor_invite.php",
-      "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์": "/Pro_letter/documents/infor_research_data.php",
-      "ขอเข้าเยี่ยมศึกษาดูงาน": "/Pro_letter/documents/infor_study_visit.php",
-      "ขอเข้าไปจัดกิจกรรมโครงการ": "/Pro_letter/documents/infor_project_activity.php",
-      "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)": "/Pro_letter/documents/infor_coop_evaluation.php",
-    };
-
-    function withSelection(url, mainVal, subVal = "") {
-      if (!url || url === "#") return "#";
-
-      const targetUrl = new URL(url, window.location.origin);
-      if (mainVal) targetUrl.searchParams.set("main", mainVal);
-      if (subVal) targetUrl.searchParams.set("sub", subVal);
-
-      return targetUrl.toString();
+    function buildTemplateUrl(path) {
+      const cleanPath = String(path || "").trim();
+      if (!cleanPath || cleanPath === "#") return "";
+      if (/^https?:\/\//i.test(cleanPath) || cleanPath.startsWith("/Pro_letter/")) {
+        return cleanPath;
+      }
+      return "/Pro_letter" + (cleanPath.startsWith("/") ? cleanPath : "/" + cleanPath);
     }
 
     function renderSubOptions(list, selectedValue = "") {
-      const selected = String(selectedValue || "").trim();
+      const selectedText = String(selectedValue || "").trim();
+      let hasSelectedText = false;
 
       sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
-      list.forEach(text => {
-        const cleanText = String(text || "").trim();
+
+      (Array.isArray(list) ? list : []).forEach(item => {
+        const isActive = Number(item?.is_active || 0) === 1;
+        const name = String(item?.name || "").trim();
+        const url = String(item?.url || "").trim();
+
+        if (!isActive || !name || !url) return;
+
         const opt = document.createElement("option");
-        opt.value = cleanText;
-        opt.textContent = cleanText;
-        if (cleanText === selected) opt.selected = true;
+        opt.value = name;
+        opt.textContent = name;
+        opt.dataset.url = url;
+        opt.dataset.templateId = item.id || "";
+        opt.dataset.templateCode = item.code || "";
+
+        if (selectedText && name === selectedText) {
+          opt.selected = true;
+          hasSelectedText = true;
+        }
+
         sub.appendChild(opt);
       });
+
+      if (!selectedText || !hasSelectedText) {
+        sub.selectedIndex = 0;
+        sub.value = "";
+        if (selectedText) sub.dataset.current = "";
+      }
     }
 
-    function syncUI() {
-      const mainVal = (main.value || "").trim();
-      const currentSub = (sub.dataset.current || "").trim();
+    function syncUI(keepCurrentSub = false) {
+      const mainVal = String(main.value || "").trim();
+      const currentSub = keepCurrentSub ? String(sub.dataset.current || "").trim() : "";
 
-      if (mainVal === "external" || mainVal === "internal") {
+      if (mainVal === "internal" || mainVal === "external") {
         sub.disabled = false;
-        renderSubOptions(SUB_OPTIONS[mainVal] || [], currentSub);
+        renderSubOptions(TEMPLATE_OPTIONS[mainVal] || [], currentSub);
       } else {
         sub.disabled = true;
+        sub.dataset.current = "";
         sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
+        sub.value = "";
       }
-    }
-
-    function goMain() {
-      const mainVal = (main.value || "").trim();
-      const firstSub = (SUB_OPTIONS[mainVal] || [])[0] || "";
-      const target = ROUTE_SUB[firstSub];
-
-      sub.dataset.current = firstSub;
-      syncUI();
-
-      if (target && target !== "#") {
-        window.location.href = withSelection(target, mainVal, firstSub);
-      }
-    }
-
-    function goSub() {
-      const mainVal = (main.value || "").trim();
-      const subVal = (sub.value || "").trim();
-
-      sub.dataset.current = subVal;
-
-      const target = ROUTE_SUB[subVal];
-      if (!target || target === "#") return;
-
-      window.location.href = withSelection(target, mainVal, subVal);
     }
 
     main.addEventListener("change", () => {
       sub.dataset.current = "";
-      goMain();
+      syncUI(false);
     });
 
-    sub.addEventListener("change", goSub);
+    sub.addEventListener("change", () => {
+      const subVal = String(sub.value || "").trim();
+      sub.dataset.current = subVal;
 
-    syncUI();
+      if (!subVal) return;
+
+      const selectedOption = sub.options[sub.selectedIndex];
+      const target = buildTemplateUrl(selectedOption?.dataset?.url || "");
+      if (!target || target === "#") return;
+
+      const separator = target.includes("?") ? "&" : "?";
+      window.location.href =
+        target +
+        separator +
+        "main=" + encodeURIComponent(String(main.value || "").trim()) +
+        "&sub=" + encodeURIComponent(subVal);
+    });
+
+    syncUI(true);
   });
   </script>
 

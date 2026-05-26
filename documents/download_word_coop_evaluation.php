@@ -239,7 +239,7 @@ function addCoopPara($section, array $parts, $spaceAfter = 20, $firstLineCm = 2.
 
 function addCoopStudentList($section, array $students) {
     if (count($students) === 0) {
-        $section->addText('๑. ................................................ รหัสนักศึกษา ....................................', 'normalFont', [
+        $section->addText('................................................ รหัสนักศึกษา ....................................', 'normalFont', [
             'indentation' => ['left' => Converter::cmToTwip(2.5)],
             'spaceBefore' => 0,
             'spaceAfter' => 10,
@@ -249,8 +249,7 @@ function addCoopStudentList($section, array $students) {
     }
 
     foreach ($students as $idx => $student) {
-        $line = coopThaiDigit((string)($idx + 1)) . '. ' .
-            coopInlineText($student['name'] ?? '') .
+        $line = coopInlineText($student['name'] ?? '') .
             ' รหัสนักศึกษา ' . formatCoopStudentId($student['id'] ?? '');
 
         $section->addText(coopThaiWordWrap($line), 'normalFont', [

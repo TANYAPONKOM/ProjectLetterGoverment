@@ -335,33 +335,21 @@ if (!isset($_SESSION['user_id'])) {
           ${formatDate(req.date)}
         </div>
 
-        <!-- PDF / WORD (เหมือน user เป๊ะ) -->
+        <!-- PDF / WORD (ดาวน์โหลดจากหน้าหลัก) -->
         <div class="flex items-center space-x-4">
-          ${
-            req.word
-              ? `<a href="${req.word}" target="_blank"
-                   class="flex items-center space-x-1 text-blue-500 hover:underline">
-                   <img src="https://cdn-icons-png.flaticon.com/16/281/281760.png">
-                   <span>Word</span>
-                 </a>`
-              : `<div class="flex items-center space-x-1 text-blue-500">
-                   <img src="https://cdn-icons-png.flaticon.com/16/281/281760.png">
-                   <span>Word</span>
-                 </div>`
-          }
+          <a href="${getDocumentWordDownloadUrl(req.document_id, req.routeHint)}"
+             data-word-filename="${escapeHtmlAttr(getThaiWordFileName(req.document_id, req.routeHint || req.title || req.detail))}"
+             onclick="return downloadWordFromHome(this);"
+             class="flex items-center space-x-1 text-blue-500 hover:underline">
+            <img src="https://cdn-icons-png.flaticon.com/16/281/281760.png">
+            <span>Word</span>
+          </a>
 
-          ${
-            req.pdf
-              ? `<a href="${req.pdf}" target="_blank"
-                   class="flex items-center space-x-1 text-red-500 hover:underline">
-                   <img src="https://cdn-icons-png.flaticon.com/16/337/337946.png">
-                   <span>PDF</span>
-                 </a>`
-              : `<div class="flex items-center space-x-1 text-red-500">
-                   <img src="https://cdn-icons-png.flaticon.com/16/337/337946.png">
-                   <span>PDF</span>
-                 </div>`
-          }
+          <a href="${getDocumentPdfDownloadUrl(req.document_id, req.routeHint)}" target="_blank"
+             class="flex items-center space-x-1 text-red-500 hover:underline">
+            <img src="https://cdn-icons-png.flaticon.com/16/337/337946.png">
+            <span>PDF</span>
+          </a>
         </div>
 
         <!-- ปุ่ม / ข้อความ -->
@@ -500,6 +488,174 @@ if (!isset($_SESSION['user_id'])) {
 
     return (matched ? matched.url : "../documents/view_memo.php?id=") + docId;
   }
+
+  function getDocumentPdfDownloadUrl(docId, routeHint = "") {
+    return "../documents/auto_download_pdf.php?id=" + encodeURIComponent(docId) +
+           "&hint=" + encodeURIComponent(routeHint || "");
+  }
+
+
+  function escapeHtmlAttr(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function cleanThaiFileName(value) {
+    let name = String(value || "").trim();
+
+    if (!name) {
+      name = "เอกสาร";
+    }
+
+    name = name
+      .replace(/[\\/:*?"<>|\r\n\t]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (name.length > 80) {
+      name = name.substring(0, 80).trim();
+    }
+
+    return name || "เอกสาร";
+  }
+
+  function getThaiWordFileName(docId, routeHint = "") {
+    const text = String(routeHint || "").trim();
+
+    const titleRules = [
+      {
+        keywords: ["ขอประเมินสถานประกอบการสหกิจ", "ประเมินสถานประกอบการ", "สถานประกอบการสหกิจ", "สหกิจศึกษา", "coop_evaluation"],
+        title: "ขอประเมินสถานประกอบการสหกิจ"
+      },
+      {
+        keywords: ["ขอเข้าไปจัดกิจกรรมโครงการ", "จัดกิจกรรมโครงการ", "กิจกรรมโครงการ", "โครงการ", "project_activity"],
+        title: "ขอเข้าไปจัดกิจกรรมโครงการ"
+      },
+      {
+        keywords: ["หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์", "ขอความอนุเคราะห์ข้อมูล", "ปริญญานิพนธ์", "research_data"],
+        title: "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์"
+      },
+      {
+        keywords: ["หนังสือเรียนเชิญวิทยากร", "เรียนเชิญวิทยากร", "เชิญวิทยากร", "invite_speaker"],
+        title: "หนังสือเรียนเชิญวิทยากร"
+      },
+      {
+        keywords: ["ขออนุมัติใช้ห้องพักรับรอง", "ขอห้องพักรับรอง", "ห้องพักรับรอง", "room_request"],
+        title: "ขออนุมัติใช้ห้องพักรับรอง"
+      },
+      {
+        keywords: ["ขออนุมัติตัวบุคคลเป็นวิทยากร", "ตัวบุคคลเป็นวิทยากร", "เป็นวิทยากร", "speaker_workshop"],
+        title: "ขออนุมัติตัวบุคคลเป็นวิทยากร"
+      },
+      {
+        keywords: ["ขอเข้าเยี่ยมศึกษาดูงาน", "ศึกษาดูงาน", "เข้าเยี่ยมชม", "เยี่ยมชมศึกษาดูงาน", "SUT Wellness", "study_visit"],
+        title: "ขอเข้าเยี่ยมศึกษาดูงาน"
+      },
+      {
+        keywords: ["หนังสือยินยอมให้นำเสนอผลงานวิจัย", "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ", "ยินยอมให้นำเสนอผลงานวิจัย", "ยินยอมให้นำเสนอผลงานทางวิชาการ", "หนังสือยินยอม", "consent_research_presentation"],
+        title: "หนังสือยินยอมให้นำเสนอผลงานวิจัย"
+      },
+      {
+        keywords: ["นำเสนอผลงานวิจัย", "academic_presentation"],
+        title: "นำเสนอผลงานวิจัย"
+      }
+    ];
+
+    const matched = titleRules.find(rule =>
+      rule.keywords.some(keyword => text.includes(keyword))
+    );
+
+    const baseName = cleanThaiFileName(matched ? matched.title : (text || "บันทึกข้อความ"));
+    return baseName + "_เลขที่_" + String(docId || "").replace(/\D+/g, "") + ".docx";
+  }
+
+  function downloadWordFromHome(link) {
+    const url = link.getAttribute("href");
+    const fileName = link.getAttribute("data-word-filename") || "เอกสาร.docx";
+
+    fetch(url, {
+      method: "GET",
+      credentials: "same-origin"
+    })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error("download failed");
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+
+        a.href = blobUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        window.URL.revokeObjectURL(blobUrl);
+      })
+      .catch(() => {
+        window.location.href = url;
+      });
+
+    return false;
+  }
+
+  function getDocumentWordDownloadUrl(docId, routeHint = "") {
+    const text = String(routeHint || "").trim();
+
+    const routes = [
+      {
+        keywords: ["ขอประเมินสถานประกอบการสหกิจ", "ประเมินสถานประกอบการ", "สถานประกอบการสหกิจ", "สหกิจศึกษา", "coop_evaluation"],
+        url: "../documents/download_word_coop_evaluation.php"
+      },
+      {
+        keywords: ["ขอเข้าไปจัดกิจกรรมโครงการ", "จัดกิจกรรมโครงการ", "กิจกรรมโครงการ", "โครงการ", "project_activity"],
+        url: "../documents/download_word_project_activity.php"
+      },
+      {
+        keywords: ["หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์", "ขอความอนุเคราะห์ข้อมูล", "ปริญญานิพนธ์", "research_data"],
+        url: "../documents/download_word_request_research_data.php"
+      },
+      {
+        keywords: ["หนังสือเรียนเชิญวิทยากร", "เรียนเชิญวิทยากร", "เชิญวิทยากร", "invite_speaker"],
+        url: "../documents/download_word_invite_speaker.php"
+      },
+      {
+        keywords: ["ขออนุมัติใช้ห้องพักรับรอง", "ขอห้องพักรับรอง", "ห้องพักรับรอง", "room_request"],
+        url: "../documents/download_word_room_request.php"
+      },
+      {
+        keywords: ["ขออนุมัติตัวบุคคลเป็นวิทยากร", "ตัวบุคคลเป็นวิทยากร", "เป็นวิทยากร", "speaker_workshop"],
+        url: "../documents/download_word_speaker.php"
+      },
+      {
+        keywords: ["ขอเข้าเยี่ยมศึกษาดูงาน", "ศึกษาดูงาน", "เข้าเยี่ยมชม", "เยี่ยมชมศึกษาดูงาน", "SUT Wellness", "study_visit"],
+        url: "../documents/download_word_sut_wellness.php"
+      },
+      {
+        keywords: ["หนังสือยินยอมให้นำเสนอผลงานวิจัย", "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ", "ยินยอมให้นำเสนอผลงานวิจัย", "ยินยอมให้นำเสนอผลงานทางวิชาการ", "หนังสือยินยอม", "consent_research_presentation"],
+        url: "../documents/download_word_consent_research_presentation.php"
+      },
+      {
+        keywords: ["นำเสนอผลงานวิจัย", "academic_presentation"],
+        url: "../documents/download_word_academic_1.php"
+      }
+    ];
+
+    const matched = routes.find(route =>
+      route.keywords.some(keyword => text.includes(keyword))
+    );
+
+    const baseUrl = matched ? matched.url : "../documents/download_word_memo.php";
+    return baseUrl + "?id=" + encodeURIComponent(docId);
+  }
+
 
   function openDocument(docId, joinType = "") {
     fetch("../check_view_permission.php?id=" + docId)
