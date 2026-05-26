@@ -5,10 +5,10 @@ function h($string) {
 function getPDO() {
     static $pdo = null;
     if ($pdo === null) {
-        $dbHost = 'localhost';
-        $dbName = 'pro_letter';
-        $dbUser = 'root';
-        $dbPass = '';
+        $dbHost = 'sql104.infinityfree.com';
+        $dbName = 'if0_42023780_pro_letter';
+        $dbUser = 'if0_42023780';
+        $dbPass = 'GIQy64HnrJO';
         try {
             $pdo = new PDO("mysql:host=$dbHost;dbname=$dbName;charset=utf8mb4",
                            $dbUser, $dbPass,
