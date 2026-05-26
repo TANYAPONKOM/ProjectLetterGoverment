@@ -238,6 +238,24 @@ $header_text = $document["header_text"] ?? "";
 $doc_no = $document["doc_no"] ?? "";
 $subject = $document["subject"] ?? "";
 
+/* ===== ชื่อไฟล์ดาวน์โหลดภาษาไทยตามข้อมูลเรื่อง (ใช้กับ PDF และ Word) ===== */
+$downloadSubject = 'หนังสือยินยอมให้นำเสนอผลงานวิจัย';
+$downloadSubject = preg_replace('/[\\\/\:\*\?"\<\>\|\r\n\t]+/u', ' ', $downloadSubject);
+$downloadSubject = preg_replace('/\s+/u', ' ', $downloadSubject);
+$downloadSubject = trim($downloadSubject);
+
+if ($downloadSubject === '') {
+  $downloadSubject = 'หนังสือยินยอมให้นำเสนอผลงานวิจัย';
+}
+
+if (function_exists('mb_strlen') && mb_strlen($downloadSubject, 'UTF-8') > 80) {
+  $downloadSubject = mb_substr($downloadSubject, 0, 80, 'UTF-8');
+}
+
+$downloadBaseName = $downloadSubject . '_เลขที่_' . (int) $docId;
+$pdfDownloadName = $downloadBaseName . '.pdf';
+$wordDownloadName = $downloadBaseName . '.docx';
+
 /* --------------------------------------------------
    คำนวณวันที่ไทย, งบประมาณ
 -------------------------------------------------- */
@@ -949,7 +967,7 @@ $len = max(20, $len);
 
         <!-- ปุ่มดาวน์โหลด Word -->
         <a href="/Pro_letter/documents/download_word_consent_research_presentation.php?id=<?= (int)$docId ?>"
-          data-word-download="1" onclick="return downloadWord(this);"
+          data-word-download="1" data-word-filename="<?= h($wordDownloadName) ?>" onclick="return downloadWord(this);"
           class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           ดาวน์โหลด Word
         </a>
@@ -1155,10 +1173,6 @@ $len = max(20, $len);
       btn.style.cursor = "wait";
     });
 
-    const downloadUrl = new URL(link.href, window.location.href);
-    downloadUrl.searchParams.set("_download_time", Date.now().toString());
-    link.href = downloadUrl.toString();
-
     const resetWordDownloadUI = () => {
       if (loadingOverlay) {
         loadingOverlay.style.display = "none";
@@ -1171,11 +1185,38 @@ $len = max(20, $len);
       });
     };
 
-    // ซ่อน popup ให้เร็วขึ้น เพราะการดาวน์โหลดแบบลิงก์ปกติไม่สามารถตรวจจับจังหวะที่ไฟล์ถูกบันทึกเสร็จได้โดยตรง
-    // ค่านี้ใช้ให้ popup ขึ้นทันทีตอนกด แล้วหายหลัง browser เริ่มรับไฟล์ดาวน์โหลดแล้ว
-    setTimeout(resetWordDownloadUI, 700);
+    const downloadUrl = new URL(link.href, window.location.href);
+    downloadUrl.searchParams.set("_download_time", Date.now().toString());
 
-    return true;
+    const fileName = link.dataset.wordFilename || "หนังสือยินยอมให้นำเสนอผลงานวิจัย.docx";
+
+    fetch(downloadUrl.toString(), {
+      method: "GET",
+      credentials: "same-origin"
+    })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error("Download failed");
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        const objectUrl = URL.createObjectURL(blob);
+        const tempLink = document.createElement("a");
+        tempLink.href = objectUrl;
+        tempLink.download = fileName;
+        document.body.appendChild(tempLink);
+        tempLink.click();
+        tempLink.remove();
+        URL.revokeObjectURL(objectUrl);
+      })
+      .catch(error => {
+        console.error(error);
+        alert("ดาวน์โหลด Word ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      })
+      .finally(resetWordDownloadUI);
+
+    return false;
   }
 
   async function downloadPdf() {
@@ -1384,7 +1425,8 @@ $len = max(20, $len);
         pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "FAST");
       }
 
-      pdf.save("consent_research_presentation_<?= $docId ?>.pdf");
+      const pdfFileName = <?= json_encode($pdfDownloadName, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+      pdf.save(pdfFileName);
 
     } catch (error) {
       console.error(error);

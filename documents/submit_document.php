@@ -7,6 +7,33 @@ require_once __DIR__ . '/../includes/send_mail.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
+/*
+ * ส่ง JSON กลับไปให้หน้าเว็บก่อน แล้วค่อยทำงานที่ช้า เช่น ส่งอีเมล ต่อหลังบ้าน
+ * เพื่อให้ปุ่ม "ยืนยันการส่ง" ตอบสนองเร็วขึ้น โดยไม่ต้องปรับ popup ฝั่งหน้าเว็บ
+ */
+function sendJsonResponseAndContinue(array $payload): void
+{
+    ignore_user_abort(true);
+
+    $json = json_encode($payload);
+
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
+    header('Content-Type: application/json; charset=utf-8');
+    header('Connection: close');
+    header('Content-Length: ' . strlen($json));
+
+    echo $json;
+
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+    } else {
+        flush();
+    }
+}
+
 if (!isset($_SESSION['user_id'])) {
     echo json_encode(['success' => false, 'message' => 'not_login']);
     exit;
@@ -166,16 +193,20 @@ try {
         ]);
     }
 
-    $mailSent = true;
+    // ตอบกลับหน้าเว็บทันทีหลังอัปเดตสถานะ + บันทึก notification เสร็จ
+    // ส่วนการส่งอีเมลทำต่อหลังส่ง response แล้ว เพื่อลดเวลารอของผู้ใช้
+    sendJsonResponseAndContinue([
+        'success' => true,
+        'mail_sent' => !empty($emailList) ? 'processing' : false
+    ]);
 
     if (!empty($emailList)) {
         $mailSent = sendSystemMail($emailList, $emailSubject, $emailBody);
+        if (!$mailSent) {
+            error_log('Submit Document Mail Error: document_id=' . $docId);
+        }
     }
 
-    echo json_encode([
-        'success' => true,
-        'mail_sent' => $mailSent
-    ]);
     exit;
 
 } catch (Exception $e) {

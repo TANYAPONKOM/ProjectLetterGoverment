@@ -8,14 +8,63 @@ if (!isset($_SESSION['role_id']) || $_SESSION['role_id'] != 1) {
 require_once __DIR__ . '/../functions.php';
 $pdo = getPDO();
 
-// รับ id จาก URL
-$id = $_GET['id'] ?? 0;
-$stmt = $pdo->prepare("SELECT * FROM template_fields WHERE field_id=?");
-$stmt->execute([$id]);
-$field = $stmt->fetch(PDO::FETCH_ASSOC);
+if (!function_exists('h')) {
+    function h($value) {
+        return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+    }
+}
 
-if (!$field) {
-    die("ไม่พบข้อมูล Field");
+$id = (int)($_GET['id'] ?? $_POST['template_id'] ?? 0);
+if ($id <= 0) {
+    die("ไม่พบข้อมูลเทมเพลต");
+}
+
+$error = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $templateCode = strtoupper(trim($_POST['template_code'] ?? ''));
+    $templateName = trim($_POST['template_name'] ?? '');
+    $questionPath = trim($_POST['question_path'] ?? '');
+    $documentPath = trim($_POST['document_path'] ?? '');
+    $templateGroup = trim($_POST['template_group'] ?? '');
+    $sortOrder = (int)($_POST['sort_order'] ?? 0);
+    $isActive = (int)($_POST['is_active'] ?? 1);
+    $isActive = $isActive === 1 ? 1 : 0;
+
+    if ($templateCode === '' || $templateName === '' || $questionPath === '' || $documentPath === '' || !in_array($templateGroup, ['internal', 'external'], true)) {
+        $error = 'กรุณากรอกข้อมูลให้ครบถ้วน';
+    } else {
+        $check = $pdo->prepare("SELECT COUNT(*) FROM templates WHERE template_code = ? AND template_id <> ?");
+        $check->execute([$templateCode, $id]);
+
+        if ((int)$check->fetchColumn() > 0) {
+            $error = 'รหัสเทมเพลตนี้มีอยู่แล้ว';
+        } else {
+            $stmt = $pdo->prepare("
+                UPDATE templates
+                SET template_code = ?,
+                    template_name = ?,
+                    question_path = ?,
+                    document_path = ?,
+                    template_group = ?,
+                    is_active = ?,
+                    sort_order = ?
+                WHERE template_id = ?
+            ");
+            $stmt->execute([$templateCode, $templateName, $questionPath, $documentPath, $templateGroup, $isActive, $sortOrder, $id]);
+
+            header('Location: form_Templates.php?status=saved');
+            exit;
+        }
+    }
+}
+
+$stmt = $pdo->prepare("SELECT * FROM templates WHERE template_id = ?");
+$stmt->execute([$id]);
+$template = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$template) {
+    die("ไม่พบข้อมูลเทมเพลต");
 }
 ?>
 <!DOCTYPE html>
@@ -23,11 +72,12 @@ if (!$field) {
 
 <head>
   <meta charset="UTF-8">
-  <title>Edit User</title>
+  <title>แก้ไขเทมเพลต</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
 <body class="bg-gray-100">
+  <!-- Header -->
   <header class="bg-teal-500 text-white p-4 flex justify-between items-center shadow-md">
     <div class="flex items-center space-x-3">
       <div class="w-[56px] h-[56px] flex items-center justify-center relative overflow-visible">
@@ -43,126 +93,93 @@ if (!$field) {
         <div class="text-[13px] mt-[0px]">Letter Assistant System</div>
       </div>
     </div>
-    <!-- <a href="user_Managerment.php" class="bg-white text-teal-500 px-3 py-1 rounded">กลับ</a> -->
+
+    <a href="form_Templates.php"
+      class="bg-white text-teal-600 px-4 py-2 rounded-[11px] shadow hover:bg-gray-100 font-semibold">
+      กลับหน้าจัดการเทมเพลต
+    </a>
   </header>
 
-  <body class="bg-gray-100">
-    <!-- Header Card -->
-    <div class="max-w-3xl mx-auto mt-10 bg-white rounded-xl shadow-lg overflow-hidden">
-      <div class="bg-teal-500 text-white text-center py-8 relative">
-        <div class="flex justify-center">
-          <div class="w-20 h-20 rounded-full bg-white flex items-center justify-center">
-            <svg class="h-12 w-12 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18" />
-            </svg>
-          </div>
+  <main class="max-w-4xl mx-auto mt-10 mb-12 bg-white rounded-2xl shadow-lg overflow-hidden">
+    <div class="bg-[#14b8a6] text-white px-8 py-7">
+      <h1 class="text-3xl font-bold">แก้ไขเทมเพลต</h1>
+      <p class="text-sm text-white/90 mt-1">ปรับชื่อ หมวด และสถานะการใช้งานของเทมเพลต</p>
+    </div>
+
+    <form method="POST" class="p-8 space-y-6">
+      <input type="hidden" name="template_id" value="<?= (int)$template['template_id'] ?>">
+
+      <?php if ($error !== ''): ?>
+      <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 font-semibold">
+        <?= h($error) ?>
+      </div>
+      <?php endif; ?>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label class="block font-semibold text-gray-700 mb-2">รหัสเทมเพลต</label>
+          <input type="text" name="template_code" value="<?= h($_POST['template_code'] ?? $template['template_code']) ?>" required
+            class="w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400">
         </div>
-        <h1 class="text-3xl font-bold mt-4">การแก้ไข Template Field</h1>
-        <p class="text-sm text-white/80">ปรับปรุงข้อมูล Field ในระบบ</p>
+
+        <div>
+          <label class="block font-semibold text-gray-700 mb-2">ลำดับการแสดงผล</label>
+          <input type="number" name="sort_order" value="<?= h($_POST['sort_order'] ?? $template['sort_order']) ?>"
+            class="w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400">
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="block font-semibold text-gray-700 mb-2">ชื่อเทมเพลต</label>
+          <input type="text" name="template_name" value="<?= h($_POST['template_name'] ?? $template['template_name']) ?>" required
+            class="w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-gray-700 mb-2">หมวดหลัก</label>
+          <?php $selectedGroup = $_POST['template_group'] ?? $template['template_group']; ?>
+          <select name="template_group" required
+            class="w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white">
+            <option value="">-- เลือกหมวดหลัก --</option>
+            <option value="external" <?= $selectedGroup === 'external' ? 'selected' : '' ?>>ภายนอก</option>
+            <option value="internal" <?= $selectedGroup === 'internal' ? 'selected' : '' ?>>ภายใน</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-gray-700 mb-2">สถานะการใช้งาน</label>
+          <?php $selectedActive = (string)($_POST['is_active'] ?? $template['is_active']); ?>
+          <select name="is_active"
+            class="w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white">
+            <option value="1" <?= $selectedActive === '1' ? 'selected' : '' ?>>เปิดใช้งาน</option>
+            <option value="0" <?= $selectedActive === '0' ? 'selected' : '' ?>>ปิดใช้งาน</option>
+          </select>
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="block font-semibold text-gray-700 mb-2">ไฟล์คำถาม</label>
+          <input type="text" name="question_path" value="<?= h($_POST['question_path'] ?? $template['question_path']) ?>" required
+            class="w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400">
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="block font-semibold text-gray-700 mb-2">ไฟล์เอกสารที่เจนออกมา</label>
+          <input type="text" name="document_path" value="<?= h($_POST['document_path'] ?? $template['document_path']) ?>" required
+            class="w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400">
+        </div>
       </div>
 
-      <!-- Form -->
-      <form action="template_process.php" method="POST" class="p-8 space-y-6">
-        <input type="hidden" name="action" value="edit">
-        <input type="hidden" name="field_id" value="<?= $field['field_id'] ?>">
-
-        <!-- Field Key -->
-        <div>
-          <label class="block font-semibold text-gray-700 mb-1">Field Key</label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18" />
-              </svg>
-            </span>
-            <input type="text" name="field_key" value="<?= htmlspecialchars($field['field_key']) ?>" required
-              class="w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
-              placeholder="Field Key">
-          </div>
-        </div>
-
-        <!-- Field Label -->
-        <div>
-          <label class="block font-semibold text-gray-700 mb-1">Field Label</label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-              </svg>
-            </span>
-            <input type="text" name="field_label" value="<?= htmlspecialchars($field['field_label']) ?>" required
-              class="w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
-              placeholder="Field Label">
-          </div>
-        </div>
-
-        <!-- Field Type -->
-        <div>
-          <label class="block font-semibold text-gray-700 mb-1">Field Type</label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9 17v-6h13v6H9zM9 7V4h13v3H9zM4 4h1v16H4z" />
-              </svg>
-            </span>
-            <select name="field_type"
-              class="w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400">
-              <option value="text" <?= $field['field_type']=='text'?'selected':'' ?>>Text</option>
-              <option value="textarea" <?= $field['field_type']=='textarea'?'selected':'' ?>>Textarea
-              </option>
-              <option value="date" <?= $field['field_type']=='date'?'selected':'' ?>>Date</option>
-              <option value="number" <?= $field['field_type']=='number'?'selected':'' ?>>Number</option>
-              <option value="select" <?= $field['field_type']=='select'?'selected':'' ?>>Select</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Required -->
-        <div>
-          <label class="block font-semibold text-gray-700 mb-1">Required</label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
-            </span>
-            <select name="is_required"
-              class="w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400">
-              <option value="1" <?= $field['is_required']==1?'selected':'' ?>>NOT NULL (จำเป็น)</option>
-              <option value="0" <?= $field['is_required']==0?'selected':'' ?>>NULL (ไม่จำเป็น)</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Sort Order -->
-        <div>
-          <label class="block font-semibold text-gray-700 mb-1">Sort Order</label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-              </svg>
-            </span>
-            <input type="number" name="sort_order" value="<?= $field['sort_order'] ?>"
-              class="w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
-              placeholder="Sort Order">
-          </div>
-        </div>
-
-        <!-- Buttons -->
-        <div class="flex justify-end space-x-3 pt-4">
-          <a href="form_Templates.php"
-            class="px-4 py-2 rounded-lg bg-gray-300 text-gray-700 font-semibold hover:bg-gray-400 transition">
-            ยกเลิก
-          </a>
-          <button type="submit"
-            class="px-6 py-2 rounded-lg bg-teal-500 text-white font-semibold hover:bg-teal-600 shadow">
-            บันทึก
-          </button>
-        </div>
-      </form>
-    </div>
-  </body>
+      <div class="flex justify-end gap-3 pt-4">
+        <a href="form_Templates.php"
+          class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 font-semibold">
+          ยกเลิก
+        </a>
+        <button type="submit"
+          class="px-5 py-2.5 rounded-xl bg-[#14b8a6] text-white hover:bg-teal-600 font-semibold shadow">
+          บันทึกการแก้ไข
+        </button>
+      </div>
+    </form>
+  </main>
+</body>
 
 </html>

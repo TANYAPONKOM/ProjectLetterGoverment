@@ -391,41 +391,19 @@ if (!isset($_SESSION['user_id'])) {
 
           <!-- PDF / Word -->
           <div class="flex items-center space-x-4">
+            <a href="${getDocumentWordDownloadUrl(req.document_id, req.route_hint)}"
+               data-word-filename="${makeThaiWordFileName(req)}"
+               onclick="return downloadWordThai(this);"
+               class="flex items-center space-x-1 text-blue-500 hover:underline">
+              <img src="https://cdn-icons-png.flaticon.com/16/281/281760.png">
+              <span>Word</span>
+            </a>
 
-            ${
-              req.word
-                ? `
-                  <a href="${req.word}" target="_blank"
-                     class="flex items-center space-x-1 text-blue-500 hover:underline">
-                    <img src="https://cdn-icons-png.flaticon.com/16/281/281760.png">
-                    <span>Word</span>
-                  </a>
-                `
-                : `
-                  <div class="flex items-center space-x-1 text-blue-500">
-                    <img src="https://cdn-icons-png.flaticon.com/16/281/281760.png">
-                    <span>Word</span>
-                  </div>
-                `
-            }
-
-            ${
-              req.pdf
-                ? `
-                  <a href="${req.pdf}" target="_blank"
-                     class="flex items-center space-x-1 text-red-500 hover:underline">
-                    <img src="https://cdn-icons-png.flaticon.com/16/337/337946.png">
-                    <span>PDF</span>
-                  </a>
-                `
-                : `
-                  <div class="flex items-center space-x-1 text-red-500">
-                    <img src="https://cdn-icons-png.flaticon.com/16/337/337946.png">
-                    <span>PDF</span>
-                  </div>
-                `
-            }
-
+            <a href="${getDocumentPdfDownloadUrl(req.document_id, req.route_hint)}" target="_blank"
+               class="flex items-center space-x-1 text-red-500 hover:underline">
+              <img src="https://cdn-icons-png.flaticon.com/16/337/337946.png">
+              <span>PDF</span>
+            </a>
           </div>
 
           <!-- ปุ่ม / ข้อความ -->
@@ -609,6 +587,115 @@ if (!isset($_SESSION['user_id'])) {
     );
 
     const baseUrl = matched ? matched.url : "../documents/view_memo.php";
+    return `${baseUrl}?id=${encodeURIComponent(docId)}`;
+  }
+
+  function getDocumentPdfDownloadUrl(docId, routeHint = "") {
+    return `../documents/auto_download_pdf.php?id=${encodeURIComponent(docId)}&hint=${encodeURIComponent(routeHint || "")}`;
+  }
+
+
+  function makeThaiWordFileName(req) {
+    const rawTitle = String((req && (req.title || req.join_type || req.detail)) || "เอกสาร");
+    const docId = String((req && req.document_id) || "").trim();
+
+    let fileName = rawTitle
+      .replace(/[\\\/:*?"<>|\r\n\t]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!fileName) {
+      fileName = "เอกสาร";
+    }
+
+    if (fileName.length > 90) {
+      fileName = fileName.substring(0, 90).trim();
+    }
+
+    if (docId) {
+      fileName += "_เลขที่_" + docId;
+    }
+
+    return fileName + ".docx";
+  }
+
+  function downloadWordThai(link) {
+    const url = link.getAttribute("href");
+    const fileName = link.getAttribute("data-word-filename") || "เอกสาร.docx";
+
+    fetch(url, {
+      method: "GET",
+      credentials: "same-origin"
+    })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error("download failed");
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        const objectUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = objectUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(objectUrl);
+      })
+      .catch(() => {
+        window.location.href = url;
+      });
+
+    return false;
+  }
+
+  function getDocumentWordDownloadUrl(docId, routeHint = "") {
+    const text = String(routeHint || "").trim();
+
+    const routes = [{
+        keywords: ["สหกิจ", "ประเมินสถานประกอบการ", "coop_evaluation"],
+        url: "../documents/download_word_coop_evaluation.php"
+      },
+      {
+        keywords: ["จัดกิจกรรมโครงการ", "กิจกรรมโครงการ", "project_activity"],
+        url: "../documents/download_word_project_activity.php"
+      },
+      {
+        keywords: ["ปริญญานิพนธ์", "ขอความอนุเคราะห์ข้อมูล", "research_data"],
+        url: "../documents/download_word_request_research_data.php"
+      },
+      {
+        keywords: ["เรียนเชิญวิทยากร", "เชิญวิทยากร", "invite_speaker_student", "invite"],
+        url: "../documents/download_word_invite_speaker.php"
+      },
+      {
+        keywords: ["ห้องพักรับรอง", "room_request"],
+        url: "../documents/download_word_room_request.php"
+      },
+      {
+        keywords: ["ตัวบุคคลเป็นวิทยากร", "speaker_workshop"],
+        url: "../documents/download_word_speaker.php"
+      },
+      {
+        keywords: ["ศึกษาดูงาน", "เข้าเยี่ยมชม", "study_visit"],
+        url: "../documents/download_word_sut_wellness.php"
+      },
+      {
+        keywords: ["ยินยอมให้นำเสนอผลงาน", "consent_research_presentation"],
+        url: "../documents/download_word_consent_research_presentation.php"
+      },
+      {
+        keywords: ["นำเสนอผลงานวิจัย", "academic"],
+        url: "../documents/download_word_academic_1.php"
+      }
+    ];
+
+    const matched = routes.find(route =>
+      route.keywords.some(keyword => text.includes(keyword))
+    );
+
+    const baseUrl = matched ? matched.url : "../documents/download_word_memo.php";
     return `${baseUrl}?id=${encodeURIComponent(docId)}`;
   }
 

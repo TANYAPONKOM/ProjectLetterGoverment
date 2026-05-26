@@ -105,6 +105,66 @@ if (empty($departmentOptions)) {
     ];
 }
 
+
+/* ===== โหลดรายการเทมเพลตสำหรับ dropdown หมวดหลัก/หมวดย่อย =====
+   ใช้เฉพาะ templates.is_active = 1 เท่านั้น
+   เพื่อให้หน้า admin เปิด/ปิดเทมเพลตแล้ว dropdown แสดงผลตามฐานข้อมูลจริง
+*/
+$templateDropdownOptions = [
+    'internal' => [],
+    'external' => []
+];
+
+try {
+    $templatePdo = db();
+    $templateStmt = $templatePdo->query("
+        SELECT
+            template_id,
+            template_code,
+            template_name,
+            question_path,
+            template_group,
+            is_active,
+            sort_order
+        FROM templates
+        WHERE is_active = 1
+          AND question_path IS NOT NULL
+          AND question_path <> ''
+          AND template_group IN ('internal', 'external')
+        ORDER BY sort_order ASC, template_id ASC
+    ");
+
+    $templateRows = $templateStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($templateRows as $tpl) {
+        $group = strtolower(trim((string)($tpl['template_group'] ?? '')));
+        $name  = trim((string)($tpl['template_name'] ?? ''));
+        $url   = trim((string)($tpl['question_path'] ?? ''));
+
+        if (!in_array($group, ['internal', 'external'], true)) {
+            continue;
+        }
+
+        if ($name === '' || $url === '') {
+            continue;
+        }
+
+        $templateDropdownOptions[$group][] = [
+            'id' => (int)($tpl['template_id'] ?? 0),
+            'code' => (string)($tpl['template_code'] ?? ''),
+            'name' => $name,
+            'url' => $url,
+            'group' => $group,
+            'is_active' => 1
+        ];
+    }
+} catch (Throwable $e) {
+    $templateDropdownOptions = [
+        'internal' => [],
+        'external' => []
+    ];
+}
+
 // function h($value) {
 //     return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
 // }
@@ -1751,104 +1811,114 @@ $oldIntentionText = $valueMap[25] ?? '';
     const sub = document.getElementById("subCategory");
     if (!main || !sub) return;
 
-    const SUB_OPTIONS = {
-      external: [
-        "ฝึกอบรม",
-        "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย",
-        "ขออนุมัติตัวบุคคลเป็นวิทยากร",
-        "ขอห้องพักรับรอง",
-        "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ",
-      ],
-      internal: [
-        "หนังสือเรียนเชิญวิทยากร",
-        "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์",
-        "ขอเข้าเยี่ยมศึกษาดูงาน",
-        "ขอเข้าไปจัดกิจกรรมโครงการ",
-        "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)",
-      ],
-    };
+    const TEMPLATE_OPTIONS =
+      <?= json_encode($templateDropdownOptions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?> || {
+        internal: [],
+        external: []
+      };
 
-    const ROUTE_SUB = {
-      "ฝึกอบรม": "/Pro_letter/documents/form_Memo.php",
-      "ขออนุมัติตัวบุคคลไปนำเสนอผลงานวิจัย": "/Pro_letter/documents/infor_academic_presentation.php",
-      "ขออนุมัติตัวบุคคลเป็นวิทยากร": "/Pro_letter/documents/infor_speaker_workshop.php",
-      "ขอห้องพักรับรอง": "/Pro_letter/documents/infor_room_request.php",
-      "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ": "/Pro_letter/documents/infor_present.php",
-
-      "หนังสือเรียนเชิญวิทยากร": "/Pro_letter/documents/infor_invite.php",
-      "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์": "/Pro_letter/documents/infor_research_data.php",
-      "ขอเข้าเยี่ยมศึกษาดูงาน": "/Pro_letter/documents/infor_study_visit.php",
-      "ขอเข้าไปจัดกิจกรรมโครงการ": "/Pro_letter/documents/infor_project_activity.php",
-      "ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)": "/Pro_letter/documents/infor_coop_evaluation.php",
-    };
-
-    function withSelection(url, mainVal, subVal = "") {
-      if (!url || url === "#") return "#";
-
-      const targetUrl = new URL(url, window.location.origin);
-      if (mainVal) targetUrl.searchParams.set("main", mainVal);
-      if (subVal) targetUrl.searchParams.set("sub", subVal);
-
-      return targetUrl.toString();
+    function buildTemplateUrl(path) {
+      const cleanPath = String(path || "").trim();
+      if (!cleanPath) return "";
+      if (/^https?:\/\//i.test(cleanPath) || cleanPath.startsWith("/Pro_letter/")) {
+        return cleanPath;
+      }
+      return "/Pro_letter" + (cleanPath.startsWith("/") ? cleanPath : "/" + cleanPath);
     }
 
-    function renderSubOptions(list, selectedValue = "") {
-      const cleanSelected = String(selectedValue || "").trim();
+    function getActiveTemplates(group) {
+      const groupName = String(group || "").trim().toLowerCase();
+      const rows = Array.isArray(TEMPLATE_OPTIONS[groupName]) ? TEMPLATE_OPTIONS[groupName] : [];
 
-      sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
+      return rows.filter(item => {
+        const isActive = Number(item?.is_active || 0) === 1;
+        const itemGroup = String(item?.group || "").trim().toLowerCase();
+        const name = String(item?.name || "").trim();
+        const url = String(item?.url || "").trim();
 
-      list.forEach(text => {
-        const cleanText = String(text || "").trim();
+        return isActive && itemGroup === groupName && name !== "" && url !== "";
+      });
+    }
+
+    function renderSubOptions(group, selectedValue = "") {
+      const selectedText = String(selectedValue || "").trim();
+      const list = getActiveTemplates(group);
+      let hasSelectedText = false;
+
+      sub.innerHTML = '<option value="" selected>-- เลือกหมวดย่อย --</option>';
+
+      list.forEach(item => {
+        const name = String(item.name || "").trim();
+        const url = String(item.url || "").trim();
+
         const opt = document.createElement("option");
-        opt.value = cleanText;
-        opt.textContent = cleanText;
+        opt.value = name;
+        opt.textContent = name;
+        opt.dataset.url = url;
+        opt.dataset.templateId = item.id || "";
+        opt.dataset.templateCode = item.code || "";
 
-        if (cleanText === cleanSelected) {
+        if (selectedText && name === selectedText) {
           opt.selected = true;
+          hasSelectedText = true;
         }
 
         sub.appendChild(opt);
       });
+
+      if (!selectedText || !hasSelectedText) {
+        sub.selectedIndex = 0;
+        sub.value = "";
+        sub.dataset.current = "";
+      }
     }
 
-    function syncUI() {
-      const mainVal = (main.value || "").trim();
-      const currentSub = (sub.dataset.current || "").trim();
+    function syncUI(keepCurrentSub = false) {
+      const mainVal = String(main.value || "").trim().toLowerCase();
+      const currentSub = keepCurrentSub ? String(sub.dataset.current || "").trim() : "";
 
-      if (mainVal === "external" || mainVal === "internal") {
+      if (mainVal === "internal" || mainVal === "external") {
         sub.disabled = false;
-        renderSubOptions(SUB_OPTIONS[mainVal] || [], currentSub);
+        renderSubOptions(mainVal, currentSub);
       } else {
         sub.disabled = true;
-        sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
-      }
-    }
-
-    function goSub() {
-      const mainVal = (main.value || "").trim();
-      const subVal = (sub.value || "").trim();
-
-      if (!subVal) {
         sub.dataset.current = "";
-        return;
+        sub.innerHTML = '<option value="" selected>-- เลือกหมวดย่อย --</option>';
+        sub.value = "";
       }
-
-      sub.dataset.current = subVal;
-
-      const target = ROUTE_SUB[subVal];
-      if (!target || target === "#") return;
-
-      window.location.href = withSelection(target, mainVal, subVal);
     }
 
     main.addEventListener("change", () => {
       sub.dataset.current = "";
-      syncUI();
+      syncUI(false);
     });
 
-    sub.addEventListener("change", goSub);
+    sub.addEventListener("focus", () => {
+      syncUI(true);
+    });
 
-    syncUI();
+    sub.addEventListener("pointerdown", () => {
+      syncUI(true);
+    });
+
+    sub.addEventListener("change", () => {
+      const subVal = String(sub.value || "").trim();
+      sub.dataset.current = subVal;
+
+      if (!subVal) return;
+
+      const selectedOption = sub.options[sub.selectedIndex];
+      const target = buildTemplateUrl(selectedOption?.dataset?.url || "");
+
+      if (!target || target === "#") return;
+      window.location.href = target;
+    });
+
+    window.addEventListener("pageshow", () => {
+      syncUI(true);
+    });
+
+    syncUI(true);
   });
   </script>
 

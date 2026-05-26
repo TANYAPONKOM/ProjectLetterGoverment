@@ -242,6 +242,23 @@ $header_text = $document["header_text"] ?? "";
 $doc_no = $document["doc_no"] ?? "";
 $subject = $document["subject"] ?? "";
 
+/* ===== ชื่อไฟล์ดาวน์โหลดภาษาไทย (ใช้กับ PDF และส่งต่อให้ Word) ===== */
+$downloadSubject = trim((string) $subject);
+if ($downloadSubject === '') {
+  $downloadSubject = 'บันทึกข้อความ';
+}
+$downloadSubject = preg_replace('/[\\\\\/\:\*\?\"\<\>\|\r\n\t]+/u', ' ', $downloadSubject);
+$downloadSubject = preg_replace('/\s+/u', ' ', $downloadSubject);
+$downloadSubject = trim($downloadSubject);
+
+if (function_exists('mb_strlen') && mb_strlen($downloadSubject, 'UTF-8') > 80) {
+  $downloadSubject = mb_substr($downloadSubject, 0, 80, 'UTF-8');
+}
+
+$downloadBaseName = 'บันทึกข้อความ_' . $downloadSubject . '_เลขที่_' . (int) $docId;
+$pdfDownloadName = $downloadBaseName . '.pdf';
+$wordDownloadName = $downloadBaseName . '.docx';
+
 $thaiDocDate = thai_date($docDate);
 $displayAmount = $budgetTotal > 0 ? $budgetTotal : (float)str_replace(',', '', $amountStr);
 $displayAmountNumber = number_format($displayAmount, 2);
@@ -405,6 +422,15 @@ $len = max(20, $len);
     display: inline-block;
     position: relative;
     top: 4px;
+  }
+
+
+  /* ปรับเฉพาะข้อความบนเส้นประส่วนหัวเอกสาร ไม่กระทบส่วน "เรื่อง" */
+  .doc-row:not(.subject-row) .dot-line > .chip {
+    display: inline-block;
+    position: relative;
+    top: -2px;
+    line-height: 1;
   }
 
   .subject-inline {
@@ -657,7 +683,9 @@ $len = max(20, $len);
         ดาวน์โหลด PDF
       </button>
 
-      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>"
+      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>&filename=<?= urlencode($wordDownloadName) ?>"
+        download="<?= h($wordDownloadName) ?>"
+        data-word-filename="<?= h($wordDownloadName) ?>"download="<?= h($wordDownloadName) ?>"
         data-word-download="1" onclick="return downloadWord(this);"
         class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
         ดาวน์โหลด Word
@@ -769,8 +797,9 @@ $len = max(20, $len);
         ดาวน์โหลด PDF
       </button>
 
-      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>"
-        data-word-download="1" onclick="return downloadWord(this);"
+      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>&filename=<?= urlencode($wordDownloadName) ?>"
+        download="<?= h($wordDownloadName) ?>"
+        data-word-filename="<?= h($wordDownloadName) ?>"data-word-download="1" onclick="return downloadWord(this);"
         class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
         ดาวน์โหลด Word
       </a>
@@ -880,8 +909,9 @@ $len = max(20, $len);
         ดาวน์โหลด PDF
       </button>
 
-      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>"
-        data-word-download="1" onclick="return downloadWord(this);"
+      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>&filename=<?= urlencode($wordDownloadName) ?>"
+        download="<?= h($wordDownloadName) ?>"
+        data-word-filename="<?= h($wordDownloadName) ?>"data-word-download="1" onclick="return downloadWord(this);"
         class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
         ดาวน์โหลด Word
       </a>
@@ -1057,8 +1087,9 @@ $len = max(20, $len);
           ดาวน์โหลด PDF
         </button>
 
-        <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>"
-          data-word-download="1" onclick="return downloadWord(this);"
+        <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>&filename=<?= urlencode($wordDownloadName) ?>"
+        download="<?= h($wordDownloadName) ?>"
+        data-word-filename="<?= h($wordDownloadName) ?>"data-word-download="1" onclick="return downloadWord(this);"
           class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           ดาวน์โหลด Word
         </a>
@@ -1188,6 +1219,8 @@ $len = max(20, $len);
     const loadingTitle = document.getElementById("downloadLoadingTitle");
     const loadingSubtitle = document.getElementById("downloadLoadingSubtitle");
     const wordLinks = document.querySelectorAll("a[data-word-download='1']");
+    const fallbackFileName = <?= json_encode($wordDownloadName, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    const fileName = link.dataset.wordFilename || link.getAttribute("download") || fallbackFileName || "บันทึกข้อความ.docx";
 
     if (loadingTitle) loadingTitle.innerText = "กำลังดาวน์โหลด Word...";
     if (loadingSubtitle) loadingSubtitle.innerText = "กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร";
@@ -1206,10 +1239,6 @@ $len = max(20, $len);
       btn.style.cursor = "wait";
     });
 
-    const downloadUrl = new URL(link.href, window.location.href);
-    downloadUrl.searchParams.set("_download_time", Date.now().toString());
-    link.href = downloadUrl.toString();
-
     const resetWordDownloadUI = () => {
       if (loadingOverlay) {
         loadingOverlay.style.display = "none";
@@ -1222,11 +1251,39 @@ $len = max(20, $len);
       });
     };
 
-    // ซ่อน popup ให้เร็วขึ้น เพราะการดาวน์โหลดแบบลิงก์ปกติไม่สามารถตรวจจับจังหวะที่ไฟล์ถูกบันทึกเสร็จได้โดยตรง
-    // ค่านี้ใช้ให้ popup ขึ้นทันทีตอนกด แล้วหายหลัง browser เริ่มรับไฟล์ดาวน์โหลดแล้ว
-    setTimeout(resetWordDownloadUI, 700);
+    const downloadUrl = new URL(link.href, window.location.href);
+    downloadUrl.searchParams.set("filename", fileName);
+    downloadUrl.searchParams.set("_download_time", Date.now().toString());
 
-    return true;
+    fetch(downloadUrl.toString(), {
+        method: "GET",
+        credentials: "same-origin"
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error("Word download failed");
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(blobUrl);
+      })
+      .catch(error => {
+        console.error(error);
+        alert("ดาวน์โหลด Word ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      })
+      .finally(() => {
+        resetWordDownloadUI();
+      });
+
+    return false;
   }
 
   async function downloadPdf() {
@@ -1340,6 +1397,15 @@ $len = max(20, $len);
           dot.style.borderTop = "2px dotted #000";
 
           line.prepend(dot);
+
+          if (!line.closest(".subject-row")) {
+            line.querySelectorAll(".chip").forEach(chip => {
+              chip.style.setProperty("display", "inline-block", "important");
+              chip.style.setProperty("position", "relative", "important");
+              chip.style.setProperty("top", "-2px", "important");
+              chip.style.setProperty("line-height", "1", "important");
+            });
+          }
         });
 
         // แก้ไขตำแหน่งเส้นประในส่วน "เรื่อง" (ค้นหาบรรทัดประมาณที่ 835)
@@ -1377,7 +1443,7 @@ $len = max(20, $len);
             // --- จุดสำคัญ: ปรับค่า top เพื่อให้ตัวอักษรขยับลงมาวางบนเส้นพอดี ---
             // ถ้าตัวอักษรลอยจากเส้นประมากไป ให้เพิ่มเลขนี้ (เช่น 8px, 9px)
             // ถ้าตัวอักษรจมเส้นประ ให้ลดเลขนี้ลง (เช่น 6px, 5px)
-            text.style.top = "8px";
+            text.style.top = "4px";
 
             text.style.zIndex = "3";
             text.style.background = "transparent";
@@ -1494,7 +1560,8 @@ $len = max(20, $len);
         pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "FAST");
       }
 
-      pdf.save("memo_<?= $docId ?>.pdf");
+      const pdfFileName = <?= json_encode($pdfDownloadName, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+      pdf.save(pdfFileName);
 
     } catch (error) {
       console.error(error);
