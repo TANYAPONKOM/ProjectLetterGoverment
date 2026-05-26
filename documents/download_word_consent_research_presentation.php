@@ -80,18 +80,64 @@ function consentField(array $valueMapByKey, array $valueMap, string $key, int $f
     return $v !== '' ? $v : $default;
 }
 
-function consentThaiDigit($text) {
+function consentArabicDigit($text) {
     return strtr((string)$text, [
-        '0' => '๐', '1' => '๑', '2' => '๒', '3' => '๓', '4' => '๔',
-        '5' => '๕', '6' => '๖', '7' => '๗', '8' => '๘', '9' => '๙',
+        '๐' => '0', '๑' => '1', '๒' => '2', '๓' => '3', '๔' => '4',
+        '๕' => '5', '๖' => '6', '๗' => '7', '๘' => '8', '๙' => '9',
     ]);
+}
+
+function consentThaiDateArabic($text) {
+    $text = consentArabicDigit((string)$text);
+
+    $thaiMonths = [
+        1 => 'มกราคม',
+        2 => 'กุมภาพันธ์',
+        3 => 'มีนาคม',
+        4 => 'เมษายน',
+        5 => 'พฤษภาคม',
+        6 => 'มิถุนายน',
+        7 => 'กรกฎาคม',
+        8 => 'สิงหาคม',
+        9 => 'กันยายน',
+        10 => 'ตุลาคม',
+        11 => 'พฤศจิกายน',
+        12 => 'ธันวาคม',
+    ];
+
+    $formatDate = function ($year, $month, $day) use ($thaiMonths) {
+        $year = (int)$year;
+        $month = (int)$month;
+        $day = (int)$day;
+
+        if ($year < 2400) {
+            $year += 543;
+        }
+
+        return $day . ' ' . ($thaiMonths[$month] ?? '') . ' ' . $year;
+    };
+
+    // รองรับรูปแบบ 2026-06-04
+    $text = preg_replace_callback('/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/u', function ($m) use ($formatDate) {
+        return $formatDate($m[1], $m[2], $m[3]);
+    }, $text);
+
+    // รองรับรูปแบบ 04/06/2026 หรือ 04-06-2026
+    $text = preg_replace_callback('/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/u', function ($m) use ($formatDate) {
+        return $formatDate($m[3], $m[2], $m[1]);
+    }, $text);
+
+    $text = preg_replace('/\s+/u', ' ', $text);
+    return trim($text);
 }
 
 function consentClean($text) {
     $text = str_replace(["\r", "\n", "\t"], ' ', (string)$text);
     $text = cleanWordText($text);
     $text = preg_replace('/[ ]{2,}/u', ' ', $text);
-    return trim(consentThaiDigit($text));
+
+    // Word ไฟล์นี้ให้เลขทั้งหมดเป็นเลขอารบิกเหมือนหน้าปกติ
+    return trim(consentArabicDigit($text));
 }
 
 function consentInlineText($text) {
@@ -264,7 +310,7 @@ $researchTitle = consentField($valueMapByKey, $valueMap, 'research_title', 13, '
 $conferenceLevel = consentField($valueMapByKey, $valueMap, 'conference_level', 15, '');
 $conferenceName = consentField($valueMapByKey, $valueMap, 'conference_name', 5, '');
 $conferencePlace = consentField($valueMapByKey, $valueMap, 'conference_place', 7, '');
-$presentationDate = consentField($valueMapByKey, $valueMap, 'presentation_date', 16, '');
+$presentationDate = consentThaiDateArabic(consentField($valueMapByKey, $valueMap, 'presentation_date', 16, ''));
 $signatureAffiliation = consentField($valueMapByKey, $valueMap, 'signature_affiliation', 17, '');
 
 $displayFaculty = consentClean($faculty);

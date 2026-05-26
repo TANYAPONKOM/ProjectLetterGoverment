@@ -240,7 +240,7 @@ $subject = $document["subject"] ?? "";
 
 /* ===== ชื่อไฟล์ดาวน์โหลดภาษาไทยตามข้อมูลเรื่อง (ใช้กับ PDF และ Word) ===== */
 $downloadSubject = 'หนังสือยินยอมให้นำเสนอผลงานวิจัย';
-$downloadSubject = preg_replace('/[\\\/\:\*\?"\<\>\|\r\n\t]+/u', ' ', $downloadSubject);
+$downloadSubject = preg_replace('~[\\\\/:*?"<>|\r\n\t]+~u', ' ', $downloadSubject);
 $downloadSubject = preg_replace('/\s+/u', ' ', $downloadSubject);
 $downloadSubject = trim($downloadSubject);
 
@@ -1191,9 +1191,9 @@ $len = max(20, $len);
     const fileName = link.dataset.wordFilename || "หนังสือยินยอมให้นำเสนอผลงานวิจัย.docx";
 
     fetch(downloadUrl.toString(), {
-      method: "GET",
-      credentials: "same-origin"
-    })
+        method: "GET",
+        credentials: "same-origin"
+      })
       .then(response => {
         if (!response.ok) {
           throw new Error("Download failed");

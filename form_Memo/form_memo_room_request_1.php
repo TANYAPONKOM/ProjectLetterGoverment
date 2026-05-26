@@ -158,6 +158,55 @@ function thai_date($ymd)
   return intval($d) . " " . $months[intval($m)] . " " . (intval($y) + 543);
 }
 
+
+function thai_date_flexible($dateText)
+{
+  $dateText = trim((string)$dateText);
+  if ($dateText === "") {
+    return "";
+  }
+
+  // ถ้าเป็นวันที่ไทยอยู่แล้ว ให้คืนค่าเดิม
+  if (preg_match('/[ก-๙]+/u', $dateText)) {
+    return $dateText;
+  }
+
+  // รูปแบบ 2026-09-06
+  if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $dateText, $m)) {
+    return thai_date(sprintf('%04d-%02d-%02d', (int)$m[1], (int)$m[2], (int)$m[3]));
+  }
+
+  // รูปแบบ 06/09/2026 หรือ 06-09-2026 จาก datepicker
+  // ตีความเป็น วัน/เดือน/ปี
+  if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $dateText, $m)) {
+    return thai_date(sprintf('%04d-%02d-%02d', (int)$m[3], (int)$m[2], (int)$m[1]));
+  }
+
+  return $dateText;
+}
+
+function thai_date_range_flexible($dateText)
+{
+  $dateText = trim((string)$dateText);
+  if ($dateText === "") {
+    return "";
+  }
+
+  // รองรับช่วงวันที่ เช่น 06/09/2026 ถึง 08/09/2026
+  if (preg_match('/\s*(?:ถึง|-|–|—|to)\s*/u', $dateText)) {
+    $parts = preg_split('/\s*(?:ถึง|-|–|—|to)\s*/u', $dateText);
+    if (count($parts) >= 2) {
+      $start = thai_date_flexible($parts[0]);
+      $end = thai_date_flexible($parts[1]);
+      if ($start !== "" && $end !== "") {
+        return $start . " ถึง " . $end;
+      }
+    }
+  }
+
+  return thai_date_flexible($dateText);
+}
+
 /* --------------------------------------------------
    Mapping ตัวแปรหลักจาก document_values
    ใช้ field_id จาก Request_3.php / save_memo.php
@@ -165,6 +214,22 @@ function thai_date($ymd)
 $docDate = $valueMap[1] ?? ($document['doc_date'] ?? "");
 $ownerName = $valueMap[2] ?? "";
 $position = $valueMap[3] ?? "";
+
+/* --------------------------------------------------
+   ลายเซ็นท้ายเอกสาร
+   ใช้ชื่อและตำแหน่งของผู้จัดทำเอกสารจากข้อมูลที่บันทึกไว้
+-------------------------------------------------- */
+$signatureName = trim((string)$ownerName);
+$signaturePosition = trim((string)$position);
+
+if ($signatureName === "") {
+  $signatureName = "................................";
+}
+
+if ($signaturePosition === "") {
+  $signaturePosition = "................................";
+}
+
 
 $faculty = $valueMap[10] ?? "";
 $department = $valueMap[11] ?? "";
@@ -218,7 +283,8 @@ $roomType = $valueMap[37] ?? "";
 $roomRequestText = (trim($roomRequest) === "อื่น ๆ" && trim($roomRequestOther) !== "") ? $roomRequestOther : $roomRequest;
 $personTypeText = (trim($personType) === "อื่น ๆ" && trim($personTypeOther) !== "") ? $personTypeOther : $personType;
 $reasonText = (trim($reason) === "อื่น ๆ" && trim($reasonOther) !== "") ? $reasonOther : $reason;
-$stayDateText = (trim($dateOption) === "range" && trim($rangeDate) !== "") ? $rangeDate : $singleDate;
+$rawStayDateText = (trim($dateOption) === "range" && trim($rangeDate) !== "") ? $rangeDate : $singleDate;
+$stayDateText = thai_date_range_flexible($rawStayDateText);
 
 /* --------------------------------------------------
    ⭐⭐⭐ สำคัญที่สุด — แก้ให้ส่วนหัวขึ้น ⭐⭐⭐
@@ -918,8 +984,8 @@ $len = max(20, $len);
 
       <div class="signature-wrapper">
         <div class="signature-block" id="signatureBlock">
-          <div class="sig-name">(ผู้ช่วยศาสตราจารย์ ดร.ขนิษฐา นามี)</div>
-          <div class="sig-position">หัวหน้า<?= h($displayDepartmentFull) ?></div>
+          <div class="sig-name">(<?= h($signatureName) ?>)</div>
+          <div class="sig-position"><?= h($signaturePosition) ?></div>
         </div>
       </div>
 
@@ -934,8 +1000,7 @@ $len = max(20, $len);
 
         <!-- ปุ่มดาวน์โหลด Word -->
         <a href="/Pro_letter/documents/download_word_room_request.php?id=<?= (int)$docId ?>" data-word-download="1"
-          data-word-filename="<?= h($wordDownloadName) ?>"
-          download="<?= h($wordDownloadName) ?>"
+          data-word-filename="<?= h($wordDownloadName) ?>" download="<?= h($wordDownloadName) ?>"
           onclick="return downloadWord(this);"
           class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           ดาวน์โหลด Word
@@ -1100,9 +1165,9 @@ $len = max(20, $len);
     const fileName = link.dataset.wordFilename || link.getAttribute("download") || "เอกสาร.docx";
 
     fetch(downloadUrl.toString(), {
-      method: "GET",
-      credentials: "same-origin"
-    })
+        method: "GET",
+        credentials: "same-origin"
+      })
       .then(response => {
         if (!response.ok) {
           throw new Error("download failed");

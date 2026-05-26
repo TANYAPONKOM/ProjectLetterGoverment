@@ -125,6 +125,68 @@ foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
 //   return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
 // }
 
+function splitSubjectLines($text, $limit = 78)
+{
+  $text = trim(preg_replace('/\s+/u', ' ', (string)$text));
+  if ($text === '') {
+    return [];
+  }
+
+  $lines = [];
+  $minCut = 48;
+
+  // จุดที่ควรตัดบรรทัดเมื่อหัวเรื่องยาวจริง ๆ
+  // ไม่ใส่คำว่า "เพื่อ" แล้ว เพราะจะทำให้บรรทัดแรกสั้นเกินและเหลือพื้นที่เยอะ
+  $beforeBreakWords = [
+    'การจัดการ', 'สำนักงาน', 'ยุคใหม่', 'และ', 'พร้อม', 'โดย', 'สำหรับ',
+    'ในการ', 'ตาม', 'เรื่อง', 'หลักสูตร', 'เกี่ยวกับ', 'แก่', 'ให้แก่', 'ภายใต้'
+  ];
+
+  while (mb_strlen($text, 'UTF-8') > $limit) {
+    $cutPos = 0;
+    $segment = mb_substr($text, 0, $limit, 'UTF-8');
+
+    // 1) ถ้ามีช่องว่าง ให้ตัดที่ช่องว่างก่อน โดยเลือกตำแหน่งที่ใกล้ limit ที่สุด
+    $spacePos = mb_strrpos($segment, ' ', 0, 'UTF-8');
+    if ($spacePos !== false && $spacePos >= $minCut) {
+      $cutPos = $spacePos;
+    }
+
+    // 2) ภาษาไทยไม่มีช่องว่าง ให้หาคำเชื่อมที่อยู่ใกล้ปลายบรรทัดที่สุด
+    foreach ($beforeBreakWords as $word) {
+      $pos = mb_strrpos($segment, $word, 0, 'UTF-8');
+      if ($pos !== false && $pos >= $minCut && $pos > $cutPos) {
+        $cutPos = $pos;
+      }
+    }
+
+    // 3) ถ้ายังหาไม่ได้ ค่อยตัดตามจำนวนตัวอักษร แต่พยายามไม่ตัดโดนสระ/วรรณยุกต์
+    if ($cutPos <= 0) {
+      $cutPos = $limit;
+      while ($cutPos > $minCut) {
+        $char = mb_substr($text, $cutPos, 1, 'UTF-8');
+        if (!preg_match('/[\x{0E31}\x{0E34}-\x{0E3A}\x{0E47}-\x{0E4E}]/u', $char)) {
+          break;
+        }
+        $cutPos--;
+      }
+    }
+
+    $line = trim(mb_substr($text, 0, $cutPos, 'UTF-8'));
+    if ($line !== '') {
+      $lines[] = $line;
+    }
+
+    $text = trim(mb_substr($text, $cutPos, null, 'UTF-8'));
+  }
+
+  if ($text !== '') {
+    $lines[] = $text;
+  }
+
+  return $lines;
+}
+
 function thai_date($ymd)
 {
   if (!$ymd || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $ymd))
@@ -207,6 +269,10 @@ switch (trim($joinType)) {
 $header_text = $document["header_text"] ?? "";
 $doc_no = $document["doc_no"] ?? "";
 $subject = $document["subject"] ?? "";
+$mainSubjectText = trim($subject) !== ''
+  ? trim($subject)
+  : 'ขออนุมัติตัวบุคคลเป็นวิทยากรบรรยายในโครงการอบรมเชิงปฏิบัติการ';
+$mainSubjectLines = splitSubjectLines($mainSubjectText, 78);
 
 /* ===== ชื่อไฟล์ดาวน์โหลดภาษาไทย (ใช้กับ PDF และ Word) ===== */
 $downloadSubject = trim((string) $subject);
@@ -813,6 +879,43 @@ $len = max(20, $len);
     line-height: 1.1 !important;
     max-width: none !important;
   }
+
+  /* ===== แก้เฉพาะแถว "เรื่อง" ให้แยกเป็นบรรทัดจริงแบบไฟล์ตัวอย่าง ===== */
+  .subject-row .subject-label {
+    width: 1.15cm !important;
+    flex: 0 0 1.15cm !important;
+  }
+
+  .subject-wrap {
+    flex: 1;
+    padding-left: 0;
+    margin-left: -8px;
+  }
+
+  .subject-line {
+    min-height: 22px;
+    line-height: 1.05;
+    border-bottom: 2px dotted #000;
+    padding-left: 19px;
+    padding-top: 4px;
+    font-family: "TH SarabunPSK";
+    font-size: 16pt;
+    font-weight: 300;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: normal;
+    line-break: auto;
+  }
+
+  .subject-text {
+    display: inline-block;
+    position: relative;
+    top: 4px;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: normal;
+    line-break: auto;
+  }
   </style>
 </head>
 
@@ -964,21 +1067,18 @@ $len = max(20, $len);
       </div>
 
       <!-- เรื่อง -->
-      <div class="doc-row subject-row" style="margin-bottom:25px;">
-        <div class="doc-label" style="font-size:20pt;font-weight:bold;position:relative;top:9px;">
-          เรื่อง
-        </div>
-        <div class="dot-line subject-line">
-          <span class="chip" contenteditable="true" data-target="subject"
-            style="display:inline-block; padding-left:28px;">
-            <?= h($subject ?: 'ขออนุมัติตัวบุคคลเป็นวิทยากรบรรยายในโครงการอบรมเชิงปฏิบัติการ') ?>
-          </span>
+      <div class="doc-row subject-row" style="align-items:flex-start;">
+        <div class="doc-label subject-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
+        <div class="subject-wrap">
+          <?php foreach ($mainSubjectLines as $subjectLine): ?>
+          <div class="subject-line"><span class="subject-text" lang="th"><?= h($subjectLine) ?></span></div>
+          <?php endforeach; ?>
         </div>
       </div>
 
       <!-- บรรทัด “เรียน” -->
       <div class="doc-row" style="
-        margin-top:-8px;
+        margin-top:4px;
         margin-bottom:18px;
         display:flex;
         align-items:baseline;
@@ -1072,10 +1172,8 @@ $len = max(20, $len);
         </button>
 
         <!-- ปุ่มดาวน์โหลด Word -->
-        <a href="/Pro_letter/documents/download_word_speaker.php?id=<?= (int)$docId ?>"
-          data-word-download="1"
-          data-word-filename="<?= h($wordDownloadName) ?>"
-          onclick="return downloadWord(this);"
+        <a href="/Pro_letter/documents/download_word_speaker.php?id=<?= (int)$docId ?>" data-word-download="1"
+          data-word-filename="<?= h($wordDownloadName) ?>" onclick="return downloadWord(this);"
           class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           ดาวน์โหลด Word
         </a>
@@ -1298,9 +1396,9 @@ $len = max(20, $len);
     const fileName = link.dataset.wordFilename || "บันทึกข้อความ.docx";
 
     fetch(downloadUrl.toString(), {
-      method: "GET",
-      credentials: "same-origin"
-    })
+        method: "GET",
+        credentials: "same-origin"
+      })
       .then(response => {
         if (!response.ok) {
           throw new Error("Download failed");
@@ -1416,8 +1514,6 @@ $len = max(20, $len);
           line.style.backgroundImage = "none";
           line.style.borderBottom = "none";
 
-          // ดึงเฉพาะตัวอักษรลงให้ชิดเส้นประมากขึ้น
-          // ไม่ขยับเส้นประ
           line.querySelectorAll(".chip").forEach(chip => {
             chip.style.setProperty("transform", "translateY(4.5px)", "important");
             chip.style.setProperty("line-height", "1", "important");
@@ -1430,10 +1526,7 @@ $len = max(20, $len);
           dot.style.position = "absolute";
           dot.style.left = "0";
           dot.style.right = "0";
-
-          // เส้นถูกแล้ว ห้ามแก้ตรงนี้
           dot.style.bottom = "-18px";
-
           dot.style.height = "0";
           dot.style.zIndex = "1";
           dot.style.pointerEvents = "none";
@@ -1441,6 +1534,43 @@ $len = max(20, $len);
 
           line.prepend(dot);
         });
+
+        // แก้เฉพาะเส้นประของแถว "เรื่อง" ให้เป็นหลายบรรทัดจริง ไม่ใช้ background ทับตัวหนังสือ
+        clone.querySelectorAll(".subject-line").forEach((line, index) => {
+          line.querySelectorAll(".pdf-subject-dot-line").forEach(el => el.remove());
+
+          line.style.position = "relative";
+          line.style.height = "auto";
+          line.style.minHeight = "20px";
+          line.style.lineHeight = "1.2";
+          line.style.paddingLeft = "18px";
+          line.style.paddingTop = "0";
+          line.style.paddingBottom = "16px";
+          line.style.margin = "0";
+
+          if (index > 0) {
+            line.style.marginTop = "-10px";
+          }
+
+          line.style.borderBottom = "2px dotted #000";
+          line.style.overflow = "visible";
+          line.style.fontSize = "16pt";
+          line.style.fontFamily = "TH SarabunPSK";
+          line.style.backgroundImage = "none";
+
+          line.querySelectorAll(".subject-text").forEach(text => {
+            text.style.display = "inline-block";
+            text.style.position = "relative";
+            text.style.top = "4px";
+            text.style.zIndex = "3";
+            text.style.background = "transparent";
+            text.style.whiteSpace = "normal";
+            text.style.wordBreak = "normal";
+            text.style.overflowWrap = "normal";
+            text.style.lineBreak = "auto";
+          });
+        });
+
         document.body.appendChild(clone);
 
         const PDF_SCALE = 2.2; // จุดสมดุล: เร็วขึ้น แต่ยังไม่ฟุ้งแบบ JPEG
@@ -1478,7 +1608,7 @@ $len = max(20, $len);
       }
 
       const pdfFileName = <?= json_encode($pdfDownloadName, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
-        pdf.save(pdfFileName);
+      pdf.save(pdfFileName);
 
     } catch (error) {
       console.error(error);

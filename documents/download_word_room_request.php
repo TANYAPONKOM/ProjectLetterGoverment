@@ -368,14 +368,27 @@ function addRoomRequestWordPage($phpWord, array $data) {
 
     addSignature(
         $section,
-        'ผู้ช่วยศาสตราจารย์ ดร.ขนิษฐา นามี',
-        'หัวหน้า' . $data['displayDepartmentFull']
+        $data['signatureName'],
+        $data['signaturePosition']
     );
 }
 
 $docDate = $valueMap[1] ?? ($document['doc_date'] ?? '');
 $ownerName = roomField($valueMapByKey, $valueMap, 'owner_name', 2, '');
 $position = roomField($valueMapByKey, $valueMap, 'position', 3, '');
+
+/* ลายเซ็นท้ายเอกสาร: ใช้ชื่อและตำแหน่งของผู้จัดทำเอกสาร */
+$signatureName = roomClean($ownerName);
+$signaturePosition = roomClean($position);
+
+if ($signatureName === '') {
+    $signatureName = '................................';
+}
+
+if ($signaturePosition === '') {
+    $signaturePosition = '................................';
+}
+
 $faculty = roomField($valueMapByKey, $valueMap, 'faculty', 10, 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม');
 $department = roomField($valueMapByKey, $valueMap, 'department', 11, 'เทคโนโลยีสารสนเทศ');
 
@@ -442,6 +455,8 @@ addRoomRequestWordPage($phpWord, [
     'stayDateText' => roomClean($stayDateText),
     'roomType' => roomClean($roomType),
     'reasonText' => roomClean($reasonText),
+    'signatureName' => $signatureName,
+    'signaturePosition' => $signaturePosition,
 ]);
 
 $filename = 'room_request_' . $docId . '.docx';
