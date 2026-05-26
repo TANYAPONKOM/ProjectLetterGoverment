@@ -229,6 +229,7 @@ $reasonOther      = trim($_POST['reason_other'] ?? '');
 $dateOption       = trim($_POST['date_option'] ?? 'single');
 $singleDate       = trim($_POST['single_date'] ?? '');
 $rangeDate        = trim($_POST['range_date'] ?? '');
+$roomType         = trim($_POST['room_type'] ?? '');
 $studyVisitPlace  = trim($_POST['visit_place'] ?? '');
 $studyPlaceDetail = trim($_POST['place_detail'] ?? '');
 $studyObjectiveText = trim($_POST['objective'] ?? '');
@@ -908,7 +909,7 @@ if ($isCoopEvaluation) {
 
     $hdrAgency = '';
     if ($row) {
-        $hdrAgency = $row['faculty_name'] . ' ภาค' . $row['department_name'] . ' โทร. ' . $row['phone'];
+        $hdrAgency = $row['faculty_name'] . ' ภาควิชา' . $row['department_name'] . ' โทร.' . $row['phone'];
     }
 
 
@@ -1002,6 +1003,17 @@ if (!$noCost && $totalAmount !== null && $totalAmount >= 0) {
 }
 
 $valuesByKey = [];
+
+$expenseJson = trim((string)($_POST['expense_json'] ?? ''));
+if ($noCost) {
+    $expenseJson = '';
+}
+if ($expenseJson !== '') {
+    json_decode($expenseJson, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        $expenseJson = '';
+    }
+}
 
 if ($isCoopEvaluation) {
     $coopStudentsJson = json_encode($coopStudents, JSON_UNESCAPED_UNICODE);
@@ -1244,6 +1256,11 @@ if ($isCoopEvaluation) {
         17 => ($purpose === 'consent_research_presentation') ? $signatureAffiliation : '',
     ];
 }
+
+    // เก็บรายละเอียดค่าใช้จ่ายแบบ JSON สำหรับใช้โหลดกลับตอนแก้ไข
+    // โดยเฉพาะค่าพาหนะ 2.4 เช่น ต้นทาง/ปลายทาง/สายการบิน/เส้นทางบิน
+    $values[20] = $expenseJson;
+    $valuesByKey['expense_json'] = $expenseJson;
 
     // อนุญาตเฉพาะ field_id ที่ template นี้มีจริง
     $q = $pdo->prepare("SELECT field_id FROM template_fields WHERE template_id = :tid");

@@ -1007,10 +1007,7 @@ if ($roleIdForHome === 1) {
                 7.รวมยอดประมาณการค่าใช้จ่าย :
               </label>
 
-              <input type="text" name="amount" id="amountInput" class="border rounded-md p-2 shadow-sm w-32 text-right"
-                value="<?= h($amountDisplay) ?>" inputmode="decimal">
-
-              <span class="text-gray-800">บาท</span>
+              <input type="hidden" name="amount" id="amountInput" value="<?= h($amountDisplay) ?>">
             </div>
 
             <label class="flex items-center gap-3 ml-6 mt-2">
@@ -1150,11 +1147,16 @@ if ($roleIdForHome === 1) {
               </div>
               <div class="md:col-span-2">
                 <label class="text-gray-700">ราคา/คืน</label>
-                <input type="number" id="lodUnit" class="w-full border rounded-md p-2" min="0" step="0.01" value="0">
+                <input type="number" id="lodUnit" class="w-full border rounded-md p-2" min="0" step="0.01" value="1500">
+                <div class="text-xs text-gray-500 mt-1">ค่าเริ่มต้นราชการ: 1 คน = 1,500/คืน, มากกว่า 1 คน = 1,000/คืน/คน
+                </div>
               </div>
               <div>
                 <label class="text-gray-700">จำนวนคืน</label>
-                <input type="number" id="lodNights" class="w-full border rounded-md p-2" min="1" step="1" value="1">
+                <input type="number" id="lodNights"
+                  class="w-full border rounded-md p-2 bg-gray-100 text-gray-600 cursor-not-allowed" min="1" step="1"
+                  value="1" readonly>
+                <div class="text-xs text-gray-500 mt-1">คำนวณจากวันที่เข้าพัก แก้ไขเองไม่ได้</div>
               </div>
               <div>
                 <label class="text-gray-700">จำนวนคน</label>
@@ -1169,7 +1171,7 @@ if ($roleIdForHome === 1) {
             <div class="flex items-center justify-between">
               <label class="font-bold text-gray-800 flex items-center gap-2">
                 <input type="checkbox" id="perEnabled" class="accent-black">
-                2.3 ค่าเบี้ยเลี้ยง
+                2.3 ค่าอาหาร
               </label>
               <div class="text-gray-800 font-bold">
                 <span id="perTotal">0.00</span> บาท
@@ -1178,7 +1180,8 @@ if ($roleIdForHome === 1) {
             <div id="perForm" class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
                 <label class="text-gray-700">ราคา/มื้อ</label>
-                <input type="number" id="perUnit" class="w-full border rounded-md p-2" min="0" step="0.01" value="0">
+                <input type="number" id="perUnit" class="w-full border rounded-md p-2" min="0" step="0.01" value="120">
+                <div class="text-xs text-gray-500 mt-1">ค่าเริ่มต้นราชการ: มื้อละ 120 บาท</div>
               </div>
               <div>
                 <label class="text-gray-700">จำนวนมื้อ</label>
@@ -1504,23 +1507,90 @@ if ($roleIdForHome === 1) {
     }
     purposeRadios.forEach(r => r.addEventListener("change", syncPurposeUI));
 
-    function syncPlaceUI() {
+    function syncPlaceUI(fromUserAction = false) {
+      if (!placeOnsite) return;
+
       if (onlineCheckbox?.checked) {
-        placeOnsite.value = "เข้าร่วมรูปแบบออนไลน์";
+        // เขียนค่าออนไลน์ทับเฉพาะตอนผู้ใช้กดเอง หรือช่องสถานที่ยังว่าง
+        // กัน Step 2 / browser restore ทำให้สถานที่ออนไซต์เด้งเป็นออนไลน์เอง
+        if (fromUserAction || !placeOnsite.value.trim()) {
+          placeOnsite.value = "เข้าร่วมรูปแบบออนไลน์";
+        }
+
         placeOnsite.readOnly = true;
         placeOnsite.disabled = false;
         placeOnsite.classList.add("bg-gray-100", "text-gray-400");
+        return;
       }
+
       if (onsiteCheckbox?.checked) {
         placeOnsite.readOnly = false;
         placeOnsite.disabled = false;
         placeOnsite.classList.remove("bg-gray-100", "text-gray-400");
-        if (placeOnsite.value === "เข้าร่วมรูปแบบออนไลน์") placeOnsite.value = "";
+
+        // ล้างค่าออนไลน์เฉพาะตอนผู้ใช้กดเลือกออนไซต์เอง
+        if (fromUserAction && placeOnsite.value === "เข้าร่วมรูปแบบออนไลน์") {
+          placeOnsite.value = "";
+        }
       }
     }
-    onlineCheckbox?.addEventListener("change", syncPlaceUI);
-    onsiteCheckbox?.addEventListener("change",
-      syncPlaceUI);
+
+    function preparePlaceForSubmit(showAlert = false) {
+      if (!placeOnsite || !onlineCheckbox || !onsiteCheckbox) return true;
+
+      if (onlineCheckbox.checked) {
+        placeOnsite.disabled = false;
+        placeOnsite.readOnly = true;
+        placeOnsite.value = "เข้าร่วมรูปแบบออนไลน์";
+        return true;
+      }
+
+      if (onsiteCheckbox.checked) {
+        placeOnsite.disabled = false;
+        placeOnsite.readOnly = false;
+        placeOnsite.classList.remove("bg-gray-100", "text-gray-400");
+
+        if (placeOnsite.value.trim() === "เข้าร่วมรูปแบบออนไลน์") {
+          placeOnsite.value = "";
+        }
+
+        if (!placeOnsite.value.trim()) {
+          if (showAlert) {
+            alert("กรุณาระบุสถานที่ไป (ออนไซต์)");
+          }
+          showStep1();
+          setTimeout(() => {
+            setError(placeOnsite, "กรุณาระบุสถานที่ไป (ออนไซต์)");
+            placeOnsite.scrollIntoView({
+              behavior: "smooth",
+              block: "center"
+            });
+            placeOnsite.focus?.();
+          }, 150);
+          return false;
+        }
+
+        return true;
+      }
+
+      if (showAlert) {
+        alert("กรุณาเลือก ออนไลน์ หรือ ออนไซต์");
+      }
+      showStep1();
+      setTimeout(() => {
+        const target = onlineCheckbox || onsiteCheckbox;
+        setError(target, "กรุณาเลือก ออนไลน์ หรือ ออนไซต์");
+        target?.scrollIntoView({
+          behavior: "smooth",
+          block: "center"
+        });
+        target?.focus?.();
+      }, 150);
+      return false;
+    }
+
+    onlineCheckbox?.addEventListener("change", () => syncPlaceUI(true));
+    onsiteCheckbox?.addEventListener("change", () => syncPlaceUI(true));
 
     function syncCostUI() {
       if (!amountInput) return;
@@ -2171,8 +2241,17 @@ if ($roleIdForHome === 1) {
         }
 
         if (onlineCheckbox?.checked) {
+          placeOnsite.disabled = false;
           placeOnsite.value = "เข้าร่วมรูปแบบออนไลน์";
         } else if (onsiteCheckbox?.checked) {
+          placeOnsite.disabled = false;
+          placeOnsite.readOnly = false;
+          placeOnsite.classList.remove("bg-gray-100", "text-gray-400");
+
+          if (placeOnsite.value.trim() === "เข้าร่วมรูปแบบออนไลน์") {
+            placeOnsite.value = "";
+          }
+
           if (!placeOnsite?.value?.trim()) {
             firstError = firstError || placeOnsite;
             setError(placeOnsite, "กรุณาระบุสถานที่ไป (ออนไซต์)");
@@ -2321,6 +2400,33 @@ if ($roleIdForHome === 1) {
 
     function money(x) {
       return (Math.round((x + Number.EPSILON) * 100) / 100).toFixed(2);
+    }
+
+    const GOV_LOD_RATE_ONE_PERSON = 1500;
+    const GOV_LOD_RATE_MULTI_PERSON = 1000;
+    const GOV_MEAL_RATE = 120;
+
+    function defaultLodRateByPeople() {
+      return n(lodPeople?.value || 1) > 1 ? GOV_LOD_RATE_MULTI_PERSON : GOV_LOD_RATE_ONE_PERSON;
+    }
+
+    function applyDefaultLodRate(force = false) {
+      if (!lodUnit) return;
+      const current = n(lodUnit.value);
+      const oldDefaultValues = [0, GOV_LOD_RATE_ONE_PERSON, GOV_LOD_RATE_MULTI_PERSON];
+      if (force || lodUnit.dataset.userEdited !== "1" || oldDefaultValues.includes(current)) {
+        lodUnit.value = String(defaultLodRateByPeople());
+        lodUnit.dataset.userEdited = "0";
+      }
+    }
+
+    function applyDefaultMealRate(force = false) {
+      if (!perUnit) return;
+      const current = n(perUnit.value);
+      if (force || perUnit.dataset.userEdited !== "1" || current === 0 || current === GOV_MEAL_RATE) {
+        perUnit.value = String(GOV_MEAL_RATE);
+        perUnit.dataset.userEdited = "0";
+      }
     }
     const lodMonthsTH = [
       "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
@@ -2843,6 +2949,21 @@ if ($roleIdForHome === 1) {
       }
       buildBudgetHiddenInputs();
     }
+    lodUnit?.addEventListener("input", () => {
+      lodUnit.dataset.userEdited = "1";
+    });
+    perUnit?.addEventListener("input", () => {
+      perUnit.dataset.userEdited = "1";
+    });
+    lodPeople?.addEventListener("input", () => {
+      applyDefaultLodRate(false);
+      calcAll();
+    });
+    lodPeople?.addEventListener("change", () => {
+      applyDefaultLodRate(false);
+      calcAll();
+    });
+
     [regPrice, regPeople, lodUnit, lodNights, lodPeople, perUnit, perMeals, perPeople]
     .forEach(el => el?.addEventListener("input", calcAll));
 
@@ -2981,7 +3102,7 @@ if ($roleIdForHome === 1) {
         if (amt !== "0.00") {
           addHidden("budget_type[]", "per_diem");
           addHidden("budget_desc[]",
-            `ค่าเบี้ยเลี้ยง (${n(perUnit.value)} × ${n(perMeals.value || 1)} มื้อ × ${n(perPeople.value || 1)} คน)`
+            `ค่าอาหาร (${n(perUnit.value)} × ${n(perMeals.value || 1)} มื้อ × ${n(perPeople.value || 1)} คน)`
           );
           addHidden("budget_amount[]", amt);
         }
@@ -3121,7 +3242,10 @@ if ($roleIdForHome === 1) {
           const hasPrefilledDate = prefillLodDateFromDescription(desc);
 
           if (lodEnabled) lodEnabled.checked = true;
-          if (lodUnit) lodUnit.value = typeof f.unit !== "undefined" ? f.unit : amt;
+          if (lodUnit) {
+            lodUnit.value = typeof f.unit !== "undefined" ? f.unit : amt;
+            lodUnit.dataset.userEdited = "1";
+          }
           if (lodPeople) lodPeople.value = typeof f.people !== "undefined" ? f.people : 1;
           if (!hasPrefilledDate && lodNights) {
             lodNights.value = typeof f.nights !== "undefined" ? f.nights : 1;
@@ -3134,7 +3258,10 @@ if ($roleIdForHome === 1) {
         if (type === "per_diem") {
           const f = parseBudgetFormula(desc, ["unit", "meals", "people"]);
           if (perEnabled) perEnabled.checked = true;
-          if (perUnit) perUnit.value = typeof f.unit !== "undefined" ? f.unit : amt;
+          if (perUnit) {
+            perUnit.value = typeof f.unit !== "undefined" ? f.unit : amt;
+            perUnit.dataset.userEdited = "1";
+          }
           if (perMeals) perMeals.value = typeof f.meals !== "undefined" ? f.meals : 1;
           if (perPeople) perPeople.value = typeof f.people !== "undefined" ? f.people : 1;
           return;
@@ -3177,8 +3304,8 @@ if ($roleIdForHome === 1) {
     }
 
     function hasLodgingInput() {
-      return n(lodUnit?.value) > 0 ||
-        n(lodNights?.value || 1) !== 1 ||
+      // ราคา/คืนมีค่าเริ่มต้นไว้ให้ตามอัตราราชการอยู่แล้ว จึงไม่ถือว่าเป็นการกรอกข้อมูล
+      return n(lodNights?.value || 1) !== 1 ||
         n(lodPeople?.value || 1) !== 1 ||
         !!(lodSingleDate?.value || "").trim() ||
         !!(lodStartDate?.value || "").trim() ||
@@ -3186,8 +3313,8 @@ if ($roleIdForHome === 1) {
     }
 
     function hasPerDiemInput() {
-      return n(perUnit?.value) > 0 ||
-        n(perMeals?.value || 1) !== 1 ||
+      // ราคา/มื้อมีค่าเริ่มต้น 120 บาทอยู่แล้ว จึงไม่ถือว่าเป็นการกรอกข้อมูล
+      return n(perMeals?.value || 1) !== 1 ||
         n(perPeople?.value || 1) !== 1;
     }
 
@@ -3216,7 +3343,7 @@ if ($roleIdForHome === 1) {
       }
 
       if (!perEnabled?.checked && hasPerDiemInput()) {
-        markExpenseBlockError(perEnabled, "กรุณาติ๊กเลือก 2.3 ค่าเบี้ยเลี้ยง ก่อนกรอกหรือบันทึกรายการนี้");
+        markExpenseBlockError(perEnabled, "กรุณาติ๊กเลือก 2.3 ค่าอาหาร ก่อนกรอกหรือบันทึกรายการนี้");
         return false;
       }
 
@@ -3228,6 +3355,8 @@ if ($roleIdForHome === 1) {
       return true;
     }
 
+    applyDefaultLodRate(false);
+    applyDefaultMealRate(false);
     preloadBudgetItems();
     syncEmpty(compList, compEmpty);
     syncEmpty(matList, matEmpty);
@@ -3235,6 +3364,12 @@ if ($roleIdForHome === 1) {
     calcAll();
 
     finalSubmitBtn?.addEventListener("click", (event) => {
+      if (!preparePlaceForSubmit(true)) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+
       if (!noCostCheckbox?.checked && !validateExpenseCheckboxes()) {
         event.preventDefault();
         event.stopPropagation();
@@ -3467,76 +3602,113 @@ if ($roleIdForHome === 1) {
     const approvedTexts = {};
     const correctedTexts = {};
 
-    async function checkSpellField(el) {
-      if (!el) return;
 
-      clearSpellResult(el);
+    const SPELL_TIMEOUT_MS = 60000;
+    const SPELL_CHUNK_LIMIT = 350;
 
-      if (!shouldCheckSpell(el)) {
-        return;
+    function splitTextForSpellCheck(text, limit = SPELL_CHUNK_LIMIT) {
+      const clean = String(text || "").trim();
+      if (!clean) return [];
+      if (clean.length <= limit) return [clean];
+
+      const parts = clean
+        .split(/(\n+|[.!?！？。]|[;；]|[,，])/)
+        .reduce((acc, part) => {
+          if (!part) return acc;
+          const last = acc[acc.length - 1] || "";
+          if (/^(\n+|[.!?！？。]|[;；]|[,，])$/.test(part) && last) {
+            acc[acc.length - 1] = last + part;
+          } else {
+            acc.push(part.trim());
+          }
+          return acc;
+        }, [])
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      const chunks = [];
+      let current = "";
+
+      function pushLongSegment(segment) {
+        let start = 0;
+        while (start < segment.length) {
+          chunks.push(segment.slice(start, start + limit));
+          start += limit;
+        }
       }
 
-      const text = (el.value || "").trim();
-      if (!text) {
-        return;
+      for (const part of parts.length ? parts : [clean]) {
+        if (part.length > limit) {
+          if (current) {
+            chunks.push(current);
+            current = "";
+          }
+          pushLongSegment(part);
+          continue;
+        }
+
+        const next = current ? `${current}\n${part}` : part;
+        if (next.length <= limit) {
+          current = next;
+        } else {
+          if (current) chunks.push(current);
+          current = part;
+        }
       }
 
-      const fieldName = el.dataset.spellField || "";
-      const cacheKey = `${fieldName}::${text}`;
-      if (isApprovedText(fieldName, text) || correctedTexts[fieldName] === text) {
+      if (current) chunks.push(current);
+      return chunks;
+    }
+
+    function normalizeSpellErrorsForCurrentText(errors, text) {
+      let normalized = (typeof normalizeErrors === "function") ?
+        normalizeErrors(errors || [], text) :
+        (Array.isArray(errors) ? errors : []);
+
+      if (typeof filterApprovedErrors === "function") {
+        normalized = filterApprovedErrors(normalized);
+      }
+
+      return Array.isArray(normalized) ? normalized : [];
+    }
+
+    function markSpellPassedUnified(el, fieldName, text) {
+      if (typeof setSpellPassed === "function") {
         setSpellPassed(el, fieldName, text, false);
         return;
       }
 
+      spellState[fieldName] = {
+        checked: true,
+        hasError: false,
+        ignored: false,
+        suggestions: [],
+        errors: [],
+        lastText: text
+      };
 
-      if (spellCache[cacheKey]) {
-        const cached = spellCache[cacheKey];
+      if (typeof clearSpellResult === "function") clearSpellResult(el);
+      if (typeof showSpellOk === "function") showSpellOk(el);
+    }
 
-        if (cached.hasError) {
-          const normalizedErrors = filterApprovedErrors(normalizeErrors(cached.errors || [], text));
+    function markSpellErrorUnified(el, fieldName, text, errors) {
+      spellState[fieldName] = {
+        checked: true,
+        hasError: true,
+        ignored: false,
+        suggestions: [],
+        errors,
+        lastText: text
+      };
 
-
-          if (normalizedErrors.length === 0) {
-            spellState[fieldName] = {
-              checked: true,
-              hasError: false,
-              ignored: false,
-              suggestions: [],
-              errors: [],
-              lastText: text
-            };
-            showSpellOk(el);
-            return;
-          }
-
-          spellState[fieldName] = {
-            checked: true,
-            hasError: true,
-            ignored: false,
-            suggestions: [],
-            errors: normalizedErrors,
-            lastText: text
-          };
-          showSpellError(el, normalizedErrors);
-        } else {
-          spellState[fieldName] = {
-            checked: true,
-            hasError: false,
-            ignored: false,
-            suggestions: [],
-            errors: [],
-            lastText: text
-          };
-          showSpellOk(el);
-        }
-        return;
+      if (typeof showSpellError === "function") {
+        showSpellError(el, errors);
       }
+    }
 
-      el.classList.add("opacity-50");
-      showSpellLoading(el);
-
+    async function fetchSpellChunk(fieldName, chunkText) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const timeoutId = setTimeout(() => controller.abort(), SPELL_TIMEOUT_MS);
 
       try {
         const response = await fetch("http://127.0.0.1:8001/api/spell-check", {
@@ -3546,7 +3718,7 @@ if ($roleIdForHome === 1) {
           },
           body: JSON.stringify({
             field: fieldName,
-            text: text
+            text: chunkText
           }),
           signal: controller.signal
         });
@@ -3557,51 +3729,120 @@ if ($roleIdForHome === 1) {
           throw new Error(`HTTP ${response.status}`);
         }
 
-        const result = await response.json();
-        spellCache[cacheKey] = result;
-
-        if (result.hasError) {
-          const normalizedErrors = filterApprovedErrors(normalizeErrors(result.errors || [], text));
-
-          if (normalizedErrors.length === 0) {
-            spellState[fieldName] = {
-              checked: true,
-              hasError: false,
-              ignored: false,
-              suggestions: [],
-              errors: [],
-              lastText: text
-            };
-            showSpellOk(el);
-            return;
-          }
-
-          spellState[fieldName] = {
-            checked: true,
-            hasError: true,
-            ignored: false,
-            suggestions: [],
-            errors: normalizedErrors,
-            lastText: text
-          };
-
-          showSpellError(el, normalizedErrors);
-        } else {
-          spellState[fieldName] = {
-            checked: true,
-            hasError: false,
-            ignored: false,
-            suggestions: [],
-            errors: [],
-            lastText: text
-          };
-
-          showSpellOk(el);
-        }
+        return await response.json();
       } catch (error) {
         clearTimeout(timeoutId);
+
+        // ข้อความยาวบางครั้ง request เก่าจะโดน abort ระหว่างพิมพ์/เปลี่ยนช่อง
+        // ไม่ถือว่า API ล่ม และไม่บล็อกการดำเนินการ
+        if (error && error.name === "AbortError") {
+          return {
+            aborted: true,
+            hasError: false,
+            errors: []
+          };
+        }
+
+        throw error;
+      }
+    }
+
+    async function checkSpellField(el) {
+      if (!el) return true;
+
+      if (typeof clearSpellResult === "function") {
+        clearSpellResult(el);
+      }
+
+      if (typeof shouldCheckSpell === "function" && !shouldCheckSpell(el)) {
+        return true;
+      }
+
+      const text = (el.value || "").trim();
+      if (!text) {
+        return true;
+      }
+
+      const fieldName = el.dataset.spellField || "";
+      if (!fieldName) {
+        return true;
+      }
+
+      const cacheKey = `${fieldName}::${text}`;
+
+      const alreadyApproved =
+        (typeof isApprovedText === "function" && isApprovedText(fieldName, text)) ||
+        (typeof isIgnoredForSameText === "function" && isIgnoredForSameText(fieldName, text)) ||
+        (typeof correctedTexts !== "undefined" && correctedTexts[fieldName] === text);
+
+      if (alreadyApproved) {
+        markSpellPassedUnified(el, fieldName, text);
+        return true;
+      }
+
+      if (typeof spellCache !== "undefined" && spellCache[cacheKey]) {
+        const cached = spellCache[cacheKey];
+        const cachedErrors = normalizeSpellErrorsForCurrentText(cached.errors || [], text);
+
+        if (cached.hasError && cachedErrors.length > 0) {
+          markSpellErrorUnified(el, fieldName, text, cachedErrors);
+          return false;
+        }
+
+        markSpellPassedUnified(el, fieldName, text);
+        return true;
+      }
+
+      el.classList.add("opacity-50");
+      if (typeof showSpellLoading === "function") {
+        showSpellLoading(el);
+      }
+
+      try {
+        const chunks = splitTextForSpellCheck(text);
+        let allErrors = [];
+        let wasAborted = false;
+
+        for (const chunk of chunks) {
+          const result = await fetchSpellChunk(fieldName, chunk);
+
+          if (result.aborted) {
+            wasAborted = true;
+            continue;
+          }
+
+          const chunkErrors = normalizeSpellErrorsForCurrentText(result.errors || [], chunk);
+          if (result.hasError && chunkErrors.length > 0) {
+            allErrors = allErrors.concat(chunkErrors);
+          }
+        }
+
+        allErrors = normalizeSpellErrorsForCurrentText(allErrors, text);
+
+        const finalResult = {
+          hasError: allErrors.length > 0,
+          errors: allErrors,
+          aborted: wasAborted
+        };
+
+        if (typeof spellCache !== "undefined" && !wasAborted) {
+          spellCache[cacheKey] = finalResult;
+        }
+
+        if (allErrors.length > 0) {
+          markSpellErrorUnified(el, fieldName, text, allErrors);
+          return false;
+        }
+
+        // ถ้า request บางส่วนถูก abort ให้ถือว่าไม่พบ error ณ ตอนนี้
+        // เพื่อไม่ให้ขึ้นแจ้ง API ล่มหรือบล็อกผู้ใช้
+        markSpellPassedUnified(el, fieldName, text);
+        return true;
+
+      } catch (error) {
         console.error("Spell check API error:", error);
 
+        // ถ้า API ล่มจริง ให้ไม่บล็อกการทำงาน แต่ไม่แสดงกล่องแดง/ส้มค้าง
         spellState[fieldName] = {
           checked: false,
           hasError: false,
@@ -3610,9 +3851,17 @@ if ($roleIdForHome === 1) {
           errors: [],
           lastText: ""
         };
+
+        if (typeof clearSpellResult === "function") {
+          clearSpellResult(el);
+        }
+
+        return true;
       } finally {
         el.classList.remove("opacity-50");
-        hideSpellLoading(el);
+        if (typeof hideSpellLoading === "function") {
+          hideSpellLoading(el);
+        }
       }
     }
 

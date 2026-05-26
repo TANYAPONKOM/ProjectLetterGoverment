@@ -139,8 +139,14 @@ function thai_num($text)
 
 function thai_date($ymd)
 {
-  if (!$ymd || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $ymd))
+  $ymd = trim((string)$ymd);
+
+  if ($ymd === '') {
     return "";
+  }
+  if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $ymd)) {
+    return thai_num($ymd);
+  }
   [$y, $m, $d] = explode("-", $ymd);
   $months = [
     1 => "มกราคม",

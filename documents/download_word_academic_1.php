@@ -67,6 +67,26 @@ $budgetStmt = $pdo->prepare("\n    SELECT item_type, description, amount\n    FR
 $budgetStmt->execute([':id' => $docId]);
 $budgetItems = $budgetStmt->fetchAll(PDO::FETCH_ASSOC);
 
+$departmentPhone = '';
+$docDepartmentId = (int)($document['department_id'] ?? 0);
+if ($docDepartmentId > 0) {
+    try {
+        $deptPhoneStmt = $pdo->prepare("
+            SELECT phone
+            FROM departments
+            WHERE department_id = :department_id
+            LIMIT 1
+        ");
+        $deptPhoneStmt->execute([':department_id' => $docDepartmentId]);
+        $deptPhoneRow = $deptPhoneStmt->fetch(PDO::FETCH_ASSOC);
+        if ($deptPhoneRow) {
+            $departmentPhone = trim((string)($deptPhoneRow['phone'] ?? ''));
+        }
+    } catch (Throwable $e) {
+        $departmentPhone = '';
+    }
+}
+
 function academicField(array $valueMapByKey, array $valueMap, string $key, int $fieldId = 0, string $default = '') {
     $v = $valueMapByKey[$key] ?? ($fieldId > 0 ? ($valueMap[$fieldId] ?? null) : null);
     $v = trim((string)($v ?? ''));
@@ -430,8 +450,8 @@ function addAcademicMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText,
         'width' => Converter::cmToTwip(16.0),
     ]);
     $agencyTable->addRow(null, ['exactHeight' => false]);
-    $agencyTable->addCell(Converter::cmToTwip(2.05), academicNoBorderCell())->addText('ส่วนราชการ', 'boldFont', academicHeaderPara());
-    $agencyTable->addCell(Converter::cmToTwip(13.95), academicDottedBottomCell())->addText(academicCleanNoDigit($headerText), 'normalFont', academicHeaderPara());
+    $agencyTable->addCell(Converter::cmToTwip(1.98), academicNoBorderCell())->addText('ส่วนราชการ', 'boldFont', academicHeaderPara());
+    $agencyTable->addCell(Converter::cmToTwip(14.02), academicDottedBottomCell())->addText(academicCleanNoDigit($headerText), 'normalFont', academicHeaderPara());
 
     // ที่ / วันที่ — แบ่งช่องวันที่ให้กว้างพอ เพื่อให้เส้นประต่อกับคำว่า วันที่ และค่าด้านขวาไม่ขึ้นบรรทัดใหม่
     $dateTable = $section->addTable([
@@ -657,7 +677,7 @@ $memoSubject = academicField($valueMapByKey, $valueMap, 'memo_subject', 14, (str
 $academicLevel = academicField($valueMapByKey, $valueMap, 'academic_level', 15, '');
 $eventDate = academicField($valueMapByKey, $valueMap, 'event_date', 16, '');
 
-$headerText = trim((string)($document['header_text'] ?? ''));
+$rawHeaderText = trim((string)($document['header_text'] ?? ''));
 $docNo = trim((string)($document['doc_no'] ?? ''));
 $subject = trim($memoSubject !== '' ? $memoSubject : (string)($document['subject'] ?? ''));
 
@@ -673,6 +693,10 @@ $displayDepartment = academicCleanNoDigit($department);
 $displayDepartmentFull = (mb_strpos($displayDepartment, 'ภาควิชา') === 0)
     ? $displayDepartment
     : 'ภาควิชา' . $displayDepartment;
+$headerText = trim($displayFaculty . ' ' . $displayDepartmentFull . ($departmentPhone !== '' ? ' โทร.' . $departmentPhone : ''));
+if ($headerText === '') {
+    $headerText = $rawHeaderText;
+}
 $displayFacultyDean = 'คณบดี' . $displayFaculty;
 $thaiDocDate = academicThaiDateAny($docDate);
 

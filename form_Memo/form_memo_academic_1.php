@@ -237,12 +237,39 @@ $amountStr = $valueMap[8] ?? "";
 $vehicle = $valueMap[9] ?? "";
 $faculty = $valueMap[10] ?? "";
 $department = $valueMap[11] ?? "";
+
+// ใช้เบอร์โทรของภาควิชาจากเอกสาร เพื่อให้แถวส่วนราชการเหมือน view_memo.php
+$departmentPhone = "";
+$docDepartmentId = (int)($document['department_id'] ?? 0);
+
+if ($docDepartmentId > 0) {
+  try {
+    $stmtDept = $pdo->prepare("
+      SELECT phone
+      FROM departments
+      WHERE department_id = :department_id
+      LIMIT 1
+    ");
+    $stmtDept->execute([
+      ':department_id' => $docDepartmentId
+    ]);
+
+    $deptRow = $stmtDept->fetch(PDO::FETCH_ASSOC);
+    if ($deptRow) {
+      $departmentPhone = trim((string)($deptRow['phone'] ?? ""));
+    }
+  } catch (Throwable $e) {
+    $departmentPhone = "";
+  }
+}
+
 $displayFaculty = trim($faculty) !== '' ? trim($faculty) : "คณะเทคโนโลยีและการจัดการอุตสาหกรรม";
 $displayDepartment = trim($department) !== '' ? trim($department) : "เทคโนโลยีสารสนเทศ";
 $displayDepartmentFull = "ภาควิชา" . $displayDepartment;
 $displayFacultyDean = "คณบดี" . $displayFaculty;
 $academicTopic = $valueMap[13] ?? "";
-$memoSubject   = $valueMap[14] ?? ($document['subject'] ?? "");
+$subject = $document["subject"] ?? "";
+$memoSubject = $valueMap[14] ?? $subject;
 $sectionSubject = cleanSectionSubject($memoSubject ?: $subject ?: 'ขออนุมัติ...');
 
 
@@ -293,8 +320,6 @@ switch (trim($joinType)) {
 
 $header_text = $document["header_text"] ?? "";
 $doc_no = $document["doc_no"] ?? "";
-$subject = $document["subject"] ?? "";
-
 /* --------------------------------------------------
    คำนวณวันที่ไทย, งบประมาณ
 -------------------------------------------------- */
@@ -306,7 +331,8 @@ $prettyAmount = $amountStr !== "" ? number_format((float) $amountStr, 2) : "";
 -------------------------------------------------- */
 $hdr_agency = trim(
   ($faculty ?: "คณะ..................................") . " " .
-  ($department ? "ภาควิชา" . $department : "ภาควิชา........................")
+  ($department ? "ภาควิชา" . $department : "ภาควิชา........................") .
+  ($departmentPhone ? " โทร. " . $departmentPhone : "")
 );
 
 $hdr_subject = $joinType ?: "เข้ารับการฝึกอบรมหลักสูตร";
@@ -598,6 +624,32 @@ $len = max(20, $len);
     /* ⭐ กดลงมาอีกนิดเพื่อให้ชิดเส้นมากที่สุด */
   }
 
+
+
+  /* แถวส่วนราชการ: ใช้รูปแบบเดียวกับ view_memo.php เพื่อไม่ให้ข้อความยาวตกบรรทัด */
+  .doc-row.gov-row>.doc-label {
+    width: auto !important;
+    min-width: 2.15cm !important;
+    white-space: nowrap !important;
+  }
+
+  .doc-row.gov-row>.dot-line {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0.25cm !important;
+    width: calc(100% - 2.15cm - 0.25cm) !important;
+    flex: 0 0 calc(100% - 2.15cm - 0.25cm) !important;
+  }
+
+  .doc-row.gov-row>.dot-line>.chip.gov-text {
+    display: inline-block !important;
+    margin-left: -0.05cm !important;
+    margin-right: 0 !important;
+    transform: none !important;
+    white-space: nowrap !important;
+    max-width: none !important;
+    flex-shrink: 0 !important;
+  }
 
 
   .expense-info-block {
@@ -982,11 +1034,11 @@ $len = max(20, $len);
       </div>
 
       <!-- ส่วนราชการ -->
-      <div class="doc-row">
+      <div class="doc-row gov-row">
         <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
         <div class="dot-line">
-          <span class="chip" contenteditable="true" data-target="header_text">
-            <?= h($header_text ?: 'คณะ... ภาค... โทร...') ?>
+          <span class="chip gov-text" contenteditable="true" data-target="header_text">
+            <?= h($hdr_agency ?: 'คณะ... ภาควิชา... โทร...') ?>
           </span>
         </div>
       </div>
@@ -1162,10 +1214,10 @@ $len = max(20, $len);
       <h1 class="doc-title">บันทึกข้อความ</h1>
     </div>
 
-    <div class="doc-row">
+    <div class="doc-row gov-row">
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
       <div class="dot-line">
-        <span class="chip"><?= h($header_text ?: 'คณะ... ภาค... โทร...') ?></span>
+        <span class="chip gov-text"><?= h($hdr_agency ?: 'คณะ... ภาควิชา... โทร...') ?></span>
       </div>
     </div>
 
@@ -1239,10 +1291,10 @@ $len = max(20, $len);
       <h1 class="doc-title">บันทึกข้อความ</h1>
     </div>
 
-    <div class="doc-row">
+    <div class="doc-row gov-row">
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
       <div class="dot-line">
-        <span class="chip"><?= h($header_text ?: 'คณะ... ภาค... โทร...') ?></span>
+        <span class="chip gov-text"><?= h($hdr_agency ?: 'คณะ... ภาควิชา... โทร...') ?></span>
       </div>
     </div>
 

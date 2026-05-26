@@ -209,6 +209,34 @@ $doc_no = $document["doc_no"] ?? "";
 $subject = $document["subject"] ?? "";
 
 /* --------------------------------------------------
+   เบอร์โทรภาควิชา สำหรับแถวส่วนราชการ
+-------------------------------------------------- */
+$departmentPhone = "";
+try {
+  $deptIdForPhone = (int)($document['department_id'] ?? 0);
+  if ($deptIdForPhone > 0) {
+    $colsStmt = $pdo->query("SHOW COLUMNS FROM departments");
+    $deptCols = $colsStmt ? $colsStmt->fetchAll(PDO::FETCH_COLUMN) : [];
+    $phoneCandidates = ['phone', 'department_phone', 'tel', 'telephone', 'department_tel'];
+    $phoneCol = '';
+    foreach ($phoneCandidates as $candidate) {
+      if (in_array($candidate, $deptCols, true)) {
+        $phoneCol = $candidate;
+        break;
+      }
+    }
+
+    if ($phoneCol !== '') {
+      $phoneStmt = $pdo->prepare("SELECT `$phoneCol` AS phone_value FROM departments WHERE department_id = :department_id LIMIT 1");
+      $phoneStmt->execute([':department_id' => $deptIdForPhone]);
+      $departmentPhone = trim((string)($phoneStmt->fetchColumn() ?: ''));
+    }
+  }
+} catch (Throwable $e) {
+  $departmentPhone = "";
+}
+
+/* --------------------------------------------------
    คำนวณวันที่ไทย, งบประมาณ
 -------------------------------------------------- */
 $thaiDocDate = thai_date($docDate);
@@ -224,7 +252,8 @@ $prettyAmount = $amountStr !== "" ? number_format((float) $amountStr, 2) : "";
 -------------------------------------------------- */
 $hdr_agency = trim(
   ($faculty ?: "คณะ..................................") . " " .
-  ($department ? "ภาควิชา" . $department : "ภาควิชา........................")
+  ($department ? "ภาควิชา" . $department : "ภาควิชา........................") .
+  ($departmentPhone !== "" ? " โทร." . $departmentPhone : "")
 );
 
 $hdr_subject = $joinType ?: "เข้ารับการฝึกอบรมหลักสูตร";
@@ -728,6 +757,44 @@ $len = max(20, $len);
       transform: rotate(360deg);
     }
   }
+
+  /* ===== แก้เฉพาะแถวส่วนราชการ: กันข้อความยาวตกบรรทัดและยกข้อความขึ้นบนเส้นประ ===== */
+  .doc-row.gov-row {
+    flex-wrap: nowrap !important;
+    align-items: flex-end !important;
+  }
+
+  .doc-row.gov-row>.doc-label {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+    margin-right: 0 !important;
+  }
+
+  .doc-row.gov-row>.dot-line {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    height: 28px !important;
+    padding-top: 0 !important;
+    display: flex !important;
+    align-items: flex-end !important;
+    overflow: visible !important;
+  }
+
+  .doc-row.gov-row>.dot-line::after {
+    bottom: 0 !important;
+  }
+
+  .doc-row.gov-row>.dot-line>.chip.gov-text {
+    display: inline-block !important;
+    white-space: nowrap !important;
+    margin-left: 0 !important;
+    margin-right: 4px !important;
+    padding: 0 4px 0 2px !important;
+    position: relative !important;
+    top: 3px !important;
+    line-height: 1.1 !important;
+    max-width: none !important;
+  }
   </style>
 </head>
 
@@ -842,13 +909,13 @@ $len = max(20, $len);
       </div>
 
       <!-- ส่วนราชการ -->
-      <div class="doc-row">
+      <div class="doc-row gov-row">
         <div class="doc-label" style="font-size:20pt;font-weight:bold;position:relative;top:9px;">
           ส่วนราชการ
         </div>
         <div class="dot-line">
-          <span class="chip" contenteditable="true" data-target="header_text">
-            <?= h($header_text ?: 'คณะ... ภาค... โทร...') ?>
+          <span class="chip gov-text" contenteditable="true" data-target="header_text">
+            <?= h($hdr_agency ?: ($header_text ?: 'คณะ... ภาควิชา... โทร...')) ?>
           </span>
         </div>
       </div>

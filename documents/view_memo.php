@@ -55,6 +55,9 @@ $stmt->execute([':id' => $docId]);
 $document = $stmt->fetch(PDO::FETCH_ASSOC);
 $docStatus = $document['status'];
 
+
+
+
 if (!$document)
   exit("ไม่พบเอกสาร");
 
@@ -206,7 +209,30 @@ $researchTitle = $valueMap[13] ?? "";
 
 
 $noCost = (($valueMap[12] ?? '0') === '1');
+$faculty = $valueMap[10] ?? "";
+$department = $valueMap[11] ?? "";
 
+$departmentPhone = "";
+
+$docDepartmentId = (int)($document['department_id'] ?? 0);
+
+if ($docDepartmentId > 0) {
+  $stmtDept = $pdo->prepare("
+    SELECT phone
+    FROM departments
+    WHERE department_id = :department_id
+    LIMIT 1
+  ");
+  $stmtDept->execute([
+    ':department_id' => $docDepartmentId
+  ]);
+
+  $deptRow = $stmtDept->fetch(PDO::FETCH_ASSOC);
+
+  if ($deptRow) {
+    $departmentPhone = trim($deptRow['phone'] ?? "");
+  }
+}
 $budgetStmt = $pdo->prepare("
   SELECT item_type, description, amount
   FROM budget_items
@@ -249,7 +275,8 @@ $displayAmountThai = thaiBahtText($displayAmount);
 
 $hdr_agency = trim(
   ($faculty ?: "คณะ..................................") . " " .
-  ($department ? "ภาควิชา" . $department : "ภาควิชา........................")
+  ($department ? "ภาควิชา" . $department : "ภาควิชา........................") .
+  ($departmentPhone ? " โทร. " . $departmentPhone : "")
 );
 
 $hdr_subject = $joinType ?: "เข้ารับการฝึกอบรมหลักสูตร";
@@ -505,6 +532,47 @@ $len = max(20, $len);
     line-height: 1.1;
   }
 
+  /* ขยับเฉพาะข้อความ "คณะ...ภาค...โทร..." ในบรรทัดส่วนราชการ */
+  .gov-agency-line .gov-agency-text {
+    margin-left: -0.40cm !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 4px !important;
+    position: relative !important;
+    left: 0 !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+
+
+
+  /* แถวส่วนราชการ: ไม่ให้คำว่า "ส่วนราชการ" แตก และขยับเฉพาะจุดเริ่มข้อความคณะ */
+  .doc-row.gov-row>.doc-label {
+    width: auto !important;
+    min-width: 2.15cm !important;
+    white-space: nowrap !important;
+  }
+
+  .doc-row.gov-row>.dot-line {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+  }
+
+  .doc-row.gov-row>.dot-line {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0.25cm !important;
+    width: calc(100% - 2.15cm - 0.25cm) !important;
+    flex: 0 0 calc(100% - 2.15cm - 0.25cm) !important;
+  }
+
+  .doc-row.gov-row>.dot-line>.chip.gov-text {
+    display: inline-block !important;
+    margin-left: -0.05cm !important;
+    transform: none !important;
+    white-space: nowrap !important;
+  }
+
   @keyframes pdfSpin {
     from {
       transform: rotate(0deg);
@@ -568,11 +636,11 @@ $len = max(20, $len);
       <img src="/pro_letter/assets/img/garuda.jpg" class="garuda-img" />
       <h1 class="doc-title">บันทึกข้อความ</h1>
     </div>
-    <div class="doc-row">
+    <div class="doc-row gov-row">
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
       <div class="dot-line">
-        <span class="chip">
-          <?= h($header_text ?: 'คณะ... ภาค... โทร...') ?>
+        <span class="chip gov-text">
+          <?= h($hdr_agency ?: 'คณะ... ภาควิชา... โทร...') ?>
         </span>
       </div>
     </div>
@@ -657,8 +725,8 @@ $len = max(20, $len);
         ดาวน์โหลด PDF
       </button>
 
-      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>"
-        data-word-download="1" onclick="return downloadWord(this);"
+      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>" data-word-download="1"
+        onclick="return downloadWord(this);"
         class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
         ดาวน์โหลด Word
       </a>
@@ -686,11 +754,11 @@ $len = max(20, $len);
       <img src="/Pro_letter/assets/img/garuda.jpg" class="garuda-img" />
       <h1 class="doc-title">บันทึกข้อความ</h1>
     </div>
-    <div class="doc-row">
+    <div class="doc-row gov-row">
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
       <div class="dot-line">
-        <span class="chip">
-          <?= h($header_text ?: 'คณะ... ภาค... โทร...') ?>
+        <span class="chip gov-text">
+          <?= h($hdr_agency  ?: 'คณะ... ภาควิชา... โทร...') ?>
         </span>
       </div>
     </div>
@@ -769,8 +837,8 @@ $len = max(20, $len);
         ดาวน์โหลด PDF
       </button>
 
-      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>"
-        data-word-download="1" onclick="return downloadWord(this);"
+      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>" data-word-download="1"
+        onclick="return downloadWord(this);"
         class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
         ดาวน์โหลด Word
       </a>
@@ -800,11 +868,11 @@ $len = max(20, $len);
       <img src="/Pro_letter/assets/img/garuda.jpg" class="garuda-img" />
       <h1 class="doc-title">บันทึกข้อความ</h1>
     </div>
-    <div class="doc-row">
+    <div class="doc-row gov-row">
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
       <div class="dot-line">
-        <span class="chip">
-          <?= h($header_text ?: 'คณะ... ภาค... โทร...') ?>
+        <span class="chip gov-text">
+          <?= h($hdr_agency ?: 'คณะ... ภาควิชา... โทร...') ?>
         </span>
       </div>
     </div>
@@ -880,8 +948,8 @@ $len = max(20, $len);
         ดาวน์โหลด PDF
       </button>
 
-      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>"
-        data-word-download="1" onclick="return downloadWord(this);"
+      <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>" data-word-download="1"
+        onclick="return downloadWord(this);"
         class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
         ดาวน์โหลด Word
       </a>
@@ -1057,8 +1125,8 @@ $len = max(20, $len);
           ดาวน์โหลด PDF
         </button>
 
-        <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>"
-          data-word-download="1" onclick="return downloadWord(this);"
+        <a href="/Pro_letter/documents/download_word_memo.php?id=<?= (int)$docId ?>" data-word-download="1"
+          onclick="return downloadWord(this);"
           class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           ดาวน์โหลด Word
         </a>
@@ -1183,6 +1251,7 @@ $len = max(20, $len);
       });
     }
   });
+
   function downloadWord(link) {
     const loadingOverlay = document.getElementById("pdfLoadingOverlay");
     const loadingTitle = document.getElementById("downloadLoadingTitle");

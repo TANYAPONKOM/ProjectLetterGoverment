@@ -173,6 +173,35 @@ $displayDepartment = trim($department) !== '' ? trim($department) : "เทค�
 $displayDepartmentFull = "ภาควิชา" . $displayDepartment;
 $displayFacultyDean = "คณบดี" . $displayFaculty;
 
+$departmentPhone = "";
+$docDepartmentId = (int)($document['department_id'] ?? 0);
+
+try {
+  if ($docDepartmentId > 0) {
+    $phoneStmt = $pdo->prepare("
+      SELECT phone
+      FROM departments
+      WHERE department_id = :department_id
+      LIMIT 1
+    ");
+    $phoneStmt->execute([':department_id' => $docDepartmentId]);
+    $departmentPhone = trim((string)($phoneStmt->fetchColumn() ?: ""));
+  }
+
+  if ($departmentPhone === "" && trim($displayDepartment) !== "") {
+    $phoneStmt = $pdo->prepare("
+      SELECT phone
+      FROM departments
+      WHERE department_name = :department_name
+      LIMIT 1
+    ");
+    $phoneStmt->execute([':department_name' => trim($displayDepartment)]);
+    $departmentPhone = trim((string)($phoneStmt->fetchColumn() ?: ""));
+  }
+} catch (Throwable $e) {
+  $departmentPhone = "";
+}
+
 $toPerson = $valueMap[26] ?? "ประธานคณะกรรมการบ้านพัก มจพ. วิทยาเขตปราจีนบุรี";
 $roomRequest = $valueMap[27] ?? "";
 $roomRequestOther = $valueMap[28] ?? "";
@@ -209,7 +238,7 @@ $prettyAmount = "";
 /* --------------------------------------------------
    สร้างข้อความส่วนหัวที่ใช้ในเนื้อหา
 -------------------------------------------------- */
-$hdr_agency = trim($displayFaculty . " " . $displayDepartmentFull);
+$hdr_agency = trim($displayFaculty . " " . $displayDepartmentFull . ($departmentPhone !== "" ? " โทร. " . $departmentPhone : ""));
 
 $hdr_subject = "ขออนุมัติใช้ห้องพักรับรอง";
 $hdr_to = $toPerson ?: "ประธานคณะกรรมการบ้านพัก มจพ. วิทยาเขตปราจีนบุรี";
@@ -495,6 +524,34 @@ $len = max(20, $len);
     /* ตำแหน่งพื้นฐานของข้อความบนเส้นประ */
   }
 
+  /* ===== FIX: ส่วนราชการยาว ไม่ให้ตกบรรทัด และให้ข้อความอยู่บนเส้นประ ===== */
+  .doc-row.gov-row {
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+  }
+
+  .doc-row.gov-row>.doc-label {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+    margin-right: 0 !important;
+  }
+
+  .doc-row.gov-row>.dot-line {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+
+  .doc-row.gov-row>.dot-line>.chip.gov-text {
+    display: inline-block !important;
+    white-space: nowrap !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    transform: none !important;
+    line-height: 0.9 !important;
+    top: -1px !important;
+  }
+
   .content-block.single .chip {
     margin-left: 22px;
   }
@@ -758,11 +815,11 @@ $len = max(20, $len);
       </div>
 
       <!-- ส่วนราชการ -->
-      <div class="doc-row">
+      <div class="doc-row gov-row">
         <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
         <div class="dot-line">
-          <span class="chip" contenteditable="false" data-target="header_text">
-            <?= h($header_text ?: 'คณะ... ภาค... โทร...') ?>
+          <span class="chip gov-text" contenteditable="false" data-target="header_text">
+            <?= h($hdr_agency ?: $header_text ?: 'คณะ... ภาควิชา... โทร...') ?>
           </span>
         </div>
       </div>

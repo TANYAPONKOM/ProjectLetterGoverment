@@ -240,6 +240,12 @@ if (!isset($_SESSION['user_id'])) {
       ].join(" ");
 
       let title = d.join_type || "";
+
+      // แสดงชื่อรายการสำหรับเอกสารนำเสนอผลงานวิจัยให้ตรงกับชื่อฟอร์ม
+      if (title.trim() === "นำเสนอผลงานวิจัย") {
+        title = "ขออนุมัติตัวบุคคลเพื่อไปนำเสนอผลงานวิจัย";
+      }
+
       if (title.trim() === "อื่นๆ" && (
           routeHint.includes("consent_research_presentation") ||
           routeHint.includes("infor_present") ||

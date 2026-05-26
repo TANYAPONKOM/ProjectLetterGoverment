@@ -599,6 +599,27 @@ $len = max(20, $len);
     border-top: 1px solid #e5e7eb;
   }
 
+  /* เพิ่มพื้นที่ด้านล่างเฉพาะหน้าจอ เพื่อไม่ให้ปุ่มหลุดขอบเมื่อเนื้อหายาว
+     ไม่กระทบ PDF เพราะตอน export จะ clone เอกสารแล้วลบ .footer-actions ออก
+     และไม่กระทบ Word เพราะ Word ใช้ไฟล์ดาวน์โหลด Word แยกต่างหาก */
+  @media screen {
+
+    /* เฉพาะหน้าจอปกติ: ให้กระดาษยืดลงได้เมื่อเนื้อหายาวและปุ่มอยู่ท้ายหน้า
+       ไม่กระทบ PDF เพราะ downloadPdf() clone .page แล้วบังคับ height = 1123px และลบ .footer-actions ออกก่อน export
+       ไม่กระทบ Word เพราะ Word ใช้ไฟล์ดาวน์โหลดแยก */
+    .page {
+      height: auto !important;
+      min-height: 1123px !important;
+      padding-bottom: 115px !important;
+      margin-bottom: 80px !important;
+    }
+
+    .footer-actions {
+      margin-top: 18px !important;
+      padding-bottom: 0 !important;
+    }
+  }
+
   .dot-line {
     flex: 1;
     position: relative;

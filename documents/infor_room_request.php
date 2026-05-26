@@ -1340,57 +1340,113 @@ function checked_value($a, $b) {
     box.classList.remove("hidden");
   }
 
-  async function checkSpellField(el) {
-    if (!el) return true;
 
-    clearSpellResult(el);
+  const SPELL_TIMEOUT_MS = 60000;
+  const SPELL_CHUNK_LIMIT = 350;
 
-    if (!shouldCheckSpell(el)) return true;
+  function splitTextForSpellCheck(text, limit = SPELL_CHUNK_LIMIT) {
+    const clean = String(text || "").trim();
+    if (!clean) return [];
+    if (clean.length <= limit) return [clean];
 
-    const text = (el.value || "").trim();
-    if (!text) return true;
+    const parts = clean
+      .split(/(\n+|[.!?！？。]|[;；]|[,，])/)
+      .reduce((acc, part) => {
+        if (!part) return acc;
+        const last = acc[acc.length - 1] || "";
+        if (/^(\n+|[.!?！？。]|[;；]|[,，])$/.test(part) && last) {
+          acc[acc.length - 1] = last + part;
+        } else {
+          acc.push(part.trim());
+        }
+        return acc;
+      }, [])
+      .map(s => s.trim())
+      .filter(Boolean);
 
-    const fieldName = el.dataset.spellField || "";
-    if (!fieldName) return true;
+    const chunks = [];
+    let current = "";
 
-    const cacheKey = `${fieldName}::${text}`;
-
-    if (isApprovedText(fieldName, text) || correctedTexts[fieldName] === text) {
-      setSpellPassed(el, fieldName, text, false);
-      return true;
+    function pushLongSegment(segment) {
+      let start = 0;
+      while (start < segment.length) {
+        chunks.push(segment.slice(start, start + limit));
+        start += limit;
+      }
     }
 
-    if (spellCache[cacheKey]) {
-      const cached = spellCache[cacheKey];
-      const normalizedErrors = filterApprovedErrors(normalizeErrors(cached.errors || [], text));
-
-      if (cached.hasError && normalizedErrors.length > 0) {
-        spellState[fieldName] = {
-          checked: true,
-          hasError: true,
-          ignored: false,
-          errors: normalizedErrors,
-          lastText: text
-        };
-
-        showSpellError(el, normalizedErrors);
-        return false;
+    for (const part of parts.length ? parts : [clean]) {
+      if (part.length > limit) {
+        if (current) {
+          chunks.push(current);
+          current = "";
+        }
+        pushLongSegment(part);
+        continue;
       }
 
-      spellState[fieldName] = {
-        checked: true,
-        hasError: false,
-        ignored: false,
-        errors: [],
-        lastText: text
-      };
-
-      showSpellOk(el);
-      return true;
+      const next = current ? `${current}\n${part}` : part;
+      if (next.length <= limit) {
+        current = next;
+      } else {
+        if (current) chunks.push(current);
+        current = part;
+      }
     }
 
-    el.classList.add("opacity-50");
-    showSpellLoading(el);
+    if (current) chunks.push(current);
+    return chunks;
+  }
+
+  function normalizeSpellErrorsForCurrentText(errors, text) {
+    let normalized = (typeof normalizeErrors === "function") ?
+      normalizeErrors(errors || [], text) :
+      (Array.isArray(errors) ? errors : []);
+
+    if (typeof filterApprovedErrors === "function") {
+      normalized = filterApprovedErrors(normalized);
+    }
+
+    return Array.isArray(normalized) ? normalized : [];
+  }
+
+  function markSpellPassedUnified(el, fieldName, text) {
+    if (typeof setSpellPassed === "function") {
+      setSpellPassed(el, fieldName, text, false);
+      return;
+    }
+
+    spellState[fieldName] = {
+      checked: true,
+      hasError: false,
+      ignored: false,
+      suggestions: [],
+      errors: [],
+      lastText: text
+    };
+
+    if (typeof clearSpellResult === "function") clearSpellResult(el);
+    if (typeof showSpellOk === "function") showSpellOk(el);
+  }
+
+  function markSpellErrorUnified(el, fieldName, text, errors) {
+    spellState[fieldName] = {
+      checked: true,
+      hasError: true,
+      ignored: false,
+      suggestions: [],
+      errors,
+      lastText: text
+    };
+
+    if (typeof showSpellError === "function") {
+      showSpellError(el, errors);
+    }
+  }
+
+  async function fetchSpellChunk(fieldName, chunkText) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), SPELL_TIMEOUT_MS);
 
     try {
       const response = await fetch("http://127.0.0.1:8001/api/spell-check", {
@@ -1400,49 +1456,150 @@ function checked_value($a, $b) {
         },
         body: JSON.stringify({
           field: fieldName,
-          text
-        })
+          text: chunkText
+        }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
 
-      const result = await response.json();
-      spellCache[cacheKey] = result;
+      return await response.json();
+    } catch (error) {
+      clearTimeout(timeoutId);
 
-      const normalizedErrors = filterApprovedErrors(normalizeErrors(result.errors || [], text));
-
-      if (result.hasError && normalizedErrors.length > 0) {
-        spellState[fieldName] = {
-          checked: true,
-          hasError: true,
-          ignored: false,
-          errors: normalizedErrors,
-          lastText: text
+      // ข้อความยาวบางครั้ง request เก่าจะโดน abort ระหว่างพิมพ์/เปลี่ยนช่อง
+      // ไม่ถือว่า API ล่ม และไม่บล็อกการดำเนินการ
+      if (error && error.name === "AbortError") {
+        return {
+          aborted: true,
+          hasError: false,
+          errors: []
         };
+      }
 
-        showSpellError(el, normalizedErrors);
+      throw error;
+    }
+  }
+
+  async function checkSpellField(el) {
+    if (!el) return true;
+
+    if (typeof clearSpellResult === "function") {
+      clearSpellResult(el);
+    }
+
+    if (typeof shouldCheckSpell === "function" && !shouldCheckSpell(el)) {
+      return true;
+    }
+
+    const text = (el.value || "").trim();
+    if (!text) {
+      return true;
+    }
+
+    const fieldName = el.dataset.spellField || "";
+    if (!fieldName) {
+      return true;
+    }
+
+    const cacheKey = `${fieldName}::${text}`;
+
+    const alreadyApproved =
+      (typeof isApprovedText === "function" && isApprovedText(fieldName, text)) ||
+      (typeof isIgnoredForSameText === "function" && isIgnoredForSameText(fieldName, text)) ||
+      (typeof correctedTexts !== "undefined" && correctedTexts[fieldName] === text);
+
+    if (alreadyApproved) {
+      markSpellPassedUnified(el, fieldName, text);
+      return true;
+    }
+
+    if (typeof spellCache !== "undefined" && spellCache[cacheKey]) {
+      const cached = spellCache[cacheKey];
+      const cachedErrors = normalizeSpellErrorsForCurrentText(cached.errors || [], text);
+
+      if (cached.hasError && cachedErrors.length > 0) {
+        markSpellErrorUnified(el, fieldName, text, cachedErrors);
         return false;
       }
 
-      spellState[fieldName] = {
-        checked: true,
-        hasError: false,
-        ignored: false,
-        errors: [],
-        lastText: text
+      markSpellPassedUnified(el, fieldName, text);
+      return true;
+    }
+
+    el.classList.add("opacity-50");
+    if (typeof showSpellLoading === "function") {
+      showSpellLoading(el);
+    }
+
+    try {
+      const chunks = splitTextForSpellCheck(text);
+      let allErrors = [];
+      let wasAborted = false;
+
+      for (const chunk of chunks) {
+        const result = await fetchSpellChunk(fieldName, chunk);
+
+        if (result.aborted) {
+          wasAborted = true;
+          continue;
+        }
+
+        const chunkErrors = normalizeSpellErrorsForCurrentText(result.errors || [], chunk);
+        if (result.hasError && chunkErrors.length > 0) {
+          allErrors = allErrors.concat(chunkErrors);
+        }
+      }
+
+      allErrors = normalizeSpellErrorsForCurrentText(allErrors, text);
+
+      const finalResult = {
+        hasError: allErrors.length > 0,
+        errors: allErrors,
+        aborted: wasAborted
       };
 
-      showSpellOk(el);
+      if (typeof spellCache !== "undefined" && !wasAborted) {
+        spellCache[cacheKey] = finalResult;
+      }
+
+      if (allErrors.length > 0) {
+        markSpellErrorUnified(el, fieldName, text, allErrors);
+        return false;
+      }
+
+      // ถ้า request บางส่วนถูก abort ให้ถือว่าไม่พบ error ณ ตอนนี้
+      // เพื่อไม่ให้ขึ้นแจ้ง API ล่มหรือบล็อกผู้ใช้
+      markSpellPassedUnified(el, fieldName, text);
       return true;
+
     } catch (error) {
       console.error("Spell check API error:", error);
-      alert("เชื่อมต่อระบบตรวจคำผิดไม่ได้ หรือระบบตรวจคำผิดตอบกลับช้าเกินไป กรุณาตรวจสอบ FastAPI");
-      return false;
+
+      // ถ้า API ล่มจริง ให้ไม่บล็อกการทำงาน แต่ไม่แสดงกล่องแดง/ส้มค้าง
+      spellState[fieldName] = {
+        checked: false,
+        hasError: false,
+        ignored: false,
+        suggestions: [],
+        errors: [],
+        lastText: ""
+      };
+
+      if (typeof clearSpellResult === "function") {
+        clearSpellResult(el);
+      }
+
+      return true;
     } finally {
       el.classList.remove("opacity-50");
-      hideSpellLoading(el);
+      if (typeof hideSpellLoading === "function") {
+        hideSpellLoading(el);
+      }
     }
   }
 
