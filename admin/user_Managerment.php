@@ -286,7 +286,7 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
           การจัดการสิทธิ์ของผู้ใช้
         </h2>
 
-        <button onclick="confirmUserAction('add')" class="flex items-center gap-2 border border-teal-500 text-teal-600 font-semibold 
+        <button type="button" onclick="confirmUserAction('add')" class="flex items-center gap-2 border border-teal-500 text-teal-600 font-semibold 
            px-5 py-2 rounded-lg hover:bg-teal-50 hover:shadow-md transition duration-200">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
             class="w-5 h-5">
@@ -409,7 +409,7 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
               <!-- Actions -->
               <td class="px-4 py-3 text-center">
                 <div class="flex justify-center gap-2">
-                  <button onclick="confirmUserAction('edit', <?= $row['user_id'] ?>)"
+                  <button type="button" onclick="confirmUserAction('edit', <?= $row['user_id'] ?>)"
                     class="p-2 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
                       stroke="currentColor">
@@ -417,7 +417,7 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
                         d="M12 20h9M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z" />
                     </svg>
                   </button>
-                  <button onclick="confirmUserAction('delete', <?= $row['user_id'] ?>)"
+                  <button type="button" onclick="confirmUserAction('delete', <?= $row['user_id'] ?>)"
                     class="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
                       stroke="currentColor">
@@ -491,50 +491,80 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
   });
   </script>
   <script>
-  function confirmUserAction(action, id = null) {
-    let username = prompt("กรุณากรอกชื่อผู้ใช้:");
-    if (!username) return;
+  async function confirmUserAction(action, id = null) {
+    const username = prompt("กรุณากรอกชื่อผู้ใช้ของผู้ดูแลระบบเพื่อยืนยัน:");
+    if (username === null || username.trim() === "") return false;
 
-    let password = prompt("กรุณากรอกรหัสผ่าน:");
-    if (!password) return;
+    const password = prompt("กรุณากรอกรหัสผ่านของผู้ดูแลระบบเพื่อยืนยัน:");
+    if (password === null || password.trim() === "") return false;
 
-    fetch("verify_user.php", {
+    try {
+      const params = new URLSearchParams();
+      params.append("username", username.trim());
+      params.append("password", password);
+
+      const res = await fetch("verify_user.php", {
         method: "POST",
         headers: {
-          "Content-Type": "application/x-www-form-urlencoded"
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
         },
-        body: "username=" + encodeURIComponent(username) +
-          "&password=" + encodeURIComponent(password)
-      })
-      .then(async (res) => {
-        const text = await res.text();
-
-        try {
-          return JSON.parse(text);
-        } catch (e) {
-          console.error("Response is not JSON:", text);
-          throw new Error(
-            "ไฟล์ verify_user.php ไม่ได้ส่ง JSON กลับมา อาจเกิดจาก path ผิด, redirect ไป login, หรือมี PHP error");
-        }
-      })
-      .then((data) => {
-        if (data.success) {
-          if (action === "add") {
-            window.location.href = "user_Add.php";
-          } else if (action === "edit") {
-            window.location.href = "user_Edit.php?id=" + id;
-          } else if (action === "delete") {
-            if (confirm("คุณแน่ใจว่าต้องการลบผู้ใช้นี้หรือไม่?")) {
-              window.location.href = "user_Delete.php?id=" + id;
-            }
-          }
-        } else {
-          alert(data.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
-        }
-      })
-      .catch((err) => {
-        alert("เกิดข้อผิดพลาด: " + err.message);
+        credentials: "same-origin",
+        body: params.toString()
       });
+
+      const text = await res.text();
+      let data;
+
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error("verify_user.php response:", text);
+        alert(
+          "ยืนยันตัวตนไม่สำเร็จ: verify_user.php ไม่ได้ส่ง JSON กลับมา\nให้ตรวจว่าไฟล์อยู่ที่ /Pro_letter/admin/verify_user.php และไม่มี PHP error"
+          );
+        return false;
+      }
+
+      if (!res.ok || !data.success) {
+        alert(data.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
+        return false;
+      }
+
+      if (action === "add") {
+        window.location.href = "user_Add.php";
+        return true;
+      }
+
+      if (action === "edit") {
+        if (!id) {
+          alert("ไม่พบรหัสผู้ใช้ที่ต้องการแก้ไข");
+          return false;
+        }
+        window.location.href = "user_Edit.php?id=" + encodeURIComponent(id);
+        return true;
+      }
+
+      if (action === "delete") {
+        if (!id) {
+          alert("ไม่พบรหัสผู้ใช้ที่ต้องการลบ");
+          return false;
+        }
+
+        if (confirm("คุณแน่ใจว่าต้องการลบผู้ใช้นี้หรือไม่?")) {
+          window.location.href = "user_Delete.php?id=" + encodeURIComponent(id);
+        }
+        return true;
+      }
+
+      alert("ไม่พบคำสั่งที่ต้องการทำงาน");
+      return false;
+
+    } catch (err) {
+      console.error(err);
+      alert("เกิดข้อผิดพลาดในการยืนยันตัวตน: " + err.message);
+      return false;
+    }
   }
   </script>
 
