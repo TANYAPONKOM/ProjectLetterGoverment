@@ -1,5 +1,6 @@
 <?php
 session_start();
+
 if (!isset($_SESSION['role_id']) || $_SESSION['role_id'] != 1) {
     header('Location: ../login.html');
     exit;
@@ -79,7 +80,6 @@ $selectedDepartmentId = $user['department_id'] ?? '';
     </div>
   </header>
 
-  <!-- Header Card -->
   <div class="max-w-3xl mx-auto mt-10 bg-white rounded-xl shadow-lg overflow-hidden">
     <div class="bg-teal-500 text-white text-center py-8 relative">
       <div class="flex justify-center">
@@ -95,14 +95,12 @@ $selectedDepartmentId = $user['department_id'] ?? '';
       <p class="text-sm text-white/80">ปรับปรุงข้อมูลของผู้ใช้ในระบบ</p>
     </div>
 
-    <!-- Form -->
     <form action="user_process.php" method="POST" class="p-8 space-y-6">
       <input type="hidden" name="action" value="edit">
       <input type="hidden" name="user_id" value="<?= h($user['user_id']) ?>">
 
       <!-- Username + Password -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- Username -->
         <div>
           <label class="block font-semibold text-gray-700 mb-1">ชื่อผู้ใช้</label>
           <div class="relative">
@@ -121,7 +119,6 @@ $selectedDepartmentId = $user['department_id'] ?? '';
           </div>
         </div>
 
-        <!-- Password -->
         <div>
           <label class="block font-semibold text-gray-700 mb-1">รหัสผ่าน (ใส่ถ้าต้องการเปลี่ยน)</label>
           <div class="relative">
@@ -200,30 +197,40 @@ $selectedDepartmentId = $user['department_id'] ?? '';
         <!-- Position -->
         <div>
           <label class="block font-semibold text-gray-700 mb-2">ตำแหน่ง</label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 pointer-events-none">
-              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 7V6a2 2 0 012-2h8a2 2 0 
-                          012 2v1m-2 4h.01M6 11h.01M4 
-                          7h16v10a2 2 0 01-2 2H6a2 2 
-                          0 01-2-2V7z" />
-              </svg>
-            </span>
-            <select name="position"
-              class="w-full pl-10 pr-3 py-2 border rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-teal-400">
-              <?php
-                            $positions = ['เจ้าหน้าที่', 'อาจารย์', 'นักศึกษา', 'บุคลากร', 'พนักงานมหาวิทยาลัย'];
-                            foreach ($positions as $position):
-                            ?>
-              <option value="<?= h($position) ?>" <?= ($user['position'] === $position) ? 'selected' : '' ?>>
-                <?= h($position) ?>
-              </option>
-              <?php endforeach; ?>
 
-              <?php if (!in_array($user['position'], $positions, true) && trim((string)$user['position']) !== ''): ?>
-              <option value="<?= h($user['position']) ?>" selected><?= h($user['position']) ?></option>
-              <?php endif; ?>
-            </select>
+          <!-- ช่องเดียว: พิมพ์เองได้ และคลิกเลือกจากรายการได้ -->
+          <div class="relative">
+            <input type="text" name="position" id="positionInput" value="<?= h($user['position'] ?? '') ?>"
+              class="w-full pl-3 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
+              placeholder="เลือกหรือพิมพ์ตำแหน่งเอง เช่น อาจารย์ประจำภาควิชา" autocomplete="off" required>
+
+            <button type="button" id="positionToggle"
+              class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-teal-600"
+              aria-label="เลือกตำแหน่ง">
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            <div id="positionDropdown"
+              class="hidden absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+              <button type="button" data-position="เจ้าหน้าที่"
+                class="position-option block w-full text-left px-3 py-2 hover:bg-teal-50">เจ้าหน้าที่</button>
+              <button type="button" data-position="อาจารย์"
+                class="position-option block w-full text-left px-3 py-2 hover:bg-teal-50">อาจารย์</button>
+              <button type="button" data-position="นักศึกษา"
+                class="position-option block w-full text-left px-3 py-2 hover:bg-teal-50">นักศึกษา</button>
+              <button type="button" data-position="บุคลากร"
+                class="position-option block w-full text-left px-3 py-2 hover:bg-teal-50">บุคลากร</button>
+              <button type="button" data-position="พนักงานมหาวิทยาลัย"
+                class="position-option block w-full text-left px-3 py-2 hover:bg-teal-50">พนักงานมหาวิทยาลัย</button>
+              <button type="button" data-position="อาจารย์ประจำภาควิชาเทคโนโลยีสารสนเทศ"
+                class="position-option block w-full text-left px-3 py-2 hover:bg-teal-50">อาจารย์ประจำภาควิชาเทคโนโลยีสารสนเทศ</button>
+              <button type="button" data-position="ผู้ช่วยศาสตราจารย์"
+                class="position-option block w-full text-left px-3 py-2 hover:bg-teal-50">ผู้ช่วยศาสตราจารย์</button>
+              <button type="button" data-position="รองศาสตราจารย์"
+                class="position-option block w-full text-left px-3 py-2 hover:bg-teal-50">รองศาสตราจารย์</button>
+            </div>
           </div>
         </div>
       </div>
@@ -279,19 +286,21 @@ $selectedDepartmentId = $user['department_id'] ?? '';
       <!-- Permissions -->
       <div class="mb-6">
         <label class="block font-semibold text-gray-700 mb-2">สิทธิ์ในการเข้าถึง</label>
-        <div class="flex space-x-6">
+        <div class="flex space-x-6 flex-wrap gap-y-3">
           <label class="flex items-center space-x-2">
             <input type="checkbox" name="permissions[]" value="1"
               class="w-5 h-5 text-teal-600 border-2 border-teal-500 rounded focus:ring-teal-400"
               <?= in_array(1, array_map('intval', $userPerms), true) ? 'checked' : '' ?>>
             <span>แก้ไขได้</span>
           </label>
+
           <label class="flex items-center space-x-2">
             <input type="checkbox" name="permissions[]" value="2"
               class="w-5 h-5 text-teal-600 border-2 border-teal-500 rounded focus:ring-teal-400"
               <?= in_array(2, array_map('intval', $userPerms), true) ? 'checked' : '' ?>>
             <span>ดูได้</span>
           </label>
+
           <label class="flex items-center space-x-2">
             <input type="checkbox" name="permissions[]" value="3"
               class="w-5 h-5 text-teal-600 border-2 border-teal-500 rounded focus:ring-teal-400"
@@ -310,6 +319,7 @@ $selectedDepartmentId = $user['department_id'] ?? '';
               <?= ((int)$user['is_active'] === 1) ? 'checked' : '' ?>>
             <span>เปิดการใช้งาน</span>
           </label>
+
           <label class="flex items-center space-x-2">
             <input type="radio" name="is_active" value="0" class="text-teal-500 focus:ring-teal-400"
               <?= ((int)$user['is_active'] === 0) ? 'checked' : '' ?>>
@@ -324,6 +334,7 @@ $selectedDepartmentId = $user['department_id'] ?? '';
           class="px-4 py-2 rounded-lg bg-gray-300 text-gray-700 font-semibold hover:bg-gray-400 transition">
           ยกเลิก
         </a>
+
         <button type="submit"
           class="px-6 py-2 rounded-lg bg-teal-500 text-white font-semibold hover:bg-teal-600 shadow">
           บันทึก
@@ -333,6 +344,62 @@ $selectedDepartmentId = $user['department_id'] ?? '';
   </div>
 
   <script>
+  const positionInput = document.getElementById('positionInput');
+  const positionToggle = document.getElementById('positionToggle');
+  const positionDropdown = document.getElementById('positionDropdown');
+  const positionOptions = Array.from(document.querySelectorAll('.position-option'));
+
+  function showPositionDropdown() {
+    if (positionDropdown) {
+      positionDropdown.classList.remove('hidden');
+    }
+  }
+
+  function hidePositionDropdown() {
+    if (positionDropdown) {
+      positionDropdown.classList.add('hidden');
+    }
+  }
+
+  positionToggle?.addEventListener('click', function(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (positionDropdown.classList.contains('hidden')) {
+      showPositionDropdown();
+      positionInput?.focus();
+    } else {
+      hidePositionDropdown();
+    }
+  });
+
+  positionInput?.addEventListener('focus', showPositionDropdown);
+
+  positionOptions.forEach(option => {
+    option.addEventListener('mousedown', function(event) {
+      event.preventDefault();
+      if (positionInput) {
+        positionInput.value = this.dataset.position || this.textContent.trim();
+        positionInput.focus();
+      }
+      hidePositionDropdown();
+    });
+  });
+
+  document.addEventListener('click', function(event) {
+    if (
+      positionDropdown &&
+      positionInput &&
+      positionToggle &&
+      !positionDropdown.contains(event.target) &&
+      event.target !== positionInput &&
+      event.target !== positionToggle &&
+      !positionToggle.contains(event.target)
+    ) {
+      hidePositionDropdown();
+    }
+  });
+
   const facultySelect = document.getElementById('faculty_id');
   const departmentSelect = document.getElementById('department_id');
   const departmentOptions = Array.from(departmentSelect.options);

@@ -35,15 +35,65 @@ $pdo = getPDO();
 $activeTab = $_GET['tab'] ?? 'all';
 $current = basename($_SERVER['PHP_SELF']);
 
+// ค่าค้นหา
+$search = trim($_GET['search'] ?? '');
+
 // Pagination setup
 $limit = 20; // จำนวนแถวต่อหน้า
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $offset = ($page - 1) * $limit;
 
-// นับจำนวนทั้งหมด
-$countSql = "SELECT COUNT(*) FROM users";
-$totalRows = $pdo->query($countSql)->fetchColumn();
-$totalPages = ceil($totalRows / $limit);
+// สร้างเงื่อนไขสำหรับ tab และ search
+$where = [];
+$params = [];
+
+// เพิ่มเงื่อนไขตาม tab
+if ($activeTab === 'active') {
+    $where[] = "u.is_active = 1";
+} elseif ($activeTab === 'inactive') {
+    $where[] = "u.is_active = 0";
+}
+
+// เพิ่มเงื่อนไขค้นหา
+if ($search !== '') {
+    $where[] = "(
+        u.fullname LIKE :search
+        OR u.email LIKE :search
+        OR u.position LIKE :search
+        OR CASE 
+            WHEN u.role_id = 1 THEN 'Admin'
+            WHEN u.role_id = 2 THEN 'Officer'
+            WHEN u.role_id = 3 THEN 'User'
+            ELSE 'Unknown'
+        END LIKE :search
+        OR CASE 
+            WHEN u.department_id = 1 THEN 'เทคโนโลยีสารสนเทศ'
+            ELSE 'ไม่ระบุ'
+        END LIKE :search
+        OR CASE 
+            WHEN u.is_active = 1 THEN 'Active'
+            ELSE 'Inactive'
+        END LIKE :search
+    )";
+    $params[':search'] = '%' . $search . '%';
+}
+
+$whereSql = !empty($where) ? ' WHERE ' . implode(' AND ', $where) : '';
+
+// นับจำนวนทั้งหมดตามเงื่อนไข
+$countSql = "SELECT COUNT(*) FROM users u" . $whereSql;
+$countStmt = $pdo->prepare($countSql);
+foreach ($params as $key => $value) {
+    $countStmt->bindValue($key, $value, PDO::PARAM_STR);
+}
+$countStmt->execute();
+$totalRows = (int)$countStmt->fetchColumn();
+$totalPages = max(1, ceil($totalRows / $limit));
+
+if ($page > $totalPages) {
+    $page = $totalPages;
+    $offset = ($page - 1) * $limit;
+}
 
 // สร้าง SQL พื้นฐาน
 $sql = "SELECT u.*, 
@@ -57,19 +107,17 @@ $sql = "SELECT u.*,
             WHEN u.department_id = 1 THEN 'เทคโนโลยีสารสนเทศ'
             ELSE 'ไม่ระบุ'
         END AS department_name
-        FROM users u";
+        FROM users u
+        $whereSql
+        LIMIT :limit OFFSET :offset";
 
-// เพิ่มเงื่อนไขตาม tab
-if ($activeTab === 'active') {
-    $sql .= " WHERE u.is_active = 1";
-} elseif ($activeTab === 'inactive') {
-    $sql .= " WHERE u.is_active = 0";
+$stmt = $pdo->prepare($sql);
+foreach ($params as $key => $value) {
+    $stmt->bindValue($key, $value, PDO::PARAM_STR);
 }
-
-// เพิ่ม LIMIT และ OFFSET สำหรับแบ่งหน้า
-$sql .= " LIMIT $limit OFFSET $offset";
-
-$stmt = $pdo->query($sql);
+$stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+$stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+$stmt->execute();
 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $permMap = [];
@@ -249,6 +297,35 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
 
       </div>
 
+      <!-- Search Box -->
+      <form method="GET" class="mt-6 mb-4 flex flex-col md:flex-row md:items-center gap-3">
+        <input type="hidden" name="tab" value="<?= htmlspecialchars($activeTab) ?>">
+        <input type="hidden" name="page" value="1">
+
+        <div class="relative w-full md:w-96">
+          <input type="text" name="search" value="<?= htmlspecialchars($search) ?>"
+            placeholder="ค้นหาชื่อผู้ใช้ อีเมล สิทธิ์ ตำแหน่ง หรือสถานะ"
+            class="w-full border border-gray-300 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-400 absolute right-3 top-2.5" fill="none"
+            viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M21 21l-4.35-4.35m1.35-5.65a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+
+        <button type="submit"
+          class="px-6 py-2 rounded-lg bg-teal-500 text-white font-semibold hover:bg-teal-600 transition">
+          ค้นหา
+        </button>
+
+        <?php if ($search !== ''): ?>
+        <a href="?tab=<?= urlencode($activeTab) ?>"
+          class="px-6 py-2 rounded-lg border border-gray-300 text-gray-600 font-semibold hover:bg-gray-100 transition text-center">
+          ล้างค่า
+        </a>
+        <?php endif; ?>
+      </form>
+
       <!-- Modern Alternating Row Table -->
       <div class="mt-6 overflow-x-auto rounded-lg shadow">
         <table class="w-full text-sm border-collapse overflow-hidden">
@@ -269,6 +346,13 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
 
           <!-- Body -->
           <tbody>
+            <?php if (empty($users)): ?>
+            <tr>
+              <td colspan="9" class="px-4 py-8 text-center text-gray-500 bg-gray-50">
+                ไม่พบข้อมูลที่ค้นหา
+              </td>
+            </tr>
+            <?php else: ?>
             <?php foreach ($users as $index => $row): ?>
             <tr class="<?= $index % 2 === 0 ? 'bg-teal-10' : 'bg-teal-50' ?> hover:bg-teal-200/30 transition-colors">
               <!-- ชื่อ -->
@@ -345,6 +429,7 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
               </td>
             </tr>
             <?php endforeach; ?>
+            <?php endif; ?>
           </tbody>
         </table>
       </div>
@@ -352,14 +437,14 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
       <!-- Pagination -->
       <div class="flex justify-between items-center mt-6 text-sm text-gray-600">
         <span>
-          Showing <?= ($offset + 1) ?>–
+          Showing <?= $totalRows > 0 ? ($offset + 1) : 0 ?>–
           <?= min($offset + $limit, $totalRows) ?> of <?= $totalRows ?> entries
         </span>
 
         <div class="flex items-center space-x-2">
           <!-- ปุ่ม Prev -->
           <?php if ($page > 1): ?>
-          <a href="?page=<?= $page - 1 ?>&tab=<?= $activeTab ?>"
+          <a href="?page=<?= $page - 1 ?>&tab=<?= urlencode($activeTab) ?>&search=<?= urlencode($search) ?>"
             class="px-3 py-1 rounded-md text-teal-600 border border-teal-400 hover:bg-teal-100 transition shadow-sm">
             Prev
           </a>
@@ -367,7 +452,7 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
 
           <!-- ปุ่มตัวเลข -->
           <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-          <a href="?page=<?= $i ?>&tab=<?= $activeTab ?>"
+          <a href="?page=<?= $i ?>&tab=<?= urlencode($activeTab) ?>&search=<?= urlencode($search) ?>"
             class="px-3 py-1 rounded-md font-medium <?= $i == $page ? 'bg-teal-500 text-white shadow-md hover:bg-teal-600' : 'text-teal-600 border border-teal-400 hover:bg-teal-100' ?> transition">
             <?= $i ?>
           </a>
@@ -375,7 +460,7 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
 
           <!-- ปุ่ม Next -->
           <?php if ($page < $totalPages): ?>
-          <a href="?page=<?= $page + 1 ?>&tab=<?= $activeTab ?>"
+          <a href="?page=<?= $page + 1 ?>&tab=<?= urlencode($activeTab) ?>&search=<?= urlencode($search) ?>"
             class="px-3 py-1 rounded-md text-teal-600 border border-teal-400 hover:bg-teal-100 transition shadow-sm">
             Next
           </a>

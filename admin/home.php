@@ -236,21 +236,109 @@ main {
   const tabDone = document.getElementById("tab-done");
   const tabEdit = document.getElementById("tab-edit");
 
-  function formatDate(iso) {
-    const date = new Date(iso);
+  function hasThaiMonth(value) {
+    const text = String(value || "").trim();
+
+    return /มกราคม|กุมภาพันธ์|มีนาคม|เมษายน|พฤษภาคม|มิถุนายน|กรกฎาคม|สิงหาคม|กันยายน|ตุลาคม|พฤศจิกายน|ธันวาคม/.test(
+      text);
+  }
+
+  function parseDateForSort(value) {
+    if (!value || String(value).trim() === "" || value === "0000-00-00") {
+      return null;
+    }
+
+    const text = String(value).trim();
+
+    const thaiMonths = {
+      "มกราคม": 0,
+      "กุมภาพันธ์": 1,
+      "มีนาคม": 2,
+      "เมษายน": 3,
+      "พฤษภาคม": 4,
+      "มิถุนายน": 5,
+      "กรกฎาคม": 6,
+      "สิงหาคม": 7,
+      "กันยายน": 8,
+      "ตุลาคม": 9,
+      "พฤศจิกายน": 10,
+      "ธันวาคม": 11
+    };
+
+    // กรณีวันที่ไทย เช่น 30 กันยายน 2569
+    let m = text.match(/^(\d{1,2})\s+([ก-ฮ]+)\s+(\d{4})$/);
+    if (m && thaiMonths[m[2]] !== undefined) {
+      let year = Number(m[3]);
+
+      // ถ้าเป็น พ.ศ. ให้แปลงเป็น ค.ศ. เพื่อใช้เรียงวันที่
+      if (year > 2400) {
+        year -= 543;
+      }
+
+      return new Date(year, thaiMonths[m[2]], Number(m[1]));
+    }
+
+    // กรณี 2025-12-16 หรือ 2025-12-16 00:00:00
+    m = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) {
+      return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    }
+
+    // กรณี 27/05/2026 หรือ 27/05/2569
+    m = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) {
+      let year = Number(m[3]);
+
+      // ถ้าเป็น พ.ศ. ให้แปลงเป็น ค.ศ.
+      if (year > 2400) {
+        year -= 543;
+      }
+
+      return new Date(year, Number(m[2]) - 1, Number(m[1]));
+    }
+
+    return null;
+  }
+
+  function formatDate(value) {
+    if (!value || String(value).trim() === "" || value === "0000-00-00") {
+      return "-";
+    }
+
+    const text = String(value).trim();
+
+    // ถ้าในฐานข้อมูลเป็นวันที่ไทยอยู่แล้ว เช่น 30 กันยายน 2569
+    // ให้โชว์เลย ไม่ต้องแปลงด้วย new Date()
+    if (hasThaiMonth(text)) {
+      return text;
+    }
+
+    const date = parseDateForSort(text);
+
+    // ถ้าแปลงไม่ได้ ให้โชว์ค่าจากฐานข้อมูลแทน เพื่อไม่ให้ขึ้น Invalid Date
+    if (!date || isNaN(date.getTime())) {
+      return text;
+    }
+
     return date.toLocaleDateString("th-TH", {
-      year: "numeric",
+      day: "numeric",
       month: "long",
-      day: "numeric"
+      year: "numeric",
     });
   }
 
   function renderList() {
     const dataFiltered = dataAll.filter(d => d.status === activeTab);
 
-    const sorted = dataFiltered.sort((a, b) =>
-      sortAsc ? new Date(a.date) - new Date(b.date) : new Date(b.date) - new Date(a.date)
-    );
+    const sorted = dataFiltered.sort((a, b) => {
+      const dateA = parseDateForSort(a.date);
+      const dateB = parseDateForSort(b.date);
+
+      const timeA = dateA && !isNaN(dateA.getTime()) ? dateA.getTime() : 0;
+      const timeB = dateB && !isNaN(dateB.getTime()) ? dateB.getTime() : 0;
+
+      return sortAsc ? timeA - timeB : timeB - timeA;
+    });
 
     const start = (currentPage - 1) * itemsPerPage;
     const shown = sorted.slice(start, start + itemsPerPage);
@@ -349,22 +437,7 @@ main {
           ${formatDate(req.date)}
         </div>
 
-        <!-- PDF / WORD (ดาวน์โหลดจากหน้าหลัก) -->
-        <div class="flex items-center space-x-4">
-          <a href="${getDocumentWordDownloadUrl(req.document_id, req.routeHint)}"
-             data-word-filename="${escapeHtmlAttribute(getWordThaiFileName(req))}"
-             onclick="return downloadWordThai(this);"
-             class="flex items-center space-x-1 text-blue-500 hover:underline">
-            <img src="https://cdn-icons-png.flaticon.com/16/281/281760.png">
-            <span>Word</span>
-          </a>
-
-          <a href="${getDocumentPdfDownloadUrl(req.document_id, req.routeHint)}" target="_blank"
-             class="flex items-center space-x-1 text-red-500 hover:underline">
-            <img src="https://cdn-icons-png.flaticon.com/16/337/337946.png">
-            <span>PDF</span>
-          </a>
-        </div>
+        
 
         <!-- ปุ่ม / ข้อความ -->
         ${actionHtml}
@@ -537,7 +610,7 @@ main {
 
   function getDocumentPdfDownloadUrl(docId, routeHint = "") {
     return "../documents/auto_download_pdf.php?id=" + encodeURIComponent(docId) +
-           "&hint=" + encodeURIComponent(routeHint || "");
+      "&hint=" + encodeURIComponent(routeHint || "");
   }
 
 
@@ -567,9 +640,9 @@ main {
     const fileName = link.getAttribute("data-word-filename") || "เอกสาร.docx";
 
     fetch(url, {
-      method: "GET",
-      credentials: "same-origin"
-    })
+        method: "GET",
+        credentials: "same-origin"
+      })
       .then(response => {
         if (!response.ok) {
           throw new Error("download failed");
@@ -596,8 +669,7 @@ main {
   function getDocumentWordDownloadUrl(docId, routeHint = "") {
     const text = String(routeHint || "").trim();
 
-    const routes = [
-      {
+    const routes = [{
         keywords: ["ขอประเมินสถานประกอบการสหกิจ", "ประเมินสถานประกอบการ", "สหกิจศึกษา", "coop_evaluation"],
         url: "../documents/download_word_coop_evaluation.php"
       },
@@ -606,7 +678,9 @@ main {
         url: "../documents/download_word_project_activity.php"
       },
       {
-        keywords: ["หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์", "ขอความอนุเคราะห์ข้อมูล", "ปริญญานิพนธ์", "research_data"],
+        keywords: ["หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์", "ขอความอนุเคราะห์ข้อมูล", "ปริญญานิพนธ์",
+          "research_data"
+        ],
         url: "../documents/download_word_request_research_data.php"
       },
       {
@@ -626,7 +700,9 @@ main {
         url: "../documents/download_word_sut_wellness.php"
       },
       {
-        keywords: ["หนังสือยินยอมให้นำเสนอผลงานวิจัย", "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ", "ยินยอมให้นำเสนอผลงาน", "consent_research_presentation"],
+        keywords: ["หนังสือยินยอมให้นำเสนอผลงานวิจัย", "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ",
+          "ยินยอมให้นำเสนอผลงาน", "consent_research_presentation"
+        ],
         url: "../documents/download_word_consent_research_presentation.php"
       },
       {

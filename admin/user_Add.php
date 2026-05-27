@@ -167,13 +167,20 @@ $defaultFacultyId = $faculties[0]['faculty_id'] ?? '';
 
         <div>
           <label class="block font-semibold text-gray-700 mb-2">ตำแหน่ง</label>
-          <select name="position" class="w-full pl-3 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-400">
-            <option value="เจ้าหน้าที่">เจ้าหน้าที่</option>
-            <option value="อาจารย์">อาจารย์</option>
-            <option value="นักศึกษา">นักศึกษา</option>
-            <option value="บุคลากร">บุคลากร</option>
-            <option value="พนักงานมหาวิทยาลัย">พนักงานมหาวิทยาลัย</option>
-          </select>
+          <input list="positionOptions" name="position"
+            class="w-full pl-3 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-400"
+            placeholder="เลือกหรือพิมพ์ตำแหน่งเอง เช่น อาจารย์ประจำภาควิชา" required>
+
+          <datalist id="positionOptions">
+            <option value="เจ้าหน้าที่">
+            <option value="อาจารย์">
+            <option value="นักศึกษา">
+            <option value="บุคลากร">
+            <option value="พนักงานมหาวิทยาลัย">
+            <option value="อาจารย์ประจำภาควิชาเทคโนโลยีสารสนเทศ">
+            <option value="ผู้ช่วยศาสตราจารย์">
+            <option value="รองศาสตราจารย์">
+          </datalist>
         </div>
       </div>
 
