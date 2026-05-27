@@ -761,6 +761,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
   </header>
   <form method="post" action="<?= $isEdit ? '/Pro_letter/documents/update_memo.php' : 'save_memo.php' ?>" id="memoForm">
     <input type="hidden" name="template_id" value="1">
+    <input type="hidden" name="document_type_name" value="ขออนุมัติตัวบุคคลเพื่อไปนำเสนอผลงานวิจัย">
     <input type="hidden" name="department_id" id="selectedDepartmentId" value="<?= (int)$currentUserDepartmentId ?>">
     <?php if ($isEdit): ?>
     <input type="hidden" name="document_id" value="<?= (int)$docId ?>">
@@ -3922,7 +3923,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     const approvedTexts = {};
     const correctedTexts = {};
 
-    
+
     const SPELL_TIMEOUT_MS = 60000;
     const SPELL_CHUNK_LIMIT = 350;
 
@@ -3981,9 +3982,9 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     }
 
     function normalizeSpellErrorsForCurrentText(errors, text) {
-      let normalized = (typeof normalizeErrors === "function")
-        ? normalizeErrors(errors || [], text)
-        : (Array.isArray(errors) ? errors : []);
+      let normalized = (typeof normalizeErrors === "function") ?
+        normalizeErrors(errors || [], text) :
+        (Array.isArray(errors) ? errors : []);
 
       if (typeof filterApprovedErrors === "function") {
         normalized = filterApprovedErrors(normalized);
@@ -4067,7 +4068,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       }
     }
 
-async function checkSpellField(el) {
+    async function checkSpellField(el) {
       if (!el) return true;
 
       if (typeof clearSpellResult === "function") {

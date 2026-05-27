@@ -23,6 +23,7 @@ try {
 
     /** ===== รับค่า POST ===== */
     $templateId = (int) ($_POST['template_id'] ?? 1);
+    $documentTypeName = trim($_POST['document_type_name'] ?? '');
     $departmentId = (int) ($_POST['department_id'] ?? 0);
     
    $docDate = trim($_POST['doc_date'] ?? '');
@@ -960,16 +961,18 @@ if ($isCoopEvaluation) {
     $stmt = $pdo->prepare("
         UPDATE documents
         SET
-            template_id   = :template_id,
+            template_id = :template_id,
+            document_type_name = :document_type_name,
             department_id = :department_id,
-            doc_date      = :doc_date,
-            subject       = :subject,
-            header_text   = :header_text,
-            updated_at    = NOW()
+            doc_date = :doc_date,
+            subject = :subject,
+            header_text = :header_text,
+            updated_at = NOW()
         WHERE document_id = :id
     ");
     $stmt->execute([
         ':template_id' => $templateId,
+        ':document_type_name' => $documentTypeName,
         ':department_id' => $departmentId,
         ':doc_date' => $docDate,
         ':subject' => $subject,
@@ -981,12 +984,13 @@ if ($isCoopEvaluation) {
     // 🆕 CREATE
     $stmt = $pdo->prepare("
         INSERT INTO documents
-        (template_id, owner_id, department_id, doc_no, doc_date, subject, header_text, status, remark)
-        VALUES
-        (:template_id, :owner_id, :department_id, NULL, :doc_date, :subject, :header_text, 'draft', NULL)
+(template_id, document_type_name, owner_id, department_id, doc_no, doc_date, subject, header_text, status, remark)
+VALUES
+(:template_id, :document_type_name, :owner_id, :department_id, NULL, :doc_date, :subject, :header_text, 'draft', NULL)
     ");
     $stmt->execute([
         ':template_id' => $templateId,
+        ':document_type_name' => $documentTypeName,
         ':owner_id' => $userId,
         ':department_id' => $departmentId,
         ':doc_date' => $docDate,

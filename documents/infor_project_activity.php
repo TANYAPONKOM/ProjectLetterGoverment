@@ -683,6 +683,7 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
   <form method="post" action="<?= h($formAction) ?>" id="memoForm">
     <input type="hidden" name="department_id" id="selectedDepartmentId" value="<?= (int)$currentUserDepartmentId ?>">
     <input type="hidden" name="template_id" value="1">
+    <input type="hidden" name="document_type_name" value="ขอเข้าไปจัดกิจกรรมโครงการ">
     <input type="hidden" name="purpose" value="project_activity">
     <input type="hidden" name="document_type" value="infor_project_activity">
     <input type="hidden" name="target_form" value="form_memo_project_activity.php">
@@ -2014,7 +2015,8 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
       if (!target || target === "#") return;
 
       const separator = target.includes("?") ? "&" : "?";
-      window.location.href = target + separator + "main=" + encodeURIComponent(main.value || "") + "&sub=" + encodeURIComponent(subVal);
+      window.location.href = target + separator + "main=" + encodeURIComponent(main.value || "") + "&sub=" +
+        encodeURIComponent(subVal);
     });
 
     window.addEventListener("pageshow", () => {

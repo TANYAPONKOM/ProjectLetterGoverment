@@ -61,7 +61,7 @@ try {
             d.owner_id,
             u.fullname AS owner_name,
             u.email AS owner_email,
-            t.template_name
+            COALESCE(NULLIF(d.document_type_name, ''), t.template_name) AS template_name
         FROM documents d
         LEFT JOIN users u ON d.owner_id = u.user_id
         LEFT JOIN templates t ON d.template_id = t.template_id

@@ -703,6 +703,7 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
 
   <form method="post" action="<?= $isEdit ? '/Pro_letter/documents/update_memo.php' : 'save_memo.php' ?>" id="memoForm">
     <input type="hidden" name="template_id" value="1">
+    <input type="hidden" name="document_type_name" value="ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)">
     <input type="hidden" name="department_id" id="selectedDepartmentId" value="<?= (int)$currentUserDepartmentId ?>">
     <input type="hidden" name="document_type" value="infor_coop_evaluation">
     <input type="hidden" name="form_type" value="coop_evaluation">

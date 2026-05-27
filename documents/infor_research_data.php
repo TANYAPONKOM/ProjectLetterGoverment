@@ -622,6 +622,7 @@ $editStudentsJsonForJs = json_encode($editStudents, JSON_UNESCAPED_UNICODE | JSO
     <input type="hidden" name="target_form" value="infor_research_data.php">
     <input type="hidden" name="redirect_to" value="form_memo_request_research_data.php">
     <input type="hidden" name="template_id" value="1">
+    <input type="hidden" name="document_type_name" value="หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์">
     <input type="hidden" name="department_id" id="selectedDepartmentId" value="<?= (int)$currentUserDepartmentId ?>">
     <input type="hidden" name="doc_date" value="<?= h($editDocDate) ?>">
 

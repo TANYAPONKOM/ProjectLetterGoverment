@@ -745,6 +745,7 @@ if ($studyTeacherCount < count($studyTeachers)) {
     <input type="hidden" name="redirect_to" value="form_memo_sut_wellness.php">
     <input type="hidden" name="template_id"
       value="<?= (int)($docRow['template_id'] ?? ($_POST['template_id'] ?? 1)) ?>">
+    <input type="hidden" name="document_type_name" value="ขอเข้าเยี่ยมศึกษาดูงาน">
     <!-- กล่องเนื้อหา -->
     <div class="w-[900px] mx-auto mt-16 mb-6 bg-white shadow-md rounded-md p-8" style="min-height: 1122px">
       <h1 class="text-center font-bold mb-6 text-black">

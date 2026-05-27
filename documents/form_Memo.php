@@ -690,6 +690,7 @@ if ($roleIdForHome === 1) {
   </header>
   <form method="post" action="save_memo.php" id="memoForm">
     <input type="hidden" name="template_id" value="1">
+    <input type="hidden" name="document_type_name" value="ขออนุมัติไปเข้ารับการฝึกอบรมหลักสูตร">
     <input type="hidden" name="department_id" id="selectedDepartmentId" value="<?= (int)$currentUserDepartmentId ?>">
     <?php if ($isEdit): ?>
     <input type="hidden" name="document_id" value="<?= (int)$docId ?>">

@@ -667,6 +667,7 @@ function checked_value($a, $b) {
 
   <form method="post" action="<?= $isEdit ? '/Pro_letter/documents/update_memo.php' : 'save_memo.php' ?>" id="memoForm">
     <input type="hidden" name="template_id" value="1">
+    <input type="hidden" name="document_type_name" value="ขอห้องพักรับรอง">
     <input type="hidden" name="department_id" id="selectedDepartmentId" value="<?= (int)$currentUserDepartmentId ?>">
     <input type="hidden" name="purpose" value="room_request">
     <input type="hidden" name="target_form" value="infor_room_request.php">
