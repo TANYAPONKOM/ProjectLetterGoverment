@@ -675,6 +675,7 @@ $oldIntentionText = $valueMap[25] ?? '';
     <input type="hidden" name="department_id" id="selectedDepartmentId" value="<?= (int)$currentUserDepartmentId ?>">
     <input type="hidden" name="purpose" value="speaker_workshop">
     <input type="hidden" name="form_type" value="speaker_workshop">
+    <input type="hidden" name="document_type_name" value="ขออนุมัติตัวบุคคลเป็นวิทยากร">
     <input type="hidden" name="document_type" value="infor_speaker_workshop">
     <input type="hidden" name="redirect_to" value="form_memo_speaker.php">
     <input type="hidden" name="target_form" value="form_memo_speaker.php">

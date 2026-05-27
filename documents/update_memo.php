@@ -20,6 +20,7 @@ try {
 
   $documentId = (int) ($_POST['document_id'] ?? 0);
   $templateId = (int) ($_POST['template_id'] ?? 1);
+  $documentTypeName = trim($_POST['document_type_name'] ?? '');
 
   if ($documentId <= 0) {
     header('Location: /documents/form_Memo.html?err=nodoc', true, 302);
@@ -823,24 +824,26 @@ if (!$canEditThisDocument) {
       : trim($joinType . $eventTitle);
   }
 
-  $up = $pdo->prepare("
+ $up = $pdo->prepare("
     UPDATE documents 
     SET doc_no = :doc_no,
         department_id = :department_id,
         doc_date = :doc_date,
         subject = :subject,
         header_text = :header_text,
+        document_type_name = COALESCE(NULLIF(:document_type_name, ''), document_type_name),
         updated_at = NOW() 
     WHERE document_id = :id
 ");
-  $up->execute([
+$up->execute([
     ':doc_no' => $docNo,
     ':department_id' => $departmentId,
     ':doc_date' => $docDate,
     ':subject' => $subject,
     ':header_text' => $headerText,
+    ':document_type_name' => $documentTypeName,
     ':id' => $documentId
-  ]);
+]);
 
   // ค่า field อื่น ๆ
 $valuesByKey = [];

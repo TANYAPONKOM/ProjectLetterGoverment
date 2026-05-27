@@ -672,6 +672,7 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
     <input type="hidden" name="document_id" value="<?= (int)$documentId ?>">
     <?php endif; ?>
     <input type="hidden" name="template_id" value="1">
+    <input type="hidden" name="document_type_name" value="หนังสือเรียนเชิญวิทยากร">
     <input type="hidden" name="purpose" value="invite_speaker_student">
     <input type="hidden" name="form_type" value="invite">
     <input type="hidden" name="document_type" value="infor_invite">
@@ -2035,12 +2036,7 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
       }
 
       const separator = target.includes("?") ? "&" : "?";
-      window.location.href =
-        target +
-        separator +
-        "main=" +
-        encodeURIComponent(mainVal) +
-        "&sub=" +
+      window.location.href = target + separator + "main=" + encodeURIComponent(mainVal) + "&sub=" +
         encodeURIComponent(subVal);
     });
 

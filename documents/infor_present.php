@@ -629,6 +629,7 @@ $position    = $formData[3]  ?? '';
     <input type="hidden" name="mode" value="<?= $isEdit ? 'update' : 'create' ?>">
     <input type="hidden" name="document_id" value="<?= (int)$docId ?>">
     <input type="hidden" name="template_id" value="1">
+    <input type="hidden" name="document_type_name" value="หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ">
     <input type="hidden" name="department_id" id="selectedDepartmentId" value="<?= (int)$currentUserDepartmentId ?>">
 
     <input type="hidden" name="purpose" value="consent_research_presentation">

@@ -131,8 +131,8 @@ $defaultFacultyId = $faculties[0]['faculty_id'] ?? '';
             </svg>
           </span>
           <input type="text" name="fullname"
-            class="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-400" placeholder="Full name"
-            required>
+            class="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-400"
+            placeholder="นายสมชาย ใจดี" required>
         </div>
       </div>
 
