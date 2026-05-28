@@ -672,6 +672,7 @@ $oldIntentionText = $valueMap[25] ?? '';
   </header>
 
   <form method="post" action="<?= h($formAction) ?>" id="memoForm">
+    <input type="hidden" name="template_id" value="1">
     <input type="hidden" name="department_id" id="selectedDepartmentId" value="<?= (int)$currentUserDepartmentId ?>">
     <input type="hidden" name="purpose" value="speaker_workshop">
     <input type="hidden" name="form_type" value="speaker_workshop">
@@ -682,9 +683,11 @@ $oldIntentionText = $valueMap[25] ?? '';
     <input type="hidden" name="template_page" value="form_memo_speaker.php">
     <?php if ($isEdit): ?>
     <input type="hidden" name="document_id" value="<?= (int)$documentId ?>">
-    <input type="hidden" name="template_id" value="<?= (int)$templateId ?>">
+    <input type="hidden" name="mode" value="update">
     <input type="hidden" name="redirect_back"
       value="/Pro_letter/form_Memo/form_memo_speaker.php?id=<?= (int)$documentId ?>">
+    <?php else: ?>
+    <input type="hidden" name="mode" value="create">
     <?php endif; ?>
     <!-- กล่องเนื้อหา -->
     <div class="w-[900px] mx-auto mt-16 mb-6 bg-white shadow-md rounded-md p-8" style="min-height: 1122px">
@@ -798,20 +801,41 @@ $oldIntentionText = $valueMap[25] ?? '';
         </div>
       </div>
       <!-- 3. วัน เดือน ปี ที่ต้องการให้ปรากฎบนบันทึกข้อความ -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 items-end">
-        <div class="flex items-center gap-3">
+      <?php
+      $docDateSaved = trim((string)$oldHeaderDocDate);
+      $hasSavedDocDateField = array_key_exists(1, $valueMap);
+      $docDateOption = ($hasSavedDocDateField && $docDateSaved === '') ? 'no_date' : 'use_date';
+      ?>
+      <div class="mb-4">
+        <div class="flex flex-col gap-2">
           <label class="lbl text-gray-800 whitespace-nowrap" for="docDateDisplay">3. วัน เดือน ปี :</label>
-          <div class="relative">
-            <input type="text" id="docDateDisplay" value="<?= h($oldHeaderDocDate) ?>"
-              class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่" readonly />
-            <input type="hidden" name="doc_date" id="docDate" value="<?= h($oldHeaderDocDate) ?>" />
-            <svg class="pointer-events-none absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]"
-              xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
-            </svg>
+
+          <div class="flex items-center gap-3 flex-nowrap pl-4 w-full overflow-x-auto">
+            <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap shrink-0">
+              <input type="radio" name="doc_date_option" id="docDateUse" value="use_date"
+                class="accent-black" <?= ($docDateOption === 'use_date') ? 'checked' : '' ?>>
+              วันที่
+            </label>
+
+            <div class="relative shrink-0" id="docDatePickerWrap">
+              <input type="text" id="docDateDisplay" value="<?= h($docDateSaved) ?>"
+                class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่" readonly />
+              <input type="hidden" name="doc_date" id="docDate" value="<?= h($docDateSaved) ?>" />
+              <svg class="pointer-events-none absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]"
+                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
+              </svg>
+            </div>
+
+            <label class="lbl text-gray-800 whitespace-nowrap shrink-0">ที่ต้องการให้ปรากฎบนบันทึกข้อความ</label>
           </div>
-          <label class="lbl text-gray-800 whitespace-nowrap">ที่ต้องการให้ปรากฎบนบันทึกข้อความ</label>
+
+          <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap pl-4">
+            <input type="radio" name="doc_date_option" id="docDateNone" value="no_date"
+              class="accent-black" <?= ($docDateOption === 'no_date') ? 'checked' : '' ?>>
+            ไม่ประสงค์ใส่วันที่
+          </label>
         </div>
       </div>
 
@@ -1068,6 +1092,21 @@ $oldIntentionText = $valueMap[25] ?? '';
       return `${date.getDate()} ${monthsTHSpeaker[date.getMonth()]} ${date.getFullYear() + 543}`;
     }
 
+    function parseYMDSpeaker(value) {
+      const m = String(value || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!m) return null;
+      const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    function formatYMDSpeaker(date) {
+      if (!date) return "";
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+
     function formatThaiRange(start, end) {
       if (!start || !end) return "";
       const sd = start.getDate();
@@ -1083,17 +1122,65 @@ $oldIntentionText = $valueMap[25] ?? '';
       return `${sd} ${sm} ${sy} - ${ed} ${em} ${ey}`;
     }
 
-    flatpickr("#docDateDisplay", {
-      dateFormat: "d/m/Y",
+    const docDateUse = document.getElementById("docDateUse");
+    const docDateNone = document.getElementById("docDateNone");
+    const docDateDisplay = document.getElementById("docDateDisplay");
+    const docDateHidden = document.getElementById("docDate");
+
+    const docPicker = flatpickr("#docDateDisplay", {
+      dateFormat: "Y-m-d",
       disableMobile: true,
+      allowInput: false,
+      clickOpens: true,
+      onReady: function(selectedDates, dateStr, instance) {
+        const savedDate = parseYMDSpeaker(docDateHidden?.value);
+        if (savedDate) {
+          instance.setDate(savedDate, false);
+          instance.input.value = formatThaiDate(savedDate);
+          if (docDateHidden) docDateHidden.value = formatYMDSpeaker(savedDate);
+        }
+      },
       onChange: function(selectedDates, dateStr, instance) {
         if (selectedDates.length > 0) {
-          const thaiDate = formatThaiDate(selectedDates[0]);
-          instance.input.value = thaiDate;
-          document.getElementById("docDate").value = thaiDate;
+          const selectedDate = selectedDates[0];
+          instance.input.value = formatThaiDate(selectedDate);
+          if (docDateHidden) docDateHidden.value = formatYMDSpeaker(selectedDate);
         }
       }
     });
+
+    function syncDocDateOptionUI() {
+      const isNoDate = !!docDateNone?.checked;
+
+      if (isNoDate) {
+        if (docDateDisplay) {
+          docDateDisplay.value = "";
+          docDateDisplay.disabled = true;
+          docDateDisplay.classList.add("bg-gray-100", "text-gray-400", "cursor-not-allowed");
+          docDateDisplay.classList.remove("cursor-pointer");
+        }
+
+        if (docDateHidden) {
+          docDateHidden.value = "";
+        }
+
+        docPicker?.clear();
+        docPicker?.set("clickOpens", false);
+        docDateDisplay?.classList.remove("error", "shake");
+      } else {
+        if (docDateDisplay) {
+          docDateDisplay.disabled = false;
+          docDateDisplay.classList.remove("bg-gray-100", "text-gray-400", "cursor-not-allowed");
+          docDateDisplay.classList.add("cursor-pointer");
+        }
+
+        docPicker?.set("clickOpens", true);
+      }
+    }
+
+    docDateUse?.addEventListener("change", syncDocDateOptionUI);
+    docDateNone?.addEventListener("change", syncDocDateOptionUI);
+    syncDocDateOptionUI();
 
     flatpickr("#referenceDate", {
       dateFormat: "d/m/Y",
@@ -1840,6 +1927,7 @@ $oldIntentionText = $valueMap[25] ?? '';
       const referenceOrg = document.getElementById("referenceOrg");
       const referenceNo = document.querySelector('[name="reference_no"]');
       const docDate = document.getElementById("docDateDisplay");
+      const docDateNone = document.getElementById("docDateNone");
       const referenceDate = document.getElementById("referenceDate");
       const teacherName = document.getElementById("teacherName");
       const position = document.getElementById("position");
@@ -1869,7 +1957,7 @@ $oldIntentionText = $valueMap[25] ?? '';
         "ไม่พบชื่อเจ้าของเอกสาร กรุณาตรวจสอบข้อมูลผู้ใช้งาน");
       if (!position?.value.trim()) return setError(position, "กรุณากรอกตำแหน่ง");
       if (!referenceOrg?.value.trim()) return setError(referenceOrg, "กรุณากรอกหน่วยงานผู้ออกหนังสืออ้างอิง");
-      if (!docDate?.value.trim()) return setError(docDate,
+      if (!docDateNone?.checked && !docDate?.value.trim()) return setError(docDate,
         "กรุณาเลือกวัน เดือน ปี ที่ต้องการให้ปรากฎบนบันทึกข้อความ");
       if (!referenceNo?.value.trim()) return setError(referenceNo, "กรุณากรอกเลขที่หนังสืออ้างอิง");
       if (!referenceDate?.value.trim()) return setError(referenceDate, "กรุณาเลือกวันที่หนังสืออ้างอิง");
@@ -1949,6 +2037,15 @@ $oldIntentionText = $valueMap[25] ?? '';
       if (submitBtn) submitBtn.disabled = true;
 
       try {
+        syncDocDateOptionUI();
+
+        if (docDateNone?.checked) {
+          if (docDateDisplay) docDateDisplay.value = "";
+          if (docDateHidden) docDateHidden.value = "";
+        } else if (docPicker?.selectedDates?.[0] && docDateHidden) {
+          docDateHidden.value = formatYMDSpeaker(docPicker.selectedDates[0]);
+        }
+
         if (!validateSpeakerWorkshopForm()) return;
         const okSpell = await checkAllSpellFields();
         if (!okSpell) return;

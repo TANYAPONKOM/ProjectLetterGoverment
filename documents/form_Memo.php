@@ -769,20 +769,41 @@ if ($roleIdForHome === 1) {
             </div>
           </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 items-end">
-          <div class="flex items-center gap-3">
+        <?php
+        $docDateSaved = trim((string)($formData[1] ?? ''));
+        $hasSavedDocDateField = array_key_exists(1, $formData);
+        $docDateOption = ($hasSavedDocDateField && $docDateSaved === '') ? 'no_date' : 'use_date';
+        ?>
+        <div class="mb-4">
+          <div class="flex flex-col gap-2">
             <label class="lbl text-gray-800 whitespace-nowrap" for="docDateDisplay">1.วัน เดือน ปี :</label>
-            <div class="relative">
-              <input type="text" id="docDateDisplay" value="<?= h($formData[1] ?? '') ?>"
-                class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่" readonly />
-              <input type="hidden" name="doc_date" id="docDate" value="<?= h($formData[1] ?? '') ?>" />
-              <svg class="pointer-events-none absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]"
-                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
-              </svg>
+
+            <div class="flex items-center gap-3 flex-nowrap pl-4 w-full overflow-x-auto">
+              <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap shrink-0">
+                <input type="radio" name="doc_date_option" id="docDateUse" value="use_date"
+                  class="accent-black" <?= ($docDateOption === 'use_date') ? 'checked' : '' ?>>
+                วันที่
+              </label>
+
+              <div class="relative shrink-0" id="docDatePickerWrap">
+                <input type="text" id="docDateDisplay" value="<?= h($docDateSaved) ?>"
+                  class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่" readonly />
+                <input type="hidden" name="doc_date" id="docDate" value="<?= h($docDateSaved) ?>" />
+                <svg class="pointer-events-none absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]"
+                  xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
+                </svg>
+              </div>
+
+              <label class="lbl text-gray-800 whitespace-nowrap shrink-0">ที่ต้องการให้ปรากฎบนบันทึกข้อความ</label>
             </div>
-            <label class="lbl text-gray-800 whitespace-nowrap">ที่ต้องการให้ปรากฎบนบันทึกข้อความ</label>
+
+            <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap pl-4">
+              <input type="radio" name="doc_date_option" id="docDateNone" value="no_date"
+                class="accent-black" <?= ($docDateOption === 'no_date') ? 'checked' : '' ?>>
+              ไม่ประสงค์ใส่วันที่
+            </label>
           </div>
         </div>
         <div class="space-y-4 mb-6">
@@ -1398,6 +1419,9 @@ if ($roleIdForHome === 1) {
 
     const docDateDisplay = document.getElementById("docDateDisplay"); // ไทย พ.ศ.
     const docDateHidden = document.getElementById("docDate"); // YYYY-MM-DD (ส่ง DB)
+    const docDateUse = document.getElementById("docDateUse");
+    const docDateNone = document.getElementById("docDateNone");
+    const docDatePickerWrap = document.getElementById("docDatePickerWrap");
 
     const fullname = document.getElementById("fullname");
     const position = document.getElementById("position");
@@ -1686,6 +1710,32 @@ if ($roleIdForHome === 1) {
       }
     }
     carCheckbox?.addEventListener("change", syncCarUI);
+
+    function syncDocDateOptionUI() {
+      const isNoDate = !!docDateNone?.checked;
+
+      if (isNoDate) {
+        if (docDateDisplay) {
+          docDateDisplay.value = "";
+          docDateDisplay.disabled = true;
+          docDateDisplay.classList.add("bg-gray-100", "text-gray-400", "cursor-not-allowed");
+        }
+
+        if (docDateHidden) {
+          docDateHidden.value = "";
+        }
+
+        clearError(docDateDisplay);
+      } else {
+        if (docDateDisplay) {
+          docDateDisplay.disabled = false;
+          docDateDisplay.classList.remove("bg-gray-100", "text-gray-400", "cursor-not-allowed");
+        }
+      }
+    }
+
+    docDateUse?.addEventListener("change", syncDocDateOptionUI);
+    docDateNone?.addEventListener("change", syncDocDateOptionUI);
     const docPicker = flatpickr(docDateDisplay, {
       disableMobile: true,
       allowInput: false,
@@ -1707,7 +1757,10 @@ if ($roleIdForHome === 1) {
         clearError(docDateDisplay);
       }
     });
-    docDateDisplay?.addEventListener("click", () => docPicker.open());
+    syncDocDateOptionUI();
+    docDateDisplay?.addEventListener("click", () => {
+      if (!docDateNone?.checked) docPicker.open();
+    });
 
     const singlePicker = flatpickr("#singleDate", {
       disableMobile: true,
@@ -2027,7 +2080,7 @@ if ($roleIdForHome === 1) {
       }
 
 
-      if (!docDateHidden?.value?.trim()) {
+      if (!docDateNone?.checked && !docDateHidden?.value?.trim()) {
         firstError = firstError || docDateDisplay;
         setError(docDateDisplay, "กรุณาเลือกวัน เดือน ปี");
       }
@@ -2199,7 +2252,10 @@ if ($roleIdForHome === 1) {
 
       try {
         // บังคับ sync ค่า display -> hidden ก่อน submit
-        if (docDateDisplay?.value && !docDateHidden?.value) {
+        if (docDateNone?.checked) {
+          if (docDateDisplay) docDateDisplay.value = "";
+          if (docDateHidden) docDateHidden.value = "";
+        } else if (docDateDisplay?.value && !docDateHidden?.value) {
           const d = docPicker.selectedDates[0];
           if (d) {
             docDateHidden.value = docPicker.formatDate(d, "Y-m-d");
@@ -2224,7 +2280,7 @@ if ($roleIdForHome === 1) {
           setError(mainCategory, "กรุณาเลือกหมวดหลัก");
         }
 
-        if (!docDateHidden?.value?.trim()) {
+        if (!docDateNone?.checked && !docDateHidden?.value?.trim()) {
           firstError = firstError || docDateDisplay;
           setError(docDateDisplay, "กรุณาเลือกวัน เดือน ปี");
         }

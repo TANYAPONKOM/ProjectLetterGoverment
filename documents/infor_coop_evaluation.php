@@ -324,6 +324,11 @@ unset($__editOrgDocId, $__editOrgIdVar, $__editOrg, $__editOrgStmt, $__editOrgPd
 
 // ค่าเริ่มต้นสำหรับฟอร์มนี้
 $projectDocDate = $_POST['doc_date'] ?? ($formDataById[1] ?? '');
+$projectDocDate = trim((string)$projectDocDate);
+$hasSavedDocDateField = array_key_exists(1, $formDataById);
+$docDateOption = ($_POST['doc_date_option'] ?? '') === 'no_date'
+    ? 'no_date'
+    : (($hasSavedDocDateField && $projectDocDate === '') ? 'no_date' : 'use_date');
 $coopSubject = $_POST['subject'] ?? ($formDataByKey['coop_subject'] ?? ($formDataById[14] ?? 'ขอความอนุเคราะห์ประเมินผลนักศึกษาสหกิจศึกษา'));
 $coopToPerson = $_POST['to_person'] ?? ($formDataByKey['coop_to_person'] ?? ($formDataById[26] ?? ''));
 $coopOrganizationName = $_POST['organization_name'] ?? ($formDataByKey['coop_organization_name'] ?? '');
@@ -336,6 +341,8 @@ $coopEndDateValue = $_POST['coop_end_date'] ?? ($formDataByKey['coop_end_date'] 
 $coopAdvisorName = $_POST['advisor_name'] ?? ($formDataByKey['coop_advisor_name'] ?? '');
 $projectReceiverName = $_POST['receiver_name'] ?? ($formDataByKey['coop_receiver_name'] ?? '');
 $projectReceiverPosition = $_POST['receiver_position'] ?? ($formDataByKey['coop_receiver_position'] ?? '');
+$coopPhone = $_POST['coop_phone'] ?? ($formDataByKey['coop_phone'] ?? '');
+$coopPhoneExt = $_POST['coop_phone_ext'] ?? ($formDataByKey['coop_phone_ext'] ?? '');
 
 $coopStudents = json_decode($coopStudentsJson, true);
 if (!is_array($coopStudents)) {
@@ -797,32 +804,44 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
 
 
       <!-- 1. วัน เดือน ปี ที่ต้องการให้ปรากฎบนบันทึกข้อความ -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 items-end">
-        <div class="flex items-center gap-3 md:col-span-2">
-          <label class="lbl text-gray-800 whitespace-nowrap w-24" for="docDateDisplay">
-            1. วัน เดือน ปี :
-          </label>
+      <div class="mb-4">
+        <div class="flex flex-col gap-2">
+          <label class="lbl text-gray-800 whitespace-nowrap" for="docDateDisplay">1. วัน เดือน ปี :</label>
 
-          <div class="relative">
-            <input type="text" id="docDateDisplay" value="<?= h($projectDocDate) ?>"
-              class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่" readonly>
-            <input type="hidden" name="doc_date" id="docDate" value="<?= h($projectDocDate) ?>">
+          <div class="flex items-center gap-3 flex-nowrap pl-4 w-full overflow-x-auto">
+            <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap shrink-0">
+              <input type="radio" name="doc_date_option" id="docDateUse" value="use_date"
+                class="accent-black" <?= ($docDateOption === 'use_date') ? 'checked' : '' ?>>
+              วันที่
+            </label>
 
-            <svg class="pointer-events-none absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]"
-              xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
-            </svg>
+            <div class="relative shrink-0" id="docDatePickerWrap">
+              <input type="text" id="docDateDisplay" value="<?= h($projectDocDate) ?>"
+                class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่" readonly>
+              <input type="hidden" name="doc_date" id="docDate" value="<?= h($projectDocDate) ?>">
+
+              <svg class="pointer-events-none absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]"
+                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
+              </svg>
+            </div>
+
+            <label class="lbl text-gray-800 whitespace-nowrap shrink-0">
+              ที่ต้องการให้ปรากฎบนบันทึกข้อความ
+            </label>
           </div>
 
-          <label class="lbl text-gray-800 whitespace-nowrap">
-            ที่ต้องการให้ปรากฎบนบันทึกข้อความ
+          <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap pl-4">
+            <input type="radio" name="doc_date_option" id="docDateNone" value="no_date"
+              class="accent-black" <?= ($docDateOption === 'no_date') ? 'checked' : '' ?>>
+            ไม่ประสงค์ใส่วันที่
           </label>
         </div>
       </div>
 
 
-      <!-- 2. เรื่อง -->
+<!-- 2. เรื่อง -->
       <div class="mb-4 flex items-start gap-1">
         <label class="lbl whitespace-nowrap w-48 pt-2">2. เรื่อง :</label>
         <div class="flex-1">
@@ -977,6 +996,28 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
       </div>
 
 
+      <!-- 10. เบอร์โทร -->
+      <div class="mb-4 flex items-start gap-1">
+        <label class="lbl text-gray-800 whitespace-nowrap w-48 pt-2">
+          10. เบอร์โทร :
+        </label>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-gray-800 whitespace-nowrap">โทร.</span>
+          <input type="text" name="coop_phone" id="coopPhoneInput"
+            class="border rounded-md p-2 shadow-sm w-56"
+            value="<?= h($coopPhone) ?>"
+            placeholder="เช่น 0 3721 7340">
+
+          <span class="text-gray-800 whitespace-nowrap">ต่อ</span>
+          <input type="text" name="coop_phone_ext" id="coopPhoneExtInput"
+            class="border rounded-md p-2 shadow-sm w-36"
+            value="<?= h($coopPhoneExt) ?>"
+            placeholder="เช่น 7065-6">
+        </div>
+      </div>
+
+
 
       <!-- ปุ่ม -->
       <div class="relative mt-20">
@@ -997,6 +1038,8 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
 
   const docDateDisplay = byId("docDateDisplay");
   const docDate = byId("docDate");
+  const docDateUse = byId("docDateUse");
+  const docDateNone = byId("docDateNone");
   const subjectInput = byId("subjectInput");
   const toPerson = byId("toPerson");
   const organizationName = byId("organizationName");
@@ -1091,6 +1134,22 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
     return `${day} ${month} ${year}`;
   }
 
+  function parseYMDCoop(value) {
+    const text = String(value || "").trim();
+    const m = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  function formatYMDCoop(date) {
+    if (!date) return "";
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
   function updateCoopPeriod() {
     const start = coopStartPicker?.selectedDates?. [0];
     const end = coopEndPicker?.selectedDates?. [0];
@@ -1106,16 +1165,64 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
   if (window.flatpickr) {
     flatpickr.localize(flatpickr.l10ns.th);
 
+    let docPicker = null;
+
     if (docDateDisplay && docDate) {
-      flatpickr("#docDateDisplay", {
-        dateFormat: "d/m/Y",
+      docPicker = flatpickr("#docDateDisplay", {
+        dateFormat: "Y-m-d",
         disableMobile: true,
         allowInput: false,
-        onChange: function(selectedDates, dateStr) {
-          docDate.value = dateStr || "";
+        clickOpens: true,
+        onReady: function(selectedDates, dateStr, instance) {
+          const savedDate = parseYMDCoop(docDate.value);
+          if (savedDate) {
+            instance.setDate(savedDate, false);
+            instance.input.value = formatThaiDate(savedDate);
+            docDate.value = formatYMDCoop(savedDate);
+          }
+        },
+        onChange: function(selectedDates, dateStr, instance) {
+          if (selectedDates.length > 0) {
+            const selectedDate = selectedDates[0];
+            instance.input.value = formatThaiDate(selectedDate);
+            docDate.value = formatYMDCoop(selectedDate);
+          }
         }
       });
     }
+
+    function syncDocDateOptionUI() {
+      const isNoDate = !!docDateNone?.checked;
+
+      if (isNoDate) {
+        if (docDateDisplay) {
+          docDateDisplay.value = "";
+          docDateDisplay.disabled = true;
+          docDateDisplay.classList.add("bg-gray-100", "text-gray-400", "cursor-not-allowed");
+          docDateDisplay.classList.remove("cursor-pointer");
+        }
+
+        if (docDate) {
+          docDate.value = "";
+        }
+
+        docPicker?.clear();
+        docPicker?.set("clickOpens", false);
+        docDateDisplay?.classList.remove("error", "shake");
+      } else {
+        if (docDateDisplay) {
+          docDateDisplay.disabled = false;
+          docDateDisplay.classList.remove("bg-gray-100", "text-gray-400", "cursor-not-allowed");
+          docDateDisplay.classList.add("cursor-pointer");
+        }
+
+        docPicker?.set("clickOpens", true);
+      }
+    }
+
+    docDateUse?.addEventListener("change", syncDocDateOptionUI);
+    docDateNone?.addEventListener("change", syncDocDateOptionUI);
+    syncDocDateOptionUI();
   }
 
   if (window.flatpickr && coopStartDate && coopEndDate) {
@@ -1793,8 +1900,9 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
     updateStudentListText();
     updateCoopPeriod();
 
-    if (docDate && docDateDisplay) {
-      docDate.value = docDateDisplay.value.trim();
+    if (docDateNone?.checked) {
+      if (docDate) docDate.value = "";
+      if (docDateDisplay) docDateDisplay.value = "";
     }
 
     return true;

@@ -245,7 +245,7 @@ function decode_research_students($json)
 /* --------------------------------------------------
    Mapping ตัวแปรหลักจาก document_values
 -------------------------------------------------- */
-$docDate = $valueMap[1] ?? $document['doc_date'];
+$docDate = array_key_exists(1, $valueMap) ? trim((string)$valueMap[1]) : trim((string)($document['doc_date'] ?? ''));
 $ownerName = $valueMap[2] ?? "";
 $position = $valueMap[3] ?? "";
 $joinType = $valueMap[4] ?? "";
@@ -283,6 +283,8 @@ $researchSupportType    = field_val($valueKeyMap, $valueMap, 'research_support_t
 $researchDataDetail     = field_val($valueKeyMap, $valueMap, 'research_data_detail', 53, '');
 $researchDataAmount     = field_val($valueKeyMap, $valueMap, 'research_data_amount', 54, '');
 $researchStudentsJson   = field_val($valueKeyMap, $valueMap, 'research_students_json', 55, '[]');
+$researchPhone          = field_val($valueKeyMap, $valueMap, 'research_phone', 0, '0 3721 7340-3');
+$researchPhoneExt       = field_val($valueKeyMap, $valueMap, 'research_phone_ext', 0, '7065-6');
 
 $researchStudents = decode_research_students($researchStudentsJson);
 $researchStudentCount = count($researchStudents);
@@ -352,7 +354,7 @@ $wordDownloadName = $downloadBaseName . '.docx';
 /* --------------------------------------------------
    คำนวณวันที่ไทย, งบประมาณ
 -------------------------------------------------- */
-$thaiDocDate = thai_date($docDate);
+$thaiDocDate = ($docDate !== '') ? thai_date($docDate) : '';
 $prettyAmount = $amountStr !== "" ? number_format((float) $amountStr, 2) : "";
 
 /* --------------------------------------------------
@@ -969,7 +971,7 @@ $len = max(20, $len);
     padding-top:105px;
     white-space:nowrap;
   ">
-          ที่ <?= h($doc_no ?: 'อว ๗๑๒๐/') ?>
+          ที่ <?= h($doc_no ?: '') ?>
         </div>
 
         <!-- ครุฑ -->
@@ -1192,7 +1194,7 @@ $len = max(20, $len);
 
           <?= h($displayDepartmentFull) ?><br>
 
-          โทร. ๐ ๓๗๒๑ ๗๓๔๐-๓ ต่อ ๗๐๖๕-๖<br>
+          โทร. <?= h(thai_digits($researchPhone)) ?><?= trim($researchPhoneExt) !== '' ? ' ต่อ ' . h(thai_digits($researchPhoneExt)) : '' ?><br>
 
           ไปรษณีย์อิเล็กทรอนิกส์ :
           <span style="

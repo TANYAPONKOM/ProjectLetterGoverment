@@ -756,15 +756,27 @@ function checked_value($a, $b) {
       </div>
 
       <!-- ข้อ 1 -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 items-end">
-        <div class="flex items-center gap-3">
-          <label class="lbl text-gray-800 whitespace-nowrap" for="docDate">1. วันที่บนบันทึกข้อความ :</label>
-          <div class="flex-1">
-            <div class="relative">
-              <input type="text" id="docDateDisplay" class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer"
-                placeholder="เลือกวันที่" readonly value="<?= htmlspecialchars($docDate) ?>" />
+      <?php
+      $docDateSaved = trim((string)$docDate);
+      $hasSavedDocDateField = array_key_exists(1, $formData);
+      $docDateOption = ($hasSavedDocDateField && $docDateSaved === '') ? 'no_date' : 'use_date';
+      ?>
+      <div class="mb-4">
+        <div class="flex flex-col gap-2">
+          <label class="lbl text-gray-800 whitespace-nowrap" for="docDateDisplay">1. วันที่บนบันทึกข้อความ :</label>
 
-              <input type="hidden" name="doc_date" id="docDate" value="<?= htmlspecialchars($docDate) ?>" />
+          <div class="flex items-center gap-3 flex-nowrap pl-4 w-full overflow-x-auto">
+            <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap shrink-0">
+              <input type="radio" name="doc_date_option" id="docDateUse" value="use_date"
+                class="accent-black" <?= ($docDateOption === 'use_date') ? 'checked' : '' ?>>
+              วันที่
+            </label>
+
+            <div class="relative shrink-0" id="docDatePickerWrap">
+              <input type="text" id="docDateDisplay" class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer"
+                placeholder="เลือกวันที่" readonly value="<?= htmlspecialchars($docDateSaved) ?>" />
+
+              <input type="hidden" name="doc_date" id="docDate" value="<?= htmlspecialchars($docDateSaved) ?>" />
 
               <svg class="absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9] pointer-events-none"
                 xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -772,7 +784,15 @@ function checked_value($a, $b) {
                   d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
               </svg>
             </div>
+
+            <label class="lbl text-gray-800 whitespace-nowrap shrink-0">ที่ต้องการให้ปรากฎบนบันทึกข้อความ</label>
           </div>
+
+          <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap pl-4">
+            <input type="radio" name="doc_date_option" id="docDateNone" value="no_date"
+              class="accent-black" <?= ($docDateOption === 'no_date') ? 'checked' : '' ?>>
+            ไม่ประสงค์ใส่วันที่
+          </label>
         </div>
       </div>
 
@@ -1119,6 +1139,8 @@ function checked_value($a, $b) {
   const form = byId("memoForm");
   const docDate = byId("docDate");
   const docDateDisplay = byId("docDateDisplay");
+  const docDateUse = byId("docDateUse");
+  const docDateNone = byId("docDateNone");
   const roomRequestOtherInput = byId("roomRequestOtherInput");
   const roomRequestOtherRadio = byId("roomRequestOtherRadio");
   const guestFullname = byId("guestFullname");
@@ -1838,7 +1860,7 @@ function checked_value($a, $b) {
   function validate() {
     let firstInvalid = null;
 
-    if (!docDate.value) {
+    if (!docDateNone?.checked && !docDate.value) {
       setErr(docDateDisplay, true);
       firstInvalid = firstInvalid || docDateDisplay;
     }
@@ -1912,6 +1934,15 @@ function checked_value($a, $b) {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
+    syncDocDateOptionUI();
+
+    if (docDateNone?.checked) {
+      if (docDateDisplay) docDateDisplay.value = "";
+      if (docDate) docDate.value = "";
+    } else if (docPicker?.selectedDates?.[0] && docDate) {
+      docDate.value = docPicker.formatDate(docPicker.selectedDates[0], "Y-m-d");
+    }
+
     if (!validate()) return;
 
     const okSpell = await checkAllSpellFields();
@@ -1946,11 +1977,30 @@ function checked_value($a, $b) {
     return `${d} ${m} ${y}`;
   }
 
+  function parseYMD(dateText) {
+    const text = String(dateText || "").trim();
+    const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    if (Number.isNaN(date.getTime())) return null;
+
+    return date;
+  }
+
   const docPicker = flatpickr("#docDateDisplay", {
     dateFormat: "Y-m-d",
     disableMobile: true,
     allowInput: false,
     clickOpens: true,
+    onReady: function(selectedDates, dateStr, instance) {
+      const savedDate = parseYMD(docDate?.value);
+      if (savedDate) {
+        instance.setDate(savedDate, false);
+        instance.input.value = toThaiDisplay(savedDate);
+        if (docDate) docDate.value = instance.formatDate(savedDate, "Y-m-d");
+      }
+    },
     onChange: function(selectedDates, dateStr, instance) {
       const d = selectedDates[0];
       if (!d) return;
@@ -1959,6 +2009,39 @@ function checked_value($a, $b) {
       byId("docDate").value = instance.formatDate(d, "Y-m-d");
     }
   });
+
+  function syncDocDateOptionUI() {
+    const isNoDate = !!docDateNone?.checked;
+
+    if (isNoDate) {
+      if (docDateDisplay) {
+        docDateDisplay.value = "";
+        docDateDisplay.disabled = true;
+        docDateDisplay.classList.add("bg-gray-100", "text-gray-400", "cursor-not-allowed");
+        docDateDisplay.classList.remove("cursor-pointer");
+      }
+
+      if (docDate) {
+        docDate.value = "";
+      }
+
+      docPicker?.clear();
+      docPicker?.set("clickOpens", false);
+      setErr(docDateDisplay, false);
+    } else {
+      if (docDateDisplay) {
+        docDateDisplay.disabled = false;
+        docDateDisplay.classList.remove("bg-gray-100", "text-gray-400", "cursor-not-allowed");
+        docDateDisplay.classList.add("cursor-pointer");
+      }
+
+      docPicker?.set("clickOpens", true);
+    }
+  }
+
+  docDateUse?.addEventListener("change", syncDocDateOptionUI);
+  docDateNone?.addEventListener("change", syncDocDateOptionUI);
+  syncDocDateOptionUI();
   // ✅ ปฏิทินวันเดียว
   flatpickr("#singleDate", {
     dateFormat: "d/m/Y",

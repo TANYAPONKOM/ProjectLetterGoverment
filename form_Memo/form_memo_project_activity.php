@@ -172,13 +172,20 @@ function thai_date($ymd)
     11 => "พฤศจิกายน",
     12 => "ธันวาคม"
   ];
-  return thai_digits(intval($d) . " " . $months[intval($m)] . " " . (intval($y) + 543));
+
+  $monthNo = (int)$m;
+  if ($monthNo < 1 || $monthNo > 12) {
+    return "";
+  }
+
+  return thai_digits(intval($d) . " " . $months[$monthNo] . " " . (intval($y) + 543));
 }
 
 /* --------------------------------------------------
    Mapping ตัวแปรหลักจาก document_values
 -------------------------------------------------- */
-$docDate = $valueMap[1] ?? $document['doc_date'];
+$hasSavedDocDateField = array_key_exists(1, $valueMap);
+$docDate = $hasSavedDocDateField ? trim((string)($valueMap[1] ?? '')) : trim((string)($document['doc_date'] ?? ''));
 $ownerName = $valueMap[2] ?? "";
 $position = $valueMap[3] ?? "";
 $joinType = $valueMap[4] ?? "";
@@ -208,6 +215,10 @@ $projectActivityPeriod = $valueByKey['project_activity_period'] ?? '';
 $projectLecturerNames = $valueByKey['project_lecturer_names'] ?? '';
 $projectReceiverName = $valueByKey['project_receiver_name'] ?? 'ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์';
 $projectReceiverPosition = $valueByKey['project_receiver_position'] ?? $displayFacultyDean;
+$projectPhone = trim((string)($valueByKey['project_phone'] ?? ''));
+$projectPhoneExt = trim((string)($valueByKey['project_phone_ext'] ?? ''));
+$displayProjectPhone = $projectPhone !== '' ? thai_digits($projectPhone) : '๐-๓๗๒๑-๗๓๔๐-๓';
+$displayProjectPhoneExt = $projectPhoneExt !== '' ? thai_digits($projectPhoneExt) : '๗๐๖๕-๖';
 
 $projectParticipantText = trim((string)$projectParticipantCount);
 if ($projectParticipantText !== '' && mb_strpos($projectParticipantText, 'คน') === false) {
@@ -876,7 +887,7 @@ $len = max(20, $len);
     padding-top:53px;
     white-space:nowrap;
   ">
-          ที่ อว ๗๑๒๐/
+          ที่ 
         </div>
 
         <!-- ครุฑ -->
@@ -1078,7 +1089,7 @@ $len = max(20, $len);
     line-height:1.2;
 ">
           <?= h(thai_digits($displayDepartmentFull)) ?><br>
-          โทรศัพท์ ๐-๓๗๒๑-๗๓๔๐-๓ ต่อ ๗๐๖๕-๖<br>
+          โทร. <?= h($displayProjectPhone) ?><?= $displayProjectPhoneExt !== '' ? ' ต่อ ' . h($displayProjectPhoneExt) : '' ?><br>
           ไปรษณีย์อิเล็กทรอนิกส์ :
           <span style="color:#000; text-decoration:none;">IT@itm.kmutnb.ac.th</span>
         </div>

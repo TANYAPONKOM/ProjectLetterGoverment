@@ -331,11 +331,15 @@ function thai_time_to_html_time($text) {
     return '';
 }
 
-$studyDocDate = fv(1, 'doc_date', $docRow['doc_date'] ?? '');
+$hasSavedStudyDocDateField = array_key_exists(1, $formData);
+$studyDocDate = $hasSavedStudyDocDateField ? trim((string)($formData[1] ?? '')) : fv(1, 'doc_date', $docRow['doc_date'] ?? '');
+$studyDocDateOption = ($hasSavedStudyDocDateField && $studyDocDate === '') ? 'no_date' : 'use_date';
 $studySubject = fv(14, 'study_subject', $docRow['subject'] ?? '');
 $studyToPerson = fv(26, 'study_to_person', '');
 $studyReceiverName = fv(31, 'study_receiver_name', '');
 $studyReceiverPosition = fv(32, 'study_receiver_position', '');
+$studyPhone = fv(null, 'study_phone', '');
+$studyPhoneExt = fv(null, 'study_phone_ext', '');
 $studyFullname = fv(2, 'study_fullname', $_SESSION['fullname'] ?? '');
 $studyPosition = fv(3, 'study_position', $_SESSION['position'] ?? 'อาจารย์ประจำภาควิชาเทคโนโลยีสารสนเทศ');
 $studyVisitPlace = fv(5, 'study_visit_place', '');
@@ -826,20 +830,36 @@ if ($studyTeacherCount < count($studyTeachers)) {
 
 
       <!-- 1. วัน เดือน ปี ที่ต้องการให้ปรากฎบนบันทึกข้อความ -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 items-end">
-        <div class="flex items-center gap-3 md:col-span-2">
-          <label class="lbl text-gray-800 whitespace-nowrap w-48" for="docDateDisplay">1. วัน เดือน ปี :</label>
-          <div class="relative">
-            <input type="text" id="docDateDisplay" value="<?= h($studyDocDate) ?>"
-              class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่" readonly />
-            <input type="hidden" name="doc_date" id="docDate" value="<?= h($studyDocDate) ?>" />
-            <svg class="pointer-events-none absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]"
-              xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
-            </svg>
+      <div class="mb-4">
+        <div class="flex flex-col gap-2">
+          <label class="lbl text-gray-800 whitespace-nowrap" for="docDateDisplay">1. วัน เดือน ปี :</label>
+
+          <div class="flex items-center gap-3 flex-nowrap pl-4 w-full overflow-x-auto">
+            <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap shrink-0">
+              <input type="radio" name="doc_date_option" id="docDateUse" value="use_date"
+                class="accent-black" <?= ($studyDocDateOption === 'use_date') ? 'checked' : '' ?>>
+              วันที่
+            </label>
+
+            <div class="relative shrink-0" id="docDatePickerWrap">
+              <input type="text" id="docDateDisplay" value="<?= h($studyDocDate) ?>"
+                class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่" readonly />
+              <input type="hidden" name="doc_date" id="docDate" value="<?= h($studyDocDate) ?>" />
+              <svg class="pointer-events-none absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]"
+                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
+              </svg>
+            </div>
+
+            <label class="lbl text-gray-800 whitespace-nowrap shrink-0">ที่ต้องการให้ปรากฎบนบันทึกข้อความ</label>
           </div>
-          <label class="lbl text-gray-800 whitespace-nowrap">ที่ต้องการให้ปรากฎบนบันทึกข้อความ</label>
+
+          <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap pl-4">
+            <input type="radio" name="doc_date_option" id="docDateNone" value="no_date"
+              class="accent-black" <?= ($studyDocDateOption === 'no_date') ? 'checked' : '' ?>>
+            ไม่ประสงค์ใส่วันที่
+          </label>
         </div>
       </div>
 
@@ -1087,6 +1107,22 @@ if ($studyTeacherCount < count($studyTeachers)) {
       </div>
 
 
+      <!-- 15. เบอร์โทร -->
+      <div class="mb-4 flex items-start gap-4">
+        <label class="lbl whitespace-nowrap w-48 pt-2">15. เบอร์โทร :</label>
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="whitespace-nowrap">โทร.</span>
+          <input type="text" name="study_phone" id="studyPhoneInput"
+            class="border rounded-md p-2 w-56" value="<?= h($studyPhone) ?>"
+            placeholder="เช่น 0-3721-7340-3">
+
+          <span class="whitespace-nowrap">ต่อ</span>
+          <input type="text" name="study_phone_ext" id="studyPhoneExtInput"
+            class="border rounded-md p-2 w-40" value="<?= h($studyPhoneExt) ?>"
+            placeholder="เช่น 7065-6">
+        </div>
+      </div>
+
       <!-- ปุ่ม -->
       <div class="relative mt-20">
         <div class="absolute right-0 bottom-0">
@@ -1106,6 +1142,8 @@ if ($studyTeacherCount < count($studyTeachers)) {
 
   const docDateDisplay = byId("docDateDisplay");
   const docDate = byId("docDate");
+  const docDateUse = byId("docDateUse");
+  const docDateNone = byId("docDateNone");
 
   const subjectInput = byId("subjectInput");
   const toPerson = byId("toPerson");
@@ -1242,6 +1280,20 @@ if ($studyTeacherCount < count($studyTeachers)) {
   let docDatePicker;
   let visitStartPicker;
 
+  function formatYMD(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  function parseYMD(value) {
+    const match = String(value || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
   function formatThaiDate(date) {
     const day = date.getDate();
     const month = monthsTH[date.getMonth()];
@@ -1251,23 +1303,51 @@ if ($studyTeacherCount < count($studyTeachers)) {
   }
 
   function updateDocDate() {
-    const selected = docDatePicker?.selectedDates?. [0];
-
-    if (!selected) {
-      docDate.value = "";
-      docDateDisplay.value = "";
+    if (docDateNone?.checked) {
+      if (docDate) docDate.value = "";
+      if (docDateDisplay) docDateDisplay.value = "";
       return;
     }
 
-    const thaiDate = formatThaiDate(selected);
+    const selected = docDatePicker?.selectedDates?.[0];
 
-    const y = selected.getFullYear();
-    const m = String(selected.getMonth() + 1).padStart(2, "0");
-    const d = String(selected.getDate()).padStart(2, "0");
-    const isoDate = `${y}-${m}-${d}`;
+    if (!selected) {
+      if (docDate) docDate.value = "";
+      if (docDateDisplay) docDateDisplay.value = "";
+      return;
+    }
 
-    docDate.value = isoDate; // ค่านี้ส่งไป save_memo.php
-    docDateDisplay.value = thaiDate; // ค่านี้โชว์ในหน้าฟอร์ม
+    if (docDate) docDate.value = formatYMD(selected); // ค่านี้ส่งไป save_memo.php
+    if (docDateDisplay) docDateDisplay.value = formatThaiDate(selected); // ค่านี้โชว์ในหน้าฟอร์ม
+  }
+
+  function syncDocDateOptionUI() {
+    const isNoDate = !!docDateNone?.checked;
+
+    if (isNoDate) {
+      if (docDateDisplay) {
+        docDateDisplay.value = "";
+        docDateDisplay.disabled = true;
+        docDateDisplay.classList.add("bg-gray-100", "text-gray-400", "cursor-not-allowed");
+        docDateDisplay.classList.remove("cursor-pointer");
+      }
+
+      if (docDate) {
+        docDate.value = "";
+      }
+
+      docDatePicker?.clear();
+      docDatePicker?.set("clickOpens", false);
+      setErr(docDateDisplay, false);
+    } else {
+      if (docDateDisplay) {
+        docDateDisplay.disabled = false;
+        docDateDisplay.classList.remove("bg-gray-100", "text-gray-400", "cursor-not-allowed");
+        docDateDisplay.classList.add("cursor-pointer");
+      }
+
+      docDatePicker?.set("clickOpens", true);
+    }
   }
 
   function updateVisitPeriod() {
@@ -1288,15 +1368,30 @@ if ($studyTeacherCount < count($studyTeachers)) {
 
     if (docDateDisplay) {
       docDatePicker = flatpickr("#docDateDisplay", {
-        dateFormat: "d/m/Y",
+        dateFormat: "Y-m-d",
         disableMobile: true,
         allowInput: false,
+        clickOpens: true,
+        onReady: function(selectedDates, dateStr, instance) {
+          const savedDate = parseYMD(docDate?.value);
+          if (savedDate) {
+            instance.setDate(savedDate, false);
+            instance.input.value = formatThaiDate(savedDate);
+            if (docDate) docDate.value = formatYMD(savedDate);
+          }
+        },
         onChange: updateDocDate
       });
 
       docDateDisplay.addEventListener("click", () => {
-        docDatePicker?.open();
+        if (!docDateNone?.checked) {
+          docDatePicker?.open();
+        }
       });
+
+      docDateUse?.addEventListener("change", syncDocDateOptionUI);
+      docDateNone?.addEventListener("change", syncDocDateOptionUI);
+      syncDocDateOptionUI();
     }
 
     if (visitStart) {
@@ -1942,7 +2037,6 @@ if ($studyTeacherCount < count($studyTeachers)) {
     ].forEach(el => setErr(el, false));
 
     const requiredFields = [
-      docDateDisplay,
       subjectInput,
       toPerson,
       receiverNameInput,
@@ -1957,6 +2051,10 @@ if ($studyTeacherCount < count($studyTeachers)) {
       timeStart,
       teacherCount
     ];
+
+    if (!docDateNone?.checked) {
+      requiredFields.unshift(docDateDisplay);
+    }
 
     requiredFields.forEach(el => {
       if (!el?.value.trim()) {
@@ -1985,7 +2083,12 @@ if ($studyTeacherCount < count($studyTeachers)) {
       return false;
     }
 
-    updateDocDate();
+    if (docDateNone?.checked) {
+      if (docDate) docDate.value = "";
+      if (docDateDisplay) docDateDisplay.value = "";
+    } else {
+      updateDocDate();
+    }
     updateVisitPeriod();
     updateVisitTime();
     updateTeacherNamesText();

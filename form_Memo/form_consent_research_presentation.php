@@ -145,6 +145,27 @@ function thai_date($ymd)
   return intval($d) . " " . $months[intval($m)] . " " . (intval($y) + 543);
 }
 
+function thai_digits($text)
+{
+  return strtr((string) $text, [
+    '0' => '๐',
+    '1' => '๑',
+    '2' => '๒',
+    '3' => '๓',
+    '4' => '๔',
+    '5' => '๕',
+    '6' => '๖',
+    '7' => '๗',
+    '8' => '๘',
+    '9' => '๙',
+  ]);
+}
+
+function h_doc($text)
+{
+  return h(thai_digits($text));
+}
+
 /* --------------------------------------------------
    Mapping ตัวแปรหลักจาก document_values
 -------------------------------------------------- */
@@ -929,20 +950,20 @@ $len = max(20, $len);
 
 
       <div class="content-block paragraph">
-        ข้าพเจ้า <span class="inline-dash"><?= h($ownerName) ?></span> ได้ยอมให้
-        <span class="inline-dash"><?= h($presenterName) ?></span>
-        อาจารย์สังกัด<?= h($displayDepartmentFull) ?>
-        <?= h($displayFaculty) ?>
+        ข้าพเจ้า <span class="inline-dash"><?= h_doc($ownerName) ?></span> ได้ยอมให้
+        <span class="inline-dash"><?= h_doc($presenterName) ?></span>
+        อาจารย์สังกัด<?= h_doc($displayDepartmentFull) ?>
+        <?= h_doc($displayFaculty) ?>
         มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
         วิทยาเขตปราจีนบุรี
         ได้นำเสนอผลงานวิจัย เรื่อง
-        <span class="inline-dash"><?= h($researchTitle) ?></span>
-        ในงานการประชุมวิชาการ<span><?= h($conferenceLevel) ?></span>
-        <span class="inline-dash"><?= h($conferenceName) ?></span>
+        <span class="inline-dash"><?= h_doc($researchTitle) ?></span>
+        ในงานการประชุมวิชาการ<span><?= h_doc($conferenceLevel) ?></span>
+        <span class="inline-dash"><?= h_doc($conferenceName) ?></span>
         โดยงานการประชุมจัดขึ้นที่
-        <span class="inline-dash"><?= h($conferencePlace) ?></span>
+        <span class="inline-dash"><?= h_doc($conferencePlace) ?></span>
         <span class="inline-dash inline-dash-normal">ในระหว่างวันที่</span>
-        <span class="inline-dash"><?= h($presentationDate) ?></span>
+        <span class="inline-dash"><?= h_doc($presentationDate) ?></span>
       </div>
 
 
@@ -950,8 +971,8 @@ $len = max(20, $len);
       <!-- ลายเซ็น -->
       <div class="signature-wrapper">
         <div id="signatureBlock" class="signature-block">
-          <span class="sig-name">(<span class="sig-dash-normal"><?= h($ownerName) ?></span>)</span>
-          <span class="sig-affiliation"><?= h($signatureAffiliation) ?></span>
+          <span class="sig-name">(<span class="sig-dash-normal"><?= h_doc($ownerName) ?></span>)</span>
+          <span class="sig-affiliation"><?= h_doc($signatureAffiliation) ?></span>
         </div>
       </div>
 

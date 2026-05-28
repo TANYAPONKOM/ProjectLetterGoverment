@@ -121,7 +121,14 @@ $valueKeyMap = [];
 foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
   $valueMap[(int) $row['field_id']] = $row['value_text'];
   if (!empty($row['field_key'])) {
-    $valueKeyMap[$row['field_key']] = $row['value_text'];
+    $fieldKey = (string)$row['field_key'];
+    $fieldVal = (string)($row['value_text'] ?? '');
+
+    // กันกรณีมี field_key ซ้ำจากการเพิ่ม field ภายหลัง:
+    // ถ้า key เดิมมีค่าอยู่แล้ว ห้ามให้ record ว่างมาทับจนข้อมูลที่กรอกไม่แสดง
+    if (!isset($valueKeyMap[$fieldKey]) || trim($fieldVal) !== '') {
+      $valueKeyMap[$fieldKey] = $fieldVal;
+    }
   }
 }
 
@@ -267,8 +274,9 @@ function coop_student_rows($studentsJson, $studentListText) {
 /* --------------------------------------------------
    Mapping ตัวแปรหลักจาก document_values
 -------------------------------------------------- */
-$docDate = trim((string)($valueMap[1] ?? '')) !== ''
-  ? trim((string)$valueMap[1])
+$hasSavedDocDateField = array_key_exists(1, $valueMap);
+$docDate = $hasSavedDocDateField
+  ? trim((string)($valueMap[1] ?? ''))
   : trim((string)($document['doc_date'] ?? ''));
 $ownerName = $valueMap[2] ?? "";
 $position = $valueMap[3] ?? "";
@@ -303,6 +311,9 @@ $coopAdvisorName = $valueKeyMap['coop_advisor_name'] ?? ($valueMap[79] ?? 'พ�
 $coopAdditionalDetail = $valueKeyMap['coop_additional_detail'] ?? ($valueMap[81] ?? '');
 $coopReceiverName = $valueKeyMap['coop_receiver_name'] ?? ($valueMap[82] ?? 'ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์');
 $coopReceiverPosition = $valueKeyMap['coop_receiver_position'] ?? ($valueMap[83] ?? $displayFacultyDean);
+$coopPhone = trim((string)($valueKeyMap['coop_phone'] ?? ''));
+$coopPhoneExt = trim((string)($valueKeyMap['coop_phone_ext'] ?? ''));
+$coopPhoneLine = $coopPhone !== '' ? 'โทร. ' . thai_digits($coopPhone) . ($coopPhoneExt !== '' ? ' ต่อ ' . thai_digits($coopPhoneExt) : '') : 'โทร. ๐ ๓๗๒๑ ๗๓๔๐ ต่อ ๗๐๖๕-๖';
 
 if ($coopStudentListText === '' && $coopStudentsJson !== '') {
   $decodedStudents = json_decode($coopStudentsJson, true);
@@ -370,15 +381,16 @@ $wordDownloadName = $downloadBaseName . '.docx';
 /* --------------------------------------------------
    คำนวณวันที่ไทย, งบประมาณ
 -------------------------------------------------- */
-$dateCandidates = [
-  $docDate ?? '',
-  $valueMap[1] ?? '',
-  $valueKeyMap['doc_date'] ?? '',
-  $valueKeyMap['document_date'] ?? '',
-  $valueKeyMap['memo_date'] ?? '',
-  $valueKeyMap['date'] ?? '',
-  $document['doc_date'] ?? '',
-];
+$dateCandidates = $hasSavedDocDateField
+  ? [$docDate ?? '']
+  : [
+      $docDate ?? '',
+      $valueKeyMap['doc_date'] ?? '',
+      $valueKeyMap['document_date'] ?? '',
+      $valueKeyMap['memo_date'] ?? '',
+      $valueKeyMap['date'] ?? '',
+      $document['doc_date'] ?? '',
+    ];
 
 $displayDocDate = '';
 foreach ($dateCandidates as $dateCandidate) {
@@ -389,8 +401,8 @@ foreach ($dateCandidates as $dateCandidate) {
 }
 
 // กันกรณีเอกสารเก่าที่ไม่มีวันที่ใน document_values/documents.doc_date
-// อย่างน้อยต้องมีวันที่แสดง ไม่ให้หน้าเอกสารว่าง
-if ($displayDocDate === '') {
+// แต่ถ้ามี field วันที่แล้วเป็นค่าว่าง แปลว่าเลือกไม่ประสงค์ใส่วันที่ จึงต้องปล่อยว่าง
+if ($displayDocDate === '' && !$hasSavedDocDateField) {
   $displayDocDate = thai_doc_date_format(date('Y-m-d'), 2);
 }
 
@@ -402,7 +414,7 @@ foreach ($dateCandidates as $dateCandidate) {
   }
 }
 
-if ($thaiDocDate === '') {
+if ($thaiDocDate === '' && !$hasSavedDocDateField) {
   $thaiDocDate = thai_doc_date_format(date('Y-m-d'), 1);
 }
 $prettyAmount = $amountStr !== "" ? number_format((float) $amountStr, 2) : "";
@@ -1050,7 +1062,7 @@ $len = max(20, $len);
     padding-top:106px;
     white-space:nowrap;
   ">
-          ที่ อว ๗๑๒๐/๗๑๖
+          ที่ 
         </div>
 
         <!-- ครุฑ -->
@@ -1120,9 +1132,6 @@ $len = max(20, $len);
 ">
         <?php
           $dateToShow = trim((string)($displayDocDate ?? ''));
-          if ($dateToShow === '') {
-            $dateToShow = thai_doc_date_format($docDate ?: ($valueMap[1] ?? '') ?: ($document['doc_date'] ?? '') ?: date('Y-m-d'), 2);
-          }
           echo h($dateToShow);
         ?>
       </div>
@@ -1278,7 +1287,7 @@ $len = max(20, $len);
     line-height:1.35;
 ">
           <?= h($displayDepartmentFull) ?><br>
-          โทร. ๐ ๓๗๒๑ ๗๓๔๐ ต่อ ๗๐๖๕-๖<br>
+          <?= h($coopPhoneLine) ?><br>
           ไปรษณีย์อิเล็กทรอนิกส์ : it@itm.kmutnb.ac.th<br>
           <br>
         </div>

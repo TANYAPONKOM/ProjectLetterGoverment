@@ -113,12 +113,31 @@ $readonly = !$canEdit;
 /* --------------------------------------------------
    ดึงค่า field จาก document_values
 -------------------------------------------------- */
-$q = $pdo->prepare("SELECT field_id, value_text FROM document_values WHERE document_id = :id");
+$q = $pdo->prepare("
+  SELECT
+    dv.field_id,
+    dv.value_text,
+    tf.field_key
+  FROM document_values dv
+  LEFT JOIN template_fields tf ON tf.field_id = dv.field_id
+  WHERE dv.document_id = :id
+");
 $q->execute([':id' => $docId]);
 
 $valueMap = [];
+$valueMapByKey = [];
 foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
-  $valueMap[(int) $row['field_id']] = $row['value_text'];
+  $fid = (int)($row['field_id'] ?? 0);
+  $val = (string)($row['value_text'] ?? '');
+
+  if ($fid > 0) {
+    $valueMap[$fid] = $val;
+  }
+
+  $key = trim((string)($row['field_key'] ?? ''));
+  if ($key !== '') {
+    $valueMapByKey[$key] = $val;
+  }
 }
 
 /* --------------------------------------------------
@@ -179,7 +198,8 @@ function split_lines($text)
 /* --------------------------------------------------
    Mapping ตัวแปรหลักจาก document_values สำหรับเอกสารขอเข้าเยี่ยมศึกษาดูงาน
 -------------------------------------------------- */
-$docDate = $valueMap[1] ?? $document['doc_date'];
+$hasSavedDocDateField = array_key_exists(1, $valueMap);
+$docDate = $hasSavedDocDateField ? trim((string)($valueMap[1] ?? '')) : trim($document['doc_date'] ?? '');
 $ownerName = trim($valueMap[2] ?? "");
 $position = trim($valueMap[3] ?? "");
 $joinType = trim($valueMap[4] ?? "ขออนุญาตเข้าเยี่ยมชมศึกษาดูงาน");
@@ -203,6 +223,10 @@ $teacherAffiliationsText = trim($valueMap[29] ?? "");
 $teacherListText = trim($valueMap[30] ?? "");
 $receiverName = trim($valueMap[56] ?? "");
 $receiverPosition = trim($valueMap[57] ?? "");
+$studyPhone = trim((string)($valueMapByKey['study_phone'] ?? ''));
+$studyPhoneExt = trim((string)($valueMapByKey['study_phone_ext'] ?? ''));
+$displayStudyPhone = $studyPhone !== '' ? thai_num($studyPhone) : '๐-๓๗๒๑-๗๓๔๐-๓';
+$displayStudyPhoneExt = $studyPhoneExt !== '' ? thai_num($studyPhoneExt) : '๗๐๖๕-๖';
 
 $subject = $subjectFromValue !== "" ? $subjectFromValue : trim($document['subject'] ?? "");
 if ($subject === "") {
@@ -971,7 +995,7 @@ $len = max(20, $len);
 ">
 
         <div style="font-size:16pt; padding-top:107px; white-space:nowrap;">
-          ที่ อว ๗๑๐๑.๑๕/
+          ที่ 
         </div>
 
         <div style="text-align:center; position:relative; left:55px; top:6px;">
@@ -1016,7 +1040,7 @@ $len = max(20, $len);
   position:relative;
   left:50px;
 ">
-        <?= h($thaiDocDate ?: "") ?>
+        <?= h(thai_num($thaiDocDate ?: "")) ?>
       </div>
 
       <div style="
@@ -1036,7 +1060,7 @@ $len = max(20, $len);
   ">
           <div style="white-space:nowrap;">เรื่อง</div>
           <div style="text-align:left; line-height:1.38;">
-            <span contenteditable="false" data-target="subject"><?= h($subject) ?></span>
+            <span contenteditable="false" data-target="subject"><?= h(thai_num($subject)) ?></span>
           </div>
         </div>
 
@@ -1050,7 +1074,7 @@ $len = max(20, $len);
   ">
           <div style="white-space:nowrap;">เรียน</div>
           <div style="text-align:left; line-height:1.38;">
-            <span contenteditable="false" data-target="to_person"><?= h($toPerson) ?></span>
+            <span contenteditable="false" data-target="to_person"><?= h(thai_num($toPerson)) ?></span>
           </div>
         </div>
 
@@ -1063,18 +1087,18 @@ $len = max(20, $len);
     letter-spacing:-0.1px;
     word-spacing:-1px;
   ">
-          ด้วย <span contenteditable="false" data-target="ownerName"><?= h($displayOwnerName) ?></span>
-          บุคลากรสังกัด<?= h($displayDepartmentFull) ?>
-          <?= h($displayFaculty) ?>
+          ด้วย <span contenteditable="false" data-target="ownerName"><?= h(thai_num($displayOwnerName)) ?></span>
+          บุคลากรสังกัด<?= h(thai_num($displayDepartmentFull)) ?>
+          <?= h(thai_num($displayFaculty)) ?>
           มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
           มีความประสงค์จะขออนุญาตเข้าเยี่ยมชม
-          <span contenteditable="false" data-target="visit_place"><?= h($visitPlace) ?></span>
-          <span contenteditable="false" data-target="place_detail"><?= h($displayPlaceDetailText) ?></span>
-          <?= h($displayVisitPeriodText) ?>
-          <?= h($displayVisitTimeText) ?>
-          <span contenteditable="false" data-target="study_purpose"><?= h($displayPurposeText) ?></span>
+          <span contenteditable="false" data-target="visit_place"><?= h(thai_num($visitPlace)) ?></span>
+          <span contenteditable="false" data-target="place_detail"><?= h(thai_num($displayPlaceDetailText)) ?></span>
+          <?= h(thai_num($displayVisitPeriodText)) ?>
+          <?= h(thai_num($displayVisitTimeText)) ?>
+          <span contenteditable="false" data-target="study_purpose"><?= h(thai_num($displayPurposeText)) ?></span>
           โดยมีรายชื่อคณาจารย์ที่จะเข้าเยี่ยมชมศึกษาดูงาน
-          จำนวน <span contenteditable="false" data-target="teacher_count_display"><?= h($teacherCountThai) ?></span> คน
+          จำนวน <span contenteditable="false" data-target="teacher_count_display"><?= h(thai_num($teacherCountThai)) ?></span> คน
           ดังรายชื่อต่อไปนี้
         </p>
 
@@ -1088,14 +1112,14 @@ $len = max(20, $len);
           <?php if (!empty($teacherRows)): ?>
           <?php foreach ($teacherRows as $idx => $teacher): ?>
           <div style="display:grid; grid-template-columns: 7.2cm 1fr;">
-            <div><?= h(thai_item_no($idx + 1)) ?>. <?= h($teacher['name'] ?? '') ?></div>
-            <div><?= h($teacher['affiliation'] ?? '') ?></div>
+            <div><?= h(thai_item_no($idx + 1)) ?>. <?= h(thai_num($teacher['name'] ?? '')) ?></div>
+            <div><?= h(thai_num($teacher['affiliation'] ?? '')) ?></div>
           </div>
           <?php endforeach; ?>
           <?php else: ?>
           <div style="display:grid; grid-template-columns: 7.2cm 1fr;">
             <div>๑. ........................................................</div>
-            <div><?= h($displayFaculty) ?></div>
+            <div><?= h(thai_num($displayFaculty)) ?></div>
           </div>
           <?php endif; ?>
         </div>
@@ -1120,8 +1144,8 @@ $len = max(20, $len);
     line-height:1.15;
     white-space:nowrap;
   ">
-          <div>(<span contenteditable="false" data-target="receiver_name"><?= h($receiverName) ?></span>)</div>
-          <div><span contenteditable="false" data-target="receiver_position"><?= h($receiverPosition) ?></span></div>
+          <div>(<span contenteditable="false" data-target="receiver_name"><?= h(thai_num($receiverName)) ?></span>)</div>
+          <div><span contenteditable="false" data-target="receiver_position"><?= h(thai_num($receiverPosition)) ?></span></div>
         </div>
 
         <!-- footer -->
@@ -1133,18 +1157,17 @@ $len = max(20, $len);
     letter-spacing:-0.05px;
     color:#111;
   ">
-          <?= h($displayDepartmentFull) ?><br>
-          โทรศัพท์ ๐-๓๗๒๑-๗๓๔๐-๓ ต่อ ๗๐๖๕-๖<br>
-          โทรสาร ๐-๓๗๒๑-๗๓๑๗-๘<br>
+          <?= h(thai_num($displayDepartmentFull)) ?><br>
+          โทรศัพท์ <?= h($displayStudyPhone) ?><?= $displayStudyPhoneExt !== '' ? ' ต่อ ' . h($displayStudyPhoneExt) : '' ?><br>
           ไปรษณีย์อิเล็กทรอนิกส์ Ladda.t@fitm.kmutnb.ac.th
         </div>
 
       </div>
 
-      <!-- <div style="font-family:'TH SarabunPSK'; font-size:16pt; line-height:1.2;"> เรียน <?= h($hdr_to) ?> </div>
+      <!-- <div style="font-family:'TH SarabunPSK'; font-size:16pt; line-height:1.2;"> เรียน <?= h(thai_num($hdr_to)) ?> </div>
             <div class="content-block single align-to-dean"> เพื่อโปรดพิจารณาอนุมัติ </div>
             <div class="content-block single align-to-dean" style="margin-top:50px;;"> (ผู้ช่วยศาสตราจารย์ ดร. ขนิษฐา
-                นามี)<br /> หัวหน้า<?= h($displayDepartmentFull) ?> </div> -->
+                นามี)<br /> หัวหน้า<?= h(thai_num($displayDepartmentFull)) ?> </div> -->
       <div class="footer-actions">
 
         <!-- ปุ่มดาวน์โหลด PDF -->

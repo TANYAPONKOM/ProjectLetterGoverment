@@ -140,7 +140,13 @@ function thai_date($ymd)
 {
   if (!$ymd || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $ymd))
     return "";
+
   [$y, $m, $d] = explode("-", $ymd);
+
+  if ((int)$y <= 0 || (int)$m < 1 || (int)$m > 12 || (int)$d < 1 || (int)$d > 31) {
+    return "";
+  }
+
   $months = [
     1 => "มกราคม",
     2 => "กุมภาพันธ์",
@@ -207,11 +213,34 @@ function thai_date_range_flexible($dateText)
   return thai_date_flexible($dateText);
 }
 
+
+function thai_digits($text)
+{
+  return strtr((string)$text, [
+    '0' => '๐',
+    '1' => '๑',
+    '2' => '๒',
+    '3' => '๓',
+    '4' => '๔',
+    '5' => '๕',
+    '6' => '๖',
+    '7' => '๗',
+    '8' => '๘',
+    '9' => '๙',
+  ]);
+}
+
+function h_thai_digits($text)
+{
+  return h(thai_digits($text));
+}
+
 /* --------------------------------------------------
    Mapping ตัวแปรหลักจาก document_values
    ใช้ field_id จาก Request_3.php / save_memo.php
 -------------------------------------------------- */
-$docDate = $valueMap[1] ?? ($document['doc_date'] ?? "");
+$hasSavedDocDateField = array_key_exists(1, $valueMap);
+$docDate = $hasSavedDocDateField ? trim((string)($valueMap[1] ?? '')) : trim((string)($document['doc_date'] ?? ""));
 $ownerName = $valueMap[2] ?? "";
 $position = $valueMap[3] ?? "";
 
@@ -904,7 +933,7 @@ $len = max(20, $len);
         <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
         <div class="dot-line">
           <span class="chip gov-text" contenteditable="false" data-target="header_text">
-            <?= h($hdr_agency ?: $header_text ?: 'คณะ... ภาควิชา... โทร...') ?>
+            <?= h_thai_digits($hdr_agency ?: $header_text ?: 'คณะ... ภาควิชา... โทร...') ?>
           </span>
         </div>
       </div>
@@ -914,7 +943,7 @@ $len = max(20, $len);
 
         <div class="dot-line ty-left">
           <span class="chip" contenteditable="false" data-target="doc_no">
-            <?= h($doc_no ?: 'ทส.486/2568') ?>
+            
           </span>
         </div>
 
@@ -922,7 +951,7 @@ $len = max(20, $len);
 
         <div class="dot-line ty-right">
           <span class="chip" contenteditable="false" data-target="doc_date_display">
-            <?= h($thaiDocDate ?: '') ?>
+            <?= h_thai_digits($thaiDocDate ?: '') ?>
           </span>
         </div>
       </div>
@@ -933,7 +962,7 @@ $len = max(20, $len);
         <div class="doc-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
         <div class="dot-line">
           <span class="chip" contenteditable="false">
-            ขออนุมัติใช้ห้องพักรับรอง<?= trim($roomRequestText) !== "" ? "สำหรับ" . h($roomRequestText) : "" ?>
+            ขออนุมัติใช้ห้องพักรับรอง<?= trim($roomRequestText) !== "" ? "สำหรับ" . h_thai_digits($roomRequestText) : "" ?>
           </span>
         </div>
       </div>
@@ -943,35 +972,35 @@ $len = max(20, $len);
       <div class="content-block single">
         เรียน
         <span class="chip" contenteditable="false">
-          <?= h($toPerson ?: "ประธานคณะกรรมการบ้านพัก มจพ. วิทยาเขตปราจีนบุรี") ?>
+          <?= h_thai_digits($toPerson ?: "ประธานคณะกรรมการบ้านพัก มจพ. วิทยาเขตปราจีนบุรี") ?>
         </span>
       </div>
 
       <!-- ย่อหน้า 1 -->
       <div class="content-block paragraph">
-        ตามที่ <?= h($displayDepartmentFull) ?> <?= h($displayFaculty) ?>
+        ตามที่ <?= h_thai_digits($displayDepartmentFull) ?> <?= h_thai_digits($displayFaculty) ?>
         มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
         มีความประสงค์ขออนุมัติใช้ห้องพักรับรองสำหรับ
-        <?= h($roomRequestText ?: "................................") ?>
+        <?= h_thai_digits($roomRequestText ?: "................................") ?>
         ให้แก่
-        <?= h($guestFullname ?: "................................") ?>
+        <?= h_thai_digits($guestFullname ?: "................................") ?>
         ซึ่งเป็น
-        <?= h($personTypeText ?: "................................") ?>
+        <?= h_thai_digits($personTypeText ?: "................................") ?>
         ในระหว่างวันที่
-        <?= h($stayDateText ?: "................................") ?>
+        <?= h_thai_digits($stayDateText ?: "................................") ?>
         นั้น
       </div>
 
       <!-- ย่อหน้า 2 -->
       <div class="content-block paragraph">
-        ในการนี้ <?= h($displayDepartmentFull) ?>
+        ในการนี้ <?= h_thai_digits($displayDepartmentFull) ?>
         จึงมีความประสงค์ขออนุมัติใช้ห้องพักรับรอง
         ณ
-        <?= h($roomType ?: "................................") ?>
+        <?= h_thai_digits($roomType ?: "................................") ?>
         ให้แก่
-        <?= h($guestFullname ?: "................................") ?>
+        <?= h_thai_digits($guestFullname ?: "................................") ?>
         ทั้งนี้เพื่อ
-        <?= h($reasonText ?: "................................") ?>
+        <?= h_thai_digits($reasonText ?: "................................") ?>
         รายละเอียดตามเอกสารแนบท้าย
       </div>
 
@@ -984,8 +1013,8 @@ $len = max(20, $len);
 
       <div class="signature-wrapper">
         <div class="signature-block" id="signatureBlock">
-          <div class="sig-name">(<?= h($signatureName) ?>)</div>
-          <div class="sig-position"><?= h($signaturePosition) ?></div>
+          <div class="sig-name">(<?= h_thai_digits($signatureName) ?>)</div>
+          <div class="sig-position"><?= h_thai_digits($signaturePosition) ?></div>
         </div>
       </div>
 

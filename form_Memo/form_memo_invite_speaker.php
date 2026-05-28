@@ -297,7 +297,8 @@ function format_thai_time_range($timeText)
 /* --------------------------------------------------
    Mapping ตัวแปรหลักจาก document_values
 -------------------------------------------------- */
-$docDate = $valueMap[1] ?? $document['doc_date'];
+$hasSavedDocDateField = array_key_exists(1, $valueMap);
+$docDate = $hasSavedDocDateField ? trim((string)($valueMap[1] ?? '')) : trim($document['doc_date'] ?? '');
 $ownerName = $valueMap[2] ?? "";
 $position = $valueMap[3] ?? "";
 $joinType = $valueMap[4] ?? "";
@@ -317,6 +318,10 @@ $objective = $valueMap[25] ?? "";
 $toPerson = $valueMap[26] ?? "";
 $inviteStatement = $valueMapByKey['invite_statement'] ?? "";
 $eventTime = $valueMapByKey['event_time'] ?? "";
+$invitePhone = trim((string)($valueMapByKey['invite_phone'] ?? ''));
+$invitePhoneExt = trim((string)($valueMapByKey['invite_phone_ext'] ?? ''));
+$displayInvitePhone = $invitePhone !== '' ? thai_digit($invitePhone) : '๐-๓๗๒๑-๗๓๔๐-๓';
+$displayInvitePhoneExt = $invitePhoneExt !== '' ? thai_digit($invitePhoneExt) : '๗๐๖๕-๖';
 
 /* --------------------------------------------------
    Mapping joinType → purposeCode (รหัส)
@@ -1004,7 +1009,7 @@ $len = max(20, $len);
     padding-top:50px;
     white-space:nowrap;
   ">
-          ที่ อว ๗๑๒๐/
+          ที่ 
         </div>
 
         <!-- ครุฑ -->
@@ -1071,7 +1076,7 @@ $len = max(20, $len);
 
   left:38px;
 ">
-        <?= h($thaiDocDate ?: '๗ ตุลาคม ๒๕๖๘') ?>
+        <?= h($thaiDocDate ?: '') ?>
       </div>
 
       <div style="
@@ -1241,7 +1246,7 @@ $len = max(20, $len);
 
           <?= h($displayDepartmentFull) ?><br>
 
-          โทรศัพท์ ๐-๓๗๒๑-๗๓๔๐-๓ ต่อ ๗๐๖๕-๖<br>
+          โทร. <?= h($displayInvitePhone) ?><?= $displayInvitePhoneExt !== '' ? ' ต่อ ' . h($displayInvitePhoneExt) : '' ?><br>
 
 
           ไปรษณีย์อิเล็กทรอนิกส์ :

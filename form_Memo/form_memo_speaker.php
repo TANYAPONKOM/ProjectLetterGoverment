@@ -125,6 +125,22 @@ foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
 //   return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
 // }
 
+function thai_digits($value)
+{
+  return strtr((string) $value, [
+    '0' => '๐',
+    '1' => '๑',
+    '2' => '๒',
+    '3' => '๓',
+    '4' => '๔',
+    '5' => '๕',
+    '6' => '๖',
+    '7' => '๗',
+    '8' => '๘',
+    '9' => '๙',
+  ]);
+}
+
 function splitSubjectLines($text, $limit = 78)
 {
   $text = trim(preg_replace('/\s+/u', ' ', (string)$text));
@@ -206,16 +222,14 @@ function thai_date($ymd)
     11 => "พฤศจิกายน",
     12 => "ธันวาคม"
   ];
-  return intval($d) . " " . $months[intval($m)] . " " . (intval($y) + 543);
+  return thai_digits(intval($d) . " " . $months[intval($m)] . " " . (intval($y) + 543));
 }
 
 /* --------------------------------------------------
    Mapping ตัวแปรหลักจาก document_values
 -------------------------------------------------- */
-$docDate = trim($valueMap[1] ?? '');
-if ($docDate === '') {
-  $docDate = trim($document['doc_date'] ?? '');
-}
+$hasSavedDocDateField = array_key_exists(1, $valueMap);
+$docDate = $hasSavedDocDateField ? trim((string)($valueMap[1] ?? '')) : trim($document['doc_date'] ?? '');
 $ownerName = $valueMap[2] ?? "";
 $position = $valueMap[3] ?? "";
 $joinType = $valueMap[4] ?? "";
@@ -1036,7 +1050,7 @@ $len = max(20, $len);
         </div>
         <div class="dot-line">
           <span class="chip gov-text" contenteditable="true" data-target="header_text">
-            <?= h($hdr_agency ?: ($header_text ?: 'คณะ... ภาควิชา... โทร...')) ?>
+            <?= h(thai_digits($hdr_agency ?: ($header_text ?: 'คณะ... ภาควิชา... โทร...'))) ?>
           </span>
         </div>
       </div>
@@ -1051,7 +1065,7 @@ $len = max(20, $len);
   display:inline-block;
   transform:translateX(26px);
 ">
-            <?= h($doc_no ?: 'ทส.486/2568') ?>
+            
           </span>
         </div>
 
@@ -1061,7 +1075,7 @@ $len = max(20, $len);
 
         <div class="dot-line ty-right">
           <span class="chip" contenteditable="true" data-target="doc_date_display">
-            <?= h($thaiDocDate ?: '') ?>
+            <?= h(thai_digits($thaiDocDate ?: '')) ?>
           </span>
         </div>
       </div>
@@ -1071,7 +1085,7 @@ $len = max(20, $len);
         <div class="doc-label subject-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
         <div class="subject-wrap">
           <?php foreach ($mainSubjectLines as $subjectLine): ?>
-          <div class="subject-line"><span class="subject-text" lang="th"><?= h($subjectLine) ?></span></div>
+          <div class="subject-line"><span class="subject-text" lang="th"><?= h(thai_digits($subjectLine)) ?></span></div>
           <?php endforeach; ?>
         </div>
       </div>
@@ -1099,7 +1113,7 @@ $len = max(20, $len);
             font-size:16pt;
             line-height:1.2;
          ">
-          <?= h($displayFacultyDean) ?>
+          <?= h(thai_digits($displayFacultyDean)) ?>
         </div>
 
       </div>
@@ -1108,25 +1122,25 @@ $len = max(20, $len);
       <div class="content-block paragraph">
         อ้างถึง หนังสือจาก
         <span class="chip" contenteditable="true"
-          data-target="referenceOrg"><?= h($referenceOrg ?: '................................') ?></span>
+          data-target="referenceOrg"><?= h(thai_digits($referenceOrg ?: '................................')) ?></span>
         เลขที่
         <span class="chip" contenteditable="true"
-          data-target="referenceNo"><?= h($referenceNo ?: '................................') ?></span>
+          data-target="referenceNo"><?= h(thai_digits($referenceNo ?: '................................')) ?></span>
         ลงวันที่
         <span class="chip" contenteditable="true"
-          data-target="referenceDate"><?= h($referenceDateText ?: '................................') ?></span>
+          data-target="referenceDate"><?= h(thai_digits($referenceDateText ?: '................................')) ?></span>
         เรื่อง
         <span class="chip" contenteditable="true"
-          data-target="projectTitle"><?= h($projectTitle ?: '................................') ?></span>
+          data-target="projectTitle"><?= h(thai_digits($projectTitle ?: '................................')) ?></span>
         หลักสูตร
         <span class="chip" contenteditable="true"
-          data-target="courseName"><?= h($courseName ?: '................................') ?></span>
+          data-target="courseName"><?= h(thai_digits($courseName ?: '................................')) ?></span>
         ในระหว่างวันที่
         <span class="chip" contenteditable="true"
-          data-target="joinDates"><?= h($eventRange ?: '................................') ?></span>
+          data-target="joinDates"><?= h(thai_digits($eventRange ?: '................................')) ?></span>
         ณ
         <span class="chip" contenteditable="true"
-          data-target="location"><?= h($eventPlace ?: '................................') ?></span>
+          data-target="location"><?= h(thai_digits($eventPlace ?: '................................')) ?></span>
         นั้น
       </div>
 
@@ -1134,19 +1148,19 @@ $len = max(20, $len);
       <div class="content-block paragraph">
         ในการนี้ ข้าพเจ้า
         <span class="chip" contenteditable="true"
-          data-target="ownerName"><?= h($ownerName ?: '................................') ?></span>
-        สังกัด<?= h($displayDepartmentFull) ?>
-        คณะ<?= h($faculty ?: 'เทคโนโลยีและการจัดการอุตสาหกรรม') ?>
+          data-target="ownerName"><?= h(thai_digits($ownerName ?: '................................')) ?></span>
+        สังกัด<?= h(thai_digits($displayDepartmentFull)) ?>
+        คณะ<?= h(thai_digits($faculty ?: 'เทคโนโลยีและการจัดการอุตสาหกรรม')) ?>
         มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
         ข้าพเจ้ามีความประสงค์
         <span class="chip" contenteditable="true"
-          data-target="intentionText"><?= h($intentionText ?: 'ขออนุมัติเดินทางไปร่วมเป็นวิทยากรบรรยายในโครงการอบรมเชิงปฏิบัติการ') ?></span>
+          data-target="intentionText"><?= h(thai_digits($intentionText ?: 'ขออนุมัติเดินทางไปร่วมเป็นวิทยากรบรรยายในโครงการอบรมเชิงปฏิบัติการ')) ?></span>
         หลักสูตร
         <span class="chip" contenteditable="true"
-          data-target="courseName"><?= h($courseName ?: '................................') ?></span>
+          data-target="courseName"><?= h(thai_digits($courseName ?: '................................')) ?></span>
         ระหว่างวันที่
         <span class="chip" contenteditable="true"
-          data-target="travelPeriod"><?= h($travelPeriod ?: '................................') ?></span>
+          data-target="travelPeriod"><?= h(thai_digits($travelPeriod ?: '................................')) ?></span>
         (รวมระยะเวลาในการเดินทาง) รายละเอียดตามเอกสารแนบ
       </div>
 
@@ -1157,8 +1171,8 @@ $len = max(20, $len);
 
       <div class="signature-wrapper">
         <div class="signature-block" id="signatureBlock">
-          <div class="sig-name">(<?= h($ownerName ?: '') ?>)</div>
-          <div class="sig-position"><?= h($position ?: '') ?></div>
+          <div class="sig-name">(<?= h(thai_digits($ownerName ?: '')) ?>)</div>
+          <div class="sig-position"><?= h(thai_digits($position ?: '')) ?></div>
         </div>
       </div>
 

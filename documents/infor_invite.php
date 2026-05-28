@@ -337,6 +337,8 @@ $locationValue = $formData[7] ?? '';
 $facultyValue = $formData[10] ?? $defaultFaculty;
 $departmentValue = $formData[11] ?? $defaultDepartment;
 $eventTimeValue = $formDataByKey['event_time'] ?? '';
+$invitePhoneValue = $formDataByKey['invite_phone'] ?? '';
+$invitePhoneExtValue = $formDataByKey['invite_phone_ext'] ?? '';
 
 $timeStartValue = '';
 $timeEndValue = '';
@@ -670,14 +672,20 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
     <input type="hidden" name="department_id" id="selectedDepartmentId" value="<?= (int)$currentUserDepartmentId ?>">
     <?php if ($isEdit): ?>
     <input type="hidden" name="document_id" value="<?= (int)$documentId ?>">
+    <input type="hidden" name="mode" value="update">
+    <input type="hidden" name="redirect_back"
+      value="/Pro_letter/form_Memo/form_memo_invite_speaker.php?id=<?= (int)$documentId ?>">
+    <?php else: ?>
+    <input type="hidden" name="mode" value="create">
     <?php endif; ?>
     <input type="hidden" name="template_id" value="1">
     <input type="hidden" name="document_type_name" value="หนังสือเรียนเชิญวิทยากร">
     <input type="hidden" name="purpose" value="invite_speaker_student">
     <input type="hidden" name="form_type" value="invite">
     <input type="hidden" name="document_type" value="infor_invite">
-    <input type="hidden" name="target_form" value="infor_invite.php">
-    <input type="hidden" name="redirect_to" value="infor_invite.php">
+    <input type="hidden" name="target_form" value="form_memo_invite_speaker.php">
+    <input type="hidden" name="redirect_to" value="form_memo_invite_speaker.php">
+    <input type="hidden" name="template_page" value="form_memo_invite_speaker.php">
     <!-- กล่องเนื้อหา -->
     <div class="w-[900px] mx-auto mt-16 mb-6 bg-white shadow-md rounded-md p-8" style="min-height: 1122px">
       <h1 class="text-center font-bold mb-6 text-black">
@@ -800,22 +808,43 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
 
 
       <!-- 3. วัน เดือน ปี -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 items-end">
-        <div class="flex items-center gap-3">
+      <?php
+      $docDateSaved = trim((string)$docDateValue);
+      $hasSavedDocDateField = array_key_exists(1, $formData);
+      $docDateOption = ($hasSavedDocDateField && $docDateSaved === '') ? 'no_date' : 'use_date';
+      ?>
+      <div class="mb-4">
+        <div class="flex flex-col gap-2">
           <label class="lbl text-gray-800 whitespace-nowrap" for="docDateDisplay">
             3. วัน เดือน ปี :
           </label>
-          <div class="relative">
-            <input type="text" id="docDateDisplay" value="<?= h($docDateValue) ?>"
-              class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่" readonly />
-            <input type="hidden" name="doc_date" id="docDate" value="<?= h($docDateValue) ?>" />
-            <svg class="pointer-events-none absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]"
-              xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
-            </svg>
+
+          <div class="flex items-center gap-3 flex-nowrap pl-4 w-full overflow-x-auto">
+            <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap shrink-0">
+              <input type="radio" name="doc_date_option" id="docDateUse" value="use_date"
+                class="accent-black" <?= ($docDateOption === 'use_date') ? 'checked' : '' ?>>
+              วันที่
+            </label>
+
+            <div class="relative shrink-0" id="docDatePickerWrap">
+              <input type="text" id="docDateDisplay" value="<?= h($docDateSaved) ?>"
+                class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่" readonly />
+              <input type="hidden" name="doc_date" id="docDate" value="<?= h($docDateSaved) ?>" />
+              <svg class="pointer-events-none absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]"
+                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
+              </svg>
+            </div>
+
+            <label class="lbl text-gray-800 whitespace-nowrap shrink-0">ที่ต้องการให้ปรากฏบนบันทึกข้อความ</label>
           </div>
-          <label class="lbl text-gray-800 whitespace-nowrap">ที่ต้องการให้ปรากฏบนบันทึกข้อความ</label>
+
+          <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap pl-4">
+            <input type="radio" name="doc_date_option" id="docDateNone" value="no_date"
+              class="accent-black" <?= ($docDateOption === 'no_date') ? 'checked' : '' ?>>
+            ไม่ประสงค์ใส่วันที่
+          </label>
         </div>
       </div>
 
@@ -947,6 +976,26 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
               <span>กำลังตรวจคำผิด...</span>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- 9. เบอร์โทร -->
+      <div class="mb-4 flex items-start gap-16">
+        <label class="lbl whitespace-nowrap w-48 pt-2">
+          9. เบอร์โทร :
+        </label>
+        <div class="flex flex-wrap items-center gap-3">
+          <label class="lbl whitespace-nowrap">โทร.</label>
+          <input type="text" name="invite_phone" id="invitePhone"
+            class="border rounded-md p-2 w-64"
+            placeholder="เช่น ๐-๓๗๒๑-๗๓๔๐-๓"
+            value="<?= h($invitePhoneValue) ?>">
+
+          <label class="lbl whitespace-nowrap">ต่อ</label>
+          <input type="text" name="invite_phone_ext" id="invitePhoneExt"
+            class="border rounded-md p-2 w-40"
+            placeholder="เช่น ๗๐๖๕-๖"
+            value="<?= h($invitePhoneExtValue) ?>">
         </div>
       </div>
 
@@ -1762,6 +1811,8 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
     const dept = byId("dept");
     const selectedDepartmentId = byId("selectedDepartmentId");
     const docDate = byId("docDate");
+    const docDateDisplay = byId("docDateDisplay");
+    const docDateNone = byId("docDateNone");
     const eventDate = byId("internPeriod");
     const timeStartInput = byId("timeStart");
     const timeEndInput = byId("timeEnd");
@@ -1773,7 +1824,6 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
       [dept, "กรุณาเลือกภาควิชา"],
       [subjectInput, "กรุณากรอกเรื่อง"],
       [toPerson, "กรุณากรอกข้อมูลผู้รับหนังสือ"],
-      [docDate, "กรุณาเลือกวัน เดือน ปี"],
       [projectTitle, "กรุณากรอกชื่อโครงการ / ชื่ออบรม"],
       [inviteStatement, "กรุณากรอกคำกล่าวเชิญ"],
       [objectiveInput, "กรุณากรอกวัตถุประสงค์"],
@@ -1793,6 +1843,12 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
         if (!firstError && target) firstError = target;
       }
     });
+
+    clearFieldError(docDate);
+    if (!docDateNone?.checked && !getTrimValue(docDate)) {
+      const target = setFieldError(docDateDisplay || docDate, "กรุณาเลือกวัน เดือน ปี");
+      if (!firstError && target) firstError = target;
+    }
 
     clearFieldError(selectedDepartmentId);
     if (!getTrimValue(selectedDepartmentId)) {
@@ -1840,6 +1896,21 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
 
+    if (typeof syncDocDateOptionUI === "function") {
+      syncDocDateOptionUI();
+    }
+
+    const docDateNone = byId("docDateNone");
+    const docDateDisplay = byId("docDateDisplay");
+    const docDateHidden = byId("docDate");
+
+    if (docDateNone?.checked) {
+      if (docDateDisplay) docDateDisplay.value = "";
+      if (docDateHidden) docDateHidden.value = "";
+    } else if (typeof docPicker !== "undefined" && docPicker?.selectedDates?.[0] && docDateHidden) {
+      docDateHidden.value = formatYMDInvite(docPicker.selectedDates[0]);
+    }
+
     if (!validateRequiredFields()) return;
 
     const okSpell = await checkAllSpellFields();
@@ -1867,14 +1938,85 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
     return `${day} ${month} ${year}`;
   }
 
-  flatpickr("#docDateDisplay", {
-    dateFormat: "d/m/Y",
+  function parseDocDateInvite(value) {
+    const raw = String(value || "").trim();
+    if (!raw || raw === "0000-00-00") return null;
+
+    let m = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+
+    m = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+
+    return null;
+  }
+
+  function formatYMDInvite(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  const docDateUse = document.getElementById("docDateUse");
+  const docDateNone = document.getElementById("docDateNone");
+  const docDateDisplay = document.getElementById("docDateDisplay");
+  const docDateHidden = document.getElementById("docDate");
+
+  const docPicker = flatpickr("#docDateDisplay", {
+    dateFormat: "Y-m-d",
     disableMobile: true,
     allowInput: false,
-    onChange: function(selectedDates, dateStr) {
-      document.getElementById("docDate").value = dateStr;
+    clickOpens: true,
+    onReady: function(selectedDates, dateStr, instance) {
+      const savedDate = parseDocDateInvite(docDateHidden?.value);
+      if (savedDate) {
+        instance.setDate(savedDate, false);
+        instance.input.value = formatThaiSingleDate(savedDate);
+        if (docDateHidden) docDateHidden.value = formatYMDInvite(savedDate);
+      }
+    },
+    onChange: function(selectedDates, dateStr, instance) {
+      if (selectedDates.length > 0) {
+        const selectedDate = selectedDates[0];
+        instance.input.value = formatThaiSingleDate(selectedDate);
+        if (docDateHidden) docDateHidden.value = formatYMDInvite(selectedDate);
+      }
     }
   });
+
+  function syncDocDateOptionUI() {
+    const isNoDate = !!docDateNone?.checked;
+
+    if (isNoDate) {
+      if (docDateDisplay) {
+        docDateDisplay.value = "";
+        docDateDisplay.disabled = true;
+        docDateDisplay.classList.add("bg-gray-100", "text-gray-400", "cursor-not-allowed");
+        docDateDisplay.classList.remove("cursor-pointer");
+      }
+
+      if (docDateHidden) {
+        docDateHidden.value = "";
+      }
+
+      docPicker?.clear();
+      docPicker?.set("clickOpens", false);
+      docDateDisplay?.classList.remove("error", "shake");
+    } else {
+      if (docDateDisplay) {
+        docDateDisplay.disabled = false;
+        docDateDisplay.classList.remove("bg-gray-100", "text-gray-400", "cursor-not-allowed");
+        docDateDisplay.classList.add("cursor-pointer");
+      }
+
+      docPicker?.set("clickOpens", true);
+    }
+  }
+
+  docDateUse?.addEventListener("change", syncDocDateOptionUI);
+  docDateNone?.addEventListener("change", syncDocDateOptionUI);
+  syncDocDateOptionUI();
 
   flatpickr("#eventDateDisplay", {
     dateFormat: "d/m/Y",

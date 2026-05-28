@@ -27,6 +27,12 @@ try {
     $departmentId = (int) ($_POST['department_id'] ?? 0);
     
    $docDate = trim($_POST['doc_date'] ?? '');
+   // ใช้เฉพาะกรณี form_Memo.php เลือกไม่แสดงวันที่บนหน้าเอกสาร
+   // documents.doc_date ยังต้องมีค่า เพราะฐานข้อมูลเป็น NOT NULL
+   $docDateOption = trim($_POST['doc_date_option'] ?? 'use_date');
+   $hideDocDateOnDocument = ($docDateOption === 'no_date');
+   $docDateForDocumentTable = $hideDocDateOnDocument ? date('Y-m-d') : $docDate;
+   $docDateForDisplay = $hideDocDateOnDocument ? '' : $docDate;
 
 $purpose = trim($_POST['purpose'] ?? '');
 $redirectTo = trim($_POST['redirect_to'] ?? '');
@@ -138,6 +144,8 @@ $receiverPosition = trim($_POST['receiver_position'] ?? '');
 $inviteStatement  = trim($_POST['invite_statement'] ?? '');
 $objectiveText     = trim($_POST['objective'] ?? '');
 $eventTime         = trim($_POST['event_time'] ?? '');
+$invitePhone       = trim($_POST['invite_phone'] ?? '');
+$invitePhoneExt    = trim($_POST['invite_phone_ext'] ?? '');
 
 $projectSubject          = trim($_POST['subject'] ?? '');
 $projectToPerson         = trim($_POST['to_person'] ?? '');
@@ -151,6 +159,8 @@ $projectActivityPeriod   = trim($_POST['activity_period'] ?? '');
 $projectLecturerNames    = trim($_POST['lecturer_names'] ?? '');
 $projectReceiverName     = trim($_POST['receiver_name'] ?? '');
 $projectReceiverPosition = trim($_POST['receiver_position'] ?? '');
+$projectPhone            = trim($_POST['project_phone'] ?? '');
+$projectPhoneExt         = trim($_POST['project_phone_ext'] ?? '');
 
 
 $coopSubject          = trim($_POST['subject'] ?? '');
@@ -164,6 +174,8 @@ $coopAdvisorName      = trim($_POST['advisor_name'] ?? '');
 $coopEvaluationEmail  = trim($_POST['evaluation_email'] ?? '');
 $coopReceiverName     = trim($_POST['receiver_name'] ?? '');
 $coopReceiverPosition = trim($_POST['receiver_position'] ?? '');
+$coopPhone            = trim($_POST['coop_phone'] ?? '');
+$coopPhoneExt         = trim($_POST['coop_phone_ext'] ?? '');
 $coopStudentListText  = trim($_POST['student_list_text'] ?? '');
 $coopStudentsJsonRaw  = trim($_POST['student_list_json'] ?? '');
 
@@ -237,6 +249,8 @@ $studyObjectiveText = trim($_POST['objective'] ?? '');
 $studyPurposeText = trim($_POST['study_purpose'] ?? $_POST['purpose'] ?? '');
 $studyVisitPeriod = trim($_POST['visit_period'] ?? '');
 $studyVisitTime   = trim($_POST['visit_time'] ?? '');
+$studyPhone       = trim($_POST['study_phone'] ?? '');
+$studyPhoneExt    = trim($_POST['study_phone_ext'] ?? '');
 $studyTeacherCount = isset($_POST['teacher_count']) ? (int) $_POST['teacher_count'] : 0;
 
 $studyTeacherNamesRaw = $_POST['teacher_names'] ?? [];
@@ -297,6 +311,8 @@ $researchProjectDetail  = trim($_POST['project_detail'] ?? '');
 $researchSupportType    = trim($_POST['support_type'] ?? '');
 $researchDataDetail     = trim($_POST['data_detail'] ?? '');
 $researchDataAmount     = trim($_POST['data_amount'] ?? '');
+$researchPhone          = trim($_POST['research_phone'] ?? '');
+$researchPhoneExt       = trim($_POST['research_phone_ext'] ?? '');
 $researchContactIndex   = isset($_POST['student_contact_index']) ? (int)$_POST['student_contact_index'] : 0;
 
 $studentNamesRaw  = $_POST['student_name'] ?? [];
@@ -432,7 +448,7 @@ $documentId = isset($_POST['document_id']) ? (int)$_POST['document_id'] : 0;
 $errors = [];
 
 if ($isCoopEvaluation) {
-    if ($docDate === '') {
+    if (!$hideDocDateOnDocument && $docDate === '') {
         $errors['doc_date'] = 'required';
     }
     if ($coopSubject === '') {
@@ -476,7 +492,7 @@ if ($isCoopEvaluation) {
         $errors['receiver_position'] = 'required';
     }
 } elseif ($isProjectActivity) {
-    if ($docDate === '') {
+    if (!$hideDocDateOnDocument && $docDate === '') {
         $errors['doc_date'] = 'required';
     }
     if ($projectSubject === '') {
@@ -517,7 +533,7 @@ if ($isCoopEvaluation) {
     }
 } elseif ($isResearchData) {
 
-    if ($docDate === '') {
+    if (!$hideDocDateOnDocument && $docDate === '') {
         $errors['doc_date'] = 'required';
     }
     if ($researchSubject === '') {
@@ -585,7 +601,7 @@ if ($isCoopEvaluation) {
     }
 
 } elseif ($isInviteMemo) {
-    if ($docDate === '') {
+    if (!$hideDocDateOnDocument && $docDate === '') {
         $errors['doc_date'] = 'required';
     }
     if ($memoSubject === '') {
@@ -611,7 +627,7 @@ if ($isCoopEvaluation) {
     }
 
 } elseif ($isRoomRequest) {
-    if ($docDate === '') {
+    if (!$hideDocDateOnDocument && $docDate === '') {
         $errors['doc_date'] = 'required';
     }
 
@@ -688,7 +704,7 @@ if ($isCoopEvaluation) {
         $errors['reference_no'] = 'required';
     }
 
-    if ($docDate === '') {
+    if (!$hideDocDateOnDocument && $docDate === '') {
         $errors['doc_date'] = 'required';
     }
     if ($referenceDate === '') {
@@ -717,7 +733,7 @@ if ($isCoopEvaluation) {
     $errors['intention_text'] = 'required';
     }
 } elseif ($isStudyVisit) {
-    if ($docDate === '') {
+    if (!$hideDocDateOnDocument && $docDate === '') {
         $errors['doc_date'] = 'required';
     }
     if ($memoSubject === '') {
@@ -769,7 +785,7 @@ if ($isCoopEvaluation) {
         }
     }
 } else {
-    if ($docDate === '') {
+    if (!$hideDocDateOnDocument && $docDate === '') {
         $errors['doc_date'] = 'required';
     }
 
@@ -974,7 +990,7 @@ if ($isCoopEvaluation) {
         ':template_id' => $templateId,
         ':document_type_name' => $documentTypeName,
         ':department_id' => $departmentId,
-        ':doc_date' => $docDate,
+        ':doc_date' => $docDateForDocumentTable,
         ':subject' => $subject,
         ':header_text' => $hdrAgency,
         ':id' => $documentId
@@ -993,7 +1009,7 @@ VALUES
         ':document_type_name' => $documentTypeName,
         ':owner_id' => $userId,
         ':department_id' => $departmentId,
-        ':doc_date' => $docDate,
+        ':doc_date' => $docDateForDocumentTable,
         ':subject' => $subject,
         ':header_text' => $hdrAgency
     ]);
@@ -1023,7 +1039,7 @@ if ($isCoopEvaluation) {
     $coopStudentsJson = json_encode($coopStudents, JSON_UNESCAPED_UNICODE);
 
     $values = [
-        1  => $docDate,
+        1  => $docDateForDisplay,
         4  => $joinType,
         10 => $faculty,
         11 => $department,
@@ -1060,11 +1076,13 @@ if ($isCoopEvaluation) {
         'coop_evaluation_email'   => $coopEvaluationEmail,
         'coop_receiver_name'      => $coopReceiverName,
         'coop_receiver_position'  => $coopReceiverPosition,
+        'coop_phone'              => $coopPhone,
+        'coop_phone_ext'          => $coopPhoneExt,
     ];
 
 } elseif ($isProjectActivity) {
     $values = [
-        1  => $docDate,
+        1  => $docDateForDisplay,
         4  => $joinType,
         10 => $faculty,
         11 => $department,
@@ -1085,13 +1103,15 @@ if ($isCoopEvaluation) {
         'project_lecturer_names'    => $projectLecturerNames,
         'project_receiver_name'     => $projectReceiverName,
         'project_receiver_position' => $projectReceiverPosition,
+        'project_phone'             => $projectPhone,
+        'project_phone_ext'         => $projectPhoneExt,
     ];
 
 } elseif ($isResearchData) {
     $researchStudentsJson = json_encode($researchStudents, JSON_UNESCAPED_UNICODE);
 
     $values = [
-        1  => $docDate,
+        1  => $docDateForDisplay,
         4  => $joinType,
         10 => $faculty,
         11 => $department,
@@ -1116,11 +1136,13 @@ if ($isCoopEvaluation) {
         'research_data_detail'     => $researchDataDetail,
         'research_data_amount'     => $researchDataAmount,
         'research_students_json'   => $researchStudentsJson,
+        'research_phone'           => $researchPhone,
+        'research_phone_ext'       => $researchPhoneExt,
     ];
 
 } elseif ($isInviteMemo) {
     $values = [
-        1  => $docDate,
+        1  => $docDateForDisplay,
         4  => $joinType,
         5  => $eventTitle,
         6  => $joinDates,
@@ -1134,13 +1156,15 @@ if ($isCoopEvaluation) {
     ];
 
     $valuesByKey = [
-        'invite_statement' => $inviteStatement,
-        'event_time'       => $eventTime,
+        'invite_statement'  => $inviteStatement,
+        'event_time'        => $eventTime,
+        'invite_phone'      => $invitePhone,
+        'invite_phone_ext'  => $invitePhoneExt,
     ];
 
 } elseif ($isRoomRequest) {
     $values = [
-        1  => $docDate,
+        1  => $docDateForDisplay,
         2  => $fullname,
         3  => $position,
         4  => $joinType,
@@ -1162,7 +1186,7 @@ if ($isCoopEvaluation) {
     ];
 } elseif ($isStudyVisit) {
     $values = [
-        1  => $docDate,
+        1  => $docDateForDisplay,
         2  => $fullname,
         3  => $position,
         4  => $joinType,
@@ -1201,10 +1225,12 @@ if ($isCoopEvaluation) {
         'study_teacher_names_text'        => $studyTeacherNamesText,
         'study_teacher_affiliations_text' => $studyTeacherAffiliationsText,
         'study_teacher_list_text'         => $studyTeacherListText,
+        'study_phone'                     => $studyPhone,
+        'study_phone_ext'                 => $studyPhoneExt,
     ];
 } elseif ($isSpeakerMemo) {
     $values = [
-        1  => $docDate,
+        1  => $docDateForDisplay,
         2  => $fullname,
         3  => $position,
         4  => $joinType,
@@ -1239,7 +1265,7 @@ if ($isCoopEvaluation) {
     ];
 } else {
     $values = [
-        1 => $docDate,
+        1 => $docDateForDisplay,
         2 => $fullname,
         3 => $position,
         4 => $joinType,
@@ -1278,6 +1304,86 @@ if ($isCoopEvaluation) {
         $fieldIdByKey[$fieldRow['field_key']] = (int)$fieldRow['field_id'];
     }
 
+    if ($isInviteMemo || $isStudyVisit || $isProjectActivity || $isCoopEvaluation || $isResearchData) {
+        $extraFieldsByKey = [];
+
+        if ($isInviteMemo) {
+            $extraFieldsByKey += [
+                'invite_phone' => ['label' => 'เบอร์โทรศัพท์', 'sort_order' => 901],
+                'invite_phone_ext' => ['label' => 'เบอร์โทรศัพท์ต่อ', 'sort_order' => 902],
+            ];
+        }
+
+        if ($isStudyVisit) {
+            $extraFieldsByKey += [
+                'study_phone' => ['label' => 'เบอร์โทรศัพท์', 'sort_order' => 901],
+                'study_phone_ext' => ['label' => 'เบอร์โทรศัพท์ต่อ', 'sort_order' => 902],
+            ];
+        }
+
+        if ($isProjectActivity) {
+            $extraFieldsByKey += [
+                'project_phone' => ['label' => 'เบอร์โทรศัพท์', 'sort_order' => 901],
+                'project_phone_ext' => ['label' => 'เบอร์โทรศัพท์ต่อ', 'sort_order' => 902],
+            ];
+        }
+
+        if ($isCoopEvaluation) {
+            $extraFieldsByKey += [
+                'coop_phone' => ['label' => 'เบอร์โทรศัพท์', 'sort_order' => 901],
+                'coop_phone_ext' => ['label' => 'เบอร์โทรศัพท์ต่อ', 'sort_order' => 902],
+            ];
+        }
+
+        if ($isResearchData) {
+            $extraFieldsByKey += [
+                'research_phone' => ['label' => 'เบอร์โทรศัพท์', 'sort_order' => 901],
+                'research_phone_ext' => ['label' => 'เบอร์โทรศัพท์ต่อ', 'sort_order' => 902],
+            ];
+        }
+
+        foreach ($extraFieldsByKey as $fieldKey => $meta) {
+            if (isset($fieldIdByKey[$fieldKey])) {
+                continue;
+            }
+
+            $findField = $pdo->prepare("
+                SELECT field_id
+                FROM template_fields
+                WHERE template_id = :template_id AND field_key = :field_key
+                LIMIT 1
+            ");
+            $findField->execute([
+                ':template_id' => $templateId,
+                ':field_key' => $fieldKey,
+            ]);
+
+            $existingFieldId = (int)($findField->fetchColumn() ?: 0);
+
+            if ($existingFieldId <= 0) {
+                $createField = $pdo->prepare("
+                    INSERT INTO template_fields
+                        (template_id, field_key, field_label, field_type, is_required, sort_order)
+                    VALUES
+                        (:template_id, :field_key, :field_label, 'text', 0, :sort_order)
+                ");
+                $createField->execute([
+                    ':template_id' => $templateId,
+                    ':field_key' => $fieldKey,
+                    ':field_label' => $meta['label'],
+                    ':sort_order' => $meta['sort_order'],
+                ]);
+
+                $existingFieldId = (int)$pdo->lastInsertId();
+            }
+
+            if ($existingFieldId > 0) {
+                $fieldIdByKey[$fieldKey] = $existingFieldId;
+                $allowIds[$existingFieldId] = $existingFieldId;
+            }
+        }
+    }
+
     $ins = $pdo->prepare("
         INSERT INTO document_values (document_id, field_id, value_text)
         VALUES (:document_id, :field_id, :value_text)
@@ -1307,6 +1413,56 @@ if ($isCoopEvaluation) {
             ':field_id' => $fieldId,
             ':value_text' => $val
         ]);
+    }
+
+    // บันทึกเบอร์โทรของฟอร์มประเมินสหกิจให้แน่นอน เฉพาะ key ที่เพิ่มใหม่
+    // เพื่อให้ form_memo_coop_evaluation.php ดึงค่า coop_phone / coop_phone_ext ได้ตรงกับที่กรอก
+    if ($isCoopEvaluation) {
+        $coopPhoneFields = [
+            'coop_phone' => ['label' => 'เบอร์โทรศัพท์', 'sort_order' => 901, 'value' => $coopPhone],
+            'coop_phone_ext' => ['label' => 'เบอร์โทรศัพท์ต่อ', 'sort_order' => 902, 'value' => $coopPhoneExt],
+        ];
+
+        foreach ($coopPhoneFields as $fieldKey => $meta) {
+            $findField = $pdo->prepare("
+                SELECT field_id
+                FROM template_fields
+                WHERE template_id = :template_id AND field_key = :field_key
+                ORDER BY field_id ASC
+                LIMIT 1
+            ");
+            $findField->execute([
+                ':template_id' => $templateId,
+                ':field_key' => $fieldKey,
+            ]);
+
+            $fieldId = (int)($findField->fetchColumn() ?: 0);
+
+            if ($fieldId <= 0) {
+                $createField = $pdo->prepare("
+                    INSERT INTO template_fields
+                        (template_id, field_key, field_label, field_type, is_required, sort_order)
+                    VALUES
+                        (:template_id, :field_key, :field_label, 'text', 0, :sort_order)
+                ");
+                $createField->execute([
+                    ':template_id' => $templateId,
+                    ':field_key' => $fieldKey,
+                    ':field_label' => $meta['label'],
+                    ':sort_order' => $meta['sort_order'],
+                ]);
+
+                $fieldId = (int)$pdo->lastInsertId();
+            }
+
+            if ($fieldId > 0) {
+                $ins->execute([
+                    ':document_id' => $documentId,
+                    ':field_id' => $fieldId,
+                    ':value_text' => $meta['value'],
+                ]);
+            }
+        }
     }
 
     // =====================

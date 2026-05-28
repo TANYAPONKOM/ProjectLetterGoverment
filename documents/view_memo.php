@@ -172,6 +172,27 @@ function thaiBahtText($amount)
 
   return $bahtText . $convert($satang) . 'สตางค์';
 }
+function thai_digits($text)
+{
+  return strtr((string)$text, [
+    '0' => '๐',
+    '1' => '๑',
+    '2' => '๒',
+    '3' => '๓',
+    '4' => '๔',
+    '5' => '๕',
+    '6' => '๖',
+    '7' => '๗',
+    '8' => '๘',
+    '9' => '๙',
+  ]);
+}
+
+function ht($text)
+{
+  return h(thai_digits($text));
+}
+
 function thai_date($ymd)
 {
   if (!$ymd || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $ymd))
@@ -191,7 +212,7 @@ function thai_date($ymd)
     11 => "พฤศจิกายน",
     12 => "ธันวาคม"
   ];
-  return intval($d) . " " . $months[intval($m)] . " " . (intval($y) + 543);
+  return thai_digits(intval($d) . " " . $months[intval($m)] . " " . (intval($y) + 543));
 }
 
 $docDate = $valueMap[1] ?? $document['doc_date'];
@@ -666,7 +687,7 @@ $len = max(20, $len);
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
       <div class="dot-line">
         <span class="chip gov-text">
-          <?= h($hdr_agency ?: 'คณะ... ภาควิชา... โทร...') ?>
+          <?= ht($hdr_agency ?: 'คณะ... ภาควิชา... โทร...') ?>
         </span>
       </div>
     </div>
@@ -674,13 +695,13 @@ $len = max(20, $len);
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ที่</div>
       <div class="dot-line ty-left">
         <span class="chip">
-          <?= h($doc_no ?: 'ทส.486/2568') ?>
+          <?= ht($doc_no ?: '') ?>
         </span>
       </div>
       <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
       <div class="dot-line ty-right">
         <span class="chip">
-          <?= h($thaiDocDate ?: '') ?>
+          <?= ht($thaiDocDate ?: '') ?>
         </span>
       </div>
     </div>
@@ -692,9 +713,9 @@ $len = max(20, $len);
     <div class="doc-row subject-row" style="align-items:flex-start;">
       <div class="doc-label subject-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
       <div class="subject-wrap">
-        <div class="subject-line"><span class="subject-text"><?= h($mainSubjectLine1) ?></span></div>
+        <div class="subject-line"><span class="subject-text"><?= ht($mainSubjectLine1) ?></span></div>
         <?php if (trim($mainSubjectLine2) !== ''): ?>
-        <div class="subject-line"><span class="subject-text"><?= h($mainSubjectLine2) ?></span></div>
+        <div class="subject-line"><span class="subject-text"><?= ht($mainSubjectLine2) ?></span></div>
         <?php endif; ?>
       </div>
     </div>
@@ -704,29 +725,29 @@ $len = max(20, $len);
     </div>
     <div class="content-block paragraph">
       ตามที่ กำหนดจัดอบรมหลักสูตร
-      <span class="chip"><?= h($courseName ?: 'ชื่อหลักสูตร') ?></span>
+      <span class="chip"><?= ht($courseName ?: 'ชื่อหลักสูตร') ?></span>
       ระหว่างวันที่
-      <span class="chip keep"><?= h($joinDates ?: '...') ?></span>
-      ณ <span class="chip"><?= h($location ?: '...') ?></span> นั้น
+      <span class="chip keep"><?= ht($joinDates ?: '...') ?></span>
+      ณ <span class="chip"><?= ht($location ?: '...') ?></span> นั้น
       ซึ่งหลักสูตรดังกล่าวเป็นประโยชน์ต่อการพัฒนาทั้งกระบวนการจัดการเรียนการสอน
     </div>
     <div class="content-block paragraph">
       การนี้ ข้าพเจ้า
-      <span class="chip"><?= h($ownerName ?: 'ชื่อ-นามสกุล') ?></span>
-      <span class="chip"><?= h($position ?: '') ?></span>
-      สังกัดภาควิชา<span class="chip"><?= h($department ?: '...') ?></span>
-      <span class="chip"><?= h($faculty ?: '...') ?></span>
+      <span class="chip"><?= ht($ownerName ?: 'ชื่อ-นามสกุล') ?></span>
+      <span class="chip"><?= ht($position ?: '') ?></span>
+      สังกัดภาควิชา<span class="chip"><?= ht($department ?: '...') ?></span>
+      <span class="chip"><?= ht($faculty ?: '...') ?></span>
       มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
       จึงมีความประสงค์ที่จะขออนุมัติ เข้ารับการอบรมหลักสูตร
-      <span class="chip keep"><?= h($courseName ?: 'ชื่อหลักสูตร') ?></span>
-      ระหว่างวันที่ <span class="chip"><?= h($joinDates ?: '') ?></span>
-      ณ <span class="chip"><?= h($location ?: '') ?></span>
+      <span class="chip keep"><?= ht($courseName ?: 'ชื่อหลักสูตร') ?></span>
+      ระหว่างวันที่ <span class="chip"><?= ht($joinDates ?: '') ?></span>
+      ณ <span class="chip"><?= ht($location ?: '') ?></span>
       <?php if ($hasExpense): ?>
-      เป็นเงินจำนวน <span class="chip"><?= h($displayAmountNumber) ?></span> บาท
-      (<span class="chip"><?= h($displayAmountThai) ?></span>)
+      เป็นเงินจำนวน <span class="chip"><?= ht($displayAmountNumber) ?></span> บาท
+      (<span class="chip"><?= ht($displayAmountThai) ?></span>)
       โดยขอใช้แหล่งเงินจัดสรรให้หน่วยงาน ประจำปีงบประมาณ
       <span class="chip">
-        <?= h($thaiYear ? 'พ.ศ. ' . $thaiYear : 'พ.ศ. ....') ?>
+        <?= ht($thaiYear ? 'พ.ศ. ' . $thaiYear : 'พ.ศ. ....') ?>
       </span>
       แผนงานจัดการศึกษาระดับอุดมศึกษา กองทุนพัฒนาบุคลากร หมวดค่าใช้สอย
       <span class="keep">(รายละเอียดตามเอกสารแนบ)</span>
@@ -739,8 +760,8 @@ $len = max(20, $len);
     </div>
     <div class="signature-wrapper">
       <div class="signature-block" id="signatureBlock">
-        <div class="sig-name">(<?= h($ownerName ?: '') ?>)</div>
-        <div class="sig-position"><?= h($position ?: '') ?></div>
+        <div class="sig-name">(<?= ht($ownerName ?: '') ?>)</div>
+        <div class="sig-position"><?= ht($position ?: '') ?></div>
       </div>
     </div>
 
@@ -787,7 +808,7 @@ $len = max(20, $len);
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
       <div class="dot-line">
         <span class="chip gov-text">
-          <?= h($hdr_agency  ?: 'คณะ... ภาควิชา... โทร...') ?>
+          <?= ht($hdr_agency  ?: 'คณะ... ภาควิชา... โทร...') ?>
         </span>
       </div>
     </div>
@@ -795,13 +816,13 @@ $len = max(20, $len);
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ที่</div>
       <div class="dot-line ty-left">
         <span class="chip">
-          <?= h($doc_no ?: 'ทส.486/2568') ?>
+          <?= ht($doc_no ?: 'ทส.486/2568') ?>
         </span>
       </div>
       <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
       <div class="dot-line ty-right">
         <span class="chip">
-          <?= h($thaiDocDate ?: '') ?>
+          <?= ht($thaiDocDate ?: '') ?>
         </span>
       </div>
     </div>
@@ -813,9 +834,9 @@ $len = max(20, $len);
     <div class="doc-row subject-row" style="align-items:flex-start;">
       <div class="doc-label subject-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
       <div class="subject-wrap">
-        <div class="subject-line"><span class="subject-text"><?= h($expenseSubjectLine1) ?></span></div>
+        <div class="subject-line"><span class="subject-text"><?= ht($expenseSubjectLine1) ?></span></div>
         <?php if (trim($expenseSubjectLine2) !== ''): ?>
-        <div class="subject-line"><span class="subject-text"><?= h($expenseSubjectLine2) ?></span></div>
+        <div class="subject-line"><span class="subject-text"><?= ht($expenseSubjectLine2) ?></span></div>
         <?php endif; ?>
       </div>
     </div>
@@ -826,21 +847,21 @@ $len = max(20, $len);
 
     <div class="content-block paragraph">
       การนี้ ข้าพเจ้า
-      <span class="chip"><?= h($ownerName ?: 'ชื่อ-นามสกุล') ?></span>
-      <span class="chip"><?= h($position ?: '') ?></span>
-      สังกัดภาควิชา<span class="chip"><?= h($department ?: '...') ?></span>
-      <span class="chip"><?= h($faculty ?: '...') ?></span>
+      <span class="chip"><?= ht($ownerName ?: 'ชื่อ-นามสกุล') ?></span>
+      <span class="chip"><?= ht($position ?: '') ?></span>
+      สังกัดภาควิชา<span class="chip"><?= ht($department ?: '...') ?></span>
+      <span class="chip"><?= ht($faculty ?: '...') ?></span>
       มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
       จึงมีความประสงค์ขออนุมัติค่าใช้จ่ายในการเข้าร่วม
-      <span class="chip subject-inline"><?= h($subject ?: 'ขออนุมัติ...') ?></span>
-      ระหว่างวันที่ <span class="chip"><?= h($joinDates ?: '') ?></span>
-      ณ <span class="chip"><?= h($location ?: '') ?></span>
+      <span class="chip subject-inline"><?= ht($subject ?: 'ขออนุมัติ...') ?></span>
+      ระหว่างวันที่ <span class="chip"><?= ht($joinDates ?: '') ?></span>
+      ณ <span class="chip"><?= ht($location ?: '') ?></span>
       <?php if ($hasExpense): ?>
-      วงเงินทั้งสิ้น <span class="chip"><?= h($displayAmountNumber) ?></span> บาท
-      (<span class="chip"><?= h($displayAmountThai) ?></span>)
+      วงเงินทั้งสิ้น <span class="chip"><?= ht($displayAmountNumber) ?></span> บาท
+      (<span class="chip"><?= ht($displayAmountThai) ?></span>)
       โดยขอใช้แหล่งเงินจัดสรรให้หน่วยงาน ประจำปีงบประมาณ
       <span class="chip">
-        <?= h($thaiYear ? 'พ.ศ. ' . $thaiYear : 'พ.ศ. ....') ?>
+        <?= ht($thaiYear ? 'พ.ศ. ' . $thaiYear : 'พ.ศ. ....') ?>
       </span>
       ในส่วนของภาควิชา
       เทคโนโลยีสารสนเทศ แผนงานจัดการศึกษาระดับอุดมศึกษา กองทุนพัฒนาบุคลากร หมวดค่าใช้สอย
@@ -854,8 +875,8 @@ $len = max(20, $len);
     </div>
     <div class="signature-wrapper">
       <div class="signature-block" id="signatureBlock">
-        <div class="sig-name">(<?= h($ownerName ?: '') ?>)</div>
-        <div class="sig-position"><?= h($position ?: '') ?></div>
+        <div class="sig-name">(<?= ht($ownerName ?: '') ?>)</div>
+        <div class="sig-position"><?= ht($position ?: '') ?></div>
       </div>
     </div>
 
@@ -904,7 +925,7 @@ $len = max(20, $len);
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
       <div class="dot-line">
         <span class="chip gov-text">
-          <?= h($hdr_agency ?: 'คณะ... ภาควิชา... โทร...') ?>
+          <?= ht($hdr_agency ?: 'คณะ... ภาควิชา... โทร...') ?>
         </span>
       </div>
     </div>
@@ -912,13 +933,13 @@ $len = max(20, $len);
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ที่</div>
       <div class="dot-line ty-left">
         <span class="chip">
-          <?= h($doc_no ?: 'ทส.486/2568') ?>
+          <?= ht($doc_no ?: 'ทส.486/2568') ?>
         </span>
       </div>
       <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
       <div class="dot-line ty-right">
         <span class="chip">
-          <?= h($thaiDocDate ?: '') ?>
+          <?= ht($thaiDocDate ?: '') ?>
         </span>
       </div>
     </div>
@@ -930,9 +951,9 @@ $len = max(20, $len);
     <div class="doc-row subject-row" style="align-items:flex-start;">
       <div class="doc-label subject-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
       <div class="subject-wrap">
-        <div class="subject-line"><span class="subject-text"><?= h($carSubjectLine1) ?></span></div>
+        <div class="subject-line"><span class="subject-text"><?= ht($carSubjectLine1) ?></span></div>
         <?php if (trim($carSubjectLine2) !== ''): ?>
-        <div class="subject-line"><span class="subject-text"><?= h($carSubjectLine2) ?></span></div>
+        <div class="subject-line"><span class="subject-text"><?= ht($carSubjectLine2) ?></span></div>
         <?php endif; ?>
       </div>
     </div>
@@ -943,22 +964,22 @@ $len = max(20, $len);
 
     <div class="content-block paragraph">
       ตามที่ ข้าพเจ้า
-      <span class="chip"><?= h($ownerName ?: 'ชื่อ-นามสกุล') ?></span>
-      <span class="chip"><?= h($position ?: '') ?></span>
-      สังกัดภาควิชา<span class="chip"><?= h($department ?: '...') ?></span>
-      <span class="chip"><?= h($faculty ?: '...') ?></span>
+      <span class="chip"><?= ht($ownerName ?: 'ชื่อ-นามสกุล') ?></span>
+      <span class="chip"><?= ht($position ?: '') ?></span>
+      สังกัดภาควิชา<span class="chip"><?= ht($department ?: '...') ?></span>
+      <span class="chip"><?= ht($faculty ?: '...') ?></span>
       มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
       จึงมีความประสงค์ที่จะขออนุมัติ เข้ารับการอบรมหลักสูตร
-      <span class="chip keep"><?= h($courseName ?: 'ชื่อหลักสูตร') ?></span>
-      ระหว่างวันที่ <span class="chip"><?= h($joinDates ?: '') ?></span>
-      ณ <span class="chip"><?= h($location ?: '') ?></span> นั้น
+      <span class="chip keep"><?= ht($courseName ?: 'ชื่อหลักสูตร') ?></span>
+      ระหว่างวันที่ <span class="chip"><?= ht($joinDates ?: '') ?></span>
+      ณ <span class="chip"><?= ht($location ?: '') ?></span> นั้น
 
 
     </div>
     <div class="content-block paragraph">
       ในการนี้ ข้าพเจ้าจึงขออนุมัติใช้รถยนต์ส่วนบุคคล หมายเลขทะเบียน
-      <span class="chip"><?= h($vehicle ?: '...') ?></span>
-      ในการเดินทางไป<span class="chip subject-inline"><?= h($subject ?: 'ชื่อหลักสูตร') ?></span>
+      <span class="chip"><?= ht($vehicle ?: '...') ?></span>
+      ในการเดินทางไป<span class="chip subject-inline"><?= ht($subject ?: 'ชื่อหลักสูตร') ?></span>
       ตามวัน เวลา และสถานที่ดังกล่าว ทั้งนี้ โดยให้เป็นไปตามหลักเกณฑ์และวิธีการของมหาวิทยาลัย
 
 
@@ -968,8 +989,8 @@ $len = max(20, $len);
     </div>
     <div class="signature-wrapper">
       <div class="signature-block" id="signatureBlock">
-        <div class="sig-name">(<?= h($ownerName ?: '') ?>)</div>
-        <div class="sig-position"><?= h($position ?: '') ?></div>
+        <div class="sig-name">(<?= ht($ownerName ?: '') ?>)</div>
+        <div class="sig-position"><?= ht($position ?: '') ?></div>
       </div>
     </div>
 
@@ -1018,35 +1039,35 @@ $len = max(20, $len);
         <div class="text-[16pt] leading-[1.15]">
           <div class="flex mb-1">
             <div class="w-[180px]">ชื่อ–สกุล</div>
-            <div class="flex-1"><?= h($ownerName ?: '-') ?></div>
+            <div class="flex-1"><?= ht($ownerName ?: '-') ?></div>
           </div>
 
           <div class="flex mb-1">
             <div class="w-[180px]">มหาวิทยาลัยต้นสังกัด</div>
             <div class="flex-1">
-              ภาควิชา<?= h($department ?: '-') ?> <?= h($faculty ?: '-') ?><br>
+              ภาควิชา<?= ht($department ?: '-') ?> <?= ht($faculty ?: '-') ?><br>
               มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
             </div>
           </div>
 
           <div class="flex mb-1">
             <div class="w-[180px]">ชื่อการประชุมวิชาการ</div>
-            <div class="flex-1"><?= h($courseName ?: '-') ?></div>
+            <div class="flex-1"><?= ht($courseName ?: '-') ?></div>
           </div>
 
           <div class="flex mb-1">
             <div class="w-[180px]">วันที่</div>
-            <div class="flex-1"><?= h($joinDates ?: '-') ?></div>
+            <div class="flex-1"><?= ht($joinDates ?: '-') ?></div>
           </div>
 
           <div class="flex mb-1">
             <div class="w-[180px]">สถานที่</div>
-            <div class="flex-1"><?= h($location ?: '-') ?></div>
+            <div class="flex-1"><?= ht($location ?: '-') ?></div>
           </div>
 
           <div class="flex mb-1">
             <div class="w-[180px]">ชื่อผลงานวิจัย</div>
-            <div class="flex-1"><?= h($researchTitle ?: '-') ?></div>
+            <div class="flex-1"><?= ht($researchTitle ?: '-') ?></div>
           </div>
         </div>
         <?php else: ?>
@@ -1056,20 +1077,20 @@ $len = max(20, $len);
 
         <div class="text-[16pt] font-bold text-center leading-[1.05]">
           <div class="mb-[2px]">
-            ค่าใช้จ่ายในการ<?= h($joinType ?: 'เข้าร่วม') ?>
+            ค่าใช้จ่ายในการ<?= ht($joinType ?: 'เข้าร่วม') ?>
           </div>
 
           <div class="mb-[2px] font-bold">
             <?= ($purposeCode === 'training') ? 'หลักสูตร' : 'หัวข้อ/งาน' ?>
-            “<?= h($courseName ?: '-') ?>”
+            “<?= ht($courseName ?: '-') ?>”
           </div>
 
           <div class="mb-[2px] font-bold">
-            ระหว่างวันที่ <?= h($joinDates ?: '-') ?>
+            ระหว่างวันที่ <?= ht($joinDates ?: '-') ?>
           </div>
 
           <div class="mb-[2px] font-bold">
-            สถานที่ <?= h($location ?: '-') ?>
+            สถานที่ <?= ht($location ?: '-') ?>
           </div>
         </div>
         <?php endif; ?>
@@ -1113,13 +1134,13 @@ $len = max(20, $len);
         <?php foreach ($budgetItems as $index => $item): ?>
         <tr>
           <td style="border:0.6px solid #000; padding:3px 4px; text-align:center; vertical-align: top;">
-            <?= $index + 1 ?>
+            <?= thai_digits($index + 1) ?>
           </td>
           <td style="border:0.6px solid #000; padding:3px 8px; text-align:left; vertical-align: top;">
-            <?= nl2br(h($item['description'] ?: $item['item_type'])) ?>
+            <?= nl2br(ht($item['description'] ?: $item['item_type'])) ?>
           </td>
           <td style="border:0.6px solid #000; padding:3px 4px; text-align:right; vertical-align: top;">
-            <?= number_format((float)$item['amount'], 2) ?>
+            <?= thai_digits(number_format((float)$item['amount'], 2)) ?>
           </td>
         </tr>
         <?php endforeach; ?>
@@ -1137,7 +1158,7 @@ $len = max(20, $len);
             รวมเป็นเงิน
           </th>
           <th style="border:0.6px solid #000; padding:3px 4px; text-align:right; font-weight:bold; background:#ffffff;">
-            <?= number_format($budgetTotal, 2) ?>
+            <?= thai_digits(number_format($budgetTotal, 2)) ?>
           </th>
         </tr>
       </table>

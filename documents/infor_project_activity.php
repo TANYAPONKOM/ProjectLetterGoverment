@@ -171,6 +171,7 @@ $isEditMode = $editDocId > 0;
 
 $editDocument = [];
 $editValuesByKey = [];
+$editValuesByFieldId = [];
 
 if ($isEditMode) {
     $pdo = db();
@@ -205,6 +206,17 @@ if ($isEditMode) {
 
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $editValuesByKey[$row['field_key']] = $row['value_text'] ?? '';
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT field_id, value_text
+        FROM document_values
+        WHERE document_id = :id
+    ");
+    $stmt->execute([':id' => $editDocId]);
+
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $editValuesByFieldId[(int)$row['field_id']] = $row['value_text'] ?? '';
     }
 }
 
@@ -308,7 +320,9 @@ if ($__editOrgDocId > 0) {
 }
 unset($__editOrgDocId, $__editOrgIdVar, $__editOrg, $__editOrgStmt, $__editOrgPdo, $__savedFacultyName, $__savedDepartmentName, $__fallbackStmt, $__fallbackOrg, $__fallbackSql, $__fallbackParams);
 
-$projectDocDate = $editDocument['doc_date'] ?? date('Y-m-d');
+$hasSavedDocDateField = array_key_exists(1, $editValuesByFieldId);
+$projectDocDate = $hasSavedDocDateField ? trim((string)($editValuesByFieldId[1] ?? '')) : ($editDocument['doc_date'] ?? date('Y-m-d'));
+$projectDocDateOption = ($hasSavedDocDateField && $projectDocDate === '') ? 'no_date' : 'use_date';
 
 $projectSubject = $editValuesByKey['project_subject'] ?? ($editDocument['subject'] ?? '');
 $projectToPerson = $editValuesByKey['project_to_person'] ?? '';
@@ -322,6 +336,8 @@ $projectActivityPeriod = $editValuesByKey['project_activity_period'] ?? '';
 $projectLecturerNames = $editValuesByKey['project_lecturer_names'] ?? '';
 $projectReceiverName = $editValuesByKey['project_receiver_name'] ?? '';
 $projectReceiverPosition = $editValuesByKey['project_receiver_position'] ?? '';
+$projectPhone = $editValuesByKey['project_phone'] ?? '';
+$projectPhoneExt = $editValuesByKey['project_phone_ext'] ?? '';
 
 $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo.php';
 ?>
@@ -774,26 +790,40 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
 
 
       <!-- 1. วัน เดือน ปี ที่ต้องการให้ปรากฎบนบันทึกข้อความ -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 items-end">
-        <div class="flex items-center gap-3 md:col-span-2">
-          <label class="lbl text-gray-800 whitespace-nowrap w-24" for="docDateDisplay">
+      <div class="mb-4">
+        <div class="flex flex-col gap-2">
+          <label class="lbl text-gray-800 whitespace-nowrap" for="docDateDisplay">
             1. วัน เดือน ปี :
           </label>
 
-          <div class="relative">
-            <input type="text" id="docDateDisplay" value="<?= h($projectDocDate) ?>"
-              class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่" readonly>
-            <input type="hidden" name="doc_date" id="docDate" value="<?= h($projectDocDate) ?>">
+          <div class="flex items-center gap-3 flex-nowrap pl-4 w-full overflow-x-auto">
+            <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap shrink-0">
+              <input type="radio" name="doc_date_option" id="docDateUse" value="use_date"
+                class="accent-black" <?= ($projectDocDateOption === 'use_date') ? 'checked' : '' ?>>
+              วันที่
+            </label>
 
-            <svg class="pointer-events-none absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]"
-              xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
-            </svg>
+            <div class="relative shrink-0" id="docDatePickerWrap">
+              <input type="text" id="docDateDisplay" value="<?= h($projectDocDate) ?>"
+                class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่" readonly>
+              <input type="hidden" name="doc_date" id="docDate" value="<?= h($projectDocDate) ?>">
+
+              <svg class="pointer-events-none absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]"
+                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z" />
+              </svg>
+            </div>
+
+            <label class="lbl text-gray-800 whitespace-nowrap shrink-0">
+              ที่ต้องการให้ปรากฎบนบันทึกข้อความ
+            </label>
           </div>
 
-          <label class="lbl text-gray-800 whitespace-nowrap">
-            ที่ต้องการให้ปรากฎบนบันทึกข้อความ
+          <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap pl-4">
+            <input type="radio" name="doc_date_option" id="docDateNone" value="no_date"
+              class="accent-black" <?= ($projectDocDateOption === 'no_date') ? 'checked' : '' ?>>
+            ไม่ประสงค์ใส่วันที่
           </label>
         </div>
       </div>
@@ -1044,6 +1074,27 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
         </div>
       </div>
 
+      <!-- 14. เบอร์โทร -->
+      <div class="mb-4 flex items-start gap-4">
+        <label class="lbl text-gray-800 whitespace-nowrap w-56 pt-2">
+          14. เบอร์โทร :
+        </label>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <label class="lbl whitespace-nowrap">โทร.</label>
+          <input type="text" name="project_phone" id="projectPhone"
+            class="border rounded-md p-2 w-64"
+            value="<?= h($projectPhone) ?>"
+            placeholder="เช่น ๐-๓๗๒๑-๗๓๔๐-๓">
+
+          <label class="lbl whitespace-nowrap">ต่อ</label>
+          <input type="text" name="project_phone_ext" id="projectPhoneExt"
+            class="border rounded-md p-2 w-40"
+            value="<?= h($projectPhoneExt) ?>"
+            placeholder="เช่น ๗๐๖๕-๖">
+        </div>
+      </div>
+
 
 
       <!-- ปุ่ม -->
@@ -1079,6 +1130,8 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
   const activityPeriod = byId("activityPeriod");
   const docDateDisplay = byId("docDateDisplay");
   const docDate = byId("docDate");
+  const docDateUse = byId("docDateUse");
+  const docDateNone = byId("docDateNone");
 
   const lecturerNames = byId("lecturerNames");
   const receiverNameInput = byId("receiverNameInput");
@@ -1254,7 +1307,7 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
   if (window.flatpickr) {
     flatpickr.localize(flatpickr.l10ns.th);
 
-    flatpickr("#docDateDisplay", {
+    const docDatePicker = flatpickr("#docDateDisplay", {
       dateFormat: "Y-m-d",
       disableMobile: true,
       allowInput: false,
@@ -1263,6 +1316,38 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
         if (docDate) docDate.value = dateStr;
       }
     });
+
+    function syncDocDateOptionUI() {
+      const isNoDate = !!docDateNone?.checked;
+
+      if (isNoDate) {
+        if (docDateDisplay) {
+          docDateDisplay.value = "";
+          docDateDisplay.disabled = true;
+          docDateDisplay.classList.add("bg-gray-100", "text-gray-400", "cursor-not-allowed");
+        }
+
+        if (docDate) {
+          docDate.value = "";
+        }
+
+        if (docDatePicker) {
+          docDatePicker.clear();
+        }
+
+        setErr(docDateDisplay, false);
+        return;
+      }
+
+      if (docDateDisplay) {
+        docDateDisplay.disabled = false;
+        docDateDisplay.classList.remove("bg-gray-100", "text-gray-400", "cursor-not-allowed");
+      }
+    }
+
+    docDateUse?.addEventListener("change", syncDocDateOptionUI);
+    docDateNone?.addEventListener("change", syncDocDateOptionUI);
+    syncDocDateOptionUI();
 
     singlePicker = flatpickr("#singleDate", {
       dateFormat: "d/m/Y",
@@ -1780,10 +1865,14 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
       targetGroup,
       participantCount,
       lecturerNames,
-      docDateDisplay,
       receiverNameInput,
       receiverPositionInput
     ];
+
+    if (!docDateNone?.checked && !docDate?.value.trim()) {
+      setErr(docDateDisplay, true);
+      firstInvalid = firstInvalid || docDateDisplay;
+    }
     if (optSingle.checked) {
       if (!singleDate.value.trim()) {
         setErr(singleDate, true);
@@ -1812,6 +1901,11 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
       alert("กรุณากรอกข้อมูลให้ครบถ้วน");
       scrollFocus(firstInvalid);
       return false;
+    }
+
+    if (docDateNone?.checked) {
+      if (docDateDisplay) docDateDisplay.value = "";
+      if (docDate) docDate.value = "";
     }
 
     updateActivityPeriod();
