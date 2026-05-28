@@ -214,6 +214,6 @@ def api_spell_check(payload: SpellCheckRequest):
 
 # คำสั่งรันบนเครื่องคุณ:
 # python -m uvicorn main:app --reload --host 127.0.0.1 --port 8001
-#
+#  uvicorn checkspell.main:app --reload --host 127.0.0.1 --port 8001
 # Start Command บน Render:
 # uvicorn main:app --host 0.0.0.0 --port $PORT
