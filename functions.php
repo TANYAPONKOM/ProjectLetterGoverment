@@ -106,8 +106,22 @@ function db(): PDO {
 }
 function renderAdminExtraMenus() {
     $current = basename($_SERVER['PHP_SELF']); // ดึงชื่อไฟล์ปัจจุบัน เช่น home.php
+
+    // ดึง role จาก session
+    $roleId = $_SESSION['role_id'] ?? null;
+
+    // กำหนด path ตาม role
+    if ($roleId == 1) {
+        $basePath = '/Pro_letter/admin';
+    } elseif ($roleId == 2) {
+        $basePath = '/Pro_letter/officer';
+    } else {
+        $basePath = '/Pro_letter/user';
+    }
+
+    $userManagementUrl = $basePath . '/user_Managerment.php';
 ?>
-<a href="/Pro_letter/admin/user_Managerment.php">
+<a href="<?= $userManagementUrl ?>">
   <div class="px-4 py-2 rounded-[11px] font-bold transition 
             <?= ($current === 'user_Managerment.php') 
                 ? 'bg-white text-teal-500 shadow' 
