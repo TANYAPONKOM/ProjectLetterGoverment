@@ -1925,7 +1925,9 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
     }
 
     function renderSubOptions(group, selectedValue = "") {
-      const selectedText = String(selectedValue || "").trim();
+      const selectedText = String(
+        selectedValue || sub.dataset.current || sub.value || ""
+      ).trim();
       const list = getActiveTemplates(group);
       let hasSelectedText = false;
 
@@ -1962,10 +1964,18 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
 
     function syncUI(keepCurrentSub = false) {
       const mainVal = String(main.value || "").trim().toLowerCase();
-      const currentSub = keepCurrentSub ? String(sub.dataset.current || "").trim() : "";
+      const currentSub = keepCurrentSub
+        ? String(sub.dataset.current || sub.value || "").trim()
+        : "";
 
       if (mainVal === "internal" || mainVal === "external") {
         sub.disabled = false;
+
+        if (!keepCurrentSub) {
+          sub.dataset.current = "";
+          sub.value = "";
+        }
+
         renderSubOptions(mainVal, currentSub);
       } else {
         sub.disabled = true;
@@ -2000,6 +2010,31 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
       if (!target || target === "#") return;
 
       const mainVal = String(main.value || "").trim();
+
+      let targetPath = "";
+      try {
+        targetPath = new URL(target, window.location.origin).pathname;
+      } catch (err) {
+        targetPath = "";
+      }
+
+      const currentPath = window.location.pathname;
+      const targetFile = targetPath.split("/").pop();
+      const currentFile = currentPath.split("/").pop();
+
+      // ถ้าเลือกหมวดย่อยที่เป็นไฟล์หน้าเดิมอยู่แล้ว ไม่ต้อง redirect
+      // กันหน้ารีแล้วค่าหมวดย่อยหลุดกลับไปเป็น "-- เลือกหมวดย่อย --"
+      if (targetPath === currentPath || targetFile === currentFile) {
+        sub.value = subVal;
+        sub.dataset.current = subVal;
+
+        if (typeof clearFieldError === "function") {
+          clearFieldError(sub);
+        }
+
+        return;
+      }
+
       const separator = target.includes("?") ? "&" : "?";
       window.location.href = target + separator + "main=" + encodeURIComponent(mainVal) + "&sub=" +
         encodeURIComponent(subVal);
