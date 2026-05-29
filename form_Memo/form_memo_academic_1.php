@@ -1273,7 +1273,7 @@ $len = max(20, $len);
     <div class="doc-row row-ty-date">
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ที่</div>
       <div class="dot-line ty-left">
-        <span class="chip"><?= h_thai_digits($doc_no ?: 'ทส.486/2568') ?></span>
+        <span class="chip"><?= h_thai_digits($doc_no ?: '') ?></span>
       </div>
 
       <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
@@ -1350,7 +1350,7 @@ $len = max(20, $len);
     <div class="doc-row row-ty-date">
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ที่</div>
       <div class="dot-line ty-left">
-        <span class="chip"><?= h_thai_digits($doc_no ?: 'ทส.486/2568') ?></span>
+        <span class="chip"><?= h_thai_digits($doc_no ?: '') ?></span>
       </div>
 
       <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
@@ -1392,7 +1392,8 @@ $len = max(20, $len);
     <div class="content-block paragraph">
       ในการนี้ ข้าพเจ้าจึงขออนุมัติใช้รถยนต์ส่วนบุคคล หมายเลขทะเบียน
       <span class="chip"><?= h_thai_digits($vehicle ?: '...') ?></span>
-      ในการเดินทางไป <span class="chip subject-inline"><?= h_thai_digits($memoSubject ?: $subject ?: 'ชื่อหลักสูตร') ?></span>
+      ในการเดินทางไป <span
+        class="chip subject-inline"><?= h_thai_digits($memoSubject ?: $subject ?: 'ชื่อหลักสูตร') ?></span>
       ตามวัน เวลา และสถานที่ดังกล่าว ทั้งนี้ โดยให้เป็นไปตามหลักเกณฑ์และวิธีการของมหาวิทยาลัย
     </div>
 

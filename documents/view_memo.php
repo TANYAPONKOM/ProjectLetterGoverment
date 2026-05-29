@@ -816,7 +816,7 @@ $len = max(20, $len);
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ที่</div>
       <div class="dot-line ty-left">
         <span class="chip">
-          <?= ht($doc_no ?: 'ทส.486/2568') ?>
+          <?= ht($doc_no ?: '') ?>
         </span>
       </div>
       <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
@@ -933,7 +933,7 @@ $len = max(20, $len);
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ที่</div>
       <div class="dot-line ty-left">
         <span class="chip">
-          <?= ht($doc_no ?: 'ทส.486/2568') ?>
+          <?= ht($doc_no ?: '') ?>
         </span>
       </div>
       <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
