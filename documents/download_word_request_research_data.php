@@ -388,7 +388,7 @@ function addResearchHeader($section, $docNo, $displayFaculty, $thaiDocDate) {
 
     $left = $table->addCell(Converter::cmToTwip(4.95), researchNoBorderCell('top'));
     $left->addText('', 'normalFont', ['spaceAfter' => 800, 'lineHeight' => 1.0]);
-    $left->addText('ที่ ' . researchInlineText($docNo ?: 'อว ๗๑๒๐/'), 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
+    $left->addText('ที่ ' . researchInlineText($docNo ?: ''), 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
 
     $middle = $table->addCell(Converter::cmToTwip(3.55), researchNoBorderCell('top'));
     if (file_exists($garuda)) {

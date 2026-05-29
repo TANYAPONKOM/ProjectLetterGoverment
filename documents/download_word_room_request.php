@@ -442,7 +442,7 @@ $phpWord->addFontStyle('boldFont', [
 ]);
 
 addRoomRequestWordPage($phpWord, [
-    'docNo' => $docNo ?: 'ทส.486/2568',
+    'docNo' => $docNo ?: '',
     'thaiDocDate' => $thaiDocDate,
     'headerText' => $headerText ?: 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม ภาคเทคโนโลยีสารสนเทศ โทร. 7064',
     'subjectText' => $subjectText,
