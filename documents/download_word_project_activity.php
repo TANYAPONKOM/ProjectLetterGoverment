@@ -239,7 +239,7 @@ function addProjectHeader($section, $docNo, $displayFaculty, $thaiDocDate) {
 
     $left = $table->addCell(Converter::cmToTwip(4.95), projectNoBorderCell('top'));
     $left->addText('', 'normalFont', ['spaceAfter' => 800, 'lineHeight' => 1.0]);
-    $left->addText('ที่ ' . projectInlineText($docNo ?: 'อว ๗๑๒๐/'), 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
+    $left->addText('ที่ ' . projectInlineText($docNo ?: ''), 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
 
     $middle = $table->addCell(Converter::cmToTwip(3.55), projectNoBorderCell('top'));
     if (file_exists($garuda)) {

@@ -537,7 +537,7 @@ $phpWord->addFontStyle('boldFont', [
 ]);
 
 buildSpeakerDownloadWord($phpWord, [
-    'docNo' => $docNo ?: 'ทส.486/2568',
+    'docNo' => $docNo ?: '',
     'thaiDocDate' => $thaiDocDate ?: speakerThaiDateAny(date('Y-m-d')),
     'headerText' => $headerText ?: 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม ภาคเทคโนโลยีสารสนเทศ โทร. 7064.',
     'subjectText' => $subjectText,

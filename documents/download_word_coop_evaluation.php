@@ -328,7 +328,7 @@ function addCoopHeader($section, $docNo, $displayFaculty, $thaiDocDate) {
 
     $left = $table->addCell(Converter::cmToTwip(4.95), coopNoBorderCell('top'));
     $left->addText('', 'normalFont', ['spaceAfter' => 800, 'lineHeight' => 1.0]);
-    $left->addText('ที่ ' . coopInlineText($docNo ?: 'อว ๗๑๒๐/'), 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
+    $left->addText('ที่ ' . coopInlineText($docNo ?: ''), 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
 
     $middle = $table->addCell(Converter::cmToTwip(3.55), coopNoBorderCell('top'));
     if (file_exists($garuda)) {

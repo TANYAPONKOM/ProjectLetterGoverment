@@ -312,7 +312,7 @@ function addInviteHeader($section, $displayFaculty, $thaiDocDate) {
 
     $left = $table->addCell(Converter::cmToTwip(4.95), inviteNoBorderCell('top'));
     $left->addText('', 'normalFont', ['spaceAfter' => 800, 'lineHeight' => 1.0]);
-    $left->addText('ที่ อว ๗๑๒๐/', 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
+    $left->addText('ที่', 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
 
     $middle = $table->addCell(Converter::cmToTwip(3.55), inviteNoBorderCell('top'));
     if (file_exists($garuda)) {

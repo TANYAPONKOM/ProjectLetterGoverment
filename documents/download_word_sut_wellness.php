@@ -248,7 +248,7 @@ function addSutHeader($section, $docNo, $thaiDocDate) {
 
     $left = $table->addCell(Converter::cmToTwip(5.35), sutNoBorderCell('top'));
     $left->addText('', 'normalFont', ['spaceAfter' => 1060, 'lineHeight' => 1.0]);
-    $left->addText('ที่ ' . sutInlineText($docNo ?: 'อว ๗๑๐๑.๑๕/'), 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
+    $left->addText('ที่ ' . sutInlineText($docNo ?: ''), 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
 
     $middle = $table->addCell(Converter::cmToTwip(3.55), sutNoBorderCell('top'));
     if (file_exists($garuda)) {
@@ -616,7 +616,7 @@ $phpWord->addFontStyle('addressFont', [
 ]);
 
 addSutWellnessPage($phpWord, [
-    'docNo' => $docNo ?: 'อว ๗๑๐๑.๑๕/',
+    'docNo' => $docNo ?: '',
     'thaiDocDate' => $thaiDocDate,
     'subject' => $subject,
     'toPerson' => $toPerson,

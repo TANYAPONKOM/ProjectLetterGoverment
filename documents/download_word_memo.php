@@ -633,7 +633,7 @@ function addAcademicMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText,
     $dateTable->addCell(Converter::cmToTwip(0.45), academicNoBorderCell())->addText('ที่', 'boldFont', academicHeaderPara());
     // แก้เฉพาะช่องข้อมูลหลังคำว่า "ที่": ถ้า doc_no ว่าง ให้ยังแสดงเลขที่เอกสารตามรูปแบบมาตรฐาน ไม่ปล่อยให้ช่องหาย
     $dateTable->addCell(Converter::cmToTwip(5.25), academicDottedBottomCell())->addText(
-        academicCleanNoDigit($docNo ?: 'อว ๗๑๐๑.๑๕/'),
+        academicCleanNoDigit($docNo ?: ''),
         'normalFont',
         academicHeaderPara()
     );
