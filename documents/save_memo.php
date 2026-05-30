@@ -12,6 +12,13 @@ if ($DEV_AUTO_LOGIN && empty($_SESSION['user_id'])) {
 
 require_once __DIR__ . '/../functions.php';
 
+function speaker_save_arabic_digits($value) {
+    return strtr((string)$value, [
+        '๐' => '0', '๑' => '1', '๒' => '2', '๓' => '3', '๔' => '4',
+        '๕' => '5', '๖' => '6', '๗' => '7', '๘' => '8', '๙' => '9',
+    ]);
+}
+
 try {
     // ต้องมี user_id ใน session (ถ้า DEV_AUTO_LOGIN=false ต้องล็อกอินจริง)
   if (empty($_SESSION['user_id'])) {
@@ -918,6 +925,10 @@ if ($isCoopEvaluation) {
     }
 }
     $departmentPhone = trim((string)($_POST['department_phone'] ?? ''));
+    $departmentPhone = strtr($departmentPhone, [
+        '๐' => '0', '๑' => '1', '๒' => '2', '๓' => '3', '๔' => '4',
+        '๕' => '5', '๖' => '6', '๗' => '7', '๘' => '8', '๙' => '9',
+    ]);
     $departmentPhone = preg_replace('/^โทร\.?\s*/u', '', $departmentPhone);
     $departmentPhone = preg_replace('/\s+/u', ' ', $departmentPhone);
 

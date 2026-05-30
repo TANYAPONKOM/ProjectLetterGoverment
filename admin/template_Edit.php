@@ -22,40 +22,25 @@ if ($id <= 0) {
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $templateCode = strtoupper(trim($_POST['template_code'] ?? ''));
     $templateName = trim($_POST['template_name'] ?? '');
-    $questionPath = trim($_POST['question_path'] ?? '');
-    $documentPath = trim($_POST['document_path'] ?? '');
     $templateGroup = trim($_POST['template_group'] ?? '');
-    $sortOrder = (int)($_POST['sort_order'] ?? 0);
     $isActive = (int)($_POST['is_active'] ?? 1);
     $isActive = $isActive === 1 ? 1 : 0;
 
-    if ($templateCode === '' || $templateName === '' || $questionPath === '' || $documentPath === '' || !in_array($templateGroup, ['internal', 'external'], true)) {
+    if ($templateName === '' || !in_array($templateGroup, ['internal', 'external'], true)) {
         $error = 'กรุณากรอกข้อมูลให้ครบถ้วน';
     } else {
-        $check = $pdo->prepare("SELECT COUNT(*) FROM templates WHERE template_code = ? AND template_id <> ?");
-        $check->execute([$templateCode, $id]);
+        $stmt = $pdo->prepare("
+            UPDATE templates
+            SET template_name = ?,
+                template_group = ?,
+                is_active = ?
+            WHERE template_id = ?
+        ");
+        $stmt->execute([$templateName, $templateGroup, $isActive, $id]);
 
-        if ((int)$check->fetchColumn() > 0) {
-            $error = 'รหัสเทมเพลตนี้มีอยู่แล้ว';
-        } else {
-            $stmt = $pdo->prepare("
-                UPDATE templates
-                SET template_code = ?,
-                    template_name = ?,
-                    question_path = ?,
-                    document_path = ?,
-                    template_group = ?,
-                    is_active = ?,
-                    sort_order = ?
-                WHERE template_id = ?
-            ");
-            $stmt->execute([$templateCode, $templateName, $questionPath, $documentPath, $templateGroup, $isActive, $sortOrder, $id]);
-
-            header('Location: form_Templates.php?status=saved');
-            exit;
-        }
+        header('Location: form_Templates.php?status=saved');
+        exit;
     }
 }
 
@@ -118,19 +103,15 @@ if (!$template) {
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label class="block font-semibold text-gray-700 mb-2">รหัสเทมเพลต</label>
-          <input type="text" name="template_code" value="<?= h($_POST['template_code'] ?? $template['template_code']) ?>" required
-            class="w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400">
+          <input type="text" value="<?= h($template['template_code']) ?>" readonly
+            class="w-full border rounded-xl px-4 py-2.5 bg-gray-100 text-gray-500 cursor-not-allowed focus:outline-none">
         </div>
 
-        <div>
-          <label class="block font-semibold text-gray-700 mb-2">ลำดับการแสดงผล</label>
-          <input type="number" name="sort_order" value="<?= h($_POST['sort_order'] ?? $template['sort_order']) ?>"
-            class="w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400">
-        </div>
 
         <div class="md:col-span-2">
           <label class="block font-semibold text-gray-700 mb-2">ชื่อเทมเพลต</label>
-          <input type="text" name="template_name" value="<?= h($_POST['template_name'] ?? $template['template_name']) ?>" required
+          <input type="text" name="template_name"
+            value="<?= h($_POST['template_name'] ?? $template['template_name']) ?>" required
             class="w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400">
         </div>
 
@@ -155,17 +136,6 @@ if (!$template) {
           </select>
         </div>
 
-        <div class="md:col-span-2">
-          <label class="block font-semibold text-gray-700 mb-2">ไฟล์คำถาม</label>
-          <input type="text" name="question_path" value="<?= h($_POST['question_path'] ?? $template['question_path']) ?>" required
-            class="w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400">
-        </div>
-
-        <div class="md:col-span-2">
-          <label class="block font-semibold text-gray-700 mb-2">ไฟล์เอกสารที่เจนออกมา</label>
-          <input type="text" name="document_path" value="<?= h($_POST['document_path'] ?? $template['document_path']) ?>" required
-            class="w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-400">
-        </div>
       </div>
 
       <div class="flex justify-end gap-3 pt-4">

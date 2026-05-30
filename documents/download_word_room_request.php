@@ -127,11 +127,37 @@ function roomThaiDateAny($date) {
     return $date;
 }
 
+function roomThaiDateTextAny($text) {
+    $text = roomArabicDigit((string)$text);
+    $text = preg_replace_callback('/(\d{4})-(\d{1,2})-(\d{1,2})/u', function ($m) {
+        return roomThaiDateAny($m[1] . '-' . $m[2] . '-' . $m[3]);
+    }, $text);
+    $text = preg_replace_callback('/(\d{1,2})\/(\d{1,2})\/(\d{4})/u', function ($m) {
+        return roomThaiDateAny($m[1] . '/' . $m[2] . '/' . $m[3]);
+    }, $text);
+    return $text;
+}
+
 function roomClean($text) {
-    $text = str_replace(["\r", "\n", "\t"], ' ', (string)$text);
+    $text = str_replace(["\r", "\n", "\t"], ' ', roomArabicDigit((string)$text));
     $text = cleanWordText($text);
     $text = preg_replace('/[ ]{2,}/u', ' ', $text);
     return trim($text);
+}
+
+function roomRemoveGovSpaces($text) {
+    return preg_replace('/\s+/u', '', roomClean($text));
+}
+
+function roomGovHeaderFontSize($text) {
+    $len = mb_strlen(roomClean($text), 'UTF-8');
+    if ($len > 76) {
+        return 14;
+    }
+    if ($len > 64) {
+        return 15;
+    }
+    return 16;
 }
 
 // คัดรูปแบบการตัดคำ/กระจายคำจาก word_room_request.php
@@ -154,7 +180,9 @@ function insertRoomThaiWordBreaks($text) {
 // คัดรูปแบบย่อหน้าจาก word_room_request.php: lineHeight 1.15 / firstLine 2.5cm / alignment BOTH
 function addRoomRequestPara($section, array $lines, $spaceAfter = 80) {
     $run = $section->addTextRun([
-        'alignment' => Jc::BOTH,
+        // ใช้ค่า WordprocessingML สำหรับกระจายแบบไทยโดยตรง
+        // ห้ามใช้ textAlignment => distribute เพราะทำให้ Word แจ้ง unreadable content
+        'alignment' => 'thaiDistribute',
         'lineHeight' => 1.15,
         'spaceBefore' => 0,
         'spaceAfter' => $spaceAfter,
@@ -164,7 +192,7 @@ function addRoomRequestPara($section, array $lines, $spaceAfter = 80) {
     ]);
 
     foreach ($lines as $index => $line) {
-        $processedText = insertRoomThaiWordBreaks(cleanWordText($line));
+        $processedText = insertRoomThaiWordBreaks(roomClean($line));
         $run->addText($processedText, 'normalFont');
 
         if ($index < count($lines) - 1) {
@@ -182,7 +210,7 @@ function addRoomRequestClosePara($section) {
             'firstLine' => Converter::cmToTwip(2.5)
         ],
     ]);
-    $runClose->addText('จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ', 'normalFont');
+    $runClose->addText(roomClean('จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ'), 'normalFont');
 }
 
 
@@ -223,8 +251,8 @@ function roomHeaderPara($align = Jc::LEFT, $spaceAfter = 0) {
     ];
 }
 
-function roomSplitHeaderLines($text, $limit = 78) {
-    $text = trim(preg_replace('/\s+/u', ' ', (string)$text));
+function roomSplitHeaderLines($text, $limit = 86) {
+    $text = trim(preg_replace('/\s+/u', ' ', roomClean($text)));
     if ($text === '') {
         return [''];
     }
@@ -233,7 +261,7 @@ function roomSplitHeaderLines($text, $limit = 78) {
     while (mb_strlen($text, 'UTF-8') > $limit) {
         $cut = mb_substr($text, 0, $limit, 'UTF-8');
         $spacePos = mb_strrpos($cut, ' ', 0, 'UTF-8');
-        if ($spacePos !== false && $spacePos > 25) {
+        if ($spacePos !== false && $spacePos > 28) {
             $lines[] = trim(mb_substr($text, 0, $spacePos, 'UTF-8'));
             $text = trim(mb_substr($text, $spacePos + 1, null, 'UTF-8'));
         } else {
@@ -250,6 +278,15 @@ function roomSplitHeaderLines($text, $limit = 78) {
 function addRoomMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText) {
     $garuda = __DIR__ . '/../assets/img/garuda.jpg';
 
+    $govFontSize = roomGovHeaderFontSize($headerText);
+    $useTightWordLayout = ($govFontSize <= 14);
+    $headerTextForDisplay = ($govFontSize < 16) ? roomRemoveGovSpaces($headerText) : roomClean($headerText);
+    if ($useTightWordLayout) {
+        $section->getStyle()->setMarginLeft(Converter::cmToTwip(2.80));
+        $section->getStyle()->setMarginRight(Converter::cmToTwip(1.80));
+    }
+    $contentWidthCm = $useTightWordLayout ? 16.40 : 16.0;
+
     // คัดรูปแบบหัวข้อจาก download_word_academic_1.php:
     // ครุฑเล็ก, หัว "บันทึกข้อความ", เส้นปะชัด และช่องวันที่ไม่ตกบรรทัด
     $titleTable = $section->addTable([
@@ -258,7 +295,7 @@ function addRoomMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $su
         'cellMargin' => 0,
         'cellSpacing' => 0,
         'layout' => 'fixed',
-        'width' => Converter::cmToTwip(16.0),
+        'width' => Converter::cmToTwip($contentWidthCm),
     ]);
     $titleTable->addRow(Converter::cmToTwip(1.65));
 
@@ -289,11 +326,14 @@ function addRoomMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $su
         'cellMargin' => 0,
         'cellSpacing' => 0,
         'layout' => 'fixed',
-        'width' => Converter::cmToTwip(16.0),
+        'width' => Converter::cmToTwip($contentWidthCm),
     ]);
     $agencyTable->addRow(null, ['exactHeight' => false]);
     $agencyTable->addCell(Converter::cmToTwip(2.05), roomNoBorderCell())->addText('ส่วนราชการ', 'boldFont', roomHeaderPara());
-    $agencyTable->addCell(Converter::cmToTwip(13.95), roomDottedBottomCell())->addText(roomClean($headerText), 'normalFont', roomHeaderPara());
+    $agencyTable->addCell(Converter::cmToTwip($contentWidthCm - 2.05), roomDottedBottomCell())->addText($headerTextForDisplay, [
+        'name' => 'TH SarabunPSK',
+        'size' => $govFontSize,
+    ], roomHeaderPara());
 
     // ที่ / วันที่
     $dateTable = $section->addTable([
@@ -302,13 +342,13 @@ function addRoomMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $su
         'cellMargin' => 0,
         'cellSpacing' => 0,
         'layout' => 'fixed',
-        'width' => Converter::cmToTwip(16.0),
+        'width' => Converter::cmToTwip($contentWidthCm),
     ]);
     $dateTable->addRow(null, ['exactHeight' => false]);
     $dateTable->addCell(Converter::cmToTwip(0.45), roomNoBorderCell())->addText('ที่', 'boldFont', roomHeaderPara());
     $dateTable->addCell(Converter::cmToTwip(5.25), roomDottedBottomCell())->addText(roomClean($docNo), 'normalFont', roomHeaderPara());
     $dateTable->addCell(Converter::cmToTwip(1.10), roomNoBorderCell())->addText('วันที่', 'boldFont', roomHeaderPara(Jc::CENTER));
-    $dateTable->addCell(Converter::cmToTwip(9.20), roomDottedBottomCell())->addText(roomClean($thaiDocDate), 'normalFont', roomHeaderPara());
+    $dateTable->addCell(Converter::cmToTwip($contentWidthCm - 6.80), roomDottedBottomCell())->addText(roomClean($thaiDocDate), 'normalFont', roomHeaderPara());
 
     // เรื่อง
     $subjectLines = roomSplitHeaderLines($subjectText, 86);
@@ -318,12 +358,12 @@ function addRoomMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $su
         'cellMargin' => 0,
         'cellSpacing' => 0,
         'layout' => 'fixed',
-        'width' => Converter::cmToTwip(16.0),
+        'width' => Converter::cmToTwip($contentWidthCm),
     ]);
     foreach ($subjectLines as $i => $line) {
         $subjectTable->addRow(null, ['exactHeight' => false]);
         $subjectTable->addCell(Converter::cmToTwip(0.90), roomNoBorderCell())->addText($i === 0 ? 'เรื่อง' : '', 'boldFont', roomHeaderPara());
-        $subjectTable->addCell(Converter::cmToTwip(15.10), roomDottedBottomCell())->addText(roomClean($line), 'normalFont', roomHeaderPara());
+        $subjectTable->addCell(Converter::cmToTwip($contentWidthCm - 0.90), roomDottedBottomCell())->addText(roomClean($line), 'normalFont', roomHeaderPara());
     }
 
     $section->addText('เรียน ' . roomClean($toText), 'normalFont', [
@@ -421,7 +461,8 @@ $displayDepartmentFull = (mb_strpos($displayDepartment, 'ภาควิชา')
 $roomRequestText = (trim($roomRequest) === 'อื่น ๆ' && trim($roomRequestOther) !== '') ? $roomRequestOther : $roomRequest;
 $personTypeText = (trim($personType) === 'อื่น ๆ' && trim($personTypeOther) !== '') ? $personTypeOther : $personType;
 $reasonText = (trim($reason) === 'อื่น ๆ' && trim($reasonOther) !== '') ? $reasonOther : $reason;
-$stayDateText = (trim($dateOption) === 'range' && trim($rangeDate) !== '') ? $rangeDate : $singleDate;
+$stayDateTextRaw = (trim($dateOption) === 'range' && trim($rangeDate) !== '') ? $rangeDate : $singleDate;
+$stayDateText = roomThaiDateTextAny($stayDateTextRaw);
 
 $thaiDocDate = roomThaiDateAny($docDate);
 $docNo = trim((string)($document['doc_no'] ?? ''));

@@ -203,6 +203,27 @@ function h_doc($text)
   return h(thai_digits($text));
 }
 
+function arabic_digits($text)
+{
+  return strtr((string) $text, [
+    '๐' => '0',
+    '๑' => '1',
+    '๒' => '2',
+    '๓' => '3',
+    '๔' => '4',
+    '๕' => '5',
+    '๖' => '6',
+    '๗' => '7',
+    '๘' => '8',
+    '๙' => '9',
+  ]);
+}
+
+function h_date_arabic($text)
+{
+  return h(arabic_digits($text));
+}
+
 /* --------------------------------------------------
    Mapping ตัวแปรหลักจาก document_values
 -------------------------------------------------- */
@@ -1000,7 +1021,7 @@ $len = max(20, $len);
         โดยงานการประชุมจัดขึ้นที่
         <span class="inline-dash"><?= h_doc($conferencePlace) ?></span>
         <span class="inline-dash inline-dash-normal">ในระหว่างวันที่</span>
-        <span class="inline-dash"><?= h_doc($presentationDate) ?></span>
+        <span class="inline-dash"><?= h_date_arabic($presentationDate) ?></span>
       </div>
 
 

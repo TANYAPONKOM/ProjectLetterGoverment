@@ -169,6 +169,13 @@ try {
 //     return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
 // }
 
+function speaker_arabic_digits_form($value) {
+    return strtr((string)$value, [
+        '๐' => '0', '๑' => '1', '๒' => '2', '๓' => '3', '๔' => '4',
+        '๕' => '5', '๖' => '6', '๗' => '7', '๘' => '8', '๙' => '9',
+    ]);
+}
+
 $pdo = db();
 
 $documentId = (int)($_GET['id'] ?? $_GET['document_id'] ?? 0);
@@ -331,7 +338,8 @@ $oldTravelPeriod = $valueMap[24] ?? ($valueMap[9] ?? '');
 $oldIntentionText = $valueMap[25] ?? '';
 $oldDepartmentPhone = '';
 if (!empty($document['header_text']) && preg_match('/โทร\.?\s*([^\s]+)/u', (string)$document['header_text'], $phoneMatch)) {
-    $oldDepartmentPhone = trim((string)($phoneMatch[1] ?? ''));
+    $oldDepartmentPhone = speaker_arabic_digits_form(trim((string)($phoneMatch[1] ?? '')));
+    $oldDepartmentPhone = preg_replace('/^โทร\.?\s*/u', '', $oldDepartmentPhone);
 }
 ?>
 
@@ -817,8 +825,8 @@ if (!empty($document['header_text']) && preg_match('/โทร\.?\s*([^\s]+)/u',
 
           <div class="flex items-center gap-3 flex-nowrap pl-4 w-full overflow-x-auto">
             <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap shrink-0">
-              <input type="radio" name="doc_date_option" id="docDateUse" value="use_date"
-                class="accent-black" <?= ($docDateOption === 'use_date') ? 'checked' : '' ?>>
+              <input type="radio" name="doc_date_option" id="docDateUse" value="use_date" class="accent-black"
+                <?= ($docDateOption === 'use_date') ? 'checked' : '' ?>>
               วันที่
             </label>
 
@@ -837,8 +845,8 @@ if (!empty($document['header_text']) && preg_match('/โทร\.?\s*([^\s]+)/u',
           </div>
 
           <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap pl-4">
-            <input type="radio" name="doc_date_option" id="docDateNone" value="no_date"
-              class="accent-black" <?= ($docDateOption === 'no_date') ? 'checked' : '' ?>>
+            <input type="radio" name="doc_date_option" id="docDateNone" value="no_date" class="accent-black"
+              <?= ($docDateOption === 'no_date') ? 'checked' : '' ?>>
             ไม่ประสงค์ใส่วันที่
           </label>
         </div>
@@ -1071,10 +1079,8 @@ if (!empty($document['header_text']) && preg_match('/โทร\.?\s*([^\s]+)/u',
         </label>
         <div class="flex items-center gap-2 flex-1 whitespace-nowrap">
           <span class="lbl whitespace-nowrap">โทร.</span>
-          <input type="text" name="department_phone" id="departmentPhone"
-            class="border rounded-md p-2 w-48"
-            placeholder="เช่น 704"
-            value="<?= h($oldDepartmentPhone) ?>">
+          <input type="text" name="department_phone" id="departmentPhone" class="border rounded-md p-2 w-48"
+            placeholder="เช่น 704" value="<?= h($oldDepartmentPhone) ?>">
         </div>
       </div>
 
@@ -2061,7 +2067,7 @@ if (!empty($document['header_text']) && preg_match('/โทร\.?\s*([^\s]+)/u',
         if (docDateNone?.checked) {
           if (docDateDisplay) docDateDisplay.value = "";
           if (docDateHidden) docDateHidden.value = "";
-        } else if (docPicker?.selectedDates?.[0] && docDateHidden) {
+        } else if (docPicker?.selectedDates?. [0] && docDateHidden) {
           docDateHidden.value = formatYMDSpeaker(docPicker.selectedDates[0]);
         }
 

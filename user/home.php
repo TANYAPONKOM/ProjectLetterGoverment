@@ -7,6 +7,40 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+/* รายละเอียดรายการเอกสารในหน้า Home: ใช้เฉพาะเอกสารบางฟอร์มที่เดิมแสดง "(ไม่มีรายละเอียด)" */
+$homeDocDetailMap = [];
+
+try {
+    $pdo = getPDO();
+
+    $detailStmt = $pdo->prepare("
+        SELECT d.document_id, dv.field_id, dv.value_text
+        FROM documents d
+        INNER JOIN document_values dv ON dv.document_id = d.document_id
+        WHERE d.owner_id = ?
+          AND dv.field_id IN (
+            27,28,29,32,35,36,37,
+            49,52,54,
+            60,61,62,66,
+            72,75,76,79
+          )
+    ");
+    $detailStmt->execute([$_SESSION['user_id']]);
+
+    while ($row = $detailStmt->fetch(PDO::FETCH_ASSOC)) {
+        $docId = (int)$row['document_id'];
+        $fieldId = (int)$row['field_id'];
+
+        if (!isset($homeDocDetailMap[$docId])) {
+            $homeDocDetailMap[$docId] = [];
+        }
+
+        $homeDocDetailMap[$docId][$fieldId] = trim((string)$row['value_text']);
+    }
+} catch (Throwable $e) {
+    $homeDocDetailMap = [];
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -197,6 +231,92 @@ if (!isset($_SESSION['user_id'])) {
   </main>
 
   <script>
+  const homeDocDetailMap = <?= json_encode($homeDocDetailMap, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+
+  function cleanHomeDetailValue(value) {
+    return String(value || "").replace(/\s+/g, " ").trim();
+  }
+
+  function firstHomeDetailValue(detailMap, fieldIds) {
+    for (const fieldId of fieldIds) {
+      const value = cleanHomeDetailValue(detailMap[fieldId]);
+      if (value) {
+        return value;
+      }
+    }
+
+    return "";
+  }
+
+  function formatHomeThaiDateText(value) {
+    const raw = cleanHomeDetailValue(value);
+    if (!raw) return "";
+
+    const thaiMonths = [
+      "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+      "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+    ];
+
+    return raw.replace(/(\d{4})-(\d{2})-(\d{2})/g, function(_, y, m, d) {
+      const monthName = thaiMonths[parseInt(m, 10) - 1] || m;
+      return `${parseInt(d, 10)} ${monthName} ${parseInt(y, 10) + 543}`;
+    }).replace(/(\d{1,2})\/(\d{1,2})\/(\d{4})/g, function(_, d, m, y) {
+      const monthName = thaiMonths[parseInt(m, 10) - 1] || m;
+      return `${parseInt(d, 10)} ${monthName} ${parseInt(y, 10) + 543}`;
+    });
+  }
+
+  function buildHomeDocumentDetail(d, title, routeHint) {
+    const detailMap = homeDocDetailMap[String(d.document_id)] || {};
+    const textForType = [
+      title || "",
+      routeHint || "",
+      d.subject || "",
+      d.memo_subject || "",
+      d.join_type || ""
+    ].join(" ");
+
+    const fallback = cleanHomeDetailValue(d.course_name || d.memo_subject || d.subject);
+    let detailParts = [];
+
+    if (textForType.includes("ขออนุมัติใช้ห้องพักรับรอง") || textForType.includes("room_request")) {
+      const roomFor = firstHomeDetailValue(detailMap, [28, 27]);
+      const roomDate = formatHomeThaiDateText(firstHomeDetailValue(detailMap, [36, 35]));
+      const roomType = firstHomeDetailValue(detailMap, [37]);
+
+      if (roomFor) detailParts.push(`ขอใช้สำหรับ: ${roomFor}`);
+      if (roomDate) detailParts.push(`วันที่เข้าพัก: ${roomDate}`);
+      if (!roomDate && roomType) detailParts.push(`ห้องพัก: ${roomType}`);
+    } else if (textForType.includes("ขอประเมินสถานประกอบการสหกิจศึกษา") || textForType.includes("coop")) {
+      const orgName = firstHomeDetailValue(detailMap, [72]);
+
+      if (orgName) detailParts.push(`สถานประกอบการ: ${orgName}`);
+    } else if (textForType.includes("ขอเข้าไปจัดกิจกรรมโครงการ") || textForType.includes("project_activity")) {
+      const mainProject = firstHomeDetailValue(detailMap, [61]);
+      const subActivity = firstHomeDetailValue(detailMap, [62]);
+      const roomFor = firstHomeDetailValue(detailMap, [28, 27]);
+      const roomType = firstHomeDetailValue(detailMap, [37]);
+
+      if (mainProject || subActivity) {
+        if (mainProject) detailParts.push(`โครงการ: ${mainProject}`);
+        if (subActivity) detailParts.push(`กิจกรรม: ${subActivity}`);
+      } else {
+        if (roomFor) detailParts.push(`ขอใช้สำหรับ: ${roomFor}`);
+        if (roomType) detailParts.push(`ห้องพัก: ${roomType}`);
+      }
+    } else if (textForType.includes("หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์") || textForType.includes(
+        "research_data")) {
+      const thesisTitle = firstHomeDetailValue(detailMap, [49]);
+      const supportType = firstHomeDetailValue(detailMap, [52]);
+
+      if (thesisTitle) detailParts.push(`หัวข้อปริญญานิพนธ์: ${thesisTitle}`);
+      if (supportType) detailParts.push(`ข้อมูลที่ขอ: ${supportType}`);
+    }
+
+    const detail = cleanHomeDetailValue(detailParts.join(", "));
+    return detail || fallback || "(ไม่มีรายละเอียด)";
+  }
+
   let dataAll = [];
 
   async function loadRequests() {
@@ -261,7 +381,7 @@ if (!isset($_SESSION['user_id'])) {
         join_type: d.join_type || "",
         route_hint: routeHint,
         title: title || "(ไม่มีชื่อเรื่อง)",
-        detail: d.course_name || d.subject || "(ไม่มีรายละเอียด)",
+        detail: buildHomeDocumentDetail(d, title, routeHint),
         date: d.doc_date,
 
         raw_status: d.status, // ⭐ สถานะจริง DB

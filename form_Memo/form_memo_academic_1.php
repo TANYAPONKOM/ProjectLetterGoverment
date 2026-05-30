@@ -173,22 +173,58 @@ function cleanSectionSubject($text)
   return $text;
 }
 
-function splitSubjectLines($text, $limit = 82)
+function splitSubjectLines($text, $limit = 72)
 {
   $text = trim(preg_replace('/\s+/u', ' ', (string)$text));
+  if ($text === '') {
+    return [''];
+  }
+
+  $safeWords = [
+    'หลักสูตร', 'การอบรม', 'การพัฒนา', 'เชิงปฏิบัติการ', 'ปฏิบัติการ',
+    'แอปพลิเคชัน', 'ฐานข้อมูล', 'สารสนเทศ', 'เทคโนโลยี', 'ระบบ',
+    'เข้าร่วม', 'นำเสนอ', 'ผลงานวิจัย', 'งานประชุม', 'ประชุม', 'วิชาการ',
+    'ระดับนานาชาติ', 'ระดับชาติ', 'โครงการ', 'กิจกรรม',
+    'และ', 'เพื่อ', 'ในการ', 'ของ', 'ด้วย', 'โดย', 'จาก', 'กับ', 'ใหม่', 'การ'
+  ];
+
   $lines = [];
-
   while (mb_strlen($text, 'UTF-8') > $limit) {
-    $cut = mb_substr($text, 0, $limit, 'UTF-8');
-    $spacePos = mb_strrpos($cut, ' ', 0, 'UTF-8');
+    $cutPos = 0;
+    $maxBefore = mb_substr($text, 0, $limit, 'UTF-8');
+    $spacePos = mb_strrpos($maxBefore, ' ', 0, 'UTF-8');
 
-    if ($spacePos !== false && $spacePos > 25) {
-      $lines[] = trim(mb_substr($text, 0, $spacePos, 'UTF-8'));
-      $text = trim(mb_substr($text, $spacePos + 1, null, 'UTF-8'));
+    if ($spacePos !== false && $spacePos >= 30) {
+      $cutPos = $spacePos;
     } else {
-      $lines[] = trim($cut);
-      $text = trim(mb_substr($text, $limit, null, 'UTF-8'));
+      foreach ($safeWords as $word) {
+        $offset = 1;
+        while (($pos = mb_strpos($text, $word, $offset, 'UTF-8')) !== false) {
+          if ($pos >= 30 && $pos <= $limit) {
+            $cutPos = max($cutPos, $pos);
+          }
+          if ($pos > $limit) {
+            break;
+          }
+          $offset = $pos + mb_strlen($word, 'UTF-8');
+        }
+      }
     }
+
+    if ($cutPos < 30) {
+      $lookAhead = mb_substr($text, $limit, 24, 'UTF-8');
+      $nextSpace = mb_strpos($lookAhead, ' ', 0, 'UTF-8');
+      if ($nextSpace !== false) {
+        $cutPos = $limit + $nextSpace;
+      }
+    }
+
+    if ($cutPos < 30) {
+      $cutPos = $limit;
+    }
+
+    $lines[] = trim(mb_substr($text, 0, $cutPos, 'UTF-8'));
+    $text = trim(mb_substr($text, $cutPos, null, 'UTF-8'));
   }
 
   if ($text !== '') {
@@ -276,9 +312,25 @@ function thai_digits($text)
   ]);
 }
 
+function arabic_digits($text)
+{
+  return strtr((string)$text, [
+    '๐' => '0',
+    '๑' => '1',
+    '๒' => '2',
+    '๓' => '3',
+    '๔' => '4',
+    '๕' => '5',
+    '๖' => '6',
+    '๗' => '7',
+    '๘' => '8',
+    '๙' => '9',
+  ]);
+}
+
 function h_thai_digits($text)
 {
-  return h(thai_digits($text));
+  return h(arabic_digits($text));
 }
 
 /* --------------------------------------------------
@@ -711,6 +763,13 @@ $len = max(20, $len);
   }
 
 
+
+  /* ใช้เฉพาะตอนบรรทัดส่วนราชการยาวเกินเส้นเท่านั้น */
+  .page.gov-agency-overflow-fit {
+    padding-left: 2.80cm !important;
+    padding-right: 1.80cm !important;
+  }
+
   .expense-info-block {
     text-align: left !important;
     width: 720px;
@@ -1132,6 +1191,10 @@ $len = max(20, $len);
       <!-- เรื่อง -->
       <?php
   $mainSubjectText = $memoSubject ?: $subject ?: 'ขออนุมัติ...';
+  $academicMainSubjectPrefix = 'ขออนุมัติตัวบุคคลเพื่อไปนำเสนอผลงานวิจัยในงาน';
+  if (mb_strpos($mainSubjectText, $academicMainSubjectPrefix) !== 0) {
+    $mainSubjectText = $academicMainSubjectPrefix . $mainSubjectText;
+  }
   $mainSubjectLines = splitSubjectLines($mainSubjectText, 82);
 ?>
       <div class="doc-row" style="align-items:flex-start;">
@@ -1598,6 +1661,70 @@ $len = max(20, $len);
     }, 3000); // ซ่อนหลัง 3 วินาที
   }
 
+
+  function fitGovAgencyText(root = document) {
+    root.querySelectorAll(".doc-row.gov-row .chip.gov-text").forEach(el => {
+      const line = el.closest(".dot-line");
+      const page = el.closest(".page");
+      if (!line) return;
+
+      if (!el.dataset.govOriginalText) {
+        el.dataset.govOriginalText = (el.textContent || "").trim();
+      }
+      el.textContent = el.dataset.govOriginalText;
+
+      if (page) {
+        page.classList.remove("gov-agency-overflow-fit");
+      }
+
+      el.style.setProperty("display", "inline-block", "important");
+      el.style.setProperty("white-space", "nowrap", "important");
+      el.style.setProperty("max-width", "none", "important");
+      el.style.setProperty("letter-spacing", "normal", "important");
+
+      let lineWidth = Math.floor(line.getBoundingClientRect().width || line.clientWidth);
+      el.style.setProperty("font-size", "16pt", "important");
+      const widthAtNormalSize = Math.ceil(el.getBoundingClientRect().width || el.scrollWidth);
+      const enteredOverflowCondition = !!lineWidth && widthAtNormalSize > lineWidth + 1;
+
+      // ลบช่องว่างเฉพาะตอนเข้าเงื่อนไขข้อความส่วนราชการเกินเส้นเท่านั้น
+      if (enteredOverflowCondition) {
+        el.textContent = el.dataset.govOriginalText.replace(/\s+/gu, "");
+      }
+
+      const sizes = [16, 15, 14];
+      let stillOverflow = false;
+
+      for (const size of sizes) {
+        el.style.setProperty("font-size", size + "pt", "important");
+        const textWidth = Math.ceil(el.getBoundingClientRect().width || el.scrollWidth);
+        stillOverflow = !!lineWidth && textWidth > lineWidth + 1;
+        if (!stillOverflow) {
+          break;
+        }
+      }
+
+      // ถ้าลดถึง 14 แล้วยังเกินเส้น ค่อยขยับขอบเฉพาะหน้านั้นเท่านั้น
+      if (stillOverflow && page) {
+        page.classList.add("gov-agency-overflow-fit");
+        el.style.setProperty("font-size", "14pt", "important");
+
+        lineWidth = Math.floor(line.getBoundingClientRect().width || line.clientWidth);
+        const textWidth = Math.ceil(el.getBoundingClientRect().width || el.scrollWidth);
+        if (lineWidth && textWidth > lineWidth + 1) {
+          el.style.setProperty("letter-spacing", "-0.2px", "important");
+        }
+      }
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    fitGovAgencyText(document);
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => fitGovAgencyText(document));
+    }
+  });
+
   function downloadWord(link) {
     const loadingOverlay = document.getElementById("pdfLoadingOverlay");
     const loadingTitle = document.getElementById("downloadLoadingTitle");
@@ -1874,6 +2001,7 @@ $len = max(20, $len);
         }
 
         document.body.appendChild(clone);
+        fitGovAgencyText(clone);
 
         const PDF_SCALE = 2.2; // จุดสมดุล: เร็วขึ้น แต่ยังไม่ฟุ้งแบบ JPEG
 

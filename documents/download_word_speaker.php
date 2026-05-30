@@ -82,10 +82,8 @@ function speakerField(array $valueMapByKey, array $valueMap, string $key, int $f
 }
 
 function speakerThaiDigit($text) {
-    return strtr((string)$text, [
-        '0' => '๐', '1' => '๑', '2' => '๒', '3' => '๓', '4' => '๔',
-        '5' => '๕', '6' => '๖', '7' => '๗', '8' => '๘', '9' => '๙',
-    ]);
+    // ใช้ชื่อเดิมเพื่อไม่กระทบจุดเรียกใช้เดิม แต่รอบนี้ต้องการให้เลขทั้งหมดเป็นเลขอารบิก
+    return speakerArabicDigit((string)$text);
 }
 
 function speakerArabicDigit($text) {
@@ -114,7 +112,7 @@ function speakerThaiDateAny($date) {
         $mo = (int)$m[2];
         $d = (int)$m[3];
         $months = speakerThaiMonths();
-        return speakerThaiDigit($d . ' ' . ($months[$mo] ?? '') . ' ' . ($y + 543));
+        return $d . ' ' . ($months[$mo] ?? '') . ' ' . ($y + 543);
     }
 
     if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $date, $m)) {
@@ -122,17 +120,43 @@ function speakerThaiDateAny($date) {
         $mo = (int)$m[2];
         $y = (int)$m[3];
         $months = speakerThaiMonths();
-        return speakerThaiDigit($d . ' ' . ($months[$mo] ?? '') . ' ' . ($y > 2400 ? $y : $y + 543));
+        return $d . ' ' . ($months[$mo] ?? '') . ' ' . ($y > 2400 ? $y : $y + 543);
     }
 
-    return speakerThaiDigit($date);
+    return speakerArabicDigit($date);
+}
+
+function speakerThaiDateTextAny($text) {
+    $text = speakerArabicDigit((string)$text);
+    $text = preg_replace_callback('/(\d{4})-(\d{1,2})-(\d{1,2})/u', function ($m) {
+        return speakerThaiDateAny($m[1] . '-' . $m[2] . '-' . $m[3]);
+    }, $text);
+    $text = preg_replace_callback('/(\d{1,2})\/(\d{1,2})\/(\d{4})/u', function ($m) {
+        return speakerThaiDateAny($m[1] . '/' . $m[2] . '/' . $m[3]);
+    }, $text);
+    return $text;
 }
 
 function speakerClean($text) {
-    $text = str_replace(["\r", "\n", "\t"], ' ', (string)$text);
+    $text = str_replace(["\r", "\n", "\t"], ' ', speakerArabicDigit((string)$text));
     $text = cleanWordText($text);
     $text = preg_replace('/[ ]{2,}/u', ' ', $text);
     return trim($text);
+}
+
+function speakerRemoveGovSpaces($text) {
+    return preg_replace('/\s+/u', '', speakerClean($text));
+}
+
+function speakerGovHeaderFontSize($text) {
+    $len = mb_strlen(speakerClean($text), 'UTF-8');
+    if ($len > 76) {
+        return 14;
+    }
+    if ($len > 64) {
+        return 15;
+    }
+    return 16;
 }
 
 // รูปแบบตัดคำตาม documents/word_templates/word_speaker.php
@@ -166,7 +190,8 @@ function insertSpeakerThaiWordBreaksForDownload($text) {
 
 function addSpeakerDownloadManualPara($section, array $lines, $spaceAfter = 80) {
     $run = $section->addTextRun([
-        'alignment' => Jc::BOTH,
+        // ใช้กระจายแบบไทยเฉพาะย่อหน้าเนื้อหา
+        'alignment' => 'thaiDistribute',
         'lineHeight' => 1.15,
         'spaceBefore' => 0,
         'spaceAfter' => $spaceAfter,
@@ -358,6 +383,15 @@ function speakerSplitHeaderLines($text, $limit = 78) {
 function addSpeakerMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText) {
     $garuda = __DIR__ . '/../assets/img/garuda.jpg';
 
+    $govFontSize = speakerGovHeaderFontSize($headerText);
+    $useTightWordLayout = ($govFontSize <= 14);
+    $headerTextForDisplay = ($govFontSize < 16) ? speakerRemoveGovSpaces($headerText) : speakerClean($headerText);
+    if ($useTightWordLayout) {
+        $section->getStyle()->setMarginLeft(Converter::cmToTwip(2.80));
+        $section->getStyle()->setMarginRight(Converter::cmToTwip(1.80));
+    }
+    $contentWidthCm = $useTightWordLayout ? 16.40 : 16.0;
+
     // คัดรูปแบบส่วนหัวจาก download_word_academic_1.php เพื่อให้ครุฑและเส้นปะตรงกัน
     $titleTable = $section->addTable([
         'borderSize' => 0,
@@ -365,7 +399,7 @@ function addSpeakerMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, 
         'cellMargin' => 0,
         'cellSpacing' => 0,
         'layout' => 'fixed',
-        'width' => Converter::cmToTwip(16.0),
+        'width' => Converter::cmToTwip($contentWidthCm),
     ]);
     $titleTable->addRow(Converter::cmToTwip(1.65));
 
@@ -395,11 +429,14 @@ function addSpeakerMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, 
         'cellMargin' => 0,
         'cellSpacing' => 0,
         'layout' => 'fixed',
-        'width' => Converter::cmToTwip(16.0),
+        'width' => Converter::cmToTwip($contentWidthCm),
     ]);
     $agencyTable->addRow(null, ['exactHeight' => false]);
     $agencyTable->addCell(Converter::cmToTwip(2.05), speakerNoBorderCell())->addText('ส่วนราชการ', 'boldFont', speakerHeaderPara());
-    $agencyTable->addCell(Converter::cmToTwip(13.95), speakerDottedBottomCell())->addText(speakerClean($headerText), 'normalFont', speakerHeaderPara());
+    $agencyTable->addCell(Converter::cmToTwip($contentWidthCm - 2.05), speakerDottedBottomCell())->addText($headerTextForDisplay, [
+        'name' => 'TH SarabunPSK',
+        'size' => $govFontSize,
+    ], speakerHeaderPara());
 
     // แยกช่องวันที่ให้กว้างเหมือน academic_1 เพื่อไม่ให้วันที่ตกบรรทัด และให้เส้นปะต่อกับช่องวันที่
     $dateTable = $section->addTable([
@@ -408,13 +445,13 @@ function addSpeakerMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, 
         'cellMargin' => 0,
         'cellSpacing' => 0,
         'layout' => 'fixed',
-        'width' => Converter::cmToTwip(16.0),
+        'width' => Converter::cmToTwip($contentWidthCm),
     ]);
     $dateTable->addRow(null, ['exactHeight' => false]);
     $dateTable->addCell(Converter::cmToTwip(0.45), speakerNoBorderCell())->addText('ที่', 'boldFont', speakerHeaderPara());
     $dateTable->addCell(Converter::cmToTwip(5.25), speakerDottedBottomCell())->addText(speakerClean($docNo), 'normalFont', speakerHeaderPara());
     $dateTable->addCell(Converter::cmToTwip(1.10), speakerNoBorderCell())->addText('วันที่', 'boldFont', speakerHeaderPara(Jc::CENTER));
-    $dateTable->addCell(Converter::cmToTwip(9.20), speakerDottedBottomCell())->addText(speakerClean($thaiDocDate), 'normalFont', speakerHeaderPara());
+    $dateTable->addCell(Converter::cmToTwip($contentWidthCm - 6.80), speakerDottedBottomCell())->addText(speakerClean($thaiDocDate), 'normalFont', speakerHeaderPara());
 
     $subjectLines = speakerSplitHeaderLines($subjectText, 86);
     $subjectTable = $section->addTable([
@@ -423,12 +460,12 @@ function addSpeakerMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, 
         'cellMargin' => 0,
         'cellSpacing' => 0,
         'layout' => 'fixed',
-        'width' => Converter::cmToTwip(16.0),
+        'width' => Converter::cmToTwip($contentWidthCm),
     ]);
     foreach ($subjectLines as $i => $line) {
         $subjectTable->addRow(null, ['exactHeight' => false]);
         $subjectTable->addCell(Converter::cmToTwip(0.90), speakerNoBorderCell())->addText($i === 0 ? 'เรื่อง' : '', 'boldFont', speakerHeaderPara());
-        $subjectTable->addCell(Converter::cmToTwip(15.10), speakerDottedBottomCell())->addText(speakerKeepTogetherWords(speakerClean($line)), 'normalFont', speakerHeaderPara());
+        $subjectTable->addCell(Converter::cmToTwip($contentWidthCm - 0.90), speakerDottedBottomCell())->addText(speakerKeepTogetherWords(speakerClean($line)), 'normalFont', speakerHeaderPara());
     }
 
     $section->addText('เรียน ' . speakerKeepTogetherWords(speakerClean($toText)), 'normalFont', [
@@ -480,10 +517,10 @@ function buildSpeakerDownloadWord($phpWord, array $data) {
     );
 }
 
-$docDate = trim((string)($valueMap[1] ?? ''));
-if ($docDate === '') {
-    $docDate = trim((string)($document['doc_date'] ?? ''));
-}
+$hasSavedDocDateField = array_key_exists(1, $valueMap) || array_key_exists('doc_date', $valueMapByKey);
+$docDate = $hasSavedDocDateField
+    ? trim((string)($valueMapByKey['doc_date'] ?? ($valueMap[1] ?? '')))
+    : trim((string)($document['doc_date'] ?? ''));
 
 $ownerName = speakerField($valueMapByKey, $valueMap, 'owner_name', 2, '');
 $position = speakerField($valueMapByKey, $valueMap, 'position', 3, '');
@@ -541,8 +578,8 @@ $phpWord->addFontStyle('boldFont', [
 
 buildSpeakerDownloadWord($phpWord, [
     'docNo' => $docNo ?: '',
-    'thaiDocDate' => $thaiDocDate ?: speakerThaiDateAny(date('Y-m-d')),
-    'headerText' => $headerText ?: 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม ภาคเทคโนโลยีสารสนเทศ โทร. 7064.',
+    'thaiDocDate' => $thaiDocDate,
+    'headerText' => speakerClean($headerText ?: 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม ภาควิชาเทคโนโลยีสารสนเทศ โทร. 7064.'),
     'subjectText' => $subjectText,
     'toText' => $displayFacultyDean,
     'referenceOrg' => $referenceOrg !== '' ? $referenceOrg : '................................',
@@ -550,14 +587,14 @@ buildSpeakerDownloadWord($phpWord, [
     'referenceDateText' => $referenceDateText !== '' ? $referenceDateText : '................................',
     'projectTitle' => $projectTitle !== '' ? $projectTitle : '................................',
     'courseName' => $courseName !== '' ? $courseName : '................................',
-    'eventRange' => $joinDates !== '' ? $joinDates : '................................',
+    'eventRange' => $joinDates !== '' ? speakerThaiDateTextAny($joinDates) : '................................',
     'eventPlace' => $location !== '' ? $location : '................................',
     'ownerName' => $ownerName !== '' ? $ownerName : '................................',
     'position' => $position,
     'displayDepartmentFull' => $displayDepartmentFull,
     'displayFaculty' => $displayFaculty,
     'intentionText' => $intentionText,
-    'travelPeriod' => $travelPeriod !== '' ? $travelPeriod : '................................',
+    'travelPeriod' => $travelPeriod !== '' ? speakerThaiDateTextAny($travelPeriod) : '................................',
 ]);
 
 $filename = 'speaker_' . $docId . '.docx';

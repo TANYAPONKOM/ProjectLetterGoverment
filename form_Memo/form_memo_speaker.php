@@ -164,17 +164,18 @@ foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
 
 function thai_digits($value)
 {
+  // ใช้ชื่อเดิมเพื่อไม่กระทบจุดเรียกใช้เดิม แต่รอบนี้ต้องการให้เลขทั้งหมดเป็นเลขอารบิก
   return strtr((string) $value, [
-    '0' => '๐',
-    '1' => '๑',
-    '2' => '๒',
-    '3' => '๓',
-    '4' => '๔',
-    '5' => '๕',
-    '6' => '๖',
-    '7' => '๗',
-    '8' => '๘',
-    '9' => '๙',
+    '๐' => '0',
+    '๑' => '1',
+    '๒' => '2',
+    '๓' => '3',
+    '๔' => '4',
+    '๕' => '5',
+    '๖' => '6',
+    '๗' => '7',
+    '๘' => '8',
+    '๙' => '9',
   ]);
 }
 
@@ -242,9 +243,11 @@ function splitSubjectLines($text, $limit = 78)
 
 function thai_date($ymd)
 {
-  if (!$ymd || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $ymd))
+  $ymd = trim(thai_digits((string) $ymd));
+  if ($ymd === '') {
     return "";
-  [$y, $m, $d] = explode("-", $ymd);
+  }
+
   $months = [
     1 => "มกราคม",
     2 => "กุมภาพันธ์",
@@ -259,7 +262,22 @@ function thai_date($ymd)
     11 => "พฤศจิกายน",
     12 => "ธันวาคม"
   ];
-  return thai_digits(intval($d) . " " . $months[intval($m)] . " " . (intval($y) + 543));
+
+  if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $ymd, $m)) {
+    $y = (int) $m[1];
+    $mo = (int) $m[2];
+    $d = (int) $m[3];
+    return thai_digits($d . " " . ($months[$mo] ?? "") . " " . ($y + 543));
+  }
+
+  if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $ymd, $m)) {
+    $d = (int) $m[1];
+    $mo = (int) $m[2];
+    $y = (int) $m[3];
+    return thai_digits($d . " " . ($months[$mo] ?? "") . " " . ($y > 2400 ? $y : $y + 543));
+  }
+
+  return "";
 }
 
 /* --------------------------------------------------
@@ -911,6 +929,15 @@ $len = max(20, $len);
     max-width: none !important;
   }
 
+  .page.gov-header-tight-margin {
+    padding-left: 2.80cm !important;
+    padding-right: 1.80cm !important;
+  }
+
+  .page.gov-header-tight-margin .doc-row.gov-row>.dot-line {
+    padding-right: 0 !important;
+  }
+
   /* ===== แก้เฉพาะแถว "เรื่อง" ให้แยกเป็นบรรทัดจริงแบบไฟล์ตัวอย่าง ===== */
   .subject-row .subject-label {
     width: 1.15cm !important;
@@ -1481,6 +1508,66 @@ $len = max(20, $len);
     return false;
   }
 
+  function normalizeSpeakerGovHeaderText(text) {
+    return String(text || "")
+      .replace(/[๐๑๒๓๔๕๖๗๘๙]/g, (d) => ({
+        "๐": "0",
+        "๑": "1",
+        "๒": "2",
+        "๓": "3",
+        "๔": "4",
+        "๕": "5",
+        "๖": "6",
+        "๗": "7",
+        "๘": "8",
+        "๙": "9"
+      } [d] || d));
+  }
+
+  function removeSpeakerGovHeaderSpaces(text) {
+    return String(text || "").replace(/\s+/g, "");
+  }
+
+  function applySpeakerGovHeaderFit(root = document) {
+    const page = root.querySelector?.(".page") || root;
+    const govChip = root.querySelector?.(".gov-text");
+    const govLine = govChip?.closest(".dot-line");
+    if (!govChip || !govLine) return;
+
+    const originalText = normalizeSpeakerGovHeaderText(govChip.textContent);
+
+    const fits = () => {
+      const textWidth = Math.ceil(govChip.getBoundingClientRect().width || govChip.scrollWidth);
+      const lineWidth = Math.floor(govLine.getBoundingClientRect().width || govLine.clientWidth);
+      return lineWidth && textWidth <= lineWidth + 1;
+    };
+
+    govChip.textContent = originalText;
+    govChip.style.setProperty("font-size", "16pt", "important");
+    govChip.style.removeProperty("letter-spacing");
+    page?.classList?.remove("gov-header-tight-margin");
+
+    if (fits()) return;
+
+    // เข้าเงื่อนไขเกินเส้น: ค่อยลบช่องว่างและลดขนาดตัวอักษร
+    govChip.textContent = removeSpeakerGovHeaderSpaces(originalText);
+    govChip.style.setProperty("font-size", "15pt", "important");
+    if (fits()) return;
+
+    govChip.style.setProperty("font-size", "14pt", "important");
+    if (fits()) return;
+
+    // ยังเกินที่ 14: ค่อยขยับขอบเฉพาะหน้านี้เป็นซ้าย 2.80cm / ขวา 1.80cm
+    page?.classList?.add("gov-header-tight-margin");
+    void page?.offsetWidth;
+    if (fits()) return;
+
+    // กันเคสยาวมากจริง ๆ โดยไม่ลดฟอนต์ต่ำกว่า 14
+    govChip.style.setProperty("letter-spacing", "-0.25px", "important");
+  }
+
+  window.addEventListener("load", () => applySpeakerGovHeaderFit(document));
+
   async function downloadPdf() {
     const loadingOverlay = document.getElementById("pdfLoadingOverlay");
     const downloadButtons = document.querySelectorAll("button[onclick='downloadPdf()']");
@@ -1629,6 +1716,7 @@ $len = max(20, $len);
         });
 
         document.body.appendChild(clone);
+        applySpeakerGovHeaderFit(clone);
 
         const PDF_SCALE = 2.2; // จุดสมดุล: เร็วขึ้น แต่ยังไม่ฟุ้งแบบ JPEG
 

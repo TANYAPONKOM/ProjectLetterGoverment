@@ -509,28 +509,106 @@ function academicSplitHeaderLines($text, $limit = 78) {
         return [''];
     }
 
+    $safeWords = [
+        'หลักสูตร', 'การอบรม', 'การพัฒนา', 'เชิงปฏิบัติการ', 'ปฏิบัติการ',
+        'แอปพลิเคชัน', 'ฐานข้อมูล', 'สารสนเทศ', 'เทคโนโลยี', 'ระบบ',
+        'เข้าร่วม', 'นำเสนอ', 'ประชุม', 'วิชาการ', 'โครงการ', 'กิจกรรม',
+        'และ', 'เพื่อ', 'ในการ', 'ของ', 'ด้วย', 'โดย', 'จาก', 'กับ', 'ใหม่', 'การ'
+    ];
+
     $lines = [];
     while (mb_strlen($text, 'UTF-8') > $limit) {
-        $cut = mb_substr($text, 0, $limit, 'UTF-8');
-        $spacePos = mb_strrpos($cut, ' ', 0, 'UTF-8');
-        if ($spacePos !== false && $spacePos > 25) {
-            $lines[] = trim(mb_substr($text, 0, $spacePos, 'UTF-8'));
-            $text = trim(mb_substr($text, $spacePos + 1, null, 'UTF-8'));
+        $cutPos = 0;
+        $maxBefore = mb_substr($text, 0, $limit, 'UTF-8');
+        $spacePos = mb_strrpos($maxBefore, ' ', 0, 'UTF-8');
+
+        if ($spacePos !== false && $spacePos >= 30) {
+            $cutPos = $spacePos;
         } else {
-            $lines[] = trim($cut);
-            $text = trim(mb_substr($text, $limit, null, 'UTF-8'));
+            foreach ($safeWords as $word) {
+                $offset = 1;
+                while (($pos = mb_strpos($text, $word, $offset, 'UTF-8')) !== false) {
+                    if ($pos >= 30 && $pos <= $limit) {
+                        $cutPos = max($cutPos, $pos);
+                    }
+                    if ($pos > $limit) {
+                        break;
+                    }
+                    $offset = $pos + mb_strlen($word, 'UTF-8');
+                }
+            }
         }
+
+        if ($cutPos < 30) {
+            $lookAhead = mb_substr($text, $limit, 24, 'UTF-8');
+            $nextSpace = mb_strpos($lookAhead, ' ', 0, 'UTF-8');
+            if ($nextSpace !== false) {
+                $cutPos = $limit + $nextSpace;
+            }
+        }
+
+        if ($cutPos < 30) {
+            $cutPos = $limit;
+        }
+
+        $lines[] = trim(mb_substr($text, 0, $cutPos, 'UTF-8'));
+        $text = trim(mb_substr($text, $cutPos, null, 'UTF-8'));
     }
+
     if ($text !== '') {
         $lines[] = $text;
     }
+
     return $lines;
 }
 
+function academicGovAgencyFontSize($text) {
+    $len = mb_strlen(trim((string)$text), 'UTF-8');
+    if ($len > 78) {
+        return 14;
+    }
+    if ($len > 66) {
+        return 15;
+    }
+    return 16;
+}
+
+function academicGovAgencyFontStyle($text) {
+    $size = academicGovAgencyFontSize($text);
+    if ($size < 16) {
+        return ['name' => 'TH SarabunPSK', 'size' => $size];
+    }
+    return 'normalFont';
+}
+
+function academicGovAgencyNeedsTightWordLayout($text) {
+    return academicGovAgencyFontSize($text) <= 14;
+}
+
+function academicApplyGovAgencyTightRightMargin($section, $headerText) {
+    // แก้เฉพาะ Word: ถ้าบรรทัด "ส่วนราชการ" ยาวจนต้องใช้ฟอนต์ 14 เท่านั้น ค่อยปรับขอบกระดาษ
+    $safeHeaderText = academicCleanNoDigit($headerText ?: 'คณะ...ภาควิชา...โทร...');
+    $safeHeaderText = preg_replace('/\s+/u', '', $safeHeaderText);
+    if (academicGovAgencyNeedsTightWordLayout($safeHeaderText) && method_exists($section, 'getStyle')) {
+        $style = $section->getStyle();
+        if ($style) {
+            if (method_exists($style, 'setMarginLeft')) {
+                $style->setMarginLeft(Converter::cmToTwip(2.80));
+            }
+            if (method_exists($style, 'setMarginRight')) {
+                $style->setMarginRight(Converter::cmToTwip(1.80));
+            }
+        }
+    }
+}
+
 function addAcademicGovAgencyDottedRowFixed($section, $headerText) {
-    // แก้เฉพาะแถว "ส่วนราชการ" ให้ใช้รูปแบบเดียวกับ download_word_memo.php
-    // cell แรกไม่มีเส้นประ, cell สองมีเส้นประและ noWrap เพื่อกันข้อความยาวตกบรรทัด
-    $contentWidth = Converter::cmToTwip(16.0);
+    // แก้เฉพาะแถว "ส่วนราชการ": ใช้ความกว้างเดิมก่อน ถ้ายาวจนต้องใช้ฟอนต์ 14 ค่อยเพิ่มความกว้างเฉพาะแถวนี้เล็กน้อย
+    $safeHeaderText = academicCleanNoDigit($headerText ?: 'คณะ...ภาควิชา...โทร...');
+    $safeHeaderText = preg_replace('/\s+/u', '', $safeHeaderText);
+    $useTightWordLayout = academicGovAgencyNeedsTightWordLayout($safeHeaderText);
+    // ถ้ายาวเกินเส้นจริง ค่อยใช้ความกว้างตามขอบใหม่: A4 21cm - ซ้าย 2.80cm - ขวา 1.80cm = 16.40cm
+    $contentWidth = Converter::cmToTwip($useTightWordLayout ? 16.40 : 16.0);
     $labelWidth = Converter::cmToTwip(1.95);
     $textWidth = $contentWidth - $labelWidth;
 
@@ -578,8 +656,8 @@ function addAcademicGovAgencyDottedRowFixed($section, $headerText) {
     ]);
 
     $textCell->addText(
-        academicCleanNoDigit($headerText ?: 'คณะ... ภาควิชา... โทร...'),
-        'normalFont',
+        $safeHeaderText,
+        academicGovAgencyFontStyle($safeHeaderText),
         [
             'alignment' => Jc::LEFT,
             'spaceBefore' => 0,
@@ -591,6 +669,7 @@ function addAcademicGovAgencyDottedRowFixed($section, $headerText) {
 
 function addAcademicMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText) {
     $garuda = __DIR__ . '/../assets/img/garuda.jpg';
+    academicApplyGovAgencyTightRightMargin($section, $headerText);
 
     // หัวบันทึกข้อความ: ทำเองในไฟล์นี้เพื่อคุมเส้นประ โดยเฉพาะช่องวันที่ไม่ให้ตกบรรทัด
     $titleTable = $section->addTable([
@@ -875,6 +954,7 @@ $headerText = trim($displayFaculty . ' ' . $displayDepartmentFull . ($department
 if ($headerText === '') {
     $headerText = $rawHeaderText;
 }
+$headerText = preg_replace('/\s+/u', '', $headerText);
 $displayFacultyDean = 'คณบดี' . $displayFaculty;
 $thaiDocDate = academicThaiDateAnyArabicNumber($docDate);
 

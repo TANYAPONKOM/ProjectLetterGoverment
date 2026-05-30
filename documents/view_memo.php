@@ -153,19 +153,54 @@ foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
 function splitSubjectLines($text, $limit = 72)
 {
   $text = trim(preg_replace('/\s+/u', ' ', (string)$text));
+  if ($text === '') {
+    return [''];
+  }
+
+  $safeWords = [
+    'หลักสูตร', 'การอบรม', 'การพัฒนา', 'เชิงปฏิบัติการ', 'ปฏิบัติการ',
+    'แอปพลิเคชัน', 'ฐานข้อมูล', 'สารสนเทศ', 'เทคโนโลยี', 'ระบบ',
+    'เข้าร่วม', 'นำเสนอ', 'ประชุม', 'วิชาการ', 'โครงการ', 'กิจกรรม',
+    'และ', 'เพื่อ', 'ในการ', 'ของ', 'ด้วย', 'โดย', 'จาก', 'กับ', 'ใหม่', 'การ'
+  ];
+
   $lines = [];
-
   while (mb_strlen($text, 'UTF-8') > $limit) {
-    $cut = mb_substr($text, 0, $limit, 'UTF-8');
-    $spacePos = mb_strrpos($cut, ' ', 0, 'UTF-8');
+    $cutPos = 0;
+    $maxBefore = mb_substr($text, 0, $limit, 'UTF-8');
+    $spacePos = mb_strrpos($maxBefore, ' ', 0, 'UTF-8');
 
-    if ($spacePos !== false && $spacePos > 25) {
-      $lines[] = trim(mb_substr($text, 0, $spacePos, 'UTF-8'));
-      $text = trim(mb_substr($text, $spacePos + 1, null, 'UTF-8'));
+    if ($spacePos !== false && $spacePos >= 30) {
+      $cutPos = $spacePos;
     } else {
-      $lines[] = trim($cut);
-      $text = trim(mb_substr($text, $limit, null, 'UTF-8'));
+      foreach ($safeWords as $word) {
+        $offset = 1;
+        while (($pos = mb_strpos($text, $word, $offset, 'UTF-8')) !== false) {
+          if ($pos >= 30 && $pos <= $limit) {
+            $cutPos = max($cutPos, $pos);
+          }
+          if ($pos > $limit) {
+            break;
+          }
+          $offset = $pos + mb_strlen($word, 'UTF-8');
+        }
+      }
     }
+
+    if ($cutPos < 30) {
+      $lookAhead = mb_substr($text, $limit, 24, 'UTF-8');
+      $nextSpace = mb_strpos($lookAhead, ' ', 0, 'UTF-8');
+      if ($nextSpace !== false) {
+        $cutPos = $limit + $nextSpace;
+      }
+    }
+
+    if ($cutPos < 30) {
+      $cutPos = $limit;
+    }
+
+    $lines[] = trim(mb_substr($text, 0, $cutPos, 'UTF-8'));
+    $text = trim(mb_substr($text, $cutPos, null, 'UTF-8'));
   }
 
   if ($text !== '') {
@@ -368,6 +403,7 @@ $hdr_agency = trim(
   ($department ? "ภาควิชา" . $department : "ภาควิชา........................") .
   ($departmentPhone ? " โทร. " . $departmentPhone : "")
 );
+$hdr_agency = preg_replace('/\s+/u', '', $hdr_agency);
 
 $hdr_subject = $joinType ?: "เข้ารับการฝึกอบรมหลักสูตร";
 $hdr_to = "คณบดี" . ($faculty ?: "คณะ..................................");
@@ -510,7 +546,8 @@ $len = max(20, $len);
     font-size: 16pt;
     font-weight: 300;
     white-space: normal;
-    word-break: break-word;
+    word-break: normal;
+    overflow-wrap: normal;
   }
 
   .subject-line.blank-label-line {
@@ -670,6 +707,14 @@ $len = max(20, $len);
     margin-left: -0.05cm !important;
     transform: none !important;
     white-space: nowrap !important;
+    font-size: 16pt;
+    max-width: 100%;
+  }
+
+  /* ใช้เฉพาะตอนบรรทัดส่วนราชการยาวเกินเส้นเท่านั้น */
+  .page.gov-agency-overflow-fit {
+    padding-left: 2.80cm !important;
+    padding-right: 1.80cm !important;
   }
 
   @keyframes pdfSpin {
@@ -739,7 +784,7 @@ $len = max(20, $len);
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
       <div class="dot-line">
         <span class="chip gov-text">
-          <?= ht($hdr_agency ?: 'คณะ... ภาควิชา... โทร...') ?>
+          <?= h(arabic_digits($hdr_agency ?: 'คณะ...ภาควิชา...โทร...')) ?>
         </span>
       </div>
     </div>
@@ -759,16 +804,14 @@ $len = max(20, $len);
     </div>
     <?php
       $mainSubjectText = 'ขออนุมัติตัวบุคคลเข้าร่วม' . ($subject ?: 'ขออนุมัติ...');
-      $mainSubjectLine1 = mb_substr($mainSubjectText, 0, 82, 'UTF-8');
-      $mainSubjectLine2 = mb_substr($mainSubjectText, 82, null, 'UTF-8');
+      $mainSubjectLines = splitSubjectLines($mainSubjectText, 82);
     ?>
     <div class="doc-row subject-row" style="align-items:flex-start;">
       <div class="doc-label subject-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
       <div class="subject-wrap">
-        <div class="subject-line"><span class="subject-text"><?= ht($mainSubjectLine1) ?></span></div>
-        <?php if (trim($mainSubjectLine2) !== ''): ?>
-        <div class="subject-line"><span class="subject-text"><?= ht($mainSubjectLine2) ?></span></div>
-        <?php endif; ?>
+        <?php foreach ($mainSubjectLines as $mainSubjectLine): ?>
+        <div class="subject-line"><span class="subject-text"><?= ht($mainSubjectLine) ?></span></div>
+        <?php endforeach; ?>
       </div>
     </div>
     <div class="memo-to-row">
@@ -861,7 +904,7 @@ $len = max(20, $len);
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
       <div class="dot-line">
         <span class="chip gov-text">
-          <?= ht($hdr_agency  ?: 'คณะ... ภาควิชา... โทร...') ?>
+          <?= h(arabic_digits($hdr_agency ?: 'คณะ...ภาควิชา...โทร...')) ?>
         </span>
       </div>
     </div>
@@ -881,16 +924,14 @@ $len = max(20, $len);
     </div>
     <?php
       $expenseSubjectText = 'ขออนุมัติค่าใช้จ่ายในการเข้าร่วม' . ($subject ?: 'ขออนุมัติ...');
-      $expenseSubjectLine1 = mb_substr($expenseSubjectText, 0, 82, 'UTF-8');
-      $expenseSubjectLine2 = mb_substr($expenseSubjectText, 82, null, 'UTF-8');
+      $expenseSubjectLines = splitSubjectLines($expenseSubjectText, 82);
     ?>
     <div class="doc-row subject-row" style="align-items:flex-start;">
       <div class="doc-label subject-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
       <div class="subject-wrap">
-        <div class="subject-line"><span class="subject-text"><?= ht($expenseSubjectLine1) ?></span></div>
-        <?php if (trim($expenseSubjectLine2) !== ''): ?>
-        <div class="subject-line"><span class="subject-text"><?= ht($expenseSubjectLine2) ?></span></div>
-        <?php endif; ?>
+        <?php foreach ($expenseSubjectLines as $expenseSubjectLine): ?>
+        <div class="subject-line"><span class="subject-text"><?= ht($expenseSubjectLine) ?></span></div>
+        <?php endforeach; ?>
       </div>
     </div>
     <div class="memo-to-row">
@@ -979,7 +1020,7 @@ $len = max(20, $len);
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
       <div class="dot-line">
         <span class="chip gov-text">
-          <?= ht($hdr_agency ?: 'คณะ... ภาควิชา... โทร...') ?>
+          <?= h(arabic_digits($hdr_agency ?: 'คณะ...ภาควิชา...โทร...')) ?>
         </span>
       </div>
     </div>
@@ -999,16 +1040,14 @@ $len = max(20, $len);
     </div>
     <?php
       $carSubjectText = 'ขออนุมัติใช้รถยนต์ส่วนบุคคลในการเดินทางไปเข้าร่วม' . ($subject ?: 'ขออนุมัติ...');
-      $carSubjectLine1 = mb_substr($carSubjectText, 0, 82, 'UTF-8');
-      $carSubjectLine2 = mb_substr($carSubjectText, 82, null, 'UTF-8');
+      $carSubjectLines = splitSubjectLines($carSubjectText, 82);
     ?>
     <div class="doc-row subject-row" style="align-items:flex-start;">
       <div class="doc-label subject-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
       <div class="subject-wrap">
-        <div class="subject-line"><span class="subject-text"><?= ht($carSubjectLine1) ?></span></div>
-        <?php if (trim($carSubjectLine2) !== ''): ?>
-        <div class="subject-line"><span class="subject-text"><?= ht($carSubjectLine2) ?></span></div>
-        <?php endif; ?>
+        <?php foreach ($carSubjectLines as $carSubjectLine): ?>
+        <div class="subject-line"><span class="subject-text"><?= ht($carSubjectLine) ?></span></div>
+        <?php endforeach; ?>
       </div>
     </div>
     <div class="memo-to-row">
@@ -1267,7 +1306,54 @@ $len = max(20, $len);
     const url = new URL(window.location.href);
     return url.searchParams.get(name);
   }
+
+  function fitGovAgencyText(root = document) {
+    root.querySelectorAll(".doc-row.gov-row .chip.gov-text").forEach(el => {
+      const line = el.closest(".dot-line");
+      const page = el.closest(".page");
+      if (!line) return;
+
+      if (page) {
+        page.classList.remove("gov-agency-overflow-fit");
+      }
+
+      el.style.setProperty("display", "inline-block", "important");
+      el.style.setProperty("white-space", "nowrap", "important");
+      el.style.setProperty("max-width", "none", "important");
+
+      const sizes = [16, 15, 14];
+      let lineWidth = Math.floor(line.getBoundingClientRect().width || line.clientWidth);
+      let stillOverflow = false;
+
+      for (const size of sizes) {
+        el.style.setProperty("font-size", size + "pt", "important");
+
+        const textWidth = Math.ceil(el.getBoundingClientRect().width || el.scrollWidth);
+        stillOverflow = !!lineWidth && textWidth > lineWidth + 1;
+        if (!stillOverflow) {
+          break;
+        }
+      }
+
+      // ถ้าลดถึง 14 แล้วยังเกินเส้น ค่อยขยับขอบเฉพาะหน้านั้นเท่านั้น
+      if (stillOverflow && page) {
+        page.classList.add("gov-agency-overflow-fit");
+        el.style.setProperty("font-size", "14pt", "important");
+
+        lineWidth = Math.floor(line.getBoundingClientRect().width || line.clientWidth);
+        const textWidth = Math.ceil(el.getBoundingClientRect().width || el.scrollWidth);
+        if (lineWidth && textWidth > lineWidth + 1) {
+          el.style.setProperty("letter-spacing", "-0.2px", "important");
+        }
+      }
+    });
+  }
   document.addEventListener("DOMContentLoaded", () => {
+
+    fitGovAgencyText(document);
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => fitGovAgencyText(document));
+    }
 
     // ===== จัดช่องว่างในเนื้อหาไม่ให้คำห่างเกินตอนใช้ justify =====
     document.querySelectorAll(".content-block.paragraph").forEach(block => {
@@ -1597,6 +1683,8 @@ $len = max(20, $len);
           line.style.borderBottom = "2px dotted #000";
           line.style.overflow = "visible";
           line.style.fontSize = "16pt";
+          line.style.wordBreak = "normal";
+          line.style.overflowWrap = "normal";
           line.style.fontFamily = "TH SarabunPSK";
           line.style.backgroundImage = "none";
 
@@ -1689,6 +1777,7 @@ $len = max(20, $len);
           }
         }
         document.body.appendChild(clone);
+        fitGovAgencyText(clone);
 
         const PDF_SCALE = 2.2; // จุดสมดุล: เร็วขึ้น แต่ยังไม่ฟุ้งแบบ JPEG
 

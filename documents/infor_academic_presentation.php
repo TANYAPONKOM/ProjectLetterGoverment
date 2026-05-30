@@ -354,17 +354,26 @@ $academicTopic = $formData[13] ?? '';
 $academicLevel = $formData[15] ?? '';
 $eventDate     = $formData[16] ?? '';
 $departmentPhone = '';
-if ($isEdit && !empty($doc['header_text'])) {
-    if (preg_match('/โทร\.?\s*([0-9๐-๙\-\s]+)/u', (string)$doc['header_text'], $mPhone)) {
+if (!empty($editValuesByKey['department_phone'])) {
+    $departmentPhone = trim((string)$editValuesByKey['department_phone']);
+}
+if ($departmentPhone === '' && $isEdit && !empty($doc['header_text'])) {
+    $headerForPhone = strtr((string)$doc['header_text'], [
+        '๐' => '0', '๑' => '1', '๒' => '2', '๓' => '3', '๔' => '4',
+        '๕' => '5', '๖' => '6', '๗' => '7', '๘' => '8', '๙' => '9',
+    ]);
+    if (preg_match('/โทร\.?\s*([0-9\-]+)/u', $headerForPhone, $mPhone)) {
         $departmentPhone = trim($mPhone[1]);
     }
 }
+$departmentPhone = preg_replace('/^โทร\.?\s*/u', '', $departmentPhone);
+$departmentPhone = preg_replace('/\s+/u', '', $departmentPhone);
 
 
 $isRangeDate = preg_match('/\d+\s*-\s*\d+/', $joinDates);
 $isEventRangeDate = preg_match('/\d+\s*-\s*\d+/', $eventDate);
 
-$isOnline = ($location === 'เข้าร่วมรูปแบบออนไลน์');
+$isOnline = in_array($location, ['เข้าร่วมรูปแบบออนไลน์', 'เข้าร่วมในรูปแบบออนไลน์'], true);
 
 $purpose = 'other';
 if ($joinType === 'นำเสนอผลงานวิจัย') {
@@ -861,13 +870,14 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
           <div class="ml-6 space-y-3">
             <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap">
-              <input type="radio" name="doc_date_option" id="docDateUse" value="use_date"
-                class="accent-black" <?= ($docDateOption === 'use_date') ? 'checked' : '' ?>>
+              <input type="radio" name="doc_date_option" id="docDateUse" value="use_date" class="accent-black"
+                <?= ($docDateOption === 'use_date') ? 'checked' : '' ?>>
               <span>วันที่</span>
 
               <span class="relative inline-block">
                 <input type="text" id="docDateDisplay" value="<?= h($docDateSaved) ?>"
-                  class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่" readonly />
+                  class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่"
+                  readonly />
                 <input type="hidden" name="doc_date" id="docDate" value="<?= h($docDateSaved) ?>" />
                 <svg class="pointer-events-none absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]"
                   xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -880,8 +890,8 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
             </label>
 
             <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap">
-              <input type="radio" name="doc_date_option" id="docDateNone" value="no_date"
-                class="accent-black" <?= ($docDateOption === 'no_date') ? 'checked' : '' ?>>
+              <input type="radio" name="doc_date_option" id="docDateNone" value="no_date" class="accent-black"
+                <?= ($docDateOption === 'no_date') ? 'checked' : '' ?>>
               <span>ไม่ประสงค์ใส่วันที่</span>
             </label>
           </div>
@@ -1183,8 +1193,8 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
               </label>
               <span class="text-gray-800 whitespace-nowrap">โทร.</span>
               <input type="text" name="department_phone" id="departmentPhone"
-                class="border rounded-md p-2 w-[260px] shadow-sm"
-                placeholder="เช่น 704" value="<?= h($departmentPhone) ?>">
+                class="border rounded-md p-2 w-[260px] shadow-sm" placeholder="เช่น 704"
+                value="<?= h($departmentPhone) ?>">
             </div>
           </div>
           <div class="mt-24 flex justify-end gap-3">

@@ -328,9 +328,16 @@ $singleDateValue    = $formData[35] ?? '';
 $rangeDateValue     = $formData[36] ?? '';
 $roomTypeValue      = $formData[37] ?? '';
 
+function room_arabic_digits_for_form($text) {
+    return strtr((string)$text, [
+        '๐' => '0', '๑' => '1', '๒' => '2', '๓' => '3', '๔' => '4',
+        '๕' => '5', '๖' => '6', '๗' => '7', '๘' => '8', '๙' => '9',
+    ]);
+}
+
 $departmentPhoneValue = '';
-if ($isEdit && !empty($doc['header_text']) && preg_match('/โทร\.\s*([^\s]+)/u', (string)$doc['header_text'], $phoneMatch)) {
-    $departmentPhoneValue = trim($phoneMatch[1]);
+if ($isEdit && !empty($doc['header_text']) && preg_match('/โทร\.?\s*([^\s]+)/u', (string)$doc['header_text'], $phoneMatch)) {
+    $departmentPhoneValue = trim(room_arabic_digits_for_form($phoneMatch[1]));
 }
 
 // แยกข้อความช่วงวันที่เดิมให้เอากลับไปโชว์ในช่อง วันที่เริ่มต้น/วันที่สิ้นสุด ตอนแก้ไข
@@ -772,8 +779,8 @@ function checked_value($a, $b) {
 
           <div class="flex items-center gap-3 flex-nowrap pl-4 w-full overflow-x-auto">
             <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap shrink-0">
-              <input type="radio" name="doc_date_option" id="docDateUse" value="use_date"
-                class="accent-black" <?= ($docDateOption === 'use_date') ? 'checked' : '' ?>>
+              <input type="radio" name="doc_date_option" id="docDateUse" value="use_date" class="accent-black"
+                <?= ($docDateOption === 'use_date') ? 'checked' : '' ?>>
               วันที่
             </label>
 
@@ -794,8 +801,8 @@ function checked_value($a, $b) {
           </div>
 
           <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap pl-4">
-            <input type="radio" name="doc_date_option" id="docDateNone" value="no_date"
-              class="accent-black" <?= ($docDateOption === 'no_date') ? 'checked' : '' ?>>
+            <input type="radio" name="doc_date_option" id="docDateNone" value="no_date" class="accent-black"
+              <?= ($docDateOption === 'no_date') ? 'checked' : '' ?>>
             ไม่ประสงค์ใส่วันที่
           </label>
         </div>
@@ -1128,8 +1135,7 @@ function checked_value($a, $b) {
         <label class="lbl text-gray-800 whitespace-nowrap" for="departmentPhone">10. เบอร์โทรคณะ :</label>
         <span class="text-gray-800 whitespace-nowrap">โทร.</span>
         <input type="text" name="department_phone" id="departmentPhone"
-          class="border rounded-md p-2 shadow-sm w-[260px]"
-          placeholder="เช่น 704"
+          class="border rounded-md p-2 shadow-sm w-[260px]" placeholder="เช่น 704"
           value="<?= htmlspecialchars($departmentPhoneValue) ?>" />
       </div>
 
@@ -1954,7 +1960,7 @@ function checked_value($a, $b) {
     if (docDateNone?.checked) {
       if (docDateDisplay) docDateDisplay.value = "";
       if (docDate) docDate.value = "";
-    } else if (docPicker?.selectedDates?.[0] && docDate) {
+    } else if (docPicker?.selectedDates?. [0] && docDate) {
       docDate.value = docPicker.formatDate(docPicker.selectedDates[0], "Y-m-d");
     }
 

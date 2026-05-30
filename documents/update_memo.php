@@ -63,6 +63,10 @@ try {
 
   // รับค่า
   $docDate = trim($_POST['doc_date'] ?? '');
+  $docDateOptionForHeader = trim($_POST['doc_date_option'] ?? 'use_date');
+  $hideDocDateOnDocument = ($docDateOptionForHeader === 'no_date');
+  $docDateForDocumentTable = $hideDocDateOnDocument ? date('Y-m-d') : $docDate;
+  $docDateForDisplay = $hideDocDateOnDocument ? '' : $docDate;
 
   $purpose = trim($_POST['purpose'] ?? '');
   $redirectTo = trim($_POST['redirect_to'] ?? '');
@@ -271,6 +275,13 @@ $dateOption       = trim($_POST['date_option'] ?? 'single');
 $singleDate       = trim($_POST['single_date'] ?? '');
 $rangeDate        = trim($_POST['range_date'] ?? '');
 $roomType         = trim($_POST['room_type'] ?? '');
+$departmentPhone = trim((string)($_POST['department_phone'] ?? ''));
+$departmentPhone = strtr($departmentPhone, [
+  '๐' => '0', '๑' => '1', '๒' => '2', '๓' => '3', '๔' => '4',
+  '๕' => '5', '๖' => '6', '๗' => '7', '๘' => '8', '๙' => '9',
+]);
+$departmentPhone = preg_replace('/^โทร\.?\s*/u', '', $departmentPhone);
+$departmentPhone = preg_replace('/\s+/u', ' ', $departmentPhone);
 $studyVisitPlace  = trim($_POST['visit_place'] ?? '');
 $studyPlaceDetail = trim($_POST['place_detail'] ?? '');
 $studyObjectiveText = trim($_POST['objective'] ?? '');
@@ -486,11 +497,21 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
     $hdrRow = $qHdr->fetch(PDO::FETCH_ASSOC);
 
     if ($hdrRow) {
-      $headerText = trim($hdrRow['faculty_name'] . ' ภาค' . $hdrRow['department_name'] . ' โทร. ' . $hdrRow['phone']);
+      $phoneForHeader = $departmentPhone !== '' ? $departmentPhone : trim((string)($hdrRow['phone'] ?? ''));
+      $headerText = trim($hdrRow['faculty_name'] . ' ภาควิชา' . $hdrRow['department_name'] . ($phoneForHeader !== '' ? ' โทร. ' . $phoneForHeader : ''));
     } else {
-      $headerText = trim(($faculty !== '' ? $faculty : '') . ' ' . ($department !== '' ? 'ภาค' . $department : ''));
+      $headerText = trim(($faculty !== '' ? $faculty : '') . ' ' . ($department !== '' ? 'ภาควิชา' . $department : '') . ($departmentPhone !== '' ? ' โทร. ' . $departmentPhone : ''));
     }
   }
+
+  if ($departmentPhone !== '' && !preg_match('/โทร\.?/u', $headerText)) {
+    $headerText = trim($headerText . ' โทร. ' . $departmentPhone);
+  }
+
+  $headerText = strtr($headerText, [
+    '๐' => '0', '๑' => '1', '๒' => '2', '๓' => '3', '๔' => '4',
+    '๕' => '5', '๖' => '6', '๗' => '7', '๘' => '8', '๙' => '9',
+  ]);
 
   $docNo = trim($_POST['doc_no'] ?? '');
   $docDateDisp = trim($_POST['doc_date_display'] ?? '');
@@ -625,7 +646,7 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
     }
 
   } elseif ($isInviteMemo) {
-    if ($docDate === '') $errors['doc_date'] = 'required';
+    if (!$hideDocDateOnDocument && $docDate === '') $errors['doc_date'] = 'required';
     if ($memoSubject === '') $errors['subject'] = 'required';
     if ($toPerson === '') $errors['to_person'] = 'required';
     if ($eventTitle === '') $errors['thesis_title'] = 'required';
@@ -635,7 +656,7 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
     if ($place === '') $errors['location_input'] = 'required';
 
   } elseif ($isRoomRequest) {
-    if ($docDate === '') $errors['doc_date'] = 'required';
+    if (!$hideDocDateOnDocument && $docDate === '') $errors['doc_date'] = 'required';
     if ($toPerson === '') $errors['to_person'] = 'required';
     if ($fullname === '') $errors['fullname'] = 'required';
     if ($position === '') $errors['position'] = 'required';
@@ -668,7 +689,8 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
     if ($roomType === '') $errors['room_type'] = 'required';
 
 } elseif ($isSpeakerMemo) {
-    if ($docDate === '') $errors['doc_date'] = 'required';
+    // ถ้าเลือก “ไม่ประสงค์ใส่วันที่” ไม่ต้องบังคับ doc_date ตอนแก้ไข
+    if (!$hideDocDateOnDocument && $docDate === '') $errors['doc_date'] = 'required';
     if ($memoSubject === '') $errors['memo_subject'] = 'required';
     if ($fullname === '') $errors['fullname'] = 'required';
     if ($position === '') $errors['position'] = 'required';
@@ -841,7 +863,7 @@ if (!$canEditThisDocument) {
 $up->execute([
     ':doc_no' => $docNo,
     ':department_id' => $departmentId,
-    ':doc_date' => $docDate,
+    ':doc_date' => $docDateForDocumentTable,
     ':subject' => $subject,
     ':header_text' => $headerText,
     ':document_type_name' => $documentTypeName,
@@ -973,7 +995,7 @@ if ($isCoopEvaluation) {
 
 } elseif ($isRoomRequest) {
     $values = [
-        1  => $docDate,
+        1  => $docDateForDisplay,
         2  => $fullname,
         3  => $position,
         4  => $joinType,
@@ -1037,7 +1059,7 @@ if ($isCoopEvaluation) {
     ];
 } elseif ($isSpeakerMemo) {
     $values = [
-      1  => $docDate,
+      1  => $docDateForDisplay,
       2  => $fullname,
       3  => $position,
       4  => $joinType,

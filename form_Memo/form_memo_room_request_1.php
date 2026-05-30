@@ -259,9 +259,58 @@ function thai_digits($text)
   ]);
 }
 
+function arabic_digits($text)
+{
+  return strtr((string)$text, [
+    '๐' => '0',
+    '๑' => '1',
+    '๒' => '2',
+    '๓' => '3',
+    '๔' => '4',
+    '๕' => '5',
+    '๖' => '6',
+    '๗' => '7',
+    '๘' => '8',
+    '๙' => '9',
+  ]);
+}
+
 function h_thai_digits($text)
 {
-  return h(thai_digits($text));
+  return h(arabic_digits($text));
+}
+
+function room_header_subject_lines($text, $limit = 74)
+{
+  $text = trim(preg_replace('/\s+/u', ' ', arabic_digits((string)$text)));
+  if ($text === '') {
+    return [''];
+  }
+
+  $lines = [];
+  while (mb_strlen($text, 'UTF-8') > $limit) {
+    $cut = mb_substr($text, 0, $limit, 'UTF-8');
+    $spacePos = mb_strrpos($cut, ' ', 0, 'UTF-8');
+
+    if ($spacePos !== false && $spacePos > 28) {
+      $lines[] = trim(mb_substr($text, 0, $spacePos, 'UTF-8'));
+      $text = trim(mb_substr($text, $spacePos + 1, null, 'UTF-8'));
+    } else {
+      $softCut = mb_strrpos($cut, '‌', 0, 'UTF-8');
+      if ($softCut !== false && $softCut > 28) {
+        $lines[] = trim(mb_substr($text, 0, $softCut, 'UTF-8'));
+        $text = trim(mb_substr($text, $softCut, null, 'UTF-8'));
+      } else {
+        $lines[] = trim($cut);
+        $text = trim(mb_substr($text, $limit, null, 'UTF-8'));
+      }
+    }
+  }
+
+  if ($text !== '') {
+    $lines[] = $text;
+  }
+  return $lines;
 }
 
 /* --------------------------------------------------
@@ -354,6 +403,7 @@ $prettyAmount = "";
    สร้างข้อความส่วนหัวที่ใช้ในเนื้อหา
 -------------------------------------------------- */
 $hdr_agency = trim((string)$header_text) !== '' ? trim((string)$header_text) : trim($displayFaculty . " " . $displayDepartmentFull);
+$hdr_agency = arabic_digits($hdr_agency);
 
 $hdr_subject = "ขออนุมัติใช้ห้องพักรับรอง";
 $hdr_to = $toPerson ?: "ประธานคณะกรรมการบ้านพัก มจพ. วิทยาเขตปราจีนบุรี";
@@ -667,6 +717,26 @@ $len = max(20, $len);
     top: -1px !important;
   }
 
+  .page.gov-header-tight-margin {
+    padding-left: 2.80cm !important;
+    padding-right: 1.80cm !important;
+  }
+
+  .page.gov-header-tight-margin .doc-row.gov-row>.dot-line {
+    padding-right: 0 !important;
+  }
+
+  .doc-row.subject-row {
+    align-items: center !important;
+    margin-bottom: 3px !important;
+  }
+
+  .doc-row.subject-row .dot-line .chip {
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+    word-break: keep-all !important;
+  }
+
   .content-block.single .chip {
     margin-left: 22px;
   }
@@ -959,14 +1029,21 @@ $len = max(20, $len);
 
 
       <!-- เรื่อง -->
-      <div class="doc-row">
-        <div class="doc-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
+      <?php
+        $roomHeaderSubjectText = 'ขออนุมัติใช้ห้องพักรับรอง' . (trim($roomRequestText) !== "" ? "สำหรับ" . arabic_digits($roomRequestText) : "");
+        $roomHeaderSubjectLines = room_header_subject_lines($roomHeaderSubjectText, 74);
+      ?>
+      <?php foreach ($roomHeaderSubjectLines as $idx => $roomHeaderSubjectLine): ?>
+      <div class="doc-row subject-row">
+        <div class="doc-label" style="font-size:20pt;font-weight:bold;<?= $idx === 0 ? '' : 'visibility:hidden;' ?>">
+          เรื่อง</div>
         <div class="dot-line">
           <span class="chip" contenteditable="false">
-            ขออนุมัติใช้ห้องพักรับรอง<?= trim($roomRequestText) !== "" ? "สำหรับ" . h_thai_digits($roomRequestText) : "" ?>
+            <?= h($roomHeaderSubjectLine) ?>
           </span>
         </div>
       </div>
+      <?php endforeach; ?>
 
 
       <!-- บรรทัด “เรียน ...” -->
@@ -1248,6 +1325,68 @@ $len = max(20, $len);
     return false;
   }
 
+  function normalizeRoomGovHeaderText(text) {
+    return String(text || "")
+      .replace(/[๐๑๒๓๔๕๖๗๘๙]/g, (d) => ({
+        "๐": "0",
+        "๑": "1",
+        "๒": "2",
+        "๓": "3",
+        "๔": "4",
+        "๕": "5",
+        "๖": "6",
+        "๗": "7",
+        "๘": "8",
+        "๙": "9"
+      } [d] || d));
+  }
+
+  function removeRoomGovHeaderSpaces(text) {
+    return String(text || "").replace(/\s+/g, "");
+  }
+
+  function applyRoomGovHeaderFit(root = document) {
+    const page = root.querySelector?.(".page") || root;
+    const govChip = root.querySelector?.(".gov-text");
+    const govLine = govChip?.closest(".dot-line");
+    if (!govChip || !govLine) return;
+
+    const originalText = normalizeRoomGovHeaderText(govChip.textContent);
+
+    const fits = () => {
+      // ใช้ getBoundingClientRect เพื่อให้วัดหลัง CSS/class ถูก apply แล้วจริง ๆ ทั้ง preview และ clone PDF
+      const textWidth = Math.ceil(govChip.getBoundingClientRect().width || govChip.scrollWidth);
+      const lineWidth = Math.floor(govLine.getBoundingClientRect().width || govLine.clientWidth);
+      return lineWidth && textWidth <= lineWidth + 1;
+    };
+
+    govChip.textContent = originalText;
+    govChip.style.setProperty("font-size", "16pt", "important");
+    govChip.style.removeProperty("letter-spacing");
+    page?.classList?.remove("gov-header-tight-margin");
+
+    if (fits()) return;
+
+    // เข้าเงื่อนไขเกินเส้น: ค่อยลบช่องว่าง และลดเป็น 15
+    govChip.textContent = removeRoomGovHeaderSpaces(originalText);
+    govChip.style.setProperty("font-size", "15pt", "important");
+    if (fits()) return;
+
+    // ยังเกิน: ลดเป็น 14 แต่ไม่ลดต่ำกว่านี้
+    govChip.style.setProperty("font-size", "14pt", "important");
+    if (fits()) return;
+
+    // ยังเกินที่ 14: ค่อยขยับขอบเฉพาะหน้านี้เป็นซ้าย 2.80cm / ขวา 1.80cm
+    page?.classList?.add("gov-header-tight-margin");
+    void page?.offsetWidth;
+    if (fits()) return;
+
+    // กันเคสยาวมากจริง ๆ โดยไม่ลดฟอนต์ต่ำกว่า 14
+    govChip.style.setProperty("letter-spacing", "-0.25px", "important");
+  }
+
+  window.addEventListener("load", () => applyRoomGovHeaderFit(document));
+
   async function downloadPdf() {
     const loadingOverlay = document.getElementById("pdfLoadingOverlay");
     const downloadButtons = document.querySelectorAll("button[onclick='downloadPdf()']");
@@ -1348,6 +1487,7 @@ $len = max(20, $len);
         });
 
         document.body.appendChild(clone);
+        applyRoomGovHeaderFit(clone);
 
         const PDF_SCALE = 2.2; // จุดสมดุล: เร็วขึ้น แต่ยังไม่ฟุ้งแบบ JPEG
 

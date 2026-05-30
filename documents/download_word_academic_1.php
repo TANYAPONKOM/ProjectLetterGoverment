@@ -112,7 +112,7 @@ function academicThaiDateAny($date) {
         $mo = (int)$m[2];
         $d = (int)$m[3];
         $months = academicThaiMonths();
-        return academicThaiDigit($d . ' ' . ($months[$mo] ?? '') . ' ' . ($y + 543));
+        return academicArabicDigit($d . ' ' . ($months[$mo] ?? '') . ' ' . ($y + 543));
     }
 
     if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $date, $m)) {
@@ -120,24 +120,45 @@ function academicThaiDateAny($date) {
         $mo = (int)$m[2];
         $y = (int)$m[3];
         $months = academicThaiMonths();
-        return academicThaiDigit($d . ' ' . ($months[$mo] ?? '') . ' ' . ($y + 543));
+        return academicArabicDigit($d . ' ' . ($months[$mo] ?? '') . ' ' . ($y + 543));
     }
 
-    return academicThaiDigit($date);
+    return academicArabicDigit($date);
 }
 
 function academicClean($text) {
     $text = str_replace(["\r", "\n", "\t"], ' ', (string)$text);
     $text = cleanWordText($text);
     $text = preg_replace('/[ ]{2,}/u', ' ', $text);
-    return academicThaiDigit(trim($text));
+    return academicArabicDigit(trim($text));
 }
 
 function academicCleanNoDigit($text) {
     $text = str_replace(["\r", "\n", "\t"], ' ', (string)$text);
     $text = cleanWordText($text);
     $text = preg_replace('/[ ]{2,}/u', ' ', $text);
-    return trim($text);
+    return academicArabicDigit(trim($text));
+}
+
+function academicGovAgencyDisplayText($text) {
+    $safeHeaderText = academicCleanNoDigit($text ?: 'คณะ... ภาควิชา... โทร...');
+    // ลบช่องว่างเฉพาะตอนเข้าเงื่อนไขข้อความส่วนราชการยาว/เกินเส้นเท่านั้น
+    if (academicGovAgencyFontSize($safeHeaderText) < 16) {
+        return preg_replace('/\s+/u', '', $safeHeaderText);
+    }
+    return $safeHeaderText;
+}
+
+function academicMainSubjectText($text) {
+    $text = trim((string)$text);
+    if ($text === '') {
+        $text = 'ขออนุมัติ...';
+    }
+    $prefix = 'ขออนุมัติตัวบุคคลเพื่อไปนำเสนอผลงานวิจัยในงาน';
+    if (mb_strpos($text, $prefix) !== 0) {
+        $text = $prefix . $text;
+    }
+    return $text;
 }
 
 function academicCleanSectionSubject($text) {
@@ -224,16 +245,6 @@ function insertThaiWordBreaksAcademicMemo($text) {
 }
 
 function addAcademicMemoManualPara($section, array $textParts, $spaceAfter = 80) {
-    $run = $section->addTextRun([
-        'alignment' => Jc::BOTH,
-        'lineHeight' => 1.15,
-        'spaceBefore' => 0,
-        'spaceAfter' => $spaceAfter,
-        'indentation' => [
-            'firstLine' => Converter::cmToTwip(2.5)
-        ],
-    ]);
-
     $fullText = '';
     foreach ($textParts as $part) {
         if (is_array($part)) {
@@ -243,8 +254,13 @@ function addAcademicMemoManualPara($section, array $textParts, $spaceAfter = 80)
         }
     }
 
-    $processedText = insertThaiWordBreaksAcademicMemo(cleanWordText($fullText));
-    $run->addText($processedText, 'normalFont');
+    $processedText = insertThaiWordBreaksAcademicMemo(academicArabicDigit(cleanWordText($fullText)));
+    if ($processedText === '') {
+        return;
+    }
+
+    // ใช้เฉพาะย่อหน้าเนื้อหา Word ให้กระจายแบบไทยเหมือนหน้า preview/PDF
+    $section->addText($processedText, 'normalFont', 'academicBodyThaiDistribute');
 }
 
 function addAcademicClosePara($section, $spaceAfter = 120) {
@@ -368,32 +384,167 @@ function academicHeaderPara($align = Jc::LEFT, $spaceAfter = 0) {
     ];
 }
 
-function academicSplitHeaderLines($text, $limit = 78) {
+function academicSplitHeaderLines($text, $limit = 90) {
     $text = trim(preg_replace('/\s+/u', ' ', (string)$text));
     if ($text === '') {
         return [''];
     }
 
+    // แก้เฉพาะการตัดบรรทัดหัวข้อ "เรื่อง" ใน Word:
+    // เดิมตัดเร็วเกินไปจนกลายเป็น 3 บรรทัด ทั้งที่ความยาวจริงควรอยู่ได้ 2 บรรทัด
+    // หลักการคือพยายามตัดที่ท้ายวลี/คำสำคัญ และไม่ตัดคำไทยกลางคำแปลก ๆ
+    $preferredEndWords = [
+        'ปัญญาประดิษฐ์', 'แอปพลิเคชัน', 'ฐานข้อมูล', 'เอกสารราชการดิจิทัล',
+        'เอกสารราชการ', 'งานประชุมวิชาการ', 'ระดับนานาชาติ', 'ระดับชาติ',
+        'นำเสนอผลงานวิจัย', 'ผลงานวิจัย', 'เข้าร่วม', 'เดินทางไปเข้าร่วม',
+        'ตรวจสอบ', 'จัดรูปแบบ', 'ระบบ', 'โครงการ', 'กิจกรรม'
+    ];
+
     $lines = [];
-    while (mb_strlen($text, 'UTF-8') > $limit) {
-        $cut = mb_substr($text, 0, $limit, 'UTF-8');
-        $spacePos = mb_strrpos($cut, ' ', 0, 'UTF-8');
-        if ($spacePos !== false && $spacePos > 25) {
-            $lines[] = trim(mb_substr($text, 0, $spacePos, 'UTF-8'));
-            $text = trim(mb_substr($text, $spacePos + 1, null, 'UTF-8'));
-        } else {
-            $lines[] = trim($cut);
-            $text = trim(mb_substr($text, $limit, null, 'UTF-8'));
+    $hardLimit = max(88, (int)$limit);
+
+    while (mb_strlen($text, 'UTF-8') > $hardLimit) {
+        $len = mb_strlen($text, 'UTF-8');
+        $target = (int)ceil($len / 2);
+        if ($target < 68) {
+            $target = 68;
         }
+        if ($target > $hardLimit) {
+            $target = $hardLimit;
+        }
+
+        $minCut = 52;
+        $maxCut = min($hardLimit, $len - 25);
+        $cutPos = 0;
+        $bestScore = PHP_INT_MAX;
+
+        // 1) ถ้ามีช่องว่าง ให้เลือกช่องว่างที่ใกล้ target ที่สุดก่อน
+        $offset = 0;
+        while (($pos = mb_strpos($text, ' ', $offset, 'UTF-8')) !== false) {
+            if ($pos >= $minCut && $pos <= $maxCut) {
+                $score = abs($target - $pos);
+                if ($score < $bestScore) {
+                    $bestScore = $score;
+                    $cutPos = $pos;
+                }
+            }
+            $offset = $pos + 1;
+        }
+
+        // 2) ถ้าไม่มีช่องว่างที่เหมาะ ให้เลือกท้ายคำ/ท้ายวลีสำคัญ เช่น ปัญญาประดิษฐ์, เข้าร่วม
+        foreach ($preferredEndWords as $word) {
+            $offset = 0;
+            while (($pos = mb_strpos($text, $word, $offset, 'UTF-8')) !== false) {
+                $endPos = $pos + mb_strlen($word, 'UTF-8');
+                if ($endPos >= $minCut && $endPos <= $maxCut) {
+                    $score = abs($target - $endPos);
+                    // ให้ท้ายวลีสำคัญชนะการตัดแบบแข็งเล็กน้อย
+                    if ($score <= $bestScore + 6) {
+                        $bestScore = $score;
+                        $cutPos = $endPos;
+                    }
+                }
+                $offset = $pos + mb_strlen($word, 'UTF-8');
+            }
+        }
+
+        // 3) ทางเลือกสุดท้าย: ตัดตาม limit แต่หลีกเลี่ยงการเหลือสระ/วรรณยุกต์ลอยต้นบรรทัดถัดไป
+        if ($cutPos < $minCut) {
+            $cutPos = $target;
+            while ($cutPos > $minCut) {
+                $nextChar = mb_substr($text, $cutPos, 1, 'UTF-8');
+                if (!preg_match('/[ะาิีึืุูเแโใไั็่้๊๋์]/u', $nextChar)) {
+                    break;
+                }
+                $cutPos--;
+            }
+        }
+
+        $lines[] = trim(mb_substr($text, 0, $cutPos, 'UTF-8'));
+        $text = trim(mb_substr($text, $cutPos, null, 'UTF-8'));
     }
+
     if ($text !== '') {
         $lines[] = $text;
     }
     return $lines;
 }
 
+function academicGovAgencyFontSize($text) {
+    $len = mb_strlen(trim((string)$text), 'UTF-8');
+    if ($len > 78) {
+        return 14;
+    }
+    if ($len > 66) {
+        return 15;
+    }
+    return 16;
+}
+
+function academicGovAgencyFontStyle($text) {
+    $size = academicGovAgencyFontSize($text);
+    if ($size < 16) {
+        return ['name' => 'TH SarabunPSK', 'size' => $size];
+    }
+    return 'normalFont';
+}
+
+function academicGovAgencyNeedsTightWordLayout($text) {
+    return academicGovAgencyFontSize($text) <= 14;
+}
+
+function academicApplyGovAgencyTightRightMargin($section, $headerText) {
+    // แก้เฉพาะ Word: ถ้าบรรทัด "ส่วนราชการ" ยาวจนต้องใช้ฟอนต์ 14 เท่านั้น ค่อยปรับขอบกระดาษ
+    $safeHeaderText = academicCleanNoDigit($headerText ?: 'คณะ... ภาควิชา... โทร...');
+    if (academicGovAgencyNeedsTightWordLayout($safeHeaderText) && method_exists($section, 'getStyle')) {
+        $style = $section->getStyle();
+        if ($style) {
+            if (method_exists($style, 'setMarginLeft')) {
+                $style->setMarginLeft(Converter::cmToTwip(2.80));
+            }
+            if (method_exists($style, 'setMarginRight')) {
+                $style->setMarginRight(Converter::cmToTwip(1.80));
+            }
+        }
+    }
+}
+
+function addAcademicGovAgencyDottedRowFixed($section, $headerText) {
+    // แก้เฉพาะแถว "ส่วนราชการ": ใช้ความกว้างเดิมก่อน ถ้ายาวจนต้องใช้ฟอนต์ 14 ค่อยเพิ่มความกว้างเฉพาะแถวนี้
+    $safeHeaderText = academicGovAgencyDisplayText($headerText ?: 'คณะ... ภาควิชา... โทร...');
+    $useTightWordLayout = academicGovAgencyNeedsTightWordLayout(academicCleanNoDigit($headerText ?: 'คณะ... ภาควิชา... โทร...'));
+    $contentWidth = Converter::cmToTwip($useTightWordLayout ? 16.40 : 16.0);
+    $labelWidth = Converter::cmToTwip(1.98);
+    $textWidth = $contentWidth - $labelWidth;
+
+    $agencyTable = $section->addTable([
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'cellMargin' => 0,
+        'cellSpacing' => 0,
+        'layout' => 'fixed',
+        'width' => $contentWidth,
+    ]);
+    $agencyTable->addRow(null, ['exactHeight' => false]);
+    $agencyTable->addCell($labelWidth, academicNoBorderCell())->addText('ส่วนราชการ', 'boldFont', academicHeaderPara());
+    $agencyTable->addCell($textWidth, [
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'borderBottomSize' => 12,
+        'borderBottomColor' => '000000',
+        'borderBottomStyle' => 'dotted',
+        'valign' => 'bottom',
+        'noWrap' => true,
+        'marginTop' => 0,
+        'marginBottom' => 20,
+        'marginLeft' => 0,
+        'marginRight' => 0,
+    ])->addText($safeHeaderText, academicGovAgencyFontStyle($safeHeaderText), academicHeaderPara());
+}
+
 function addAcademicMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText) {
     $garuda = __DIR__ . '/../assets/img/garuda.jpg';
+    academicApplyGovAgencyTightRightMargin($section, $headerText);
 
     // หัวบันทึกข้อความ: ทำเองในไฟล์นี้เพื่อคุมเส้นประ โดยเฉพาะช่องวันที่ไม่ให้ตกบรรทัด
     $titleTable = $section->addTable([
@@ -427,17 +578,7 @@ function addAcademicMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText,
     $titleTable->addCell(Converter::cmToTwip(2.2), academicNoBorderCell('top'))->addText('', 'normalFont', academicHeaderPara());
 
     // ส่วนราชการ
-    $agencyTable = $section->addTable([
-        'borderSize' => 0,
-        'borderColor' => 'FFFFFF',
-        'cellMargin' => 0,
-        'cellSpacing' => 0,
-        'layout' => 'fixed',
-        'width' => Converter::cmToTwip(16.0),
-    ]);
-    $agencyTable->addRow(null, ['exactHeight' => false]);
-    $agencyTable->addCell(Converter::cmToTwip(1.98), academicNoBorderCell())->addText('ส่วนราชการ', 'boldFont', academicHeaderPara());
-    $agencyTable->addCell(Converter::cmToTwip(14.02), academicDottedBottomCell())->addText(academicCleanNoDigit($headerText), 'normalFont', academicHeaderPara());
+    addAcademicGovAgencyDottedRowFixed($section, $headerText);
 
     // ที่ / วันที่ — แบ่งช่องวันที่ให้กว้างพอ เพื่อให้เส้นประต่อกับคำว่า วันที่ และค่าด้านขวาไม่ขึ้นบรรทัดใหม่
     $dateTable = $section->addTable([
@@ -460,7 +601,7 @@ function addAcademicMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText,
     $dateTable->addCell(Converter::cmToTwip(9.20), academicDottedBottomCell())->addText(academicCleanNoDigit($thaiDocDate), 'normalFont', academicHeaderPara());
 
     // เรื่อง: ถ้ายาวให้แยกเป็นหลายแถว แต่ละแถวมีเส้นประของตัวเอง
-    $subjectLines = academicSplitHeaderLines($subjectText, 86);
+    $subjectLines = academicSplitHeaderLines($subjectText, 90);
     $subjectTable = $section->addTable([
         'borderSize' => 0,
         'borderColor' => 'FFFFFF',
@@ -559,7 +700,7 @@ function academicExpenseInfoRow($table, $label, $value, $spaceAfter = 0) {
         'spaceAfter' => $spaceAfter,
         'lineHeight' => 1.10,
     ]);
-    $table->addCell(Converter::cmToTwip(11.50), academicNoBorderCell('top'))->addText(cleanWordText($value), 'normalFont', [
+    $table->addCell(Converter::cmToTwip(11.50), academicNoBorderCell('top'))->addText(academicArabicDigit(cleanWordText($value)), 'normalFont', [
         'spaceBefore' => 0,
         'spaceAfter' => $spaceAfter,
         'lineHeight' => 1.10,
@@ -625,9 +766,9 @@ function addAcademicExpenseTablePage($phpWord, $budgetItems, $budgetTotal, $owne
         foreach ($budgetItems as $i => $item) {
             $table->addRow(Converter::cmToTwip(0.75));
             $table->addCell(Converter::cmToTwip(2.00), ['valign' => 'center'])->addText((string)($i + 1), 'normalFont', ['alignment' => Jc::CENTER, 'spaceAfter' => 0, 'lineHeight' => 1.0]);
-            $desc = cleanWordText($item['description'] ?: $item['item_type']);
+            $desc = academicArabicDigit(cleanWordText($item['description'] ?: $item['item_type']));
             $table->addCell(Converter::cmToTwip(9.80), ['valign' => 'center'])->addText($desc, 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
-            $table->addCell(Converter::cmToTwip(4.20), ['valign' => 'center'])->addText(number_format((float)$item['amount'], 2), 'normalFont', ['alignment' => Jc::END, 'spaceAfter' => 0, 'lineHeight' => 1.0]);
+            $table->addCell(Converter::cmToTwip(4.20), ['valign' => 'center'])->addText(academicArabicDigit(number_format((float)$item['amount'], 2)), 'normalFont', ['alignment' => Jc::END, 'spaceAfter' => 0, 'lineHeight' => 1.0]);
         }
     } else {
         $table->addRow(Converter::cmToTwip(0.75));
@@ -637,7 +778,7 @@ function addAcademicExpenseTablePage($phpWord, $budgetItems, $budgetTotal, $owne
     $table->addRow(Converter::cmToTwip(0.75));
     $table->addCell(Converter::cmToTwip(2.00), ['valign' => 'center'])->addText('', 'normalFont', ['spaceAfter' => 0]);
     $table->addCell(Converter::cmToTwip(9.80), ['valign' => 'center'])->addText('รวมเป็นเงิน', 'boldFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
-    $table->addCell(Converter::cmToTwip(4.20), ['valign' => 'center'])->addText(number_format($budgetTotal, 2), 'boldFont', ['alignment' => Jc::END, 'spaceAfter' => 0, 'lineHeight' => 1.0]);
+    $table->addCell(Converter::cmToTwip(4.20), ['valign' => 'center'])->addText(academicArabicDigit(number_format($budgetTotal, 2)), 'boldFont', ['alignment' => Jc::END, 'spaceAfter' => 0, 'lineHeight' => 1.0]);
 
     $section->addText('หมายเหตุ ขอถัวจ่ายทุกรายการ', 'normalFont', [
         'spaceBefore' => 120,
@@ -717,12 +858,23 @@ $phpWord->addFontStyle('boldFont', [
     'bold' => true,
 ]);
 
+// Style เฉพาะย่อหน้าเนื้อหา: จัดกระจายแบบไทยเหมือนหน้า preview/PDF
+$phpWord->addParagraphStyle('academicBodyThaiDistribute', [
+    'alignment' => 'thaiDistribute',
+    'lineHeight' => 1.15,
+    'spaceBefore' => 0,
+    'spaceAfter' => 80,
+    'indentation' => [
+        'firstLine' => Converter::cmToTwip(2.5),
+    ],
+]);
+
 addAcademicMainMemoPage(
     $phpWord,
     $docNo,
     $thaiDocDate,
     $headerText,
-    $subject ?: 'ขออนุมัติตัวบุคคลเพื่อไปนำเสนอผลงานวิจัย',
+    academicMainSubjectText($subject),
     $displayFacultyDean,
     $ownerName,
     $displayDepartmentFull,

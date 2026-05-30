@@ -195,7 +195,7 @@ main {
       return {
         document_id: d.document_id,
         title: d.join_type || "(ไม่มีชื่อเรื่อง)",
-        detail: d.course_name || "(ไม่มีรายละเอียด)",
+        detail: formatDocumentDetail(d),
         subject: d.subject || "",
         date: d.doc_date,
         status: s, // 🟢 ใช้สถานะที่แปลงแล้ว
@@ -326,6 +326,209 @@ main {
       year: "numeric",
     });
   }
+
+
+  function cleanDetailText(value) {
+    return String(value ?? "")
+      .replace(/\s+/g, " ")
+      .replace(/\s*\/\s*/g, ", ")
+      .trim();
+  }
+
+  function firstDetailValue(d, keys) {
+    for (const key of keys) {
+      if (d && d[key] !== undefined && d[key] !== null) {
+        const value = cleanDetailText(d[key]);
+        if (value !== "") return value;
+      }
+    }
+    return "";
+  }
+
+  function extractDetailByLabel(text, labels) {
+    const source = String(text || "");
+    for (const label of labels) {
+      const pattern = new RegExp(label + "\\s*[:：]\\s*([^,|\\n\\/]+)", "u");
+      const matched = source.match(pattern);
+      if (matched && matched[1]) {
+        return cleanDetailText(matched[1]);
+      }
+    }
+    return "";
+  }
+
+  function joinDetailParts(parts) {
+    return parts
+      .filter(part => part && String(part.value || "").trim() !== "")
+      .map(part => `${part.label}: ${cleanDetailText(part.value)}`)
+      .join(", ");
+  }
+
+  function formatDocumentDetail(d) {
+    const hint = [
+      d.join_type,
+      d.course_name,
+      d.subject,
+      d.form_type,
+      d.document_type,
+      d.redirect_to,
+      d.target_form,
+      d.word_file,
+      d.pdf_file
+    ].filter(Boolean).join(" | ");
+
+    const searchableText = [
+      d.course_name,
+      d.subject,
+      hint
+    ].filter(Boolean).join(" | ");
+
+    const company = firstDetailValue(d, [
+      "company_name",
+      "company",
+      "establishment_name",
+      "establishment",
+      "coop_company",
+      "coop_company_name",
+      "workplace",
+      "organization_name",
+      "organization"
+    ]) || extractDetailByLabel(searchableText, ["สถานประกอบการ", "บริษัท", "หน่วยงาน"]);
+
+    if (hint.includes("สหกิจ") || hint.includes("ประเมินสถานประกอบการ") || hint.includes("coop_evaluation")) {
+      return company ? `สถานประกอบการ: ${company}` : cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
+    }
+
+    const requestFor = firstDetailValue(d, [
+      "request_for",
+      "room_request_for",
+      "use_for",
+      "purpose",
+      "room_purpose",
+      "guest_type",
+      "room_guest_type",
+      "for_whom",
+      "room_for",
+      "room_request_text"
+    ]) || extractDetailByLabel(searchableText, ["ขอใช้สำหรับ", "ใช้สำหรับ", "สำหรับ"]);
+
+    const roomName = firstDetailValue(d, [
+      "room_name",
+      "room",
+      "room_place",
+      "room_type",
+      "accommodation",
+      "accommodation_name",
+      "building",
+      "room_building",
+      "guesthouse",
+      "house_name"
+    ]) || extractDetailByLabel(searchableText, ["ห้องพัก", "อาคาร", "สถานที่พัก"]);
+
+    const checkInDateRaw = firstDetailValue(d, [
+      "checkin_date",
+      "check_in_date",
+      "stay_date",
+      "room_date",
+      "date_in",
+      "start_date",
+      "startDate",
+      "arrival_date",
+      "room_start_date"
+    ]) || extractDetailByLabel(searchableText, ["วันที่เข้าพัก", "วันเข้าพัก"]);
+
+    const checkInDate = checkInDateRaw ? formatDate(checkInDateRaw) : "";
+
+    if (roomName || hint.includes("ห้องพักรับรอง") || hint.includes("room_request")) {
+      const roomDetail = roomName ?
+        joinDetailParts([{
+            label: "ขอใช้สำหรับ",
+            value: requestFor
+          },
+          {
+            label: "ห้องพัก",
+            value: roomName
+          }
+        ]) :
+        joinDetailParts([{
+            label: "ขอใช้สำหรับ",
+            value: requestFor
+          },
+          {
+            label: "วันที่เข้าพัก",
+            value: checkInDate
+          }
+        ]);
+
+      return roomDetail || cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
+    }
+
+    const projectName = firstDetailValue(d, [
+      "project_name",
+      "projectTitle",
+      "project_title",
+      "project",
+      "activity_project"
+    ]) || extractDetailByLabel(searchableText, ["โครงการ"]);
+
+    const activityName = firstDetailValue(d, [
+      "activity_name",
+      "activityTitle",
+      "activity_title",
+      "activity",
+      "training_name"
+    ]) || extractDetailByLabel(searchableText, ["กิจกรรม"]);
+
+    if (hint.includes("จัดกิจกรรมโครงการ") || hint.includes("กิจกรรมโครงการ") || hint.includes("project_activity")) {
+      const projectDetail = joinDetailParts([{
+          label: "โครงการ",
+          value: projectName
+        },
+        {
+          label: "กิจกรรม",
+          value: activityName
+        }
+      ]);
+
+      return projectDetail || cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
+    }
+
+    const thesisTitle = firstDetailValue(d, [
+      "thesis_title",
+      "research_title",
+      "project_title",
+      "projectTitle",
+      "topic",
+      "topic_name",
+      "researchTopic"
+    ]) || extractDetailByLabel(searchableText, ["หัวข้อปริญญานิพนธ์", "หัวข้อ"]);
+
+    const requestData = firstDetailValue(d, [
+      "request_data",
+      "requested_data",
+      "data_request",
+      "data_detail",
+      "data_needed",
+      "information_request"
+    ]) || extractDetailByLabel(searchableText, ["ข้อมูลที่ขอ", "ข้อมูล"]);
+
+    if (hint.includes("ปริญญานิพนธ์") || hint.includes("ขอความอนุเคราะห์ข้อมูล") || hint.includes("research_data")) {
+      const researchDetail = joinDetailParts([{
+          label: "หัวข้อปริญญานิพนธ์",
+          value: thesisTitle
+        },
+        {
+          label: "ข้อมูลที่ขอ",
+          value: requestData
+        }
+      ]);
+
+      return researchDetail || cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
+    }
+
+    return cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
+  }
+
 
   function renderList() {
     const dataFiltered = dataAll.filter(d => d.status === activeTab);
