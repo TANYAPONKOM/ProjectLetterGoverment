@@ -444,7 +444,7 @@ $phpWord->addFontStyle('boldFont', [
 addRoomRequestWordPage($phpWord, [
     'docNo' => $docNo ?: '',
     'thaiDocDate' => $thaiDocDate,
-    'headerText' => $headerText ?: 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม ภาคเทคโนโลยีสารสนเทศ โทร. 7064',
+    'headerText' => $headerText ?: trim($displayFaculty . ' ' . $displayDepartmentFull),
     'subjectText' => $subjectText,
     'toText' => $toPerson ?: 'ประธานคณะกรรมการบ้านพัก มจพ. วิทยาเขตปราจีนบุรี',
     'displayFaculty' => $displayFaculty,

@@ -178,7 +178,7 @@ if ($isEdit) {
     $pdo = db();
 
     $stmt = $pdo->prepare("
-        SELECT document_id, owner_id, status
+        SELECT document_id, owner_id, status, header_text
         FROM documents
         WHERE document_id = :id
         LIMIT 1
@@ -341,8 +341,11 @@ $coopEndDateValue = $_POST['coop_end_date'] ?? ($formDataByKey['coop_end_date'] 
 $coopAdvisorName = $_POST['advisor_name'] ?? ($formDataByKey['coop_advisor_name'] ?? '');
 $projectReceiverName = $_POST['receiver_name'] ?? ($formDataByKey['coop_receiver_name'] ?? '');
 $projectReceiverPosition = $_POST['receiver_position'] ?? ($formDataByKey['coop_receiver_position'] ?? '');
-$coopPhone = $_POST['coop_phone'] ?? ($formDataByKey['coop_phone'] ?? '');
-$coopPhoneExt = $_POST['coop_phone_ext'] ?? ($formDataByKey['coop_phone_ext'] ?? '');
+
+$departmentPhoneValue = $_POST['department_phone'] ?? '';
+if ($departmentPhoneValue === '' && $isEdit && !empty($doc['header_text']) && preg_match('/โทร\.\s*([^\s]+)/u', (string)$doc['header_text'], $phoneMatch)) {
+    $departmentPhoneValue = trim($phoneMatch[1]);
+}
 
 $coopStudents = json_decode($coopStudentsJson, true);
 if (!is_array($coopStudents)) {
@@ -994,30 +997,15 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
           </div>
         </div>
       </div>
-
-
-      <!-- 10. เบอร์โทร -->
-      <div class="mb-4 flex items-start gap-1">
-        <label class="lbl text-gray-800 whitespace-nowrap w-48 pt-2">
-          10. เบอร์โทร :
-        </label>
-
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="text-gray-800 whitespace-nowrap">โทร.</span>
-          <input type="text" name="coop_phone" id="coopPhoneInput"
-            class="border rounded-md p-2 shadow-sm w-56"
-            value="<?= h($coopPhone) ?>"
-            placeholder="เช่น 0 3721 7340">
-
-          <span class="text-gray-800 whitespace-nowrap">ต่อ</span>
-          <input type="text" name="coop_phone_ext" id="coopPhoneExtInput"
-            class="border rounded-md p-2 shadow-sm w-36"
-            value="<?= h($coopPhoneExt) ?>"
-            placeholder="เช่น 7065-6">
-        </div>
+      <!-- 10. เบอร์โทรคณะ -->
+      <div class="mb-4 flex items-center gap-3 flex-nowrap">
+        <label class="lbl text-gray-800 whitespace-nowrap w-48" for="departmentPhone">10. เบอร์โทรคณะ :</label>
+        <span class="text-gray-800 whitespace-nowrap">โทร.</span>
+        <input type="text" name="department_phone" id="departmentPhone"
+          class="border rounded-md p-2 shadow-sm w-[260px]"
+          placeholder="เช่น 704"
+          value="<?= h($departmentPhoneValue) ?>">
       </div>
-
-
 
       <!-- ปุ่ม -->
       <div class="relative mt-20">

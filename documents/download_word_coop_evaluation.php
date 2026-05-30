@@ -311,7 +311,7 @@ function decodeCoopStudents($studentsJson, $studentListText = '') {
     return $rows;
 }
 
-function addCoopHeader($section, $docNo, $displayFaculty, $thaiDocDate) {
+function addCoopHeader($section, $docNo, $displayFaculty, $thaiDocDate, $displayHeaderAgency = '') {
     $garuda = __DIR__ . '/../assets/img/garuda.jpg';
 
     $table = $section->addTable([
@@ -342,7 +342,7 @@ function addCoopHeader($section, $docNo, $displayFaculty, $thaiDocDate) {
 
     $right = $table->addCell(Converter::cmToTwip(8.60), coopNoBorderCell('top'));
     $right->addText('', 'normalFont', ['spaceAfter' => 720, 'lineHeight' => 0.95]);
-    $right->addText(coopClean($displayFaculty), 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
+    $right->addText(coopClean($displayHeaderAgency !== '' ? $displayHeaderAgency : $displayFaculty), 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
     $right->addText('มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ', 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
     $right->addText('๑๒๙ หมู่ ๒๑ ต.เนินหอม อ.เมือง จ.ปราจีนบุรี ๒๕๒๓๐', 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
 
@@ -405,7 +405,7 @@ function addCoopEvaluationPage($phpWord, array $data) {
         'footerHeight' => Converter::cmToTwip(0.85),
     ]);
 
-    addCoopHeader($section, $data['docNo'], $data['displayFaculty'], $data['thaiDocDate']);
+    addCoopHeader($section, $data['docNo'], $data['displayFaculty'], $data['thaiDocDate'], $data['displayHeaderAgency'] ?? '');
     addCoopPairRow($section, 'เรื่อง', $data['coopSubject']);
     addCoopPairRow($section, 'เรียน', $data['coopToPerson'], 20);
 
@@ -457,6 +457,10 @@ if (mb_strpos($displayFaculty, 'คณะ') !== 0) {
 $displayDepartment = trim($department) !== '' ? trim($department) : 'เทคโนโลยีสารสนเทศ';
 $displayDepartmentFull = 'ภาควิชา' . $displayDepartment;
 $displayFacultyDean = 'คณบดี' . $displayFaculty;
+$displayHeaderAgency = trim((string)($document['header_text'] ?? ''));
+if ($displayHeaderAgency === '') {
+    $displayHeaderAgency = trim($displayFaculty . ' ' . $displayDepartmentFull);
+}
 
 $coopSubject = coopField($valueMapByKey, $valueMap, 'coop_subject', 70, $document['subject'] ?? 'ขอความอนุเคราะห์ตอบแบบประเมินและแบบสำรวจนักศึกษาปฏิบัติงานสหกิจศึกษา');
 $coopToPerson = coopField($valueMapByKey, $valueMap, 'coop_to_person', 71, 'เลขาธิการ สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ (กสมช.)');
@@ -492,6 +496,7 @@ $phpWord->addFontStyle('addressFont', [
 addCoopEvaluationPage($phpWord, [
     'docNo' => $docNo,
     'displayFaculty' => $displayFaculty,
+    'displayHeaderAgency' => $displayHeaderAgency,
     'thaiDocDate' => coopThaiDateAny($docDate),
     'coopSubject' => $coopSubject,
     'coopToPerson' => $coopToPerson,

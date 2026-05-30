@@ -300,26 +300,12 @@ $faculty = $valueMap[10] ?? "";
 $department = $valueMap[11] ?? "";
 
 $departmentPhone = "";
+$rawHeaderTextForPhone = trim((string)($document['header_text'] ?? ''));
 
-$docDepartmentId = (int)($document['department_id'] ?? 0);
-
-if ($docDepartmentId > 0) {
-  $stmtDept = $pdo->prepare("
-    SELECT phone
-    FROM departments
-    WHERE department_id = :department_id
-    LIMIT 1
-  ");
-  $stmtDept->execute([
-    ':department_id' => $docDepartmentId
-  ]);
-
-  $deptRow = $stmtDept->fetch(PDO::FETCH_ASSOC);
-
-  if ($deptRow) {
-    $departmentPhone = trim($deptRow['phone'] ?? "");
-  }
+if ($rawHeaderTextForPhone !== '' && preg_match('/โทร\.?\s*([^\s]+)/u', $rawHeaderTextForPhone, $phoneMatch)) {
+  $departmentPhone = trim($phoneMatch[1]);
 }
+
 $budgetStmt = $pdo->prepare("
   SELECT item_type, description, amount
   FROM budget_items

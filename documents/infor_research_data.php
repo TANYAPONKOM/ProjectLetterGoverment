@@ -927,22 +927,6 @@ $editStudentsJsonForJs = json_encode($editStudents, JSON_UNESCAPED_UNICODE | JSO
         </div>
       </div>
 
-      <!-- 14. เบอร์โทร -->
-      <div class="mb-4 flex items-start gap-4">
-        <label class="lbl whitespace-nowrap w-56 pt-2">14. เบอร์โทร :</label>
-        <div class="flex-1 flex items-center gap-3">
-          <span class="whitespace-nowrap">โทร.</span>
-          <input type="text" name="research_phone" id="researchPhoneInput"
-            class="border rounded-md p-2 w-64"
-            value="<?= h(edit_value('research_phone')) ?>"
-            placeholder="เช่น 0 3721 7340-3">
-          <span class="whitespace-nowrap">ต่อ</span>
-          <input type="text" name="research_phone_ext" id="researchPhoneExtInput"
-            class="border rounded-md p-2 w-40"
-            value="<?= h(edit_value('research_phone_ext')) ?>"
-            placeholder="เช่น 7065-6">
-        </div>
-      </div>
 
       <!-- ปุ่ม -->
       <div class="relative mt-20 h-[45px]">

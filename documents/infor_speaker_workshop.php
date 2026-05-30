@@ -329,6 +329,10 @@ $oldReferenceDate = $valueMap[21] ?? '';
 $oldCourseName = $valueMap[23] ?? '';
 $oldTravelPeriod = $valueMap[24] ?? ($valueMap[9] ?? '');
 $oldIntentionText = $valueMap[25] ?? '';
+$oldDepartmentPhone = '';
+if (!empty($document['header_text']) && preg_match('/โทร\.?\s*([^\s]+)/u', (string)$document['header_text'], $phoneMatch)) {
+    $oldDepartmentPhone = trim((string)($phoneMatch[1] ?? ''));
+}
 ?>
 
 <!DOCTYPE html>
@@ -674,6 +678,7 @@ $oldIntentionText = $valueMap[25] ?? '';
   <form method="post" action="<?= h($formAction) ?>" id="memoForm">
     <input type="hidden" name="template_id" value="1">
     <input type="hidden" name="department_id" id="selectedDepartmentId" value="<?= (int)$currentUserDepartmentId ?>">
+    <input type="hidden" name="header_text" id="headerTextInput" value="<?= h($document['header_text'] ?? '') ?>">
     <input type="hidden" name="purpose" value="speaker_workshop">
     <input type="hidden" name="form_type" value="speaker_workshop">
     <input type="hidden" name="document_type_name" value="ขออนุมัติตัวบุคคลเป็นวิทยากร">
@@ -1059,6 +1064,20 @@ $oldIntentionText = $valueMap[25] ?? '';
           <input type="hidden" name="travel_period" id="travelPeriod" value="<?= h($oldTravelPeriod) ?>">
         </div>
       </div>
+
+      <div class="mb-4 flex items-center gap-3">
+        <label class="lbl whitespace-nowrap">
+          12. เบอร์โทรคณะ :
+        </label>
+        <div class="flex items-center gap-2 flex-1 whitespace-nowrap">
+          <span class="lbl whitespace-nowrap">โทร.</span>
+          <input type="text" name="department_phone" id="departmentPhone"
+            class="border rounded-md p-2 w-48"
+            placeholder="เช่น 704"
+            value="<?= h($oldDepartmentPhone) ?>">
+        </div>
+      </div>
+
 
 
 
@@ -2203,6 +2222,8 @@ $oldIntentionText = $valueMap[25] ?? '';
     const facultySelect = document.getElementById("faculty");
     const departmentSelect = document.getElementById("dept");
     const departmentIdInput = document.getElementById("selectedDepartmentId");
+    const headerTextInput = document.getElementById("headerTextInput");
+    const departmentPhoneInput = document.getElementById("departmentPhone");
 
     if (!facultySelect || !departmentSelect || !departmentIdInput) return;
 
@@ -2248,18 +2269,38 @@ $oldIntentionText = $valueMap[25] ?? '';
       syncSelectedDepartmentId();
     }
 
+    function syncHeaderText() {
+      if (!headerTextInput) return;
+
+      const facultyText = (facultySelect.value || "").trim();
+      const departmentTextRaw = (departmentSelect.value || "").trim();
+      const departmentText = departmentTextRaw ?
+        (departmentTextRaw.startsWith("ภาควิชา") ? departmentTextRaw : "ภาควิชา" + departmentTextRaw) :
+        "";
+      const departmentPhone = (departmentPhoneInput?.value || "").trim();
+
+      let headerText = [facultyText, departmentText].filter(Boolean).join(" ");
+      if (departmentPhone !== "") {
+        headerText += " โทร. " + departmentPhone;
+      }
+
+      headerTextInput.value = headerText;
+    }
+
     function syncSelectedDepartmentId() {
       const selectedOption = departmentSelect.options[departmentSelect.selectedIndex];
 
       if (!selectedOption) {
         departmentIdInput.value = "";
         departmentSelect.dataset.currentDepartmentId = "";
+        syncHeaderText();
         return;
       }
 
       const selectedDepartmentId = selectedOption.dataset.departmentId || "";
       departmentIdInput.value = selectedDepartmentId;
       departmentSelect.dataset.currentDepartmentId = selectedDepartmentId;
+      syncHeaderText();
     }
 
     facultySelect.addEventListener("change", () => {
@@ -2268,8 +2309,12 @@ $oldIntentionText = $valueMap[25] ?? '';
 
     departmentSelect.addEventListener("change", syncSelectedDepartmentId);
 
+    departmentPhoneInput?.addEventListener("input", syncHeaderText);
+    document.getElementById("memoForm")?.addEventListener("submit", syncHeaderText);
+
     // โหลดหน้า: แสดงค่าของ user ก่อน แต่ยังเปลี่ยนเลือกคณะ/ภาควิชาอื่นได้
     renderDepartmentOptions(true);
+    syncHeaderText();
   });
   </script>
 

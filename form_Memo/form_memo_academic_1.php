@@ -296,29 +296,11 @@ $vehicle = $valueMap[9] ?? "";
 $faculty = $valueMap[10] ?? "";
 $department = $valueMap[11] ?? "";
 
-// ใช้เบอร์โทรของภาควิชาจากเอกสาร เพื่อให้แถวส่วนราชการเหมือน view_memo.php
+// ใช้เบอร์โทรคณะที่ผู้ใช้กรอกจากฟอร์ม โดยอ่านจาก documents.header_text เท่านั้น
 $departmentPhone = "";
-$docDepartmentId = (int)($document['department_id'] ?? 0);
-
-if ($docDepartmentId > 0) {
-  try {
-    $stmtDept = $pdo->prepare("
-      SELECT phone
-      FROM departments
-      WHERE department_id = :department_id
-      LIMIT 1
-    ");
-    $stmtDept->execute([
-      ':department_id' => $docDepartmentId
-    ]);
-
-    $deptRow = $stmtDept->fetch(PDO::FETCH_ASSOC);
-    if ($deptRow) {
-      $departmentPhone = trim((string)($deptRow['phone'] ?? ""));
-    }
-  } catch (Throwable $e) {
-    $departmentPhone = "";
-  }
+$rawHeaderText = trim((string)($document['header_text'] ?? ""));
+if ($rawHeaderText !== "" && preg_match('/โทร\.?\s*([0-9๐-๙\-\s]+)/u', $rawHeaderText, $mPhone)) {
+  $departmentPhone = trim($mPhone[1]);
 }
 
 $displayFaculty = trim($faculty) !== '' ? trim($faculty) : "คณะเทคโนโลยีและการจัดการอุตสาหกรรม";

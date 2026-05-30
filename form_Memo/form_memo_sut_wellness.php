@@ -260,10 +260,7 @@ $teacherAffiliationsText = trim($valueMap[29] ?? "");
 $teacherListText = trim($valueMap[30] ?? "");
 $receiverName = trim($valueMap[56] ?? "");
 $receiverPosition = trim($valueMap[57] ?? "");
-$studyPhone = trim((string)($valueMapByKey['study_phone'] ?? ''));
-$studyPhoneExt = trim((string)($valueMapByKey['study_phone_ext'] ?? ''));
-$displayStudyPhone = $studyPhone !== '' ? thai_num($studyPhone) : '๐-๓๗๒๑-๗๓๔๐-๓';
-$displayStudyPhoneExt = $studyPhoneExt !== '' ? thai_num($studyPhoneExt) : '๗๐๖๕-๖';
+$displayStudyPhoneLine = 'โทรศัพท์ ๐-๓๗๒๑-๗๓๔๐-๓ ต่อ ๗๐๖๕-๖';
 
 $subject = $subjectFromValue !== "" ? $subjectFromValue : trim($document['subject'] ?? "");
 if ($subject === "") {
@@ -1198,8 +1195,7 @@ $len = max(20, $len);
     color:#111;
   ">
           <?= h(thai_num($displayDepartmentFull)) ?><br>
-          โทรศัพท์
-          <?= h($displayStudyPhone) ?><?= $displayStudyPhoneExt !== '' ? ' ต่อ ' . h($displayStudyPhoneExt) : '' ?><br>
+          <?= h($displayStudyPhoneLine) ?><br>
           ไปรษณีย์อิเล็กทรอนิกส์ Ladda.t@fitm.kmutnb.ac.th
         </div>
 

@@ -68,23 +68,9 @@ $budgetStmt->execute([':id' => $docId]);
 $budgetItems = $budgetStmt->fetchAll(PDO::FETCH_ASSOC);
 
 $departmentPhone = '';
-$docDepartmentId = (int)($document['department_id'] ?? 0);
-if ($docDepartmentId > 0) {
-    try {
-        $deptPhoneStmt = $pdo->prepare("
-            SELECT phone
-            FROM departments
-            WHERE department_id = :department_id
-            LIMIT 1
-        ");
-        $deptPhoneStmt->execute([':department_id' => $docDepartmentId]);
-        $deptPhoneRow = $deptPhoneStmt->fetch(PDO::FETCH_ASSOC);
-        if ($deptPhoneRow) {
-            $departmentPhone = trim((string)($deptPhoneRow['phone'] ?? ''));
-        }
-    } catch (Throwable $e) {
-        $departmentPhone = '';
-    }
+$rawHeaderTextForPhone = trim((string)($document['header_text'] ?? ''));
+if ($rawHeaderTextForPhone !== '' && preg_match('/โทร\.?\s*([0-9๐-๙\-\s]+)/u', $rawHeaderTextForPhone, $mPhone)) {
+    $departmentPhone = trim($mPhone[1]);
 }
 
 function academicField(array $valueMapByKey, array $valueMap, string $key, int $fieldId = 0, string $default = '') {
@@ -693,7 +679,7 @@ $displayDepartment = academicCleanNoDigit($department);
 $displayDepartmentFull = (mb_strpos($displayDepartment, 'ภาควิชา') === 0)
     ? $displayDepartment
     : 'ภาควิชา' . $displayDepartment;
-$headerText = trim($displayFaculty . ' ' . $displayDepartmentFull . ($departmentPhone !== '' ? ' โทร.' . $departmentPhone : ''));
+$headerText = trim($displayFaculty . ' ' . $displayDepartmentFull . ($departmentPhone !== '' ? ' โทร. ' . $departmentPhone : ''));
 if ($headerText === '') {
     $headerText = $rawHeaderText;
 }

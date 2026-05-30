@@ -513,6 +513,9 @@ $displayDepartmentFull = (mb_strpos($displayDepartment, 'ภาควิชา')
 $displayFacultyDean = 'คณบดี' . $displayFaculty;
 
 $headerText = trim((string)($document['header_text'] ?? ''));
+if ($headerText === '') {
+    $headerText = trim($displayFaculty . ' ' . $displayDepartmentFull);
+}
 $docNo = trim((string)($document['doc_no'] ?? ''));
 $subject = trim((string)($document['subject'] ?? ''));
 

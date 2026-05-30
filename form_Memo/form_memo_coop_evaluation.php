@@ -296,31 +296,6 @@ $vehicle = $valueMap[9] ?? "";
 $faculty = $valueMap[10] ?? "";
 $department = $valueMap[11] ?? "";
 
-// ใช้เบอร์โทรของภาควิชาจากเอกสาร เพื่อให้แถวส่วนราชการเหมือน view_memo.php
-$departmentPhone = "";
-$docDepartmentId = (int)($document['department_id'] ?? 0);
-
-if ($docDepartmentId > 0) {
-  try {
-    $stmtDept = $pdo->prepare("
-      SELECT phone
-      FROM departments
-      WHERE department_id = :department_id
-      LIMIT 1
-    ");
-    $stmtDept->execute([
-      ':department_id' => $docDepartmentId
-    ]);
-
-    $deptRow = $stmtDept->fetch(PDO::FETCH_ASSOC);
-    if ($deptRow) {
-      $departmentPhone = trim((string)($deptRow['phone'] ?? ""));
-    }
-  } catch (Throwable $e) {
-    $departmentPhone = "";
-  }
-}
-
 $displayFaculty = trim($faculty) !== '' ? trim($faculty) : "คณะเทคโนโลยีและการจัดการอุตสาหกรรม";
 $displayDepartment = trim($department) !== '' ? trim($department) : "เทคโนโลยีสารสนเทศ";
 $displayDepartmentFull = "ภาควิชา" . $displayDepartment;
@@ -406,11 +381,14 @@ $prettyAmount = $amountStr !== "" ? number_format((float) $amountStr, 2) : "";
 /* --------------------------------------------------
    สร้างข้อความส่วนหัวที่ใช้ในเนื้อหา
 -------------------------------------------------- */
-$hdr_agency = trim(
-  ($faculty ?: "คณะ..................................") . " " .
-  ($department ? "ภาควิชา" . $department : "ภาควิชา........................") .
-  ($departmentPhone ? " โทร. " . $departmentPhone : "")
-);
+$hdr_agency = trim((string)$header_text);
+if ($hdr_agency === '') {
+  $hdr_agency = trim(
+    ($faculty ?: "คณะ..................................") . " " .
+    ($department ? "ภาควิชา" . $department : "ภาควิชา........................") .
+    " "
+  );
+}
 
 $hdr_subject = $joinType ?: "เข้ารับการฝึกอบรมหลักสูตร";
 $hdr_to = "คณบดี" . ($faculty ?: "คณะ..................................");

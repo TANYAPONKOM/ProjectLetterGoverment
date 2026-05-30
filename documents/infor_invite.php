@@ -337,8 +337,6 @@ $locationValue = $formData[7] ?? '';
 $facultyValue = $formData[10] ?? $defaultFaculty;
 $departmentValue = $formData[11] ?? $defaultDepartment;
 $eventTimeValue = $formDataByKey['event_time'] ?? '';
-$invitePhoneValue = $formDataByKey['invite_phone'] ?? '';
-$invitePhoneExtValue = $formDataByKey['invite_phone_ext'] ?? '';
 
 $timeStartValue = '';
 $timeEndValue = '';
@@ -978,28 +976,6 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
           </div>
         </div>
       </div>
-
-      <!-- 9. เบอร์โทร -->
-      <div class="mb-4 flex items-start gap-16">
-        <label class="lbl whitespace-nowrap w-48 pt-2">
-          9. เบอร์โทร :
-        </label>
-        <div class="flex flex-wrap items-center gap-3">
-          <label class="lbl whitespace-nowrap">โทร.</label>
-          <input type="text" name="invite_phone" id="invitePhone"
-            class="border rounded-md p-2 w-64"
-            placeholder="เช่น ๐-๓๗๒๑-๗๓๔๐-๓"
-            value="<?= h($invitePhoneValue) ?>">
-
-          <label class="lbl whitespace-nowrap">ต่อ</label>
-          <input type="text" name="invite_phone_ext" id="invitePhoneExt"
-            class="border rounded-md p-2 w-40"
-            placeholder="เช่น ๗๐๖๕-๖"
-            value="<?= h($invitePhoneExtValue) ?>">
-        </div>
-      </div>
-
-
 
       <!-- ปุ่ม -->
       <div class="relative mt-20">

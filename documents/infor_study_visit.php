@@ -338,8 +338,6 @@ $studySubject = fv(14, 'study_subject', $docRow['subject'] ?? '');
 $studyToPerson = fv(26, 'study_to_person', '');
 $studyReceiverName = fv(31, 'study_receiver_name', '');
 $studyReceiverPosition = fv(32, 'study_receiver_position', '');
-$studyPhone = fv(null, 'study_phone', '');
-$studyPhoneExt = fv(null, 'study_phone_ext', '');
 $studyFullname = fv(2, 'study_fullname', $_SESSION['fullname'] ?? '');
 $studyPosition = fv(3, 'study_position', $_SESSION['position'] ?? 'อาจารย์ประจำภาควิชาเทคโนโลยีสารสนเทศ');
 $studyVisitPlace = fv(5, 'study_visit_place', '');
@@ -1106,22 +1104,6 @@ if ($studyTeacherCount < count($studyTeachers)) {
         </div>
       </div>
 
-
-      <!-- 15. เบอร์โทร -->
-      <div class="mb-4 flex items-start gap-4">
-        <label class="lbl whitespace-nowrap w-48 pt-2">15. เบอร์โทร :</label>
-        <div class="flex flex-wrap items-center gap-3">
-          <span class="whitespace-nowrap">โทร.</span>
-          <input type="text" name="study_phone" id="studyPhoneInput"
-            class="border rounded-md p-2 w-56" value="<?= h($studyPhone) ?>"
-            placeholder="เช่น 0-3721-7340-3">
-
-          <span class="whitespace-nowrap">ต่อ</span>
-          <input type="text" name="study_phone_ext" id="studyPhoneExtInput"
-            class="border rounded-md p-2 w-40" value="<?= h($studyPhoneExt) ?>"
-            placeholder="เช่น 7065-6">
-        </div>
-      </div>
 
       <!-- ปุ่ม -->
       <div class="relative mt-20">

@@ -297,34 +297,6 @@ $displayDepartmentFull = "ภาควิชา" . $displayDepartment;
 $displayFacultyDean = "คณบดี" . $displayFaculty;
 
 $departmentPhone = "";
-$docDepartmentId = (int)($document['department_id'] ?? 0);
-
-try {
-  if ($docDepartmentId > 0) {
-    $phoneStmt = $pdo->prepare("
-      SELECT phone
-      FROM departments
-      WHERE department_id = :department_id
-      LIMIT 1
-    ");
-    $phoneStmt->execute([':department_id' => $docDepartmentId]);
-    $departmentPhone = trim((string)($phoneStmt->fetchColumn() ?: ""));
-  }
-
-  if ($departmentPhone === "" && trim($displayDepartment) !== "") {
-    $phoneStmt = $pdo->prepare("
-      SELECT phone
-      FROM departments
-      WHERE department_name = :department_name
-      LIMIT 1
-    ");
-    $phoneStmt->execute([':department_name' => trim($displayDepartment)]);
-    $departmentPhone = trim((string)($phoneStmt->fetchColumn() ?: ""));
-  }
-} catch (Throwable $e) {
-  $departmentPhone = "";
-}
-
 $toPerson = $valueMap[26] ?? "ประธานคณะกรรมการบ้านพัก มจพ. วิทยาเขตปราจีนบุรี";
 $roomRequest = $valueMap[27] ?? "";
 $roomRequestOther = $valueMap[28] ?? "";
@@ -381,7 +353,7 @@ $prettyAmount = "";
 /* --------------------------------------------------
    สร้างข้อความส่วนหัวที่ใช้ในเนื้อหา
 -------------------------------------------------- */
-$hdr_agency = trim($displayFaculty . " " . $displayDepartmentFull . ($departmentPhone !== "" ? " โทร. " . $departmentPhone : ""));
+$hdr_agency = trim((string)$header_text) !== '' ? trim((string)$header_text) : trim($displayFaculty . " " . $displayDepartmentFull);
 
 $hdr_subject = "ขออนุมัติใช้ห้องพักรับรอง";
 $hdr_to = $toPerson ?: "ประธานคณะกรรมการบ้านพัก มจพ. วิทยาเขตปราจีนบุรี";
@@ -962,7 +934,7 @@ $len = max(20, $len);
         <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
         <div class="dot-line">
           <span class="chip gov-text" contenteditable="false" data-target="header_text">
-            <?= h_thai_digits($hdr_agency ?: $header_text ?: 'คณะ... ภาควิชา... โทร...') ?>
+            <?= h($hdr_agency ?: $header_text ?: 'คณะ... ภาควิชา... โทร...') ?>
           </span>
         </div>
       </div>

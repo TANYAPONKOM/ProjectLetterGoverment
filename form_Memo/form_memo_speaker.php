@@ -344,31 +344,11 @@ $wordDownloadName = $downloadBaseName . '.docx';
 
 
 /* --------------------------------------------------
-   เบอร์โทรภาควิชา สำหรับแถวส่วนราชการ
+   เบอร์โทรจาก header_text สำหรับแถวส่วนราชการ
 -------------------------------------------------- */
 $departmentPhone = "";
-try {
-  $deptIdForPhone = (int)($document['department_id'] ?? 0);
-  if ($deptIdForPhone > 0) {
-    $colsStmt = $pdo->query("SHOW COLUMNS FROM departments");
-    $deptCols = $colsStmt ? $colsStmt->fetchAll(PDO::FETCH_COLUMN) : [];
-    $phoneCandidates = ['phone', 'department_phone', 'tel', 'telephone', 'department_tel'];
-    $phoneCol = '';
-    foreach ($phoneCandidates as $candidate) {
-      if (in_array($candidate, $deptCols, true)) {
-        $phoneCol = $candidate;
-        break;
-      }
-    }
-
-    if ($phoneCol !== '') {
-      $phoneStmt = $pdo->prepare("SELECT `$phoneCol` AS phone_value FROM departments WHERE department_id = :department_id LIMIT 1");
-      $phoneStmt->execute([':department_id' => $deptIdForPhone]);
-      $departmentPhone = trim((string)($phoneStmt->fetchColumn() ?: ''));
-    }
-  }
-} catch (Throwable $e) {
-  $departmentPhone = "";
+if (!empty($document['header_text']) && preg_match('/โทร\.?\s*([^\s]+)/u', (string)$document['header_text'], $phoneMatch)) {
+  $departmentPhone = trim((string)($phoneMatch[1] ?? ''));
 }
 
 /* --------------------------------------------------
@@ -388,7 +368,7 @@ $prettyAmount = $amountStr !== "" ? number_format((float) $amountStr, 2) : "";
 $hdr_agency = trim(
   ($faculty ?: "คณะ..................................") . " " .
   ($department ? "ภาควิชา" . $department : "ภาควิชา........................") .
-  ($departmentPhone !== "" ? " โทร." . $departmentPhone : "")
+  ($departmentPhone !== "" ? " โทร. " . $departmentPhone : "")
 );
 
 $hdr_subject = $joinType ?: "เข้ารับการฝึกอบรมหลักสูตร";

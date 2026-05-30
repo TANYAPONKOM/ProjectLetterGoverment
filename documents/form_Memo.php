@@ -162,7 +162,7 @@ $budgetItems = [];
 if ($isEdit) {
     $pdo = db();
     $stmt = $pdo->prepare("
-        SELECT document_id, owner_id, status
+        SELECT document_id, owner_id, status, header_text
         FROM documents
         WHERE document_id = :id
         LIMIT 1
@@ -330,6 +330,13 @@ $memoSubject   = $formData[14] ?? '';
 $academicTopic = $formData[13] ?? '';
 $academicLevel = $formData[15] ?? '';
 $eventDate     = $formData[16] ?? '';
+
+$departmentPhoneInput = '';
+if ($isEdit && !empty($doc['header_text'])) {
+    if (preg_match('/โทร\.?\s*([^\s]+)/u', (string)$doc['header_text'], $phoneMatch)) {
+        $departmentPhoneInput = trim($phoneMatch[1]);
+    }
+}
 
 $isRangeDate = preg_match('/\d+\s*-\s*\d+/', $joinDates);
 $isEventRangeDate = preg_match('/\d+\s*-\s*\d+/', $eventDate);
@@ -696,6 +703,7 @@ if ($roleIdForHome === 1) {
     <input type="hidden" name="template_id" value="1">
     <input type="hidden" name="document_type_name" value="ขออนุมัติไปเข้ารับการฝึกอบรมหลักสูตร">
     <input type="hidden" name="department_id" id="selectedDepartmentId" value="<?= (int)$currentUserDepartmentId ?>">
+    <input type="hidden" name="header_text" id="headerText" value="">
     <?php if ($isEdit): ?>
     <input type="hidden" name="document_id" value="<?= (int)$docId ?>">
     <input type="hidden" name="mode" value="update">
@@ -1132,6 +1140,18 @@ if ($roleIdForHome === 1) {
 
             </div>
           </div>
+          <div class="mb-6">
+            <div class="flex items-center gap-2 flex-nowrap whitespace-nowrap">
+              <label class="lbl text-gray-800 whitespace-nowrap" for="departmentPhone">
+                9. เบอร์โทรคณะ :
+              </label>
+              <span class="text-gray-800 whitespace-nowrap">โทร.</span>
+              <input type="text" name="department_phone" id="departmentPhone"
+                class="border rounded-md p-2 w-[260px] shadow-sm"
+                placeholder="เช่น 704"
+                value="<?= h($departmentPhoneInput) ?>">
+            </div>
+          </div>
           <div class="mt-24 flex justify-end gap-3">
             <button type="button" id="nextBtn"
               class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md transition">
@@ -1404,6 +1424,38 @@ if ($roleIdForHome === 1) {
 
     const mainCategory = document.getElementById("mainCategory");
     const subCategory = document.getElementById("subCategory");
+
+    const facultySelect = document.getElementById("faculty");
+    const deptSelect = document.getElementById("dept");
+    const departmentPhone = document.getElementById("departmentPhone");
+    const headerText = document.getElementById("headerText");
+
+    function buildMemoHeaderText() {
+      const facultyText = (facultySelect?.value || "").trim();
+      const deptText = (deptSelect?.value || "").trim();
+      const phoneText = (departmentPhone?.value || "").trim().replace(/^โทร\.?\s*/u, "");
+
+      const deptFull = deptText
+        ? (deptText.startsWith("ภาควิชา") ? deptText : "ภาควิชา" + deptText)
+        : "";
+
+      return [facultyText, deptFull, phoneText ? "โทร. " + phoneText : ""]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+    }
+
+    function updateMemoHeaderText() {
+      if (headerText) {
+        headerText.value = buildMemoHeaderText();
+      }
+    }
+
+    [facultySelect, deptSelect, departmentPhone].forEach(el => {
+      el?.addEventListener("change", updateMemoHeaderText);
+      el?.addEventListener("input", updateMemoHeaderText);
+    });
+    updateMemoHeaderText();
 
     const purposeOtherInput = document.getElementById("purposeOtherInput");
     const academicExtraWrap = document.getElementById("academicExtraWrap");
@@ -2424,6 +2476,7 @@ if ($roleIdForHome === 1) {
           syncExpenseJsonForPresentation();
         }
 
+        updateMemoHeaderText();
         memoForm.action = "save_memo.php";
 
         // ผ่านทุกอย่างแล้วค่อย submit จริง

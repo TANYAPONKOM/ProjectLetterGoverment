@@ -917,7 +917,11 @@ if ($isCoopEvaluation) {
         $subject = trim($joinType . $eventTitle);
     }
 }
-    $q = $pdo->prepare("SELECT d.department_name, d.phone, f.faculty_name
+    $departmentPhone = trim((string)($_POST['department_phone'] ?? ''));
+    $departmentPhone = preg_replace('/^โทร\.?\s*/u', '', $departmentPhone);
+    $departmentPhone = preg_replace('/\s+/u', ' ', $departmentPhone);
+
+    $q = $pdo->prepare("SELECT d.department_name, f.faculty_name
                     FROM departments d
                     JOIN faculties f ON d.faculty_id = f.faculty_id
                     WHERE d.department_id = :id LIMIT 1");
@@ -926,7 +930,7 @@ if ($isCoopEvaluation) {
 
     $hdrAgency = '';
     if ($row) {
-        $hdrAgency = $row['faculty_name'] . ' ภาควิชา' . $row['department_name'] . ' โทร.' . $row['phone'];
+        $hdrAgency = trim($row['faculty_name'] . ' ภาควิชา' . $row['department_name'] . ($departmentPhone !== '' ? ' โทร. ' . $departmentPhone : ''));
     }
 
 

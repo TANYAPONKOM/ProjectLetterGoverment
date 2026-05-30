@@ -320,8 +320,6 @@ $researchSupportType    = field_val($valueKeyMap, $valueMap, 'research_support_t
 $researchDataDetail     = field_val($valueKeyMap, $valueMap, 'research_data_detail', 53, '');
 $researchDataAmount     = field_val($valueKeyMap, $valueMap, 'research_data_amount', 54, '');
 $researchStudentsJson   = field_val($valueKeyMap, $valueMap, 'research_students_json', 55, '[]');
-$researchPhone          = field_val($valueKeyMap, $valueMap, 'research_phone', 0, '0 3721 7340-3');
-$researchPhoneExt       = field_val($valueKeyMap, $valueMap, 'research_phone_ext', 0, '7065-6');
 
 $researchStudents = decode_research_students($researchStudentsJson);
 $researchStudentCount = count($researchStudents);
@@ -1231,8 +1229,7 @@ $len = max(20, $len);
 
           <?= h($displayDepartmentFull) ?><br>
 
-          โทร.
-          <?= h(thai_digits($researchPhone)) ?><?= trim($researchPhoneExt) !== '' ? ' ต่อ ' . h(thai_digits($researchPhoneExt)) : '' ?><br>
+          โทรศัพท์ ๐-๓๗๒๑-๗๓๔๐-๓ ต่อ ๗๐๖๕-๖<br>
 
           ไปรษณีย์อิเล็กทรอนิกส์ :
           <span style="

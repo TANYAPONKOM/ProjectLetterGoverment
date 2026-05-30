@@ -176,7 +176,7 @@ $formData = [];
 if ($isEdit) {
     $pdo = db();
     $stmt = $pdo->prepare("
-        SELECT document_id, owner_id, status
+        SELECT document_id, owner_id, status, header_text
         FROM documents
         WHERE document_id = :id
         LIMIT 1
@@ -327,6 +327,11 @@ $dateOption         = $formData[34] ?? 'single';
 $singleDateValue    = $formData[35] ?? '';
 $rangeDateValue     = $formData[36] ?? '';
 $roomTypeValue      = $formData[37] ?? '';
+
+$departmentPhoneValue = '';
+if ($isEdit && !empty($doc['header_text']) && preg_match('/โทร\.\s*([^\s]+)/u', (string)$doc['header_text'], $phoneMatch)) {
+    $departmentPhoneValue = trim($phoneMatch[1]);
+}
 
 // แยกข้อความช่วงวันที่เดิมให้เอากลับไปโชว์ในช่อง วันที่เริ่มต้น/วันที่สิ้นสุด ตอนแก้ไข
 $rangeStartDisplay = '';
@@ -1116,6 +1121,16 @@ function checked_value($a, $b) {
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- ข้อ 10 -->
+      <div class="mb-4 flex items-center gap-3 flex-nowrap">
+        <label class="lbl text-gray-800 whitespace-nowrap" for="departmentPhone">10. เบอร์โทรคณะ :</label>
+        <span class="text-gray-800 whitespace-nowrap">โทร.</span>
+        <input type="text" name="department_phone" id="departmentPhone"
+          class="border rounded-md p-2 shadow-sm w-[260px]"
+          placeholder="เช่น 704"
+          value="<?= htmlspecialchars($departmentPhoneValue) ?>" />
       </div>
 
       <!-- ปุ่ม -->

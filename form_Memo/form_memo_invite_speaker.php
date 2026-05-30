@@ -351,10 +351,6 @@ $objective = $valueMap[25] ?? "";
 $toPerson = $valueMap[26] ?? "";
 $inviteStatement = $valueMapByKey['invite_statement'] ?? "";
 $eventTime = $valueMapByKey['event_time'] ?? "";
-$invitePhone = trim((string)($valueMapByKey['invite_phone'] ?? ''));
-$invitePhoneExt = trim((string)($valueMapByKey['invite_phone_ext'] ?? ''));
-$displayInvitePhone = $invitePhone !== '' ? thai_digit($invitePhone) : '๐-๓๗๒๑-๗๓๔๐-๓';
-$displayInvitePhoneExt = $invitePhoneExt !== '' ? thai_digit($invitePhoneExt) : '๗๐๖๕-๖';
 
 /* --------------------------------------------------
    Mapping joinType → purposeCode (รหัส)
@@ -1279,8 +1275,7 @@ $len = max(20, $len);
 
           <?= h($displayDepartmentFull) ?><br>
 
-          โทร.
-          <?= h($displayInvitePhone) ?><?= $displayInvitePhoneExt !== '' ? ' ต่อ ' . h($displayInvitePhoneExt) : '' ?><br>
+          โทรศัพท์ ๐-๓๗๒๑-๗๓๔๐-๓ ต่อ ๗๐๖๕-๖<br>
 
 
           ไปรษณีย์อิเล็กทรอนิกส์ :

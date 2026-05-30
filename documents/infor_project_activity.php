@@ -336,8 +336,6 @@ $projectActivityPeriod = $editValuesByKey['project_activity_period'] ?? '';
 $projectLecturerNames = $editValuesByKey['project_lecturer_names'] ?? '';
 $projectReceiverName = $editValuesByKey['project_receiver_name'] ?? '';
 $projectReceiverPosition = $editValuesByKey['project_receiver_position'] ?? '';
-$projectPhone = $editValuesByKey['project_phone'] ?? '';
-$projectPhoneExt = $editValuesByKey['project_phone_ext'] ?? '';
 
 $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo.php';
 ?>
@@ -1073,29 +1071,6 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
           </div>
         </div>
       </div>
-
-      <!-- 14. เบอร์โทร -->
-      <div class="mb-4 flex items-start gap-4">
-        <label class="lbl text-gray-800 whitespace-nowrap w-56 pt-2">
-          14. เบอร์โทร :
-        </label>
-
-        <div class="flex flex-wrap items-center gap-3">
-          <label class="lbl whitespace-nowrap">โทร.</label>
-          <input type="text" name="project_phone" id="projectPhone"
-            class="border rounded-md p-2 w-64"
-            value="<?= h($projectPhone) ?>"
-            placeholder="เช่น ๐-๓๗๒๑-๗๓๔๐-๓">
-
-          <label class="lbl whitespace-nowrap">ต่อ</label>
-          <input type="text" name="project_phone_ext" id="projectPhoneExt"
-            class="border rounded-md p-2 w-40"
-            value="<?= h($projectPhoneExt) ?>"
-            placeholder="เช่น ๗๐๖๕-๖">
-        </div>
-      </div>
-
-
 
       <!-- ปุ่ม -->
       <div class="relative mt-20">

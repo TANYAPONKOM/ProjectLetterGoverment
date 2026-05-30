@@ -180,7 +180,7 @@ $expenseDataForEdit = [];
 if ($isEdit) {
     $pdo = db();
     $stmt = $pdo->prepare("
-        SELECT document_id, owner_id, status
+        SELECT document_id, owner_id, status, header_text
         FROM documents
         WHERE document_id = :id
         LIMIT 1
@@ -353,6 +353,13 @@ $memoSubject   = $formData[14] ?? '';
 $academicTopic = $formData[13] ?? '';
 $academicLevel = $formData[15] ?? '';
 $eventDate     = $formData[16] ?? '';
+$departmentPhone = '';
+if ($isEdit && !empty($doc['header_text'])) {
+    if (preg_match('/โทร\.?\s*([0-9๐-๙\-\s]+)/u', (string)$doc['header_text'], $mPhone)) {
+        $departmentPhone = trim($mPhone[1]);
+    }
+}
+
 
 $isRangeDate = preg_match('/\d+\s*-\s*\d+/', $joinDates);
 $isEventRangeDate = preg_match('/\d+\s*-\s*\d+/', $eventDate);
@@ -1167,6 +1174,17 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
                 placeholder="เช่น กธ 1234 กรุงเทพมหานคร" value="<?= h($formData[9] ?? '') ?>"
                 <?= !empty($formData[9]) ? '' : 'disabled' ?>>
 
+            </div>
+          </div>
+          <div class="mb-6">
+            <div class="flex items-center gap-3 whitespace-nowrap">
+              <label class="lbl text-gray-800 whitespace-nowrap" for="departmentPhone">
+                9. เบอร์โทรคณะ :
+              </label>
+              <span class="text-gray-800 whitespace-nowrap">โทร.</span>
+              <input type="text" name="department_phone" id="departmentPhone"
+                class="border rounded-md p-2 w-[260px] shadow-sm"
+                placeholder="เช่น 704" value="<?= h($departmentPhone) ?>">
             </div>
           </div>
           <div class="mt-24 flex justify-end gap-3">
