@@ -1,7 +1,6 @@
 <?php
-// Pro_letter/documents/download_word_academic_1.php
-// ดาวน์โหลด Word (.docx) สำหรับบันทึกข้อความ: ขออนุมัติตัวบุคคลเพื่อไปนำเสนอผลงานวิจัย
-
+// Pro_letter/documents/download_word_memo.php
+// ดาวน์โหลด Word (.docx) สำหรับบันทึกข้อความ: ขออนุมัติตัวบุคคลเพื่อไปฝึกอบรม
 session_start();
 require_once __DIR__ . '/../functions.php';
 
@@ -140,6 +139,31 @@ function academicThaiDateAny($date) {
     return academicThaiDigit($date);
 }
 
+function academicThaiDateAnyArabicNumber($date) {
+    $date = trim(academicArabicDigit((string)$date));
+    if ($date === '') {
+        return '';
+    }
+
+    if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $date, $m)) {
+        $y = (int)$m[1];
+        $mo = (int)$m[2];
+        $d = (int)$m[3];
+        $months = academicThaiMonths();
+        return $d . ' ' . ($months[$mo] ?? '') . ' ' . ($y + 543);
+    }
+
+    if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $date, $m)) {
+        $d = (int)$m[1];
+        $mo = (int)$m[2];
+        $y = (int)$m[3];
+        $months = academicThaiMonths();
+        return $d . ' ' . ($months[$mo] ?? '') . ' ' . ($y + 543);
+    }
+
+    return academicArabicDigit($date);
+}
+
 function academicClean($text) {
     $text = str_replace(["\r", "\n", "\t"], ' ', (string)$text);
     $text = cleanWordText($text);
@@ -275,6 +299,9 @@ function insertThaiWordBreaksAcademicMemo($text) {
         'เป็นประโยชน์ต่อ',
         'การพัฒนา',
         'การพัฒนาการเรียนการสอน',
+        'การพัฒนาทั้งกระบวนการจัดการเรียนการสอน',
+        'กระบวนการจัดการเรียนการสอน',
+        'จัดการเรียนการสอน',
         'งานวิจัย',
         'และสร้างชื่อเสียง',
         'ให้กับมหาวิทยาลัย',
@@ -329,16 +356,8 @@ function insertThaiWordBreaksAcademicMemo($text) {
         $text = str_replace($word, $word . $zwsp, $text);
     }
 
-    // เพิ่มจุดตัดคำไทยแบบละเอียดขึ้น เฉพาะส่วนเนื้อหา
-    // เดิมมีจุดตัดแค่ตามคำใน safeWords ทำให้บางประโยคยาวทั้งก้อนและเกิดพื้นที่ว่างท้ายบรรทัด
-    // สูตรนี้แทรก ZWSP หลังตัวอักษรไทยที่ไม่ใช่สระ/วรรณยุกต์ เพื่อให้ Word มีตำแหน่งตัดคำมากขึ้น
-    // แต่ไม่แทรกก่อน/หลังสระและวรรณยุกต์ จึงไม่ทำให้ไม้เอก/สระลอย
-    $thaiBaseChars = '\x{0E01}-\x{0E30}\x{0E32}\x{0E33}\x{0E40}-\x{0E46}';
-    $text = preg_replace(
-        '/([' . $thaiBaseChars . '])(?=[' . $thaiBaseChars . '])/u',
-        '$1' . $zwsp,
-        $text
-    );
+    // ไม่แทรก ZWSP รายตัวอักษร เพราะ Word จะแยกคำไทยผิด เช่น กา ร / เ ชิง
+    // ให้ใช้เฉพาะจุดตัดจาก safeWords และเครื่องหมายเท่านั้น
 
     // กันคำสำคัญไม่ให้ถูกแทรกจุดตัดผิดกลางคำ
     $keepWords = [
@@ -371,8 +390,7 @@ function addAcademicMemoManualPara($section, array $textParts, $spaceAfter = 28)
     }
 
     // แก้เฉพาะย่อหน้าเนื้อหา Word:
-    // ใช้ paragraph style ที่บังคับ w:jc="distribute" ใน OOXML เพื่อให้เห็นการกระจายจริงใน Microsoft Word
-    // ไม่ใช้ TextRun เพราะ Word บางเครื่องไม่แสดง thaiDistribute เมื่อข้อความอยู่ใน run เดียว/มี ZWSP
+    // ใช้ paragraph style แบบจัดเต็มบรรทัด โดยไม่กระจายบรรทัดสุดท้ายให้ไปอยู่กลางหน้า
     $section->addText($processedText, 'normalFont', 'academicBodyThaiDistribute');
 }
 
@@ -664,33 +682,41 @@ function addAcademicMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText,
     ]);
 }
 
-// หน้าเอกสารหลัก: ใช้หัวเอกสาร addMemoHeader แบบเดียวกับ download_word_memo.php
-function addAcademicMainMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $subjectText, $toText, $ownerName, $departmentFull, $faculty, $courseName, $academicTopic, $location, $eventDate, $academicLevel, $joinDates, $thaiYear) {
+// หน้าเอกสารหลัก: เนื้อหาฝึกอบรมให้ตรงกับ view_memo.php
+function addAcademicMainMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $subjectText, $toText, $ownerName, $position, $departmentFull, $faculty, $courseName, $location, $joinDates, $thaiYear, $hasExpense, $displayAmountNumber, $displayAmountThai) {
     $section = addSectionPage($phpWord);
     addAcademicMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText);
 
     addAcademicMemoManualPara($section, [
-        'ตามที่ ข้าพเจ้า ', [$ownerName ?: '................................', true],
-        ' พนักงานมหาวิทยาลัย สังกัด', [$departmentFull, true], ' ', [$faculty, true],
-        ' มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี ได้รับอนุมัติตัวบุคคลให้เข้าร่วมนำเสนอผลงานวิจัย ',
-        [$courseName ?: 'ในงานประชุมวิชาการ', true],
-        ' ในหัวข้อ “', [$academicTopic ?: '', true], '” ซึ่งจัดขึ้นที่ ', [$location ?: '', true],
-        ' ในระหว่างวันที่ ', [($eventDate ?: $joinDates), true],
-        ' โดยเอกสารงานประชุมวิชาการจะถูกตีพิมพ์อยู่ในฐานข้อมูล Scopus นั้น'
+        'ตามที่ กำหนดจัดอบรมหลักสูตร ', [$courseName ?: 'ชื่อหลักสูตร', true],
+        ' ระหว่างวันที่ ', [$joinDates ?: '...', true],
+        ' ณ ', [$location ?: '...', true], ' นั้น ',
+        'ซึ่งหลักสูตรดังกล่าวเป็นประโยชน์ต่อการพัฒนาทั้งกระบวนการจัดการเรียนการสอน'
     ]);
 
-    addAcademicMemoManualPara($section, [
-        'การนี้ ข้าพเจ้า จึงมีความประสงค์ขออนุมัติเดินทางเพื่อไปนำเสนอผลงานวิจัย ในงานประชุม ',
-        [$academicLevel ?: 'วิชาการ', true],
-        ' ในระหว่างวันที่ ', [$joinDates ?: '', true],
-        ' (รวมเวลาเดินทาง) ตามวัน เวลา และสถานที่ดังกล่าว โดยการนำเสนอผลงานวิจัยในครั้งนี้เป็นประโยชน์ต่อการพัฒนาการเรียนการสอนงานวิจัย และสร้างชื่อเสียงให้กับมหาวิทยาลัย โดยขอใช้งบจัดสรรให้หน่วยงาน ประจำปีงบประมาณ พ.ศ. ',
-        [$thaiYear, true],
-        ' ในส่วนของ', [$departmentFull, true],
-        ' แผนงานจัดการศึกษาระดับอุดมศึกษา หมวดค่าใช้สอย (รายละเอียดตามเอกสารแนบ)'
-    ]);
+    $secondPara = [
+        'การนี้ ข้าพเจ้า ', [$ownerName ?: 'ชื่อ-นามสกุล', true], ' ', [$position ?: '', true],
+        ' สังกัด', [$departmentFull ?: 'ภาควิชา...', true], ' ', [$faculty ?: '...', true],
+        ' มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี ',
+        'จึงมีความประสงค์ที่จะขออนุมัติ เข้ารับการอบรมหลักสูตร ', [$courseName ?: 'ชื่อหลักสูตร', true],
+        ' ระหว่างวันที่ ', [$joinDates ?: '', true],
+        ' ณ ', [$location ?: '', true]
+    ];
 
+    if ($hasExpense) {
+        $secondPara = array_merge($secondPara, [
+            ' เป็นเงินจำนวน ', [$displayAmountNumber, true], ' บาท (', [$displayAmountThai, true], ') ',
+            'โดยขอใช้แหล่งเงินจัดสรรให้หน่วยงาน ประจำปีงบประมาณ ', ['พ.ศ. ' . $thaiYear, true],
+            ' แผนงานจัดการศึกษาระดับอุดมศึกษา กองทุนพัฒนาบุคลากร หมวดค่าใช้สอย ',
+            '(รายละเอียดตามเอกสารแนบ)'
+        ]);
+    } else {
+        $secondPara[] = ' โดยไม่เบิกค่าใช้จ่ายใดๆ ทั้งสิ้น';
+    }
+
+    addAcademicMemoManualPara($section, $secondPara);
     addAcademicClosePara($section);
-    addAcademicSignatureFixed($section, 'ผู้ช่วยศาสตราจารย์ ดร.ขนิษฐา นามี', 'หัวหน้า' . $departmentFull);
+    addAcademicSignatureFixed($section, $ownerName, $position);
 }
 
 function addAcademicExpenseMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $subjectText, $toText, $ownerName, $position, $department, $departmentFull, $faculty, $subject, $joinDates, $location, $displayAmountNumber, $displayAmountThai, $thaiYear) {
@@ -747,7 +773,7 @@ function academicExpenseInfoRow($table, $label, $value, $spaceAfter = 0) {
     ]);
 }
 
-function addAcademicExpenseTablePage($phpWord, $budgetItems, $budgetTotal, $ownerName, $department, $faculty, $courseName, $joinDates, $location, $researchTitle) {
+function addAcademicExpenseTablePage($phpWord, $budgetItems, $budgetTotal, $joinType, $courseName, $joinDates, $location) {
     $section = addSectionPage($phpWord);
 
     $section->addText('ประมาณการค่าใช้จ่าย', 'boldFont', [
@@ -756,35 +782,32 @@ function addAcademicExpenseTablePage($phpWord, $budgetItems, $budgetTotal, $owne
         'lineHeight' => 1.0,
     ]);
 
-    $section->addText('การนำเสนอผลงานวิจัยในการประชุมวิชาการ', 'boldFont', [
+    $section->addText('ค่าใช้จ่ายในการ' . ($joinType ?: 'เข้าร่วม'), 'boldFont', [
         'alignment' => Jc::CENTER,
-        'spaceAfter' => 130,
+        'spaceAfter' => 20,
         'lineHeight' => 1.0,
     ]);
 
-    // จัดเป็น 2 คอลัมน์แบบรูปที่ 3: label ซ้าย / ข้อมูลเริ่มตรงแนวเดียวกัน ไม่จัดรวมกลางหน้า
-    $infoTable = $section->addTable([
-        'borderSize' => 0,
-        'borderColor' => 'FFFFFF',
-        'cellMargin' => 0,
-        'cellSpacing' => 0,
-        'layout' => 'fixed',
-        'width' => Converter::cmToTwip(16.0),
+    $coursePrefix = ($joinType === 'เข้ารับการฝึกอบรมหลักสูตร') ? 'หลักสูตร' : 'หัวข้อ/งาน';
+    $section->addText($coursePrefix . ' “' . cleanWordText($courseName ?: '-') . '”', 'boldFont', [
+        'alignment' => Jc::CENTER,
+        'spaceAfter' => 20,
+        'lineHeight' => 1.0,
     ]);
 
-    academicExpenseInfoRow($infoTable, 'ชื่อ–สกุล', $ownerName ?: '-');
-    academicExpenseInfoRow(
-        $infoTable,
-        'มหาวิทยาลัยต้นสังกัด',
-        'ภาควิชา' . ($department ?: '-') . ' ' . ($faculty ?: '-') . ' มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี'
-    );
-    academicExpenseInfoRow($infoTable, 'ชื่อการประชุมวิชาการ', $courseName ?: '-');
-    academicExpenseInfoRow($infoTable, 'วันที่', $joinDates ?: '-');
-    academicExpenseInfoRow($infoTable, 'สถานที่', $location ?: '-');
-    academicExpenseInfoRow($infoTable, 'ชื่อผลงานวิจัย', $researchTitle ?: '-', 80);
+    $section->addText('ระหว่างวันที่ ' . cleanWordText($joinDates ?: '-'), 'boldFont', [
+        'alignment' => Jc::CENTER,
+        'spaceAfter' => 20,
+        'lineHeight' => 1.0,
+    ]);
 
-    $section->addTextBreak(1);
-    $section->addText('ตารางสรุปค่าใช้จ่ายในการไปนำเสนอผลงานวิจัย', 'boldFont', [
+    $section->addText('สถานที่ ' . cleanWordText($location ?: '-'), 'boldFont', [
+        'alignment' => Jc::CENTER,
+        'spaceAfter' => 160,
+        'lineHeight' => 1.0,
+    ]);
+
+    $section->addText('ตารางประมาณการค่าใช้จ่าย', 'boldFont', [
         'spaceAfter' => 80,
         'lineHeight' => 1.0,
     ]);
@@ -865,7 +888,7 @@ if ($headerText === '') {
     $headerText = $rawHeaderText;
 }
 $displayFacultyDean = 'คณบดี' . $displayFaculty;
-$thaiDocDate = academicThaiDateAny($docDate);
+$thaiDocDate = academicThaiDateAnyArabicNumber($docDate);
 
 $thaiYear = '';
 if ($docDate && preg_match('/^\d{4}/', academicArabicDigit($docDate))) {
@@ -898,9 +921,9 @@ $phpWord->addFontStyle('boldFont', [
     'bold' => true,
 ]);
 
-// Style เฉพาะย่อหน้าเนื้อหา: กระจายข้อความให้เต็มบรรทัดแบบเห็นผลใน Word
+// Style เฉพาะย่อหน้าเนื้อหา: จัดเต็มบรรทัด แต่ไม่บังคับกระจายบรรทัดสุดท้าย
 $phpWord->addParagraphStyle('academicBodyThaiDistribute', [
-    'alignment' => 'distribute',
+    'alignment' => 'thaiDistribute',
     'lineHeight' => 0.94,
     'spaceBefore' => 0,
     'spaceAfter' => 28,
@@ -914,18 +937,19 @@ addAcademicMainMemoPage(
     $docNo,
     $thaiDocDate,
     $headerText,
-    $subject ?: 'ขออนุมัติตัวบุคคลเพื่อไปนำเสนอผลงานวิจัย',
+    'ขออนุมัติตัวบุคคลเข้าร่วม' . ($subject ?: 'ขออนุมัติ...'),
     $displayFacultyDean,
     $ownerName,
+    $position,
     $displayDepartmentFull,
     $displayFaculty,
     $courseName,
-    $academicTopic,
     $location,
-    $eventDate,
-    $academicLevel,
     $joinDates,
-    $thaiYear
+    $thaiYear,
+    $hasExpense,
+    $displayAmountNumber,
+    $displayAmountThai
 );
 
 if ($hasExpense) {
@@ -974,18 +998,15 @@ if ($hasExpense) {
         $phpWord,
         $budgetItems,
         $budgetTotal,
-        $ownerName,
-        $department,
-        $displayFaculty,
+        $joinType,
         $courseName,
         $joinDates,
-        $location,
-        $academicTopic
+        $location
     );
 }
 
 
-// บังคับเฉพาะ paragraph style ของเนื้อหาให้เป็น distribute ในไฟล์ docx จริง
+// บังคับเฉพาะ paragraph style ของเนื้อหาให้เป็น justify ในไฟล์ docx จริง
 // เผื่อ PHPWord/Word บางเวอร์ชันไม่ render alignment จาก style ได้ครบ
 function academicForceBodyThaiDistributeInDocx($docxPath) {
     if (!class_exists('ZipArchive') || !is_file($docxPath)) {
@@ -1012,21 +1033,21 @@ function academicForceBodyThaiDistributeInDocx($docxPath) {
         if (preg_match('/<w:pPr\b[^>]*>.*?<\/w:pPr>/s', $p, $pm)) {
             $pPr = $pm[0];
             if (preg_match('/<w:jc\b[^\/]*(?:\/>|>.*?<\/w:jc>)/s', $pPr)) {
-                $pPrNew = preg_replace('/<w:jc\b[^\/]*(?:\/>|>.*?<\/w:jc>)/s', '<w:jc w:val="distribute"/>', $pPr, 1);
+                $pPrNew = preg_replace('/<w:jc\b[^\/]*(?:\/>|>.*?<\/w:jc>)/s', '<w:jc w:val="both"/>', $pPr, 1);
             } else {
-                $pPrNew = str_replace('</w:pPr>', '<w:jc w:val="distribute"/></w:pPr>', $pPr);
+                $pPrNew = str_replace('</w:pPr>', '<w:jc w:val="both"/></w:pPr>', $pPr);
             }
             return str_replace($pPr, $pPrNew, $p);
         }
 
-        return preg_replace('/<w:p\b([^>]*)>/s', '<w:p$1><w:pPr><w:pStyle w:val="academicBodyThaiDistribute"/><w:jc w:val="distribute"/></w:pPr>', $p, 1);
+        return preg_replace('/<w:p\b([^>]*)>/s', '<w:p$1><w:pPr><w:pStyle w:val="academicBodyThaiDistribute"/><w:jc w:val="both"/></w:pPr>', $p, 1);
     }, $xml);
 
     $zip->addFromString('word/document.xml', $xml);
     $zip->close();
 }
 
-$filename = 'academic_1_' . $docId . '.docx';
+$filename = 'memo_' . $docId . '.docx';
 
 while (ob_get_level() > 0) {
     ob_end_clean();
@@ -1038,13 +1059,15 @@ header('Content-Disposition: attachment; filename="' . $filename . '"');
 header('Cache-Control: max-age=0');
 
 $writer = IOFactory::createWriter($phpWord, 'Word2007');
-$tmpDocx = tempnam(sys_get_temp_dir(), 'academic_word_');
+$tmpDocx = tempnam(sys_get_temp_dir(), 'memo_word_');
 if ($tmpDocx === false) {
     $writer->save('php://output');
     exit;
 }
 $writer->save($tmpDocx);
-academicForceBodyThaiDistributeInDocx($tmpDocx);
+// ไม่แก้ XML หลังสร้างไฟล์โดยตรง เพราะอาจทำให้ Word แจ้งไฟล์เสีย
+// ใช้ paragraph style 'thaiDistribute' ด้านบนแทน
+// academicForceBodyThaiDistributeInDocx($tmpDocx);
 readfile($tmpDocx);
 @unlink($tmpDocx);
 exit;

@@ -966,8 +966,8 @@ if ($isCoopEvaluation) {
             throw new Exception("No permission");
         }
 
-        // User แก้ได้เฉพาะ draft / rejected
-        if (!in_array($doc['status'], ['draft', 'rejected'])) {
+        // User แก้ได้เฉพาะ draft / rejected / รอแก้เอกสาร
+        if (!in_array($doc['status'], ['draft', 'rejected', 'รอแก้เอกสาร', 'รอแก้ไข'], true)) {
             throw new Exception("Document locked");
         }
     }
@@ -983,6 +983,10 @@ if ($isCoopEvaluation) {
             doc_date = :doc_date,
             subject = :subject,
             header_text = :header_text,
+            status = CASE
+                WHEN status IN ('rejected', 'รอแก้เอกสาร', 'รอแก้ไข') THEN 'draft'
+                ELSE status
+            END,
             updated_at = NOW()
         WHERE document_id = :id
     ");

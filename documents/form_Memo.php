@@ -179,7 +179,11 @@ if ($isEdit) {
             exit;
 
         }
-        if (!in_array($doc['status'], ['draft','rejected'])) {
+        if ($doc['status'] === 'submitted') {
+            header("Location: view_memo.php?id={$docId}&err=submitted");
+            exit;
+        }
+        if (!in_array($doc['status'], ['draft','rejected','รอแก้เอกสาร'], true)) {
            header("Location: view_memo.php?id={$docId}&err=no_permission");
           exit;
 
@@ -695,6 +699,8 @@ if ($roleIdForHome === 1) {
     <?php if ($isEdit): ?>
     <input type="hidden" name="document_id" value="<?= (int)$docId ?>">
     <input type="hidden" name="mode" value="update">
+    <input type="hidden" name="reset_status_to_draft"
+      value="<?= in_array(($doc['status'] ?? ''), ['rejected','รอแก้เอกสาร'], true) ? '1' : '0' ?>">
     <?php else: ?>
     <input type="hidden" name="mode" value="create">
     <?php endif; ?>
@@ -780,14 +786,15 @@ if ($roleIdForHome === 1) {
 
             <div class="flex items-center gap-3 flex-nowrap pl-4 w-full overflow-x-auto">
               <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap shrink-0">
-                <input type="radio" name="doc_date_option" id="docDateUse" value="use_date"
-                  class="accent-black" <?= ($docDateOption === 'use_date') ? 'checked' : '' ?>>
+                <input type="radio" name="doc_date_option" id="docDateUse" value="use_date" class="accent-black"
+                  <?= ($docDateOption === 'use_date') ? 'checked' : '' ?>>
                 วันที่
               </label>
 
               <div class="relative shrink-0" id="docDatePickerWrap">
                 <input type="text" id="docDateDisplay" value="<?= h($docDateSaved) ?>"
-                  class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่" readonly />
+                  class="border rounded-md p-2 shadow-sm w-48 pr-10 cursor-pointer" placeholder="เลือกวันที่"
+                  readonly />
                 <input type="hidden" name="doc_date" id="docDate" value="<?= h($docDateSaved) ?>" />
                 <svg class="pointer-events-none absolute right-3 top-2.5 w-5 h-5 text-[#11C2B9]"
                   xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -800,8 +807,8 @@ if ($roleIdForHome === 1) {
             </div>
 
             <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap pl-4">
-              <input type="radio" name="doc_date_option" id="docDateNone" value="no_date"
-                class="accent-black" <?= ($docDateOption === 'no_date') ? 'checked' : '' ?>>
+              <input type="radio" name="doc_date_option" id="docDateNone" value="no_date" class="accent-black"
+                <?= ($docDateOption === 'no_date') ? 'checked' : '' ?>>
               ไม่ประสงค์ใส่วันที่
             </label>
           </div>
@@ -2942,46 +2949,94 @@ if ($roleIdForHome === 1) {
     }
 
     function parseTransportDescToData(desc, amount = 0) {
-      const clean = normalizeThaiNumber(String(desc || ""));
+      const clean = normalizeThaiNumber(String(desc || ""))
+        .replace(/\\r\\n/g, "\n")
+        .replace(/\\n/g, "\n")
+        .replace(/\r\n/g, "\n")
+        .replace(/\r/g, "\n")
+        .replace(/[–—]/g, "-")
+        .trim();
 
+      const lines = clean
+        .split(/\n+/)
+        .map(s => s.replace(/^-+\s*/, "").trim())
+        .filter(Boolean);
+
+      // ===== ค่าน้ำมันรถยนต์ =====
       if (clean.includes("ค่าน้ำมันรถยนต์")) {
-        const routeMatch = clean.match(/ค่าน้ำมันรถยนต์\s*(.*?)\s*ไป\s*(.*?)(?:\n|- ระยะทาง|$)/);
+        const routeLine = lines.find(line => line.includes("ค่าน้ำมันรถยนต์")) || "";
+
+        let origin = "";
+        let destination = "";
+
+        const routeMatch = routeLine.match(/ค่าน้ำมันรถยนต์\s*(.*?)\s*ไป\s*(.*)$/);
+        if (routeMatch) {
+          origin = (routeMatch[1] || "").trim();
+          destination = (routeMatch[2] || "").trim();
+        }
+
         const formulaMatch = clean.match(
-          /ระยะทาง\s*([\d.]+)\s*กม\.\s*[×x]\s*([\d.]+)\s*บาท\s*[×x]\s*([\d.]+)\s*เที่ยว/);
+          /ระยะทาง\s*([\d,.]+)\s*กม\.?\s*[×x]\s*([\d,.]+)\s*บาท\s*[×x]\s*([\d,.]+)\s*เที่ยว/
+        );
+
         return {
           type: "fuel",
-          origin: routeMatch?. [1]?.trim() || "",
-          destination: routeMatch?. [2]?.trim() || "",
-          distance: formulaMatch ? Number(formulaMatch[1]) : 0,
-          rate: formulaMatch ? Number(formulaMatch[2]) : 4,
-          trips: formulaMatch ? Number(formulaMatch[3]) : 1
+          origin: origin,
+          destination: destination,
+          distance: formulaMatch ? Number(String(formulaMatch[1]).replace(/,/g, "")) : 0,
+          rate: formulaMatch ? Number(String(formulaMatch[2]).replace(/,/g, "")) : 4,
+          trips: formulaMatch ? Number(String(formulaMatch[3]).replace(/,/g, "")) : 1
         };
       }
 
+      // ===== เครื่องบิน =====
       if (clean.includes("เครื่องบิน") || clean.includes("ตั๋วเครื่องบิน")) {
-        const lines = clean.split(/\n+/).map(s => s.replace(/^-+\s*/, "").trim()).filter(Boolean);
-        const routeLine = lines.find(line => !line.includes("ค่าพาหนะ") && !line.includes("ตั๋วเครื่องบิน") && !line
-          .includes("บาท ×")) || "";
-        const formulaMatch = clean.match(/([\d,.]+)\s*บาท\s*[×x]\s*([\d.]+)\s*เที่ยว\s*[×x]\s*([\d.]+)\s*คน/);
+        const formulaMatch = clean.match(
+          /([\d,.]+)\s*บาท\s*[×x]\s*([\d,.]+)\s*เที่ยว\s*[×x]\s*([\d,.]+)\s*คน/
+        );
+
+        const routeLine = lines.find(line =>
+          !line.includes("ค่าพาหนะ") &&
+          !line.includes("ค่าโดยสารตั๋วเครื่องบิน") &&
+          !line.includes("ตั๋วเครื่องบิน") &&
+          !line.includes("บาท ×") &&
+          !line.includes("บาท x")
+        ) || "";
+
+        // แยกคร่าว ๆ: คำแรกเป็นสายการบิน ที่เหลือเป็นเส้นทาง
+        // ถ้าผู้ใช้เคยกรอก "thai bkk" จะให้ airline = thai, route = bkk
+        const parts = routeLine.split(/\s+/).filter(Boolean);
+        const airline = parts.length > 1 ? parts[0] : "";
+        const route = parts.length > 1 ? parts.slice(1).join(" ") : routeLine;
+
         return {
           type: "flight",
-          airline: "",
-          route: routeLine,
+          airline: airline,
+          route: route,
           ticket_price: formulaMatch ? Number(String(formulaMatch[1]).replace(/,/g, "")) : n(amount),
-          trips: formulaMatch ? Number(formulaMatch[2]) : 1,
-          people: formulaMatch ? Number(formulaMatch[3]) : 1
+          trips: formulaMatch ? Number(String(formulaMatch[2]).replace(/,/g, "")) : 1,
+          people: formulaMatch ? Number(String(formulaMatch[3]).replace(/,/g, "")) : 1
         };
       }
 
-      const lines = clean.split(/\n+/).map(s => s.replace(/^-+\s*/, "").trim()).filter(Boolean);
-      const routeLine = lines.find(line => line && !line.includes("ค่าพาหนะ") && !line.includes("บาท ×")) || "";
-      const formulaMatch = clean.match(/([\d,.]+)\s*บาท\s*[×x]\s*([\d.]+)\s*เที่ยว\s*[×x]\s*([\d.]+)\s*คน/);
+      // ===== อื่น ๆ =====
+      const routeLine = lines.find(line =>
+        line &&
+        !line.includes("ค่าพาหนะ") &&
+        !line.includes("บาท ×") &&
+        !line.includes("บาท x")
+      ) || "";
+
+      const formulaMatch = clean.match(
+        /([\d,.]+)\s*บาท\s*[×x]\s*([\d,.]+)\s*เที่ยว\s*[×x]\s*([\d,.]+)\s*คน/
+      );
+
       return {
         type: "other",
         route: routeLine || clean,
         unit_price: formulaMatch ? Number(String(formulaMatch[1]).replace(/,/g, "")) : n(amount),
-        trips: formulaMatch ? Number(formulaMatch[2]) : 1,
-        people: formulaMatch ? Number(formulaMatch[3]) : 1
+        trips: formulaMatch ? Number(String(formulaMatch[2]).replace(/,/g, "")) : 1,
+        people: formulaMatch ? Number(String(formulaMatch[3]).replace(/,/g, "")) : 1
       };
     }
 

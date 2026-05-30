@@ -98,7 +98,44 @@ $sql = "
 $st = $pdo->prepare($sql);
 $st->execute([':uid' => $userId]);
 
-$canEdit = $st->fetchColumn() > 0;
+$hasDocumentEditPermission = ((int)$st->fetchColumn() > 0);
+$isOwner = ((int)($document['owner_id'] ?? 0) === $userId);
+$docStatus = trim((string)($document['status'] ?? ''));
+
+$editableStatuses = ['draft', 'rejected', 'รอแก้เอกสาร', 'รอแก้ไข'];
+$submittedStatuses = ['submitted'];
+$checkedStatuses = ['ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว', 'ได้รับการตรวจสอบ', 'ได้รับการตรวจสอบแล้ว', 'ตรวจสอบแล้ว', 'approved', 'checked', 'reviewed'];
+
+$hasBaseEditPermission = ($isAdmin || $isOfficer || $isOwner || $hasDocumentEditPermission);
+$isEditableStatus = in_array($docStatus, $editableStatuses, true);
+$isSubmittedStatus = in_array($docStatus, $submittedStatuses, true);
+$isCheckedStatus = in_array($docStatus, $checkedStatuses, true);
+
+$editDisabledReason = '';
+$editAlertTitle = '';
+$editAlertText = '';
+$editAlertIcon = 'info';
+
+if (!$hasBaseEditPermission) {
+  $editDisabledReason = 'no_permission';
+  $editAlertTitle = 'จำกัดสิทธิ์การแก้ไข';
+  $editAlertText = 'คุณไม่มีสิทธิ์ในการแก้ไขเอกสารนี้';
+  $editAlertIcon = 'error';
+} elseif ($isSubmittedStatus) {
+  $editDisabledReason = 'submitted';
+  $editAlertTitle = 'เอกสารถูกส่งแล้ว';
+  $editAlertText = 'เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
+} elseif ($isCheckedStatus) {
+  $editDisabledReason = 'checked';
+  $editAlertTitle = 'เอกสารผ่านการตรวจสอบแล้ว';
+  $editAlertText = 'เอกสารนี้ได้รับการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
+} elseif (!$isEditableStatus) {
+  $editDisabledReason = 'locked_status';
+  $editAlertTitle = 'ไม่สามารถแก้ไขเอกสารได้';
+  $editAlertText = 'สถานะเอกสารปัจจุบันไม่อนุญาตให้แก้ไข';
+}
+
+$canEdit = ($hasBaseEditPermission && $isEditableStatus);
 $readonly = !$canEdit;
 
 
@@ -803,9 +840,9 @@ $len = max(20, $len);
 
     // แจ้งเตือนแสดง read-only
     Swal.fire({
-      title: "โหมดอ่านอย่างเดียว",
-      text: "คุณไม่มีสิทธิ์แก้ไขเอกสารนี้",
-      icon: "info",
+      title: <?= json_encode($editAlertTitle ?: "ไม่สามารถแก้ไขเอกสารได้", JSON_UNESCAPED_UNICODE) ?>,
+      text: <?= json_encode($editAlertText ?: "เอกสารนี้ไม่สามารถแก้ไขได้ในสถานะปัจจุบัน", JSON_UNESCAPED_UNICODE) ?>,
+      icon: <?= json_encode($editAlertIcon ?: "info", JSON_UNESCAPED_UNICODE) ?>,
       confirmButtonText: "ตกลง"
     });
   });
@@ -887,7 +924,7 @@ $len = max(20, $len);
     padding-top:53px;
     white-space:nowrap;
   ">
-          ที่ 
+          ที่
         </div>
 
         <!-- ครุฑ -->
@@ -1089,7 +1126,8 @@ $len = max(20, $len);
     line-height:1.2;
 ">
           <?= h(thai_digits($displayDepartmentFull)) ?><br>
-          โทร. <?= h($displayProjectPhone) ?><?= $displayProjectPhoneExt !== '' ? ' ต่อ ' . h($displayProjectPhoneExt) : '' ?><br>
+          โทร.
+          <?= h($displayProjectPhone) ?><?= $displayProjectPhoneExt !== '' ? ' ต่อ ' . h($displayProjectPhoneExt) : '' ?><br>
           ไปรษณีย์อิเล็กทรอนิกส์ :
           <span style="color:#000; text-decoration:none;">IT@itm.kmutnb.ac.th</span>
         </div>
@@ -1110,19 +1148,23 @@ $len = max(20, $len);
 
         <!-- ปุ่มดาวน์โหลด Word -->
         <a href="/Pro_letter/documents/download_word_project_activity.php?id=<?= (int)$docId ?>" data-word-download="1"
-          data-word-filename="<?= h($wordDownloadName) ?>"
-          download="<?= h($wordDownloadName) ?>"
+          data-word-filename="<?= h($wordDownloadName) ?>" download="<?= h($wordDownloadName) ?>"
           onclick="return downloadWord(this);"
           class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           ดาวน์โหลด Word
         </a>
 
         <!-- USER: ปุ่มแก้ไขเอกสาร -->
-        <?php if ($canEdit || $roleId === 3 || $isAdmin || $isOfficer): ?>
+        <?php if ($canEdit): ?>
         <a href="/Pro_letter/documents/infor_project_activity.php?id=<?= (int)$docId ?>&edit=1"
           class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           แก้ไขเอกสาร
         </a>
+        <?php else: ?>
+        <span class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block"
+          title="<?= h($editAlertText ?: 'ไม่สามารถแก้ไขเอกสารนี้ได้') ?>">
+          แก้ไขเอกสาร
+        </span>
         <?php endif; ?>
 
 
@@ -1135,7 +1177,7 @@ $len = max(20, $len);
       </div>
     </form>
   </main>
-  <?php if ($readonly && !($isAdmin || $isOfficer)): ?>
+  <?php if ($readonly): ?>
   <script>
   document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll("[contenteditable]").forEach(e => {
@@ -1214,16 +1256,36 @@ $len = max(20, $len);
   document.addEventListener("DOMContentLoaded", () => {
     const errType = getQuery("err");
 
-    if (errType === "no_permission") {
+    if (["no_permission", "submitted", "checked", "locked_status"].includes(errType)) {
+      const alertMap = {
+        no_permission: {
+          title: "จำกัดสิทธิ์การแก้ไข",
+          html: `<div style="font-size: 1.15rem; line-height: 1.6;">คุณไม่มีสิทธิ์ในการแก้ไขเอกสารนี้<br>ต้องการกลับหน้าหลักหรืออยู่ต่อ?</div>`,
+          icon: "error"
+        },
+        submitted: {
+          title: "เอกสารถูกส่งแล้ว",
+          html: `<div style="font-size: 1.15rem; line-height: 1.6;">เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้<br>ต้องการกลับหน้าหลักหรืออยู่ต่อ?</div>`,
+          icon: "info"
+        },
+        checked: {
+          title: "เอกสารผ่านการตรวจสอบแล้ว",
+          html: `<div style="font-size: 1.15rem; line-height: 1.6;">เอกสารนี้ได้รับการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้<br>ต้องการกลับหน้าหลักหรืออยู่ต่อ?</div>`,
+          icon: "info"
+        },
+        locked_status: {
+          title: "ไม่สามารถแก้ไขเอกสารได้",
+          html: `<div style="font-size: 1.15rem; line-height: 1.6;">สถานะเอกสารปัจจุบันไม่อนุญาตให้แก้ไข<br>ต้องการกลับหน้าหลักหรืออยู่ต่อ?</div>`,
+          icon: "info"
+        }
+      };
+
+      const alertInfo = alertMap[errType] || alertMap.locked_status;
+
       Swal.fire({
-        title: "ไม่มีสิทธิ์แก้ไขเอกสารนี้",
-        html: `
-        <div style="font-size: 1.15rem; line-height: 1.6;">
-          คุณไม่มีสิทธิ์ในการแก้ไขเอกสารนี้<br>
-          ต้องการกลับหน้าหลักหรืออยู่ต่อ?
-        </div>
-      `,
-        icon: "error",
+        title: alertInfo.title,
+        html: alertInfo.html,
+        icon: alertInfo.icon,
         showCancelButton: true,
         confirmButtonText: "กลับหน้าหลัก",
         cancelButtonText: "อยู่หน้านี้ต่อ",
@@ -1320,8 +1382,8 @@ $len = max(20, $len);
     const fileName = link.dataset.wordFilename || "บันทึกข้อความ.docx";
 
     fetch(downloadUrl.toString(), {
-      credentials: "same-origin"
-    })
+        credentials: "same-origin"
+      })
       .then(response => {
         if (!response.ok) {
           throw new Error("Word download failed");

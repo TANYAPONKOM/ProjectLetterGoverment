@@ -746,13 +746,12 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
   // 🟢 ตรวจสอบสถานะเอกสารก่อนเริ่ม transaction
   $stmtStatus = $pdo->prepare("SELECT status FROM documents WHERE document_id = :id");
   $stmtStatus->execute([':id' => $documentId]);
-  $currentStatus = $stmtStatus->fetchColumn();
+  $currentStatus = (string) $stmtStatus->fetchColumn();
 
-  // ถ้าเอกสารเดิมเป็น “รอการแก้ไข” (rejected) → เปลี่ยนกลับเป็น “รอตรวจสอบ” (submitted)
-  if ($currentStatus === 'rejected') {
-    $pdo->prepare("UPDATE documents SET status = 'submitted', updated_at = NOW() WHERE document_id = :id")
-      ->execute([':id' => $documentId]);
-  }
+  // ถ้าเอกสารเดิมเป็นสถานะรอแก้ไข หลังบันทึกสำเร็จให้กลับเป็น draft เพื่อให้ผู้ใช้กดส่งใหม่เอง
+  $shouldResetStatusToDraft =
+    in_array($currentStatus, ['rejected', 'รอแก้เอกสาร', 'รอแก้ไข'], true)
+    || (($_POST['reset_status_to_draft'] ?? '') === '1');
 error_log("DEBUG SESSION: user_id=" . $_SESSION['user_id'] . " role_id=" . ($_SESSION['role_id'] ?? 'NULL'));
 error_log("DEBUG USER LOGIN => SESSION user_id=" . $_SESSION['user_id']);
 
@@ -832,6 +831,10 @@ if (!$canEditThisDocument) {
         subject = :subject,
         header_text = :header_text,
         document_type_name = COALESCE(NULLIF(:document_type_name, ''), document_type_name),
+        status = CASE
+            WHEN :reset_status_to_draft = 1 THEN 'draft'
+            ELSE status
+        END,
         updated_at = NOW() 
     WHERE document_id = :id
 ");
@@ -842,6 +845,7 @@ $up->execute([
     ':subject' => $subject,
     ':header_text' => $headerText,
     ':document_type_name' => $documentTypeName,
+    ':reset_status_to_draft' => $shouldResetStatusToDraft ? 1 : 0,
     ':id' => $documentId
 ]);
 

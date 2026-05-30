@@ -11,12 +11,11 @@ if (empty($_SESSION['user_id'])) {
 }
 
 $userId = (int) $_SESSION['user_id'];
-$role = strtolower($_SESSION['role_name'] ?? 'user');
+$role = strtolower(trim((string)($_SESSION['role_name'] ?? 'user')));
 
-$roleId = $_SESSION['role_id'] ?? 0;
 $roleId = (int) ($_SESSION['role_id'] ?? 0);
-$isAdmin = ($roleId === 1);
-$isOfficer = ($roleId === 2);
+$isAdmin = ($roleId === 1 || in_array($role, ['admin', 'administrator', 'ผู้ดูแลระบบ'], true));
+$isOfficer = ($roleId === 2 || in_array($role, ['officer', 'เจ้าหน้าที่'], true));
 
 if ($roleId == 1) {
   $homePath = "/Pro_letter/admin/home.php";
@@ -53,47 +52,93 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute([':id' => $docId]);
 $document = $stmt->fetch(PDO::FETCH_ASSOC);
-$docStatus = $document['status'];
 
-
-
-
-if (!$document)
+if (!$document) {
   exit("ไม่พบเอกสาร");
+}
 
+$docStatus = (string)($document['status'] ?? '');
+$isOwner = ((int)($document['owner_id'] ?? 0) === $userId);
+
+// โหลด role ซ้ำจาก session เพื่อกันกรณี role_id/role_name ไม่ตรงกัน
+$role = strtolower(trim((string)($_SESSION['role_name'] ?? 'user')));
 $roleId = (int) ($_SESSION['role_id'] ?? 0);
+$isAdmin = ($roleId === 1 || in_array($role, ['admin', 'administrator', 'ผู้ดูแลระบบ'], true));
+$isOfficer = ($roleId === 2 || in_array($role, ['officer', 'เจ้าหน้าที่'], true));
 
-// officer & admin ดูได้ทุกอัน
-if ($roleId !== 1 && $roleId !== 2) {
-  // user: ดูเฉพาะของตัวเอง
-  if ($document['owner_id'] != $userId) {
-    header("Location: {$homePath}?err=no_view");
-    exit;
-  }
+// เช็กสิทธิ์ document.edit จากฐานข้อมูลและ session
+$hasEditPermission = false;
+
+try {
+  $sql = "
+      SELECT COUNT(*) 
+      FROM user_permissions up
+      JOIN permissions p ON p.perm_id = up.perm_id
+      WHERE up.user_id = :uid
+        AND (p.perm_code = 'document.edit' OR p.perm_id = 3)
+  ";
+  $st = $pdo->prepare($sql);
+  $st->execute([':uid' => $userId]);
+  $hasEditPermission = ((int)$st->fetchColumn() > 0);
+} catch (Throwable $e) {
+  $hasEditPermission = false;
 }
 
+$sessionPermissions = $_SESSION['permissions'] ?? [];
+if (is_array($sessionPermissions)) {
+  $sessionPermissionValues = array_map(
+    static fn($value) => is_numeric($value) ? (int)$value : strtolower(trim((string)$value)),
+    $sessionPermissions
+  );
 
-
-$sql = "
-    SELECT COUNT(*) 
-    FROM user_permissions up
-    JOIN permissions p ON p.perm_id = up.perm_id
-    WHERE up.user_id = :uid
-    AND p.perm_code = 'document.edit'
-";
-$st = $pdo->prepare($sql);
-$st->execute([':uid' => $userId]);
-
-$hasEditPermission = $st->fetchColumn() > 0;   // สิทธิ์จาก permission
-$allowEditByStatus = in_array($docStatus, ['draft', 'rejected']);
-
-
-if ($roleId === 3 || $roleId === 0) {
-    $canEdit = $hasEditPermission && in_array($docStatus, ['draft', 'rejected']);
+  $hasEditPermission = $hasEditPermission
+    || in_array(3, $sessionPermissionValues, true)
+    || in_array('3', $sessionPermissionValues, true)
+    || in_array('document.edit', $sessionPermissionValues, true);
 }
 
-elseif ($roleId === 1 || $roleId === 2) {
-    $canEdit = true;
+// admin/officer ดูเอกสารได้ทุกอัน
+// ผู้ใช้ทั่วไปดูได้เมื่อเป็นเจ้าของ หรือได้รับสิทธิ์ document.edit
+if (!$isAdmin && !$isOfficer && !$isOwner && !$hasEditPermission) {
+  header("Location: {$homePath}?err=no_view");
+  exit;
+}
+
+// สถานะเอกสาร
+$isSubmitted = ($docStatus === 'submitted');
+$isWaitingForEdit = in_array($docStatus, ['rejected', 'รอแก้เอกสาร'], true);
+$isCheckedDone = in_array($docStatus, [
+  'checked',
+  'reviewed',
+  'passed',
+  'approved',
+  'ผ่านการตรวจสอบ',
+  'ได้รับการตรวจสอบ',
+  'ตรวจสอบแล้ว',
+  'อนุมัติ'
+], true);
+$allowEditByStatus = in_array($docStatus, ['draft', 'rejected', 'รอแก้เอกสาร'], true);
+
+// เหตุผลที่กดแก้ไม่ได้ ใช้แสดงข้อความให้ชัดเจน
+$editDisabledTitle = 'จำกัดสิทธิ์การแก้ไข';
+$editDisabledMessage = 'คุณไม่มีสิทธิ์แก้ไขเอกสารนี้';
+
+if ($isSubmitted) {
+  $editDisabledTitle = 'เอกสารถูกส่งแล้ว';
+  $editDisabledMessage = 'เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
+} elseif ($isCheckedDone) {
+  $editDisabledTitle = 'เอกสารผ่านการตรวจสอบแล้ว';
+  $editDisabledMessage = 'เอกสารนี้ได้รับการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
+}
+
+// ถ้า submitted หรือผ่านการตรวจสอบแล้ว ห้ามแก้ทุกกรณี
+// ถ้า rejected/รอแก้เอกสาร ให้แก้ได้ตามสิทธิ์ เพื่อแก้แล้วส่งใหม่
+if ($isSubmitted || $isCheckedDone) {
+  $canEdit = false;
+} elseif ($isAdmin || $isOfficer) {
+  $canEdit = true;
+} else {
+  $canEdit = (($isOwner || $hasEditPermission) && $allowEditByStatus);
 }
 
 $readonly = !$canEdit;
@@ -188,6 +233,27 @@ function thai_digits($text)
   ]);
 }
 
+function arabic_digits($text)
+{
+  return strtr((string)$text, [
+    '๐' => '0',
+    '๑' => '1',
+    '๒' => '2',
+    '๓' => '3',
+    '๔' => '4',
+    '๕' => '5',
+    '๖' => '6',
+    '๗' => '7',
+    '๘' => '8',
+    '๙' => '9',
+  ]);
+}
+
+function ht_date($text)
+{
+  return h(arabic_digits($text));
+}
+
 function ht($text)
 {
   return h(thai_digits($text));
@@ -212,7 +278,7 @@ function thai_date($ymd)
     11 => "พฤศจิกายน",
     12 => "ธันวาคม"
   ];
-  return thai_digits(intval($d) . " " . $months[intval($m)] . " " . (intval($y) + 543));
+  return arabic_digits(intval($d) . " " . $months[intval($m)] . " " . (intval($y) + 543));
 }
 
 $docDate = $valueMap[1] ?? $document['doc_date'];
@@ -642,7 +708,7 @@ $len = max(20, $len);
       <div id="downloadLoadingSubtitle" class="pdf-loading-subtitle">กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร</div>
     </div>
   </div>
-  <?php if ($readonly && !($isAdmin || $isOfficer)): ?>
+  <?php if ($readonly): ?>
   <script>
   document.addEventListener("DOMContentLoaded", () => {
     // ซ่อนปุ่ม submit
@@ -655,8 +721,8 @@ $len = max(20, $len);
 
     // แจ้งเตือนแสดง read-only
     Swal.fire({
-      title: "โหมดอ่านอย่างเดียว",
-      text: "คุณไม่มีสิทธิ์แก้ไขเอกสารนี้",
+      title: <?= json_encode($editDisabledTitle, JSON_UNESCAPED_UNICODE) ?>,
+      text: <?= json_encode($editDisabledMessage, JSON_UNESCAPED_UNICODE) ?>,
       icon: "info",
       confirmButtonText: "ตกลง"
     });
@@ -701,7 +767,7 @@ $len = max(20, $len);
       <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
       <div class="dot-line ty-right">
         <span class="chip">
-          <?= ht($thaiDocDate ?: '') ?>
+          <?= ht_date($thaiDocDate ?: '') ?>
         </span>
       </div>
     </div>
@@ -727,7 +793,7 @@ $len = max(20, $len);
       ตามที่ กำหนดจัดอบรมหลักสูตร
       <span class="chip"><?= ht($courseName ?: 'ชื่อหลักสูตร') ?></span>
       ระหว่างวันที่
-      <span class="chip keep"><?= ht($joinDates ?: '...') ?></span>
+      <span class="chip keep"><?= ht_date($joinDates ?: '...') ?></span>
       ณ <span class="chip"><?= ht($location ?: '...') ?></span> นั้น
       ซึ่งหลักสูตรดังกล่าวเป็นประโยชน์ต่อการพัฒนาทั้งกระบวนการจัดการเรียนการสอน
     </div>
@@ -740,14 +806,14 @@ $len = max(20, $len);
       มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
       จึงมีความประสงค์ที่จะขออนุมัติ เข้ารับการอบรมหลักสูตร
       <span class="chip keep"><?= ht($courseName ?: 'ชื่อหลักสูตร') ?></span>
-      ระหว่างวันที่ <span class="chip"><?= ht($joinDates ?: '') ?></span>
+      ระหว่างวันที่ <span class="chip"><?= ht_date($joinDates ?: '') ?></span>
       ณ <span class="chip"><?= ht($location ?: '') ?></span>
       <?php if ($hasExpense): ?>
-      เป็นเงินจำนวน <span class="chip"><?= ht($displayAmountNumber) ?></span> บาท
+      เป็นเงินจำนวน <span class="chip"><?= h(arabic_digits($displayAmountNumber)) ?></span> บาท
       (<span class="chip"><?= ht($displayAmountThai) ?></span>)
       โดยขอใช้แหล่งเงินจัดสรรให้หน่วยงาน ประจำปีงบประมาณ
       <span class="chip">
-        <?= ht($thaiYear ? 'พ.ศ. ' . $thaiYear : 'พ.ศ. ....') ?>
+        <?= ht_date($thaiYear ? 'พ.ศ. ' . $thaiYear : 'พ.ศ. ....') ?>
       </span>
       แผนงานจัดการศึกษาระดับอุดมศึกษา กองทุนพัฒนาบุคลากร หมวดค่าใช้สอย
       <span class="keep">(รายละเอียดตามเอกสารแนบ)</span>
@@ -782,7 +848,8 @@ $len = max(20, $len);
       </a>
 
       <a href="/Pro_letter/documents/form_Memo.php?id=<?= (int)$docId ?>" id="editBtn"
-        data-can-edit="<?= $canEdit ? '1' : '0' ?>" class="px-6 py-2 rounded-md text-xl font-bold
+        data-can-edit="<?= $canEdit ? '1' : '0' ?>" data-edit-title="<?= h($editDisabledTitle) ?>"
+        data-edit-message="<?= h($editDisabledMessage) ?>" class="px-6 py-2 rounded-md text-xl font-bold
         <?= $canEdit
           ? "bg-teal-500 hover:bg-teal-600 text-white"
           : "bg-gray-300 text-gray-600 cursor-not-allowed" ?>">
@@ -822,7 +889,7 @@ $len = max(20, $len);
       <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
       <div class="dot-line ty-right">
         <span class="chip">
-          <?= ht($thaiDocDate ?: '') ?>
+          <?= ht_date($thaiDocDate ?: '') ?>
         </span>
       </div>
     </div>
@@ -854,14 +921,14 @@ $len = max(20, $len);
       มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
       จึงมีความประสงค์ขออนุมัติค่าใช้จ่ายในการเข้าร่วม
       <span class="chip subject-inline"><?= ht($subject ?: 'ขออนุมัติ...') ?></span>
-      ระหว่างวันที่ <span class="chip"><?= ht($joinDates ?: '') ?></span>
+      ระหว่างวันที่ <span class="chip"><?= ht_date($joinDates ?: '') ?></span>
       ณ <span class="chip"><?= ht($location ?: '') ?></span>
       <?php if ($hasExpense): ?>
-      วงเงินทั้งสิ้น <span class="chip"><?= ht($displayAmountNumber) ?></span> บาท
+      วงเงินทั้งสิ้น <span class="chip"><?= h(arabic_digits($displayAmountNumber)) ?></span> บาท
       (<span class="chip"><?= ht($displayAmountThai) ?></span>)
       โดยขอใช้แหล่งเงินจัดสรรให้หน่วยงาน ประจำปีงบประมาณ
       <span class="chip">
-        <?= ht($thaiYear ? 'พ.ศ. ' . $thaiYear : 'พ.ศ. ....') ?>
+        <?= ht_date($thaiYear ? 'พ.ศ. ' . $thaiYear : 'พ.ศ. ....') ?>
       </span>
       ในส่วนของภาควิชา
       เทคโนโลยีสารสนเทศ แผนงานจัดการศึกษาระดับอุดมศึกษา กองทุนพัฒนาบุคลากร หมวดค่าใช้สอย
@@ -897,7 +964,8 @@ $len = max(20, $len);
       </a>
 
       <a href="/Pro_letter/documents/form_Memo.php?id=<?= (int)$docId ?>" id="editBtn"
-        data-can-edit="<?= $canEdit ? '1' : '0' ?>" class="px-6 py-2 rounded-md text-xl font-bold
+        data-can-edit="<?= $canEdit ? '1' : '0' ?>" data-edit-title="<?= h($editDisabledTitle) ?>"
+        data-edit-message="<?= h($editDisabledMessage) ?>" class="px-6 py-2 rounded-md text-xl font-bold
         <?= $canEdit
           ? "bg-teal-500 hover:bg-teal-600 text-white"
           : "bg-gray-300 text-gray-600 cursor-not-allowed" ?>">
@@ -939,7 +1007,7 @@ $len = max(20, $len);
       <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
       <div class="dot-line ty-right">
         <span class="chip">
-          <?= ht($thaiDocDate ?: '') ?>
+          <?= ht_date($thaiDocDate ?: '') ?>
         </span>
       </div>
     </div>
@@ -971,14 +1039,14 @@ $len = max(20, $len);
       มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
       จึงมีความประสงค์ที่จะขออนุมัติ เข้ารับการอบรมหลักสูตร
       <span class="chip keep"><?= ht($courseName ?: 'ชื่อหลักสูตร') ?></span>
-      ระหว่างวันที่ <span class="chip"><?= ht($joinDates ?: '') ?></span>
+      ระหว่างวันที่ <span class="chip"><?= ht_date($joinDates ?: '') ?></span>
       ณ <span class="chip"><?= ht($location ?: '') ?></span> นั้น
 
 
     </div>
     <div class="content-block paragraph">
       ในการนี้ ข้าพเจ้าจึงขออนุมัติใช้รถยนต์ส่วนบุคคล หมายเลขทะเบียน
-      <span class="chip"><?= ht($vehicle ?: '...') ?></span>
+      <span class="chip"><?= h(arabic_digits($vehicle ?: '...')) ?></span>
       ในการเดินทางไป<span class="chip subject-inline"><?= ht($subject ?: 'ชื่อหลักสูตร') ?></span>
       ตามวัน เวลา และสถานที่ดังกล่าว ทั้งนี้ โดยให้เป็นไปตามหลักเกณฑ์และวิธีการของมหาวิทยาลัย
 
@@ -1011,7 +1079,8 @@ $len = max(20, $len);
       </a>
 
       <a href="/Pro_letter/documents/form_Memo.php?id=<?= (int)$docId ?>" id="editBtn"
-        data-can-edit="<?= $canEdit ? '1' : '0' ?>" class="px-6 py-2 rounded-md text-xl font-bold
+        data-can-edit="<?= $canEdit ? '1' : '0' ?>" data-edit-title="<?= h($editDisabledTitle) ?>"
+        data-edit-message="<?= h($editDisabledMessage) ?>" class="px-6 py-2 rounded-md text-xl font-bold
         <?= $canEdit
           ? "bg-teal-500 hover:bg-teal-600 text-white"
           : "bg-gray-300 text-gray-600 cursor-not-allowed" ?>">
@@ -1057,7 +1126,7 @@ $len = max(20, $len);
 
           <div class="flex mb-1">
             <div class="w-[180px]">วันที่</div>
-            <div class="flex-1"><?= ht($joinDates ?: '-') ?></div>
+            <div class="flex-1"><?= ht_date($joinDates ?: '-') ?></div>
           </div>
 
           <div class="flex mb-1">
@@ -1086,7 +1155,7 @@ $len = max(20, $len);
           </div>
 
           <div class="mb-[2px] font-bold">
-            ระหว่างวันที่ <?= ht($joinDates ?: '-') ?>
+            ระหว่างวันที่ <?= ht_date($joinDates ?: '-') ?>
           </div>
 
           <div class="mb-[2px] font-bold">
@@ -1096,7 +1165,7 @@ $len = max(20, $len);
         <?php endif; ?>
       </div>
       <h2 class="text-[16pt] font-bold mt-4 mb-3 text-left">
-        ตารางสรุปค่าใช้จ่ายในการไปนำเสนอผลงานวิจัย
+        ตารางประมาณการค่าใช้จ่าย
       </h2>
       <table id="expenseTable" style="width:100%; border-collapse:collapse; font-family:'TH SarabunPSK';
               font-size:16pt; line-height:1.15; table-layout:fixed;">
@@ -1134,13 +1203,13 @@ $len = max(20, $len);
         <?php foreach ($budgetItems as $index => $item): ?>
         <tr>
           <td style="border:0.6px solid #000; padding:3px 4px; text-align:center; vertical-align: top;">
-            <?= thai_digits($index + 1) ?>
+            <?= h(arabic_digits($index + 1)) ?>
           </td>
           <td style="border:0.6px solid #000; padding:3px 8px; text-align:left; vertical-align: top;">
-            <?= nl2br(ht($item['description'] ?: $item['item_type'])) ?>
+            <?= nl2br(h(arabic_digits($item['description'] ?: $item['item_type']))) ?>
           </td>
           <td style="border:0.6px solid #000; padding:3px 4px; text-align:right; vertical-align: top;">
-            <?= thai_digits(number_format((float)$item['amount'], 2)) ?>
+            <?= h(arabic_digits(number_format((float)$item['amount'], 2))) ?>
           </td>
         </tr>
         <?php endforeach; ?>
@@ -1158,7 +1227,7 @@ $len = max(20, $len);
             รวมเป็นเงิน
           </th>
           <th style="border:0.6px solid #000; padding:3px 4px; text-align:right; font-weight:bold; background:#ffffff;">
-            <?= thai_digits(number_format($budgetTotal, 2)) ?>
+            <?= h(arabic_digits(number_format($budgetTotal, 2))) ?>
           </th>
         </tr>
       </table>
@@ -1191,7 +1260,8 @@ $len = max(20, $len);
         </a>
 
         <a href="/Pro_letter/documents/form_Memo.php?id=<?= (int)$docId ?>" id="editBtn"
-          data-can-edit="<?= $canEdit ? '1' : '0' ?>" class="px-6 py-2 rounded-md text-xl font-bold
+          data-can-edit="<?= $canEdit ? '1' : '0' ?>" data-edit-title="<?= h($editDisabledTitle) ?>"
+          data-edit-message="<?= h($editDisabledMessage) ?>" class="px-6 py-2 rounded-md text-xl font-bold
    <?= $canEdit
       ? "bg-teal-500 hover:bg-teal-600 text-white"
       : "bg-gray-300 text-gray-600 cursor-not-allowed" ?>">
@@ -1231,7 +1301,7 @@ $len = max(20, $len);
       el.blur();
     });
 
-    <?php if ($readonly && !($isAdmin || $isOfficer)): ?>
+    <?php if ($readonly): ?>
     document.querySelectorAll("input, textarea, select").forEach(el => {
       el.disabled = true;
       el.style.background = "#f0f0f0";
@@ -1240,8 +1310,8 @@ $len = max(20, $len);
     if (submitBtn) submitBtn.style.display = "none";
 
     Swal.fire({
-      title: "โหมดอ่านอย่างเดียว",
-      text: "คุณไม่มีสิทธิ์แก้ไขเอกสารนี้",
+      title: <?= json_encode($editDisabledTitle, JSON_UNESCAPED_UNICODE) ?>,
+      text: <?= json_encode($editDisabledMessage, JSON_UNESCAPED_UNICODE) ?>,
       icon: "info",
       confirmButtonText: "ตกลง"
     });
@@ -1256,12 +1326,23 @@ $len = max(20, $len);
     }
 
     const errType = getQuery("err");
-    if (errType === "no_permission") {
+    if ((errType === "no_permission" || errType === "submitted" || errType === "checked") &&
+      <?= $canEdit ? 'false' : 'true' ?>) {
+      const errTitle =
+        errType === "submitted" ? "เอกสารถูกส่งแล้ว" :
+        errType === "checked" ? "เอกสารผ่านการตรวจสอบแล้ว" :
+        "จำกัดสิทธิ์การแก้ไข";
+
+      const errMessage =
+        errType === "submitted" ? "เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้" :
+        errType === "checked" ? "เอกสารนี้ได้รับการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้" :
+        "คุณไม่มีสิทธิ์ในการแก้ไขเอกสารนี้";
+
       Swal.fire({
-        title: "ไม่มีสิทธิ์แก้ไขเอกสารนี้",
+        title: errTitle,
         html: `
     <div style="font-size: 1.15rem; line-height: 1.6;">
-      คุณไม่มีสิทธิ์ในการแก้ไขเอกสารนี้<br>
+      ${errMessage}<br>
       ต้องการกลับหน้าหลักหรืออยู่ต่อ?
     </div>
     `,
@@ -1277,21 +1358,20 @@ $len = max(20, $len);
         }
       });
     }
-    const editBtn = document.getElementById("editBtn");
-    if (editBtn) {
+    document.querySelectorAll("#editBtn").forEach((editBtn) => {
       editBtn.addEventListener("click", function(e) {
         const canEdit = this.dataset.canEdit === "1";
         if (!canEdit) {
           e.preventDefault();
           Swal.fire({
-            title: "ไม่สามารถแก้ไขได้",
-            text: "คุณไม่มีสิทธิ์แก้ไขเอกสารนี้",
+            title: this.dataset.editTitle || "จำกัดสิทธิ์การแก้ไข",
+            text: this.dataset.editMessage || "คุณไม่มีสิทธิ์แก้ไขเอกสารนี้",
             icon: "warning",
             confirmButtonText: "ตกลง"
           });
         }
       });
-    }
+    });
 
     if (getQuery("saved") === "1" && getQuery("from") === "update") {
       Swal.fire({

@@ -1,6 +1,8 @@
-<?php //ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ) Pro_letter/form_Memo/form_memo_coop_evaluation.php
+<!-- ขออนุมัติตัวบุคคลเพื่อไปนำเสนอผลงานวิจัยในงานประชุมวิชาการระดับนานาชาติACIE 2025 
+ /Pro_letter/form_Memo/form_memo_academic_1.php -->
+<?php
 session_start();
-require_once __DIR__ . '/../functions.php';
+require_once dirname(__DIR__) . '/functions.php';
 
 /* --------------------------------------------------
    ตรวจ session
@@ -29,8 +31,6 @@ if ($roleId == 1) {
 } else {
   $homePath = "/Pro_letter/user/home.php";
 }
-
-$referer = $_SERVER['HTTP_REFERER'] ?? $homePath;
 
 
 /* --------------------------------------------------
@@ -70,6 +70,8 @@ $document = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$document)
   exit("ไม่พบเอกสาร");
 
+$editQuestionUrl = "/Pro_letter/documents/infor_academic_presentation.php?id=" . (int)$docId . "&edit=1";
+
 /* --------------------------------------------------
    สิทธิ์ดูเอกสาร
 -------------------------------------------------- */
@@ -100,7 +102,44 @@ $sql = "
 $st = $pdo->prepare($sql);
 $st->execute([':uid' => $userId]);
 
-$canEdit = $st->fetchColumn() > 0;
+$hasDocumentEditPermission = ((int)$st->fetchColumn() > 0);
+$isOwner = ((int)($document['owner_id'] ?? 0) === $userId);
+$docStatus = trim((string)($document['status'] ?? ''));
+
+$editableStatuses = ['draft', 'rejected', 'รอแก้เอกสาร', 'รอแก้ไข'];
+$submittedStatuses = ['submitted'];
+$checkedStatuses = ['ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว', 'ได้รับการตรวจสอบ', 'ได้รับการตรวจสอบแล้ว', 'ตรวจสอบแล้ว', 'approved', 'checked', 'reviewed'];
+
+$hasBaseEditPermission = ($isAdmin || $isOfficer || $isOwner || $hasDocumentEditPermission);
+$isEditableStatus = in_array($docStatus, $editableStatuses, true);
+$isSubmittedStatus = in_array($docStatus, $submittedStatuses, true);
+$isCheckedStatus = in_array($docStatus, $checkedStatuses, true);
+
+$editDisabledReason = '';
+$editAlertTitle = '';
+$editAlertText = '';
+$editAlertIcon = 'info';
+
+if (!$hasBaseEditPermission) {
+  $editDisabledReason = 'no_permission';
+  $editAlertTitle = 'จำกัดสิทธิ์การแก้ไข';
+  $editAlertText = 'คุณไม่มีสิทธิ์ในการแก้ไขเอกสารนี้';
+  $editAlertIcon = 'error';
+} elseif ($isSubmittedStatus) {
+  $editDisabledReason = 'submitted';
+  $editAlertTitle = 'เอกสารถูกส่งแล้ว';
+  $editAlertText = 'เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
+} elseif ($isCheckedStatus) {
+  $editDisabledReason = 'checked';
+  $editAlertTitle = 'เอกสารผ่านการตรวจสอบแล้ว';
+  $editAlertText = 'เอกสารนี้ได้รับการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
+} elseif (!$isEditableStatus) {
+  $editDisabledReason = 'locked_status';
+  $editAlertTitle = 'ไม่สามารถแก้ไขเอกสารได้';
+  $editAlertText = 'สถานะเอกสารปัจจุบันไม่อนุญาตให้แก้ไข';
+}
+
+$canEdit = ($hasBaseEditPermission && $isEditableStatus);
 $readonly = !$canEdit;
 
 
@@ -108,39 +147,121 @@ $readonly = !$canEdit;
 /* --------------------------------------------------
    ดึงค่า field จาก document_values
 -------------------------------------------------- */
-$q = $pdo->prepare("
-  SELECT dv.field_id, dv.value_text, tf.field_key
-  FROM document_values dv
-  LEFT JOIN template_fields tf ON tf.field_id = dv.field_id
-  WHERE dv.document_id = :id
-");
+$q = $pdo->prepare("SELECT field_id, value_text FROM document_values WHERE document_id = :id");
 $q->execute([':id' => $docId]);
 
 $valueMap = [];
-$valueKeyMap = [];
 foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
   $valueMap[(int) $row['field_id']] = $row['value_text'];
-  if (!empty($row['field_key'])) {
-    $fieldKey = (string)$row['field_key'];
-    $fieldVal = (string)($row['value_text'] ?? '');
+}
+function cleanSectionSubject($text)
+{
+  $text = trim(preg_replace('/\s+/u', ' ', (string)$text));
 
-    // กันกรณีมี field_key ซ้ำจากการเพิ่ม field ภายหลัง:
-    // ถ้า key เดิมมีค่าอยู่แล้ว ห้ามให้ record ว่างมาทับจนข้อมูลที่กรอกไม่แสดง
-    if (!isset($valueKeyMap[$fieldKey]) || trim($fieldVal) !== '') {
-      $valueKeyMap[$fieldKey] = $fieldVal;
+  $removePrefixList = [
+    'ขออนุมัติตัวบุคคลเพื่อไป',
+    'ขออนุมัติตัวบุคคลเข้าร่วม',
+    'ขออนุมัติตัวบุคคลเพื่อเข้าร่วม',
+  ];
+
+  foreach ($removePrefixList as $prefix) {
+    if (mb_strpos($text, $prefix, 0, 'UTF-8') === 0) {
+      return trim(mb_substr($text, mb_strlen($prefix, 'UTF-8'), null, 'UTF-8'));
     }
   }
+
+  return $text;
 }
 
-/* --------------------------------------------------
-   ฟังก์ชัน helper
--------------------------------------------------- */
-// function h($s)
-// {
-//   return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
-// }
+function splitSubjectLines($text, $limit = 82)
+{
+  $text = trim(preg_replace('/\s+/u', ' ', (string)$text));
+  $lines = [];
 
-function thai_digits($text) {
+  while (mb_strlen($text, 'UTF-8') > $limit) {
+    $cut = mb_substr($text, 0, $limit, 'UTF-8');
+    $spacePos = mb_strrpos($cut, ' ', 0, 'UTF-8');
+
+    if ($spacePos !== false && $spacePos > 25) {
+      $lines[] = trim(mb_substr($text, 0, $spacePos, 'UTF-8'));
+      $text = trim(mb_substr($text, $spacePos + 1, null, 'UTF-8'));
+    } else {
+      $lines[] = trim($cut);
+      $text = trim(mb_substr($text, $limit, null, 'UTF-8'));
+    }
+  }
+
+  if ($text !== '') {
+    $lines[] = $text;
+  }
+
+  return $lines;
+}
+function thaiBahtText($amount)
+{
+  $amount = number_format((float)$amount, 2, '.', '');
+  [$number, $satang] = explode('.', $amount);
+
+  $txtNumArr = ['ศูนย์','หนึ่ง','สอง','สาม','สี่','ห้า','หก','เจ็ด','แปด','เก้า'];
+  $txtDigitArr = ['','สิบ','ร้อย','พัน','หมื่น','แสน','ล้าน'];
+
+  $convert = function($num) use (&$convert, $txtNumArr, $txtDigitArr) {
+    $num = (string)((int)$num);
+    $len = strlen($num);
+    $result = '';
+
+    for ($i = 0; $i < $len; $i++) {
+      $n = (int)$num[$i];
+      $pos = $len - $i - 1;
+      if ($n === 0) continue;
+
+      if ($pos === 0 && $n === 1 && $len > 1) {
+        $result .= 'เอ็ด';
+      } elseif ($pos === 1 && $n === 2) {
+        $result .= 'ยี่';
+      } elseif ($pos === 1 && $n === 1) {
+        $result .= '';
+      } else {
+        $result .= $txtNumArr[$n];
+      }
+
+      $result .= $txtDigitArr[$pos];
+    }
+
+    return $result;
+  };
+
+  $bahtText = ((int)$number === 0) ? 'ศูนย์บาท' : $convert($number) . 'บาท';
+
+  return ((int)$satang === 0)
+    ? $bahtText . 'ถ้วน'
+    : $bahtText . $convert($satang) . 'สตางค์';
+}
+
+function thai_date($ymd)
+{
+  if (!$ymd || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $ymd))
+    return "";
+  [$y, $m, $d] = explode("-", $ymd);
+  $months = [
+    1 => "มกราคม",
+    2 => "กุมภาพันธ์",
+    3 => "มีนาคม",
+    4 => "เมษายน",
+    5 => "พฤษภาคม",
+    6 => "มิถุนายน",
+    7 => "กรกฎาคม",
+    8 => "สิงหาคม",
+    9 => "กันยายน",
+    10 => "ตุลาคม",
+    11 => "พฤศจิกายน",
+    12 => "ธันวาคม"
+  ];
+  return intval($d) . " " . $months[intval($m)] . " " . (intval($y) + 543);
+}
+
+function thai_digits($text)
+{
   return strtr((string)$text, [
     '0' => '๐',
     '1' => '๑',
@@ -155,129 +276,15 @@ function thai_digits($text) {
   ]);
 }
 
-function arabic_digits($text) {
-  return strtr((string)$text, [
-    '๐' => '0', '๑' => '1', '๒' => '2', '๓' => '3', '๔' => '4',
-    '๕' => '5', '๖' => '6', '๗' => '7', '๘' => '8', '๙' => '9',
-  ]);
-}
-
-function thai_date($date)
+function h_thai_digits($text)
 {
-  return thai_doc_date_format($date, 1);
-}
-
-function thai_doc_date_format($date, $spaceAfterDay = 2) {
-  $date = trim((string)$date);
-
-  if ($date === '' || $date === '0000-00-00' || $date === '0000-00-00 00:00:00') {
-    return '';
-  }
-
-  // แปลงเลขไทยเป็นเลขอารบิกก่อน parse
-  $date = arabic_digits($date);
-
-  // ตัดคำขึ้นต้น เช่น "วันที่", "วันพุธที่", "ในวันที่"
-  $date = preg_replace('/^\s*ใน\s*/u', '', $date);
-  $date = preg_replace('/^\s*วัน[\p{Thai}]+ที่\s*/u', '', $date);
-  $date = preg_replace('/^\s*วันที่\s*/u', '', $date);
-  $date = trim($date);
-
-  $months = [
-    1 => 'มกราคม',
-    2 => 'กุมภาพันธ์',
-    3 => 'มีนาคม',
-    4 => 'เมษายน',
-    5 => 'พฤษภาคม',
-    6 => 'มิถุนายน',
-    7 => 'กรกฎาคม',
-    8 => 'สิงหาคม',
-    9 => 'กันยายน',
-    10 => 'ตุลาคม',
-    11 => 'พฤศจิกายน',
-    12 => 'ธันวาคม',
-  ];
-
-  // รองรับวันที่ไทย เช่น "5 กุมภาพันธ์ 2568" หรือ "๕ กุมภาพันธ์ ๒๕๖๘"
-  // ห้ามใช้ [ก-ฮ]+ เพราะเดือนอย่าง "กุมภาพันธ์" มีสระ/วรรณยุกต์ ทำให้จับไม่ครบ
-  if (preg_match('/(\d{1,2})\s+([\p{Thai}]+)\s+(\d{4})/u', $date, $mThai)) {
-    $day = (int)$mThai[1];
-    $monthName = trim($mThai[2]);
-    $year = (int)$mThai[3];
-
-    if ($day < 1 || $day > 31) {
-      return '';
-    }
-
-    if ($year < 2400) {
-      $year += 543;
-    }
-
-    $spaces = str_repeat(' ', max(1, (int)$spaceAfterDay));
-    return thai_digits($day . $spaces . $monthName . ' ' . $year);
-  }
-
-  // รองรับ YYYY-MM-DD, YYYY/MM/DD, YYYY-MM-DD HH:mm:ss และปี พ.ศ. เช่น 2568-02-05
-  if (preg_match('/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/', $date, $mDate)) {
-    $y = (int)$mDate[1];
-    $month = (int)$mDate[2];
-    $day = (int)$mDate[3];
-
-    if ($y > 2400) {
-      $y -= 543;
-    }
-
-    if ($month < 1 || $month > 12 || $day < 1 || $day > 31 || !checkdate($month, $day, $y)) {
-      return '';
-    }
-
-    $spaces = str_repeat(' ', max(1, (int)$spaceAfterDay));
-    return thai_digits($day . $spaces . $months[$month] . ' ' . ($y + 543));
-  }
-
-  return '';
-}
-
-function coop_student_rows($studentsJson, $studentListText) {
-  $rows = [];
-  $decoded = json_decode((string)$studentsJson, true);
-
-  if (is_array($decoded)) {
-    foreach ($decoded as $student) {
-      if (!is_array($student)) continue;
-
-      $name = trim((string)($student['name'] ?? $student['student_name'] ?? $student['fullname'] ?? ''));
-      $id = trim((string)($student['student_id'] ?? $student['id'] ?? ''));
-
-      if ($name === '' && $id === '') continue;
-      $rows[] = ['name' => $name, 'id' => $id];
-    }
-  }
-
-  if (empty($rows)) {
-    $lines = preg_split('/\r\n|\r|\n/', (string)$studentListText);
-    foreach ($lines as $line) {
-      $line = trim($line);
-      if ($line === '') continue;
-
-      $parts = preg_split('/\s*รหัสนักศึกษา\s*/u', $line, 2);
-      $name = trim($parts[0] ?? '');
-      $id = trim($parts[1] ?? '');
-
-      $rows[] = ['name' => $name, 'id' => $id];
-    }
-  }
-
-  return $rows;
+  return h(thai_digits($text));
 }
 
 /* --------------------------------------------------
    Mapping ตัวแปรหลักจาก document_values
 -------------------------------------------------- */
-$hasSavedDocDateField = array_key_exists(1, $valueMap);
-$docDate = $hasSavedDocDateField
-  ? trim((string)($valueMap[1] ?? ''))
-  : trim((string)($document['doc_date'] ?? ''));
+$docDate = array_key_exists(1, $valueMap) ? $valueMap[1] : $document['doc_date'];
 $ownerName = $valueMap[2] ?? "";
 $position = $valueMap[3] ?? "";
 $joinType = $valueMap[4] ?? "";
@@ -288,61 +295,73 @@ $amountStr = $valueMap[8] ?? "";
 $vehicle = $valueMap[9] ?? "";
 $faculty = $valueMap[10] ?? "";
 $department = $valueMap[11] ?? "";
+
+// ใช้เบอร์โทรของภาควิชาจากเอกสาร เพื่อให้แถวส่วนราชการเหมือน view_memo.php
+$departmentPhone = "";
+$docDepartmentId = (int)($document['department_id'] ?? 0);
+
+if ($docDepartmentId > 0) {
+  try {
+    $stmtDept = $pdo->prepare("
+      SELECT phone
+      FROM departments
+      WHERE department_id = :department_id
+      LIMIT 1
+    ");
+    $stmtDept->execute([
+      ':department_id' => $docDepartmentId
+    ]);
+
+    $deptRow = $stmtDept->fetch(PDO::FETCH_ASSOC);
+    if ($deptRow) {
+      $departmentPhone = trim((string)($deptRow['phone'] ?? ""));
+    }
+  } catch (Throwable $e) {
+    $departmentPhone = "";
+  }
+}
+
 $displayFaculty = trim($faculty) !== '' ? trim($faculty) : "คณะเทคโนโลยีและการจัดการอุตสาหกรรม";
 $displayDepartment = trim($department) !== '' ? trim($department) : "เทคโนโลยีสารสนเทศ";
 $displayDepartmentFull = "ภาควิชา" . $displayDepartment;
 $displayFacultyDean = "คณบดี" . $displayFaculty;
-$eventDate  = $valueMap[12] ?? "";
-$eventPlace = $valueMap[13] ?? "";
+$academicTopic = $valueMap[13] ?? "";
+$subject = $document["subject"] ?? "";
+$memoSubject = $valueMap[14] ?? $subject;
+$sectionSubject = cleanSectionSubject($memoSubject ?: $subject ?: 'ขออนุมัติ...');
 
-/* --------------------------------------------------
-   Mapping สำหรับแบบประเมินสถานประกอบการสหกิจศึกษา
--------------------------------------------------- */
-$coopSubject = $valueKeyMap['coop_subject'] ?? ($valueMap[70] ?? ($valueMap[14] ?? ($document['subject'] ?? 'ขอความอนุเคราะห์ตอบแบบประเมินและแบบสำรวจนักศึกษาปฏิบัติงานสหกิจศึกษา')));
-$coopToPerson = $valueKeyMap['coop_to_person'] ?? ($valueMap[71] ?? ($valueMap[26] ?? ''));
-$coopOrganizationName = $valueKeyMap['coop_organization_name'] ?? ($valueMap[72] ?? 'หน่วยงานของท่าน');
-$coopStudentCount = $valueKeyMap['coop_student_count'] ?? ($valueMap[73] ?? '');
-$coopStudentsJson = $valueKeyMap['coop_students_json'] ?? ($valueMap[74] ?? '');
-$coopStudentListText = $valueKeyMap['coop_student_list_text'] ?? ($valueMap[75] ?? '');
-$coopPeriod = $valueKeyMap['coop_period'] ?? ($valueMap[76] ?? '');
-$coopStartDate = $valueKeyMap['coop_start_date'] ?? ($valueMap[77] ?? '');
-$coopEndDate = $valueKeyMap['coop_end_date'] ?? ($valueMap[78] ?? '');
-$coopAdvisorName = $valueKeyMap['coop_advisor_name'] ?? ($valueMap[79] ?? 'พนักงานที่ปรึกษา');
-$coopAdditionalDetail = $valueKeyMap['coop_additional_detail'] ?? ($valueMap[81] ?? '');
-$coopReceiverName = $valueKeyMap['coop_receiver_name'] ?? ($valueMap[82] ?? 'ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์');
-$coopReceiverPosition = $valueKeyMap['coop_receiver_position'] ?? ($valueMap[83] ?? $displayFacultyDean);
-$coopPhone = trim((string)($valueKeyMap['coop_phone'] ?? ''));
-$coopPhoneExt = trim((string)($valueKeyMap['coop_phone_ext'] ?? ''));
-$coopPhoneLine = $coopPhone !== '' ? 'โทร. ' . thai_digits($coopPhone) . ($coopPhoneExt !== '' ? ' ต่อ ' . thai_digits($coopPhoneExt) : '') : 'โทร. ๐ ๓๗๒๑ ๗๓๔๐ ต่อ ๗๐๖๕-๖';
 
-if ($coopStudentListText === '' && $coopStudentsJson !== '') {
-  $decodedStudents = json_decode($coopStudentsJson, true);
-  if (is_array($decodedStudents)) {
-    $studentLines = [];
-    foreach ($decodedStudents as $student) {
-      $studentName = trim((string)($student['name'] ?? ''));
-      $studentId = trim((string)($student['student_id'] ?? ($student['id'] ?? '')));
-      if ($studentName === '' && $studentId === '') continue;
-      $studentLines[] = trim($studentName . ($studentId !== '' ? ' รหัสนักศึกษา ' . $studentId : ''));
-    }
-    $coopStudentListText = implode("
-", $studentLines);
-  }
+$academicLevel = $valueMap[15] ?? "";
+$eventDate     = $valueMap[16] ?? "";
+$noCost = (($valueMap[12] ?? '0') === '1');
+
+$budgetStmt = $pdo->prepare("
+  SELECT item_type, description, amount
+  FROM budget_items
+  WHERE document_id = :id
+  ORDER BY item_id ASC
+");
+$budgetStmt->execute([':id' => $docId]);
+$budgetItems = $budgetStmt->fetchAll(PDO::FETCH_ASSOC);
+
+$budgetTotal = 0;
+foreach ($budgetItems as $item) {
+  $budgetTotal += (float) $item['amount'];
 }
 
-if ($coopPeriod === '' && ($coopStartDate !== '' || $coopEndDate !== '')) {
-  $coopPeriod = trim($coopStartDate . ($coopEndDate !== '' ? ' ถึง ' . $coopEndDate : ''));
-}
+$hasExpense = (!$noCost && !empty($budgetItems) && $budgetTotal > 0);
+$hasCar = trim($vehicle) !== '';
 
-$coopStudentRows = coop_student_rows($coopStudentsJson, $coopStudentListText);
-
+$displayAmount = $budgetTotal > 0 ? $budgetTotal : (float) str_replace(',', '', $amountStr);
+$displayAmountNumber = number_format($displayAmount, 2);
+$displayAmountThai = thaiBahtText($displayAmount);
 /* --------------------------------------------------
    Mapping joinType → purposeCode (รหัส)
 -------------------------------------------------- */
 $purposeCode = 'other';
 
 switch (trim($joinType)) {
-  case 'นำเสนอผลงานทางวิชาการ':
+  case 'นำเสนอผลงานวิจัย':
     $purposeCode = 'academic';
     break;
   case 'เข้าร่วมประชุมวิชาการในงาน':
@@ -360,11 +379,10 @@ switch (trim($joinType)) {
 $header_text = $document["header_text"] ?? "";
 $doc_no = $document["doc_no"] ?? "";
 $subject = $document["subject"] ?? "";
-
-/* ===== ชื่อไฟล์ดาวน์โหลดภาษาไทย (ใช้กับ PDF / Word) ===== */
-$downloadSubject = trim((string)($coopSubject ?? $subject ?? ''));
+/* ===== ชื่อไฟล์ดาวน์โหลดภาษาไทย (ใช้กับ PDF และ Word) ===== */
+$downloadSubject = trim((string) $subject);
 if ($downloadSubject === '') {
-  $downloadSubject = 'ขอประเมินสถานประกอบการสหกิจ';
+  $downloadSubject = 'บันทึกข้อความ';
 }
 $downloadSubject = preg_replace('/[\\\\\/\:\*\?\"\<\>\|\r\n\t]+/u', ' ', $downloadSubject);
 $downloadSubject = preg_replace('/\s+/u', ' ', $downloadSubject);
@@ -374,49 +392,15 @@ if (function_exists('mb_strlen') && mb_strlen($downloadSubject, 'UTF-8') > 80) {
   $downloadSubject = mb_substr($downloadSubject, 0, 80, 'UTF-8');
 }
 
-$downloadBaseName = 'ขอประเมินสถานประกอบการสหกิจ_' . $downloadSubject . '_เลขที่_' . (int)$docId;
+$downloadBaseName = 'บันทึกข้อความ_' . $downloadSubject . '_เลขที่_' . (int) $docId;
 $pdfDownloadName = $downloadBaseName . '.pdf';
 $wordDownloadName = $downloadBaseName . '.docx';
+
 
 /* --------------------------------------------------
    คำนวณวันที่ไทย, งบประมาณ
 -------------------------------------------------- */
-$dateCandidates = $hasSavedDocDateField
-  ? [$docDate ?? '']
-  : [
-      $docDate ?? '',
-      $valueKeyMap['doc_date'] ?? '',
-      $valueKeyMap['document_date'] ?? '',
-      $valueKeyMap['memo_date'] ?? '',
-      $valueKeyMap['date'] ?? '',
-      $document['doc_date'] ?? '',
-    ];
-
-$displayDocDate = '';
-foreach ($dateCandidates as $dateCandidate) {
-  $displayDocDate = thai_doc_date_format($dateCandidate, 2);
-  if ($displayDocDate !== '') {
-    break;
-  }
-}
-
-// กันกรณีเอกสารเก่าที่ไม่มีวันที่ใน document_values/documents.doc_date
-// แต่ถ้ามี field วันที่แล้วเป็นค่าว่าง แปลว่าเลือกไม่ประสงค์ใส่วันที่ จึงต้องปล่อยว่าง
-if ($displayDocDate === '' && !$hasSavedDocDateField) {
-  $displayDocDate = thai_doc_date_format(date('Y-m-d'), 2);
-}
-
-$thaiDocDate = '';
-foreach ($dateCandidates as $dateCandidate) {
-  $thaiDocDate = thai_doc_date_format($dateCandidate, 1);
-  if ($thaiDocDate !== '') {
-    break;
-  }
-}
-
-if ($thaiDocDate === '' && !$hasSavedDocDateField) {
-  $thaiDocDate = thai_doc_date_format(date('Y-m-d'), 1);
-}
+$thaiDocDate = thai_date($docDate);
 $prettyAmount = $amountStr !== "" ? number_format((float) $amountStr, 2) : "";
 
 /* --------------------------------------------------
@@ -424,7 +408,8 @@ $prettyAmount = $amountStr !== "" ? number_format((float) $amountStr, 2) : "";
 -------------------------------------------------- */
 $hdr_agency = trim(
   ($faculty ?: "คณะ..................................") . " " .
-  ($department ? "ภาควิชา" . $department : "ภาควิชา........................")
+  ($department ? "ภาควิชา" . $department : "ภาควิชา........................") .
+  ($departmentPhone ? " โทร. " . $departmentPhone : "")
 );
 
 $hdr_subject = $joinType ?: "เข้ารับการฝึกอบรมหลักสูตร";
@@ -435,7 +420,7 @@ $hdr_to = "คณบดี" . ($faculty ?: "คณะ...........................
 -------------------------------------------------- */
 $thaiYear = "";
 if ($docDate && preg_match('/^\d{4}/', $docDate)) {
-  $thaiYear = thai_digits((int) substr($docDate, 0, 4) + 543);
+  $thaiYear = ((int) substr($docDate, 0, 4) + 543);
 }
 
 /* --------------------------------------------------
@@ -470,53 +455,15 @@ $len = max(20, $len);
     font-family: "TH SarabunPSK", sans-serif;
   }
 
-  @page {
-    size: A4;
-    margin: 0;
-  }
-
   .page {
     width: 794px;
-    height: 1123px;
     min-height: 1123px;
-
     margin: 40px auto;
-
-    padding: 55px 85px 45px 85px;
-
+    padding: 60px 70px 50px 100px;
     background: #fff;
-
     box-shadow: 0 0 5px rgba(0, 0, 0, .1);
-
     position: relative;
-
     border: 2px solid #fff;
-
-    box-sizing: border-box;
-
-    overflow: visible;
-  }
-
-
-  /* ✅ เพิ่มพื้นที่ท้ายกระดาษเฉพาะหน้าโชว์บนเว็บเท่านั้น
-     ไม่ใช้ body.pdf-rendering แล้ว เพราะจะทำให้พื้นที่ท้ายกระดาษหายระหว่างโหลด PDF
-     ตอนสร้าง PDF จะใส่ class pdf-page-clone ให้ clone แทน เพื่อไม่ให้ CSS นี้กระทบ PDF */
-  .page:not(.pdf-page-clone) {
-    height: auto !important;
-    min-height: 1123px !important;
-    padding-bottom: 130px !important;
-    margin-bottom: 90px !important;
-  }
-
-  .page:not(.pdf-page-clone) .footer-actions {
-    margin-top: 24px !important;
-    margin-bottom: 20px !important;
-    flex-wrap: wrap !important;
-  }
-
-  .pdf-page-clone {
-    padding-bottom: 45px !important;
-    margin-bottom: 0 !important;
   }
 
   h1 {
@@ -526,6 +473,35 @@ $len = max(20, $len);
     text-align: center;
     line-height: 1.2;
     margin-bottom: 1.5em;
+  }
+
+  .memo-title-row {
+    position: relative;
+    height: 1.65cm;
+    margin-bottom: 0.35em;
+  }
+
+  .memo-title-row .garuda-img {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 1.6cm;
+    width: auto;
+  }
+
+  .memo-title-row .doc-title {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0.50cm;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: "TH SarabunPSK";
+    font-size: 30pt;
+    font-weight: bold;
+    line-height: 1 !important;
+    text-align: center;
+    transform: translateX(-0.3cm);
   }
 
   .doc-title {
@@ -582,19 +558,21 @@ $len = max(20, $len);
   .content-block {
     font-family: "TH SarabunPSK";
     font-size: 16pt;
-    line-height: 1.25;
+    line-height: 1.0;
     margin: 0;
     text-align: justify;
+    text-justify: inter-word;
   }
 
   .content-block.paragraph {
     text-indent: 2.5cm;
-    margin-top: 8px;
-    line-height: 1.25;
+    margin-top: 0.5em;
+    line-height: 1.3;
   }
 
   .content-block.single {
-    line-height: 1.0;
+    margin-left: 0;
+    line-height: 1;
   }
 
   .content-block.indent-first {
@@ -625,7 +603,17 @@ $len = max(20, $len);
     line-height: 1.2;
   }
 
-  .chip {
+  .view-document .chip {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: inline !important;
+    white-space: normal !important;
+  }
+
+  body:not(.view-document) .chip {
     display: inline;
     padding: 0 1px;
     margin: 0;
@@ -668,7 +656,7 @@ $len = max(20, $len);
   }
 
   .footer-actions {
-    margin-top: -6px;
+    margin-top: 24px;
     padding-top: 16px;
     display: flex;
     justify-content: flex-end;
@@ -713,6 +701,58 @@ $len = max(20, $len);
     /* ⭐ กดลงมาอีกนิดเพื่อให้ชิดเส้นมากที่สุด */
   }
 
+
+
+  /* แถวส่วนราชการ: ใช้รูปแบบเดียวกับ view_memo.php เพื่อไม่ให้ข้อความยาวตกบรรทัด */
+  .doc-row.gov-row>.doc-label {
+    width: auto !important;
+    min-width: 2.15cm !important;
+    white-space: nowrap !important;
+  }
+
+  .doc-row.gov-row>.dot-line {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0.25cm !important;
+    width: calc(100% - 2.15cm - 0.25cm) !important;
+    flex: 0 0 calc(100% - 2.15cm - 0.25cm) !important;
+  }
+
+  .doc-row.gov-row>.dot-line>.chip.gov-text {
+    display: inline-block !important;
+    margin-left: -0.05cm !important;
+    margin-right: 0 !important;
+    transform: none !important;
+    white-space: nowrap !important;
+    max-width: none !important;
+    flex-shrink: 0 !important;
+  }
+
+
+  .expense-info-block {
+    text-align: left !important;
+    width: 720px;
+    max-width: 100%;
+    margin: 0 auto;
+  }
+
+  .expense-info-block .flex {
+    display: flex;
+    align-items: flex-start;
+    text-align: left !important;
+  }
+
+  .expense-info-block .w-\[180px\] {
+    width: 180px;
+    flex: 0 0 180px;
+    text-align: left !important;
+  }
+
+  .expense-info-block .flex-1 {
+    flex: 1;
+    text-align: left !important;
+  }
+
   /* สำหรับ print */
   @media print {
 
@@ -727,18 +767,12 @@ $len = max(20, $len);
     }
 
     .page {
-      width: 794px !important;
-      height: 1123px !important;
-      min-height: 1123px !important;
-
-      margin: 0 auto !important;
-
-      padding: 55px 85px 45px 85px !important;
-
-      box-shadow: none !important;
+      margin: 0;
+      box-shadow: none;
+      padding: 0.5cm 1cm 2cm 2.2cm !important;
+      width: 21cm;
+      min-height: 29.7cm;
       border: 2px solid #fff !important;
-      box-sizing: border-box !important;
-      overflow: visible !important;
     }
 
     .dot-line::after {
@@ -770,11 +804,6 @@ $len = max(20, $len);
       border: none !important;
       background: transparent !important;
       box-shadow: none !important;
-    }
-
-    .header-address {
-      width: 400px !important;
-      letter-spacing: -0.05px !important;
     }
   }
 
@@ -867,6 +896,59 @@ $len = max(20, $len);
     font-weight: 20 !important;
   }
 
+  .expense-title-section {
+    margin-top: 0;
+    margin-bottom: 0.8cm;
+  }
+
+  .expense-main-title {
+    font-family: "TH SarabunPSK";
+    font-size: 16pt;
+    font-weight: bold;
+    text-align: center;
+    margin: 0 0 0cm 0;
+  }
+
+  .subject-wrap {
+    flex: 1;
+  }
+
+  .subject-line {
+    min-height: 22px;
+    line-height: 1.05;
+    border-bottom: 2px dotted #000;
+    padding-left: 4px;
+    padding-top: 4px;
+    font-family: "TH SarabunPSK";
+    font-size: 16pt;
+    font-weight: 300;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .subject-text {
+    display: inline-block;
+    position: relative;
+    top: 4px;
+
+    /* ขยับเฉพาะตัวอักษรชื่อเรื่อง เส้นประไม่ขยับ */
+    margin-left: 0.35cm;
+  }
+
+  /* ปรับเฉพาะข้อความบนเส้นประส่วนหัวเอกสาร ไม่กระทบส่วน "เรื่อง" */
+  .doc-row:not(.subject-row) .dot-line>.chip {
+    display: inline-block;
+    position: relative;
+    top: -2px;
+    line-height: 1;
+  }
+
+  .subject-inline {
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+  }
+
   .content-block,
   .chip {
     font-family: "TH SarabunPSK";
@@ -934,7 +1016,7 @@ $len = max(20, $len);
   </style>
 </head>
 
-<body>
+<body class="view-document">
   <div id="pdfLoadingOverlay" class="pdf-loading-overlay">
     <div class="pdf-loading-box">
       <div class="pdf-spinner"></div>
@@ -965,14 +1047,14 @@ $len = max(20, $len);
     if (submitBtn) submitBtn.style.display = "none";
 
     // เปลี่ยนข้อความของปุ่มพิมพ์ให้อยู่ในโหมดตัวอย่าง
-    const printBtn = document.querySelector("button[onclick='window.print()']");
-    if (printBtn) printBtn.innerText = "พิมพ์/ดูตัวอย่าง";
+    const printBtn = document.querySelector("button[onclick='downloadPdf()']");
+    if (printBtn) printBtn.innerText = "ดาวน์โหลด PDF ";
 
     // แจ้งเตือนแสดง read-only
     Swal.fire({
-      title: "โหมดอ่านอย่างเดียว",
-      text: "คุณไม่มีสิทธิ์แก้ไขเอกสารนี้",
-      icon: "info",
+      title: <?= json_encode($editAlertTitle ?: "ไม่สามารถแก้ไขเอกสารได้", JSON_UNESCAPED_UNICODE) ?>,
+      text: <?= json_encode($editAlertText ?: "เอกสารนี้ไม่สามารถแก้ไขได้ในสถานะปัจจุบัน", JSON_UNESCAPED_UNICODE) ?>,
+      icon: <?= json_encode($editAlertIcon ?: "info", JSON_UNESCAPED_UNICODE) ?>,
       confirmButtonText: "ตกลง"
     });
   });
@@ -994,7 +1076,7 @@ $len = max(20, $len);
   <?php endif; ?>
 
   <main class="page">
-    <form id="updateForm" action="/Pro_letter/documents/update_memo.php" method="post">
+    <form id="updateForm" action="update_memo.php" method="post">
       <input type="hidden" name="header_text" id="hidden_header_text" value="<?= h($header_text) ?>">
       <input type="hidden" name="doc_no" id="hidden_doc_no" value="<?= h($doc_no) ?>">
 
@@ -1003,12 +1085,6 @@ $len = max(20, $len);
 
       <input type="hidden" name="document_id" value="<?= h($document['document_id']) ?>">
 
-      <input type="hidden" name="document_type" value="infor_coop_evaluation">
-      <input type="hidden" name="form_type" value="coop_evaluation">
-      <input type="hidden" name="redirect_to" value="form_memo_coop_evaluation.php">
-      <input type="hidden" name="target_form" value="infor_coop_evaluation.php">
-      <input type="hidden" name="template_id" value="<?= h($document['template_id'] ?? 1) ?>">
-
       <!-- สำคัญ: ให้ doc_date เป็นรูปแบบเดิม (YYYY-MM-DD) ที่ดึงมาจาก DB -->
       <input type="hidden" name="doc_date" id="hidden_doc_date" value="<?= h($docDate) ?>">
 
@@ -1016,10 +1092,13 @@ $len = max(20, $len);
       <input type="hidden" name="position" id="hidden_position" value="<?= h($position) ?>">
 
       <!-- ส่ง purpose เป็นรหัส ไม่ใช่ข้อความไทย -->
-      <input type="hidden" name="purpose" id="hidden_joinType" value="coop_evaluation">
+      <input type="hidden" name="purpose" id="hidden_joinType" value="<?= h($purposeCode) ?>">
 
       <input type="hidden" name="event_title" id="hidden_courseName" value="<?= h($courseName) ?>">
-
+      <input type="hidden" name="memo_subject" id="hidden_subject" value="<?= h($memoSubject) ?>">
+      <input type="hidden" name="academic_topic" id="hidden_academicTopic" value="<?= h($academicTopic) ?>">
+      <input type="hidden" name="academic_level" id="hidden_academicLevel" value="<?= h($academicLevel) ?>">
+      <input type="hidden" name="event_date" id="hidden_eventDate" value="<?= h($eventDate) ?>">
 
       <input type="hidden" name="range_date" id="hidden_joinDates" value="<?= h($joinDates) ?>">
       <input type="hidden" name="place" id="hidden_location" value="<?= h($location) ?>">
@@ -1028,276 +1107,155 @@ $len = max(20, $len);
       <input type="hidden" name="faculty" id="hidden_faculty" value="<?= h($faculty) ?>">
       <input type="hidden" name="department" id="hidden_department" value="<?= h($department) ?>">
 
-      <input type="hidden" name="subject" value="<?= h($coopSubject) ?>">
-      <input type="hidden" name="to_person" value="<?= h($coopToPerson) ?>">
-      <input type="hidden" name="organization_name" value="<?= h($coopOrganizationName) ?>">
-      <input type="hidden" name="student_count" value="<?= h($coopStudentCount) ?>">
-      <input type="hidden" name="student_list_json" value="<?= h($coopStudentsJson) ?>">
-      <input type="hidden" name="student_list_text" value="<?= h($coopStudentListText) ?>">
-      <input type="hidden" name="coop_period" value="<?= h($coopPeriod) ?>">
-      <input type="hidden" name="coop_start_date" value="<?= h($coopStartDate) ?>">
-      <input type="hidden" name="coop_end_date" value="<?= h($coopEndDate) ?>">
-      <input type="hidden" name="advisor_name" value="<?= h($coopAdvisorName) ?>">
-      <input type="hidden" name="evaluation_email" value="">
-      <input type="hidden" name="additional_detail" value="<?= h($coopAdditionalDetail) ?>">
-      <input type="hidden" name="receiver_name" value="<?= h($coopReceiverName) ?>">
-      <input type="hidden" name="receiver_position" value="<?= h($coopReceiverPosition) ?>">
-
       <!-- ตัวเลือกช่วงวันที่: ใช้ range เป็นค่า default ตาม UI ปัจจุบัน -->
       <input type="hidden" name="date_option" id="hidden_dateOption" value="range">
       <input type="hidden" name="single_date" id="hidden_singleDate" value="">
 
 
-      <!-- หัวหนังสือราชการภายนอก -->
-      <div style="
-  display:grid;
-  grid-template-columns: 31% 22% 47%;
-  align-items:start;
-  margin-top:18px;
-">
-
-        <!-- เลขที่ -->
-        <div style="
-    font-size:16pt;
-    padding-top:106px;
-    white-space:nowrap;
-  ">
-          ที่ 
-        </div>
-
-        <!-- ครุฑ -->
-        <div style="text-align:center; position:relative; left:55px; top:6px;">
-          <img src="/Pro_letter/assets/img/garuda.jpg" style="
-        width:123px;
-        height:auto;
-        opacity:0.83;
-        filter: grayscale(100%) contrast(65%) brightness(126%);
-        image-rendering:auto;
-        border:none;
-        outline:none;
-        box-shadow:none;
-        background:transparent;
-        transform:scale(1.01);
-      ">
-        </div>
-
-
-        <!-- ที่อยู่ -->
-        <div style="
-  font-size:15.5pt;
-  line-height:1.28;
-
-  padding-top:107px;
-
-  padding-left:40px;
-
-  width:380px;
-
-  text-align:left;
-">
-
-          <div style="
-      position:relative;
-      top:-5px;
-  ">
-            <?= h($displayFaculty) ?>
-          </div>
-
-          <div style="
-    position:relative;
-    top:-2px;
-">
-            มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
-          </div>
-
-          ๑๒๙ หมู่ ๒๑ ต.เนินหอม อ.เมือง จ.ปราจีนบุรี ๒๕๒๓๐
-
-        </div>
-
+      <!-- หัวบันทึก -->
+      <div class="memo-title-row">
+        <img src="/Pro_letter/assets/img/garuda.jpg" class="garuda-img" />
+        <h1 class="doc-title">บันทึกข้อความ</h1>
       </div>
 
-      <!-- วันที่ -->
-      <div style="
-  font-size:16pt;
-
-  text-align:center;
-
-  margin-top:20px;
-
-  margin-bottom:16px;
-
-  position:relative;
-
-  left:55px;
-">
-        <?php
-          $dateToShow = trim((string)($displayDocDate ?? ''));
-          echo h($dateToShow);
-        ?>
+      <!-- ส่วนราชการ -->
+      <div class="doc-row gov-row">
+        <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
+        <div class="dot-line">
+          <span class="chip gov-text" contenteditable="true" data-target="header_text">
+            <?= h_thai_digits($hdr_agency ?: 'คณะ... ภาควิชา... โทร...') ?>
+          </span>
+        </div>
       </div>
 
-      <div style="
-  font-family:'TH SarabunPSK';
-  font-size:16pt;
-  line-height:1.15;
-  color:#111;
-">
+      <div class="doc-row row-ty-date">
+        <div class="doc-label" style="font-size:20pt;font-weight:bold;">ที่</div>
 
-        <!-- เรื่อง -->
-        <div style="
-    display:flex;
-    margin-bottom:4px;
-    font-size:16pt;
-    line-height:1.25;
-">
-          <div style="width:55px;">เรื่อง</div>
-
-          <div>
-            <?= h($coopSubject ?: 'ขอความอนุเคราะห์ตอบแบบประเมินและแบบสำรวจนักศึกษาปฏิบัติงานสหกิจศึกษา') ?>
-          </div>
+        <div class="dot-line ty-left">
+          <span class="chip" contenteditable="true" data-target="doc_no">
+            <?= h_thai_digits($doc_no ?: '') ?>
+          </span>
         </div>
 
-        <!-- เรียน -->
-        <div style="
-    display:flex;
-    margin-bottom:6px;
-    font-size:16pt;
-    line-height:1.25;
-">
-          <div style="width:55px;">เรียน</div>
+        <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
 
-          <div>
-            <?= h($coopToPerson ?: 'เลขาธิการ สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ (กสมช.)') ?>
-          </div>
+        <div class="dot-line ty-right">
+          <span class="chip" contenteditable="true" data-target="doc_date_display">
+            <?= h_thai_digits($thaiDocDate ?: '') ?>
+          </span>
         </div>
-
-        <!-- เนื้อหา -->
-        <div style="
-    font-size:16pt;
-    line-height:1.28;
-    text-align:justify;
-">
-
-          <p style="
-        text-indent:2.5cm;
-        margin-bottom:4px;
-    ">
-            ตามที่ <?= h($coopOrganizationName ?: 'หน่วยงานของท่าน') ?>
-            ได้ให้ความอนุเคราะห์รับนักศึกษา<?= h($displayDepartmentFull) ?>
-            <?= h($displayFaculty) ?> มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
-            วิทยาเขตปราจีนบุรี ได้แก่
-          </p>
-
-          <div style="
-        margin-left:2.5cm;
-        margin-bottom:4px;
-        line-height:1.35;
-    ">
-            <?php if (!empty($coopStudentRows)): ?>
-            <?php foreach ($coopStudentRows as $studentRow): ?>
-            <div style="display:flex; align-items:baseline; white-space:nowrap;">
-              <span style="display:inline-block; min-width:4.5cm;">
-                <?= h(thai_digits($studentRow['name'] ?? '')) ?>
-              </span>
-              <span style="display:inline-block; min-width:2.35cm;">
-                รหัสนักศึกษา
-              </span>
-              <span style="display:inline-block;">
-                <?= h(thai_digits($studentRow['id'] ?? '')) ?>
-              </span>
-            </div>
-            <?php endforeach; ?>
-            <?php else: ?>
-            <div style="display:flex; align-items:baseline; white-space:nowrap;">
-              <span style="display:inline-block; min-width:8.8cm;">
-                นายปุณนที ปิ่นวิเศษ
-              </span>
-              <span style="display:inline-block; min-width:2.35cm;">
-                รหัสนักศึกษา
-              </span>
-              <span style="display:inline-block;">
-                ๖๕-๐๖๐๒๑๖-๓๐๐๓-๘
-              </span>
-            </div>
-            <?php endif; ?>
-          </div>
-
-          <p style="
-        text-indent:0.0cm;
-        margin-bottom:4px;
-    ">
-            เข้าปฏิบัติงานสหกิจศึกษาในหน่วยงานของท่าน ตั้งแต่วันที่
-            <?= h(thai_digits($coopPeriod ?: '๓ พฤศจิกายน ๒๕๖๘ ถึง ๒๗ กุมภาพันธ์ ๒๕๖๙')) ?>
-          </p>
-
-          <p style="
-        text-indent:2.5cm;
-        margin-bottom:4px;
-    ">
-            ในการนี้ <?= h($displayDepartmentFull) ?> ขอความอนุเคราะห์ตอบแบบประเมินผลรายงาน
-            การปฏิบัติงานของนักศึกษาสหกิจศึกษา และแบบสำรวจคุณลักษณะของนักศึกษาปฏิบัติงาน
-            สหกิจศึกษาที่พึงประสงค์ตามความต้องการของสถานประกอบการ (ในปีถัดไป)
-            โดยภาควิชาขออนุญาตส่งแบบประเมินและแบบสำรวจดังกล่าวให้กับ “<?= h($coopAdvisorName ?: 'พนักงานที่ปรึกษา') ?>”
-            ทั้งนี้ ข้อมูลที่ได้จากแบบประเมินและแบบสำรวจจะนำมารวบรวม วิเคราะห์ และสรุปผล
-            ซึ่งภาควิชาจะนำข้อมูลมาเป็นแนวทางสำหรับการดำเนินการครั้งต่อไป
-          </p>
-
-
-
-          <p style="
-        text-indent:2.5cm;
-        margin-bottom:4px;
-    ">
-            สุดท้ายนี้ <?= h($displayDepartmentFull) ?> ขอขอบคุณในความอนุเคราะห์ของท่านเป็นอย่างยิ่ง
-            และหวังว่าจะได้รับความอนุเคราะห์จากท่านอีกในโอกาสต่อไป
-          </p>
-
-          <p style="
-        text-indent:2.5cm;
-        margin-bottom:8px;
-    ">
-            จึงเรียนมาเพื่อโปรดอนุญาต และพิจารณาแจ้งผู้เกี่ยวข้องดำเนินการต่อไป
-          </p>
-
-        </div>
-
-        <!-- ลงชื่อ -->
-        <div style="
-    width:100%;
-    text-align:center;
-    margin-top:14px;
-    line-height:1.3;
-    font-size:16pt;
-">
-          <div>ขอแสดงความนับถือ</div>
-
-          <div style="margin-top:42px;">
-            (<?= h($coopReceiverName ?: 'ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์') ?>)
-          </div>
-
-          <div>
-            <?= h($coopReceiverPosition ?: $displayFacultyDean) ?>
-          </div>
-        </div>
-
-        <!-- footer -->
-        <div style="
-    margin-top:20px;
-    font-size:14pt;
-    line-height:1.35;
-">
-          <?= h($displayDepartmentFull) ?><br>
-          <?= h($coopPhoneLine) ?><br>
-          ไปรษณีย์อิเล็กทรอนิกส์ : it@itm.kmutnb.ac.th<br>
-          <br>
-        </div>
-
       </div>
 
-      <!-- <div style="font-family:'TH SarabunPSK'; font-size:16pt; line-height:1.2;"> เรียน <?= h($hdr_to) ?> </div>
-            <div class="content-block single align-to-dean"> เพื่อโปรดพิจารณาอนุมัติ </div>
-            <div class="content-block single align-to-dean" style="margin-top:50px;;"> (ผู้ช่วยศาสตราจารย์ ดร. ขนิษฐา
-                นามี)<br /> หัวหน้า<?= h($displayDepartmentFull) ?> </div> -->
+
+      <!-- เรื่อง -->
+      <?php
+  $mainSubjectText = $memoSubject ?: $subject ?: 'ขออนุมัติ...';
+  $mainSubjectLines = splitSubjectLines($mainSubjectText, 82);
+?>
+      <div class="doc-row" style="align-items:flex-start;">
+        <div class="doc-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
+
+        <div class="subject-wrap">
+          <?php foreach ($mainSubjectLines as $line): ?>
+          <div class="subject-line">
+            <span class="subject-text"><?= h_thai_digits($line) ?></span>
+          </div>
+          <?php endforeach; ?>
+        </div>
+      </div>
+
+
+      <!-- บรรทัด “เรียน ...” -->
+      <div class="content-block single" style="
+      display:flex;
+      align-items:baseline;
+      font-size:16pt;
+      font-weight:400;
+      line-height:1.05;
+    ">
+        <span style="
+        display:inline-block;
+        font-size:16pt;
+        font-weight:400;
+        width:1.05cm;
+        flex:0 0 1.05cm;
+        line-height:1.05;
+      ">เรียน</span>
+
+        <span style="
+        display:inline-block;
+        margin-left:0.35cm;
+        font-size:16pt;
+        font-weight:400;
+        line-height:1.05;
+      "><?= h_thai_digits($displayFacultyDean) ?></span>
+      </div>
+
+
+      <!-- ย่อหน้า 1 -->
+      <div class="content-block paragraph">
+        ตามที่ ข้าพเจ้า
+        <span class="chip" contenteditable="true" data-target="ownerName">
+          <?= h_thai_digits($ownerName ?: '................................') ?>
+        </span>
+        พนักงานมหาวิทยาลัย สังกัด<?= h_thai_digits($displayDepartmentFull) ?>
+        <?= h_thai_digits($displayFaculty) ?> มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
+        วิทยาเขตปราจีนบุรี ได้รับอนุมัติตัวบุคคลให้เข้าร่วมนำเสนอผลงานวิจัย
+        <span class="chip" contenteditable="true" data-target="courseName">
+          <?= h_thai_digits($courseName ?: 'ในงานประชุมวิชาการระดับนานาชาติ The 5th Asia Conference on Information Engineering (ACIE 2025)') ?>
+        </span>
+        ในหัวข้อ “<span class="chip" contenteditable="true"
+          data-target="academicTopic"><?= h_thai_digits($academicTopic ?: 'API-Based Personal Healthcare Application: Securing Data and Ensuring Patient Privacy') ?></span>”
+        ซึ่งจัดขึ้นที่
+        <span class="chip" contenteditable="true" data-target="location">
+          <?= h_thai_digits($location ?: 'โรงแรม Beyond Kata จังหวัดภูเก็ต') ?>
+        </span>
+        ในระหว่างวันที่
+        <span class="chip" contenteditable="true" data-target="eventDate">
+          <?= h_thai_digits($eventDate ?: '10 – 12 มกราคม 2568') ?>
+        </span>
+        โดยเอกสารงานประชุมวิชาการจะถูกตีพิมพ์อยู่ในฐานข้อมูล Scopus นั้น
+      </div>
+
+
+      <!-- ย่อหน้า 2 -->
+      <div class="content-block paragraph">
+        การนี้ ข้าพเจ้า จึงมีความประสงค์ขออนุมัติเดินทางเพื่อไปนำเสนอผลงานวิจัย
+        ในงานประชุม
+        <span class="chip" contenteditable="true" data-target="academicLevel">
+          <?= h_thai_digits($academicLevel ?: 'วิชาการระดับนานาชาติ ACIE 2025') ?>
+        </span>
+        ในระหว่างวันที่
+        <span class="chip" contenteditable="true" data-target="duration">
+          <?= h_thai_digits($joinDates ?: '9 – 12 มกราคม 2568') ?>
+        </span>
+        (รวมเวลาเดินทาง) ตามวัน เวลา และสถานที่ดังกล่าว
+        โดยการนำเสนอผลงานวิจัยในครั้งนี้เป็นประโยชน์ต่อการพัฒนาการเรียนการสอนงานวิจัย
+        และสร้างชื่อเสียงให้กับมหาวิทยาลัย โดยขอใช้งบจัดสรรให้หน่วยงาน
+        ประจำปีงบประมาณ พ.ศ.
+        <span class="chip" contenteditable="true" data-target="fiscal_year_display">
+          <?= h_thai_digits($thaiYear ?: date('Y') + 543) ?>
+        </span>
+        ในส่วนของ<?= h_thai_digits($displayDepartmentFull) ?> แผนงานจัดการศึกษาระดับอุดมศึกษา
+        หมวดค่าใช้สอย (รายละเอียดตามเอกสารแนบ)
+      </div>
+
+
+      <!-- ย่อหน้า 3 -->
+      <div class="content-block paragraph">
+        จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ
+      </div>
+
+
+      <div class="signature-wrapper">
+        <div class="signature-block" id="signatureBlock">
+          <div class="sig-name">(ผู้ช่วยศาสตราจารย์ ดร.ขนิษฐา นามี)</div>
+          <div class="sig-position">หัวหน้า<?= h_thai_digits($displayDepartmentFull) ?></div>
+        </div>
+      </div>
+
+
+      <?php if (!$hasExpense): ?>
       <div class="footer-actions">
 
         <!-- ปุ่มดาวน์โหลด PDF -->
@@ -1307,37 +1265,331 @@ $len = max(20, $len);
         </button>
 
         <!-- ปุ่มดาวน์โหลด Word -->
-        <a href="/Pro_letter/documents/download_word_coop_evaluation.php?id=<?= (int)$docId ?>"
-          data-word-download="1"
-          data-word-filename="<?= h($wordDownloadName) ?>"
+        <a href="/Pro_letter/documents/download_word_academic_1.php?id=<?= (int)$docId ?>"
+          download="<?= h($wordDownloadName) ?>" data-word-download="1" data-word-filename="<?= h($wordDownloadName) ?>"
           onclick="return downloadWord(this);"
           class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           ดาวน์โหลด Word
         </a>
 
         <!-- USER: ปุ่มแก้ไขเอกสาร -->
-        <?php if ($canEdit || $roleId === 3 || $isAdmin || $isOfficer): ?>
-        <a href="/Pro_letter/documents/infor_coop_evaluation.php?id=<?= urlencode((string)$document['document_id']) ?>&edit=1"
+        <?php if ($canEdit): ?>
+        <a href="/Pro_letter/documents/infor_academic_presentation.php?id=<?= (int)$docId ?>&edit=1"
           class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           แก้ไขเอกสาร
         </a>
+        <?php else: ?>
+        <span class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block"
+          title="<?= h($editAlertText ?: 'ไม่สามารถแก้ไขเอกสารนี้ได้') ?>">
+          แก้ไขเอกสาร
+        </span>
         <?php endif; ?>
 
 
-
-
-
-        <!-- ปุ่มกลับหน้าหลัก (ทุก role มี) -->
+        <!-- ปุ่มกลับหน้าหลัก -->
         <a href="<?= $homePath ?>"
           class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md text-xl font-bold">
           กลับหน้าหลัก
         </a>
 
       </div>
-
+      <?php endif; ?>
     </form>
   </main>
-  <?php if ($readonly && !($isAdmin || $isOfficer)): ?>
+
+  <!-- section ค่าใช้จ่าย -->
+  <?php if ($hasExpense): ?>
+  <section class="page">
+    <div class="memo-title-row">
+      <img src="/Pro_letter/assets/img/garuda.jpg" class="garuda-img" />
+      <h1 class="doc-title">บันทึกข้อความ</h1>
+    </div>
+
+    <div class="doc-row gov-row">
+      <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
+      <div class="dot-line">
+        <span class="chip gov-text"><?= h_thai_digits($hdr_agency ?: 'คณะ... ภาควิชา... โทร...') ?></span>
+      </div>
+    </div>
+
+    <div class="doc-row row-ty-date">
+      <div class="doc-label" style="font-size:20pt;font-weight:bold;">ที่</div>
+      <div class="dot-line ty-left">
+        <span class="chip"><?= h_thai_digits($doc_no ?: '') ?></span>
+      </div>
+
+      <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
+      <div class="dot-line ty-right">
+        <span class="chip"><?= h_thai_digits($thaiDocDate ?: '') ?></span>
+      </div>
+    </div>
+
+    <?php
+      $expenseSubjectText = 'ขออนุมัติค่าใช้จ่ายในการเข้าร่วม' . $sectionSubject;
+      $expenseSubjectLines = splitSubjectLines($expenseSubjectText, 82);
+    ?>
+    <div class="doc-row" style="align-items:flex-start;">
+      <div class="doc-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
+      <div class="subject-wrap">
+        <?php foreach ($expenseSubjectLines as $line): ?>
+        <div class="subject-line"><span class="subject-text"><?= h_thai_digits($line) ?></span></div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+
+    <div class="content-block single">
+      เรียน <?= h_thai_digits($displayFacultyDean) ?>
+    </div>
+
+    <div class="content-block paragraph">
+      การนี้ ข้าพเจ้า
+      <span class="chip"><?= h_thai_digits($ownerName ?: 'ชื่อ-นามสกุล') ?></span>
+      <span class="chip"><?= h_thai_digits($position ?: '') ?></span>
+      สังกัดภาควิชา<span class="chip"><?= h_thai_digits($department ?: '...') ?></span>
+      <span class="chip"><?= h_thai_digits($faculty ?: '...') ?></span>
+      มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
+      จึงมีความประสงค์ขออนุมัติค่าใช้จ่ายในการเข้าร่วม
+      <span class="chip subject-inline"><?= h_thai_digits($memoSubject ?: $subject ?: 'ขออนุมัติ...') ?></span>
+      ระหว่างวันที่ <span class="chip"><?= h_thai_digits($joinDates ?: '') ?></span>
+      ณ <span class="chip"><?= h_thai_digits($location ?: '') ?></span>
+      วงเงินทั้งสิ้น <span class="chip"><?= h_thai_digits($displayAmountNumber) ?></span> บาท
+      (<span class="chip"><?= h_thai_digits($displayAmountThai) ?></span>)
+      โดยขอใช้แหล่งเงินจัดสรรให้หน่วยงาน ประจำปีงบประมาณ
+      <span class="chip"><?= h_thai_digits($thaiYear ? 'พ.ศ. ' . $thaiYear : 'พ.ศ. ....') ?></span>
+      ในส่วนของ<?= h_thai_digits($displayDepartmentFull) ?> แผนงานจัดการศึกษาระดับอุดมศึกษา
+      กองทุนพัฒนาบุคลากร หมวดค่าใช้สอย
+      <span class="keep">(รายละเอียดตามเอกสารแนบ)</span>
+    </div>
+
+    <div class="content-block paragraph">
+      จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ
+    </div>
+
+    <div class="signature-wrapper">
+      <div class="signature-block">
+        <div class="sig-name">(<?= h_thai_digits($ownerName ?: '') ?>)</div>
+        <div class="sig-position"><?= h_thai_digits($position ?: '') ?></div>
+      </div>
+    </div>
+  </section>
+  <?php endif; ?>
+
+  <!-- section รถยนต์ -->
+  <?php if ($hasCar): ?>
+  <section class="page">
+    <div class="memo-title-row">
+      <img src="/Pro_letter/assets/img/garuda.jpg" class="garuda-img" />
+      <h1 class="doc-title">บันทึกข้อความ</h1>
+    </div>
+
+    <div class="doc-row gov-row">
+      <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
+      <div class="dot-line">
+        <span class="chip gov-text"><?= h_thai_digits($hdr_agency ?: 'คณะ... ภาควิชา... โทร...') ?></span>
+      </div>
+    </div>
+
+    <div class="doc-row row-ty-date">
+      <div class="doc-label" style="font-size:20pt;font-weight:bold;">ที่</div>
+      <div class="dot-line ty-left">
+        <span class="chip"><?= h_thai_digits($doc_no ?: '') ?></span>
+      </div>
+
+      <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
+      <div class="dot-line ty-right">
+        <span class="chip"><?= h_thai_digits($thaiDocDate ?: '') ?></span>
+      </div>
+    </div>
+
+    <?php
+      $carSubjectText = 'ขออนุมัติใช้รถยนต์ส่วนบุคคลในการเดินทางไปเข้าร่วม' . $sectionSubject;
+      $carSubjectLines = splitSubjectLines($carSubjectText, 82);
+    ?>
+    <div class="doc-row" style="align-items:flex-start;">
+      <div class="doc-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
+      <div class="subject-wrap">
+        <?php foreach ($carSubjectLines as $line): ?>
+        <div class="subject-line"><span class="subject-text"><?= h_thai_digits($line) ?></span></div>
+        <?php endforeach; ?>
+      </div>
+    </div>
+
+    <div class="content-block single">
+      เรียน <?= h_thai_digits($displayFacultyDean) ?>
+    </div>
+
+    <div class="content-block paragraph">
+      ตามที่ ข้าพเจ้า
+      <span class="chip"><?= h_thai_digits($ownerName ?: 'ชื่อ-นามสกุล') ?></span>
+      <span class="chip"><?= h_thai_digits($position ?: '') ?></span>
+      สังกัดภาควิชา<span class="chip"><?= h_thai_digits($department ?: '...') ?></span>
+      <span class="chip"><?= h_thai_digits($faculty ?: '...') ?></span>
+      มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
+      จึงมีความประสงค์ที่จะขออนุมัติ
+      <span class="chip subject-inline"><?= h_thai_digits($memoSubject ?: $subject ?: 'ชื่อหลักสูตร') ?></span>
+      ระหว่างวันที่ <span class="chip"><?= h_thai_digits($joinDates ?: '') ?></span>
+      ณ <span class="chip"><?= h_thai_digits($location ?: '') ?></span> นั้น
+    </div>
+
+    <div class="content-block paragraph">
+      ในการนี้ ข้าพเจ้าจึงขออนุมัติใช้รถยนต์ส่วนบุคคล หมายเลขทะเบียน
+      <span class="chip"><?= h_thai_digits($vehicle ?: '...') ?></span>
+      ในการเดินทางไป <span
+        class="chip subject-inline"><?= h_thai_digits($memoSubject ?: $subject ?: 'ชื่อหลักสูตร') ?></span>
+      ตามวัน เวลา และสถานที่ดังกล่าว ทั้งนี้ โดยให้เป็นไปตามหลักเกณฑ์และวิธีการของมหาวิทยาลัย
+    </div>
+
+    <div class="content-block paragraph">
+      จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ
+    </div>
+
+    <div class="signature-wrapper">
+      <div class="signature-block">
+        <div class="sig-name">(<?= h_thai_digits($ownerName ?: '') ?>)</div>
+        <div class="sig-position"><?= h_thai_digits($position ?: '') ?></div>
+      </div>
+    </div>
+  </section>
+  <?php endif; ?>
+
+  <?php if ($hasExpense): ?>
+  <div class="page">
+    <div class="expense-title-section">
+      <h2 class="expense-main-title">
+        ประมาณการค่าใช้จ่าย<br>
+        การนำเสนอผลงานวิจัยในการประชุมวิชาการ
+      </h2>
+
+      <div class="expense-info-block text-[16pt] leading-[1.15]">
+        <div class="flex mb-1">
+          <div class="w-[180px]">ชื่อ–สกุล</div>
+          <div class="flex-1"><?= h_thai_digits($ownerName ?: '-') ?></div>
+        </div>
+
+        <div class="flex mb-1">
+          <div class="w-[180px]">มหาวิทยาลัยต้นสังกัด</div>
+          <div class="flex-1">
+            ภาควิชา<?= h_thai_digits($department ?: '-') ?> <?= h_thai_digits($faculty ?: '-') ?><br>
+            มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
+          </div>
+        </div>
+
+        <div class="flex mb-1">
+          <div class="w-[180px]">ชื่อการประชุมวิชาการ</div>
+          <div class="flex-1"><?= h_thai_digits($courseName ?: '-') ?></div>
+        </div>
+
+        <div class="flex mb-1">
+          <div class="w-[180px]">วันที่</div>
+          <div class="flex-1"><?= h_thai_digits($joinDates ?: '-') ?></div>
+        </div>
+
+        <div class="flex mb-1">
+          <div class="w-[180px]">สถานที่</div>
+          <div class="flex-1"><?= h_thai_digits($location ?: '-') ?></div>
+        </div>
+
+        <div class="flex mb-1">
+          <div class="w-[180px]">ชื่อผลงานวิจัย</div>
+          <div class="flex-1"><?= h_thai_digits($academicTopic ?: '-') ?></div>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="text-[16pt] font-bold mt-4 mb-3 text-left">
+      ตารางสรุปค่าใช้จ่ายในการไปนำเสนอผลงานวิจัย
+    </h2>
+
+    <table id="expenseTable" style="width:100%; border-collapse:collapse; font-family:'TH SarabunPSK';
+    font-size:16pt; line-height:1.15; table-layout:fixed;">
+      <tr style="height:28px;">
+        <th style="width:75px; border:0.6px solid #000; padding:3px 4px; text-align:center;">ลำดับที่</th>
+        <th style="width:65%; border:0.6px solid #000; padding:3px 6px; text-align:center;">รายการ</th>
+        <th style="width:120px; border:0.6px solid #000; padding:3px 4px; text-align:center;">จำนวนเงิน (บาท)</th>
+      </tr>
+
+      <?php foreach ($budgetItems as $index => $item): ?>
+      <tr>
+        <td style="border:0.6px solid #000; padding:3px 4px; text-align:center;">
+          <?= h_thai_digits($index + 1) ?>
+        </td>
+        <td style="border:0.6px solid #000; padding:3px 8px; text-align:left;">
+          <?= nl2br(h_thai_digits($item['description'] ?: $item['item_type'])) ?>
+        </td>
+        <td style="border:0.6px solid #000; padding:3px 4px; text-align:right;">
+          <?= h_thai_digits(number_format((float) $item['amount'], 2)) ?>
+        </td>
+      </tr>
+      <?php endforeach; ?>
+
+      <tr>
+        <th style="border:0.6px solid #000;"></th>
+        <th style="border:0.6px solid #000; padding:3px 6px; text-align:left;">รวมเป็นเงิน</th>
+        <th style="border:0.6px solid #000; padding:3px 4px; text-align:right;">
+          <?= h_thai_digits(number_format($budgetTotal, 2)) ?>
+        </th>
+      </tr>
+    </table>
+
+    <div class="footer-actions">
+
+      <!-- ปุ่มดาวน์โหลด PDF -->
+      <button type="button" onclick="downloadPdf()"
+        class="bg-red-700 hover:bg-red-800 text-white px-6 py-2 rounded-md text-xl font-bold">
+        ดาวน์โหลด PDF
+      </button>
+
+      <!-- ปุ่มดาวน์โหลด Word -->
+      <a href="/Pro_letter/documents/download_word_academic_1.php?id=<?= (int)$docId ?>"
+        download="<?= h($wordDownloadName) ?>" data-word-download="1" data-word-filename="<?= h($wordDownloadName) ?>"
+        onclick="return downloadWord(this);"
+        class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
+        ดาวน์โหลด Word
+      </a>
+
+      <!-- USER: ปุ่มแก้ไขเอกสาร -->
+      <?php if ($canEdit): ?>
+      <a href="/Pro_letter/documents/infor_academic_presentation.php?id=<?= (int)$docId ?>&edit=1"
+        class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
+        แก้ไขเอกสาร
+      </a>
+      <?php else: ?>
+      <span class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block"
+        title="<?= h($editAlertText ?: 'ไม่สามารถแก้ไขเอกสารนี้ได้') ?>">
+        แก้ไขเอกสาร
+      </span>
+      <?php endif; ?>
+
+      <!-- OFFICER & ADMIN -->
+      <?php if ($isAdmin || $isOfficer): ?>
+
+      <a href="/Pro_letter/documents/infor_academic_presentation.php?id=<?= (int)$docId ?>&edit=1"
+        class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
+        แก้ไขเอกสาร
+      </a>
+
+      <button type="button" onclick="updateStatus('approved')"
+        class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+        ผ่านการตรวจสอบ
+      </button>
+
+      <button type="button" onclick="updateStatus('rejected')"
+        class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+        ไม่ผ่านการตรวจสอบ
+      </button>
+
+      <?php endif; ?>
+
+      <!-- ปุ่มกลับหน้าหลัก -->
+      <a href="<?= $homePath ?>"
+        class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+        กลับหน้าหลัก
+      </a>
+
+    </div>
+  </div>
+  <?php endif; ?>
+  <?php if ($readonly): ?>
   <script>
   document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll("[contenteditable]").forEach(e => {
@@ -1364,129 +1616,11 @@ $len = max(20, $len);
     }, 3000); // ซ่อนหลัง 3 วินาที
   }
 
-  function parseThaiDate(str) {
-    const monthMap = {
-      "มกราคม": "01",
-      "กุมภาพันธ์": "02",
-      "มีนาคม": "03",
-      "เมษายน": "04",
-      "พฤษภาคม": "05",
-      "มิถุนายน": "06",
-      "กรกฎาคม": "07",
-      "สิงหาคม": "08",
-      "กันยายน": "09",
-      "ตุลาคม": "10",
-      "พฤศจิกายน": "11",
-      "ธันวาคม": "12"
-    };
-    const parts = str.trim().split(" ");
-    if (parts.length !== 3) return null;
-
-    const d = parts[0].replace(/\D/g, ""); // เลขวัน
-    const m = monthMap[parts[1]] || "01"; // เดือน
-    const y = parseInt(parts[2], 10) - 543; // ปี พ.ศ. → ค.ศ.
-
-    if (!d || !m || isNaN(y)) return null;
-    return `${y}-${m}-${d.padStart(2, "0")}`; // YYYY-MM-DD
-  }
-  document.getElementById("updateForm").addEventListener("submit", function() {
-    document.querySelectorAll("[contenteditable][data-target]").forEach(el => {
-      const target = el.dataset.target;
-      const hidden = document.getElementById("hidden_" + target);
-      if (hidden) {
-        let text = el.innerText.trim();
-
-        if (target === "doc_date_display") {
-          const isoDate = parseThaiDate(text);
-          if (isoDate) {
-            document.getElementById("hidden_doc_date").value = isoDate; // ✅ อัปเดตจริง
-          }
-        }
-
-        hidden.value = text;
-      }
-    });
-  });
-
-  function getQuery(name) {
-    const url = new URL(window.location.href);
-    return url.searchParams.get(name);
-  }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    const errType = getQuery("err");
-
-    if (errType === "no_permission") {
-      Swal.fire({
-        title: "ไม่มีสิทธิ์แก้ไขเอกสารนี้",
-        html: `
-        <div style="font-size: 1.15rem; line-height: 1.6;">
-          คุณไม่มีสิทธิ์ในการแก้ไขเอกสารนี้<br>
-          ต้องการกลับหน้าหลักหรืออยู่ต่อ?
-        </div>
-      `,
-        icon: "error",
-        showCancelButton: true,
-        confirmButtonText: "กลับหน้าหลัก",
-        cancelButtonText: "อยู่หน้านี้ต่อ",
-        confirmButtonColor: "#3085d6",
-        cancelButtonColor: "#aaa",
-      }).then((result) => {
-        if (result.isConfirmed) {
-          window.location.href = "<?= $homePath ?>";
-        }
-      });
-    }
-  });
-
-
-  document.addEventListener("DOMContentLoaded", () => {
-    if (getQuery("saved") === "1" && getQuery("from") === "update") {
-      Swal.fire({
-        title: "บันทึกสำเร็จ",
-        text: "คุณต้องการกลับไปที่หน้าหลักหรือไม่?",
-        icon: "success",
-        showCancelButton: true,
-        confirmButtonText: "กลับหน้าหลัก",
-        cancelButtonText: "อยู่หน้านี้ต่อ",
-        confirmButtonColor: "#3085d6",
-        cancelButtonColor: "#aaa",
-      }).then((result) => {
-        if (result.isConfirmed) {
-          window.location.href = "<?= $homePath ?>";
-
-        }
-      });
-    }
-  });
-
-  document.querySelectorAll('.editable[contenteditable], .chip[contenteditable]').forEach(el => {
-    el.addEventListener('keydown', e => {
-      if (e.key === 'Enter') e.preventDefault();
-    });
-    el.addEventListener('paste', e => {
-      e.preventDefault();
-      const text = (e.clipboardData || window.clipboardData).getData('text').replace(/\r?\n/g,
-        ' ');
-      document.execCommand('insertText', false, text);
-    });
-  });
-  (function() {
-    const box = document.getElementById('signatureBlock');
-    if (!box) return;
-    const nameEl = box.querySelector('.sig-name');
-    // กำหนดความกว้างกล่อง = ความกว้างบรรทัดชื่อ -> ตำแหน่งจะกึ่งกลางใต้ชื่อพอดี
-    box.style.width = nameEl.offsetWidth + 'px';
-  })();
-  </script>
-
-  <script>
   function downloadWord(link) {
     const loadingOverlay = document.getElementById("pdfLoadingOverlay");
     const loadingTitle = document.getElementById("downloadLoadingTitle");
     const loadingSubtitle = document.getElementById("downloadLoadingSubtitle");
     const wordLinks = document.querySelectorAll("a[data-word-download='1']");
-    const wordFileName = link.dataset.wordFilename || "เอกสาร.docx";
 
     if (loadingTitle) loadingTitle.innerText = "กำลังดาวน์โหลด Word...";
     if (loadingSubtitle) loadingSubtitle.innerText = "กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร";
@@ -1520,9 +1654,13 @@ $len = max(20, $len);
     const downloadUrl = new URL(link.href, window.location.href);
     downloadUrl.searchParams.set("_download_time", Date.now().toString());
 
+    const fileName = link.dataset.wordFilename ||
+      <?= json_encode($wordDownloadName, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+
     fetch(downloadUrl.toString(), {
-      credentials: "same-origin"
-    })
+        method: "GET",
+        credentials: "same-origin"
+      })
       .then(response => {
         if (!response.ok) {
           throw new Error("Word download failed");
@@ -1531,12 +1669,12 @@ $len = max(20, $len);
       })
       .then(blob => {
         const objectUrl = window.URL.createObjectURL(blob);
-        const tempLink = document.createElement("a");
-        tempLink.href = objectUrl;
-        tempLink.download = wordFileName;
-        document.body.appendChild(tempLink);
-        tempLink.click();
-        tempLink.remove();
+        const a = document.createElement("a");
+        a.href = objectUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
         window.URL.revokeObjectURL(objectUrl);
       })
       .catch(error => {
@@ -1588,30 +1726,169 @@ $len = max(20, $len);
 
       for (let i = 0; i < pages.length; i++) {
         const clone = pages[i].cloneNode(true);
-        clone.classList.add("pdf-page-clone");
+        clone.classList.add("print-mode");
 
         clone.style.position = "fixed";
         clone.style.left = "-9999px";
         clone.style.top = "0";
         clone.style.width = "794px";
         clone.style.minHeight = "1123px";
-        clone.style.height = "1123px";
         clone.style.boxSizing = "border-box";
         clone.style.background = "#ffffff";
-        clone.style.boxShadow = "none";
-        clone.style.margin = "0";
-        clone.style.overflow = "hidden";
 
-        clone.querySelectorAll(".footer-actions").forEach(el => el.remove());
+        const cloneActions = clone.querySelectorAll(".footer-actions");
+        cloneActions.forEach(el => el.remove());
 
-        clone.querySelectorAll("[contenteditable]").forEach(el => {
-          el.setAttribute("contenteditable", "false");
+        const cloneGaruda = clone.querySelector(".garuda-img");
+        if (cloneGaruda) {
+          cloneGaruda.style.transform = "translateY(-0.65cm)";
+        }
+
+        const cloneTitle = clone.querySelector(".doc-title");
+        if (cloneTitle) {
+          cloneTitle.style.top = "-0.85cm";
+        }
+
+        const cloneTitleRow = clone.querySelector(".memo-title-row");
+        if (cloneTitleRow) {
+          cloneTitleRow.style.height = "0.8cm";
+          cloneTitleRow.style.marginBottom = "0.1cm";
+        }
+
+        clone.querySelectorAll(".dot-line").forEach(line => {
+          line.style.position = "relative";
+          line.style.overflow = "visible";
+          line.style.backgroundImage = "none";
+
+          const dot = document.createElement("div");
+          dot.className = "pdf-real-dot-line";
+          dot.style.position = "absolute";
+          dot.style.left = "0";
+          dot.style.right = "0";
+          dot.style.bottom = "-12px";
+          dot.style.height = "0";
+          dot.style.zIndex = "1";
+          dot.style.pointerEvents = "none";
+          dot.style.borderTop = "2px dotted #000";
+
+          line.prepend(dot);
         });
 
-        const garuda = clone.querySelector('img[src*="g_photo1"], img[src*="garuda"]');
-        if (garuda) {
-          garuda.style.opacity = "0.58";
-          garuda.style.filter = "grayscale(100%) contrast(35%) brightness(165%)";
+        clone.querySelectorAll(".dot-line .chip").forEach(chip => {
+          chip.style.position = "relative";
+          chip.style.zIndex = "3";
+          chip.style.display = "inline";
+          chip.style.background = "transparent";
+          chip.style.paddingLeft = "0";
+          chip.style.paddingRight = "0";
+        });
+        // แก้ไขตำแหน่งเส้นประในส่วน "เรื่อง" (ค้นหาบรรทัดประมาณที่ 835)
+        clone.querySelectorAll(".subject-line").forEach((line, index) => {
+          line.querySelectorAll(".pdf-subject-dot-line").forEach(el => el.remove());
+
+          line.style.position = "relative";
+          line.style.height = "auto";
+          line.style.minHeight = "20px"; // เพิ่มความสูงขั้นต่ำเพื่อให้มีพื้นที่ดึงเส้นลงมา
+          line.style.lineHeight = "1.2"; // ปรับระยะบรรทัดให้โปร่งขึ้นเล็กน้อย
+          line.style.paddingLeft = "4px";
+          line.style.paddingTop = "0";
+
+          // --- จุดสำคัญ: ปรับค่า padding-bottom เพื่อดึงเส้นประลงมา ---
+          // ยิ่งเลขเยอะ เส้นประจะยิ่งอยู่ต่ำลง (ลองปรับจาก 10px เป็น 12px หรือ 14px ตามความพอใจ)
+          line.style.paddingBottom = "16px";
+
+          line.style.margin = "0";
+
+          // ปรับเฉพาะ PDF: ถ้าเป็นเส้นเรื่องบรรทัดที่ 2 ขึ้นไป ให้ขยับขึ้น
+          if (index > 0) {
+            line.style.marginTop = "-10px";
+          }
+
+          line.style.borderBottom = "2px dotted #000";
+          line.style.overflow = "visible";
+          line.style.fontSize = "16pt";
+          line.style.fontFamily = "TH SarabunPSK";
+          line.style.backgroundImage = "none";
+
+          line.querySelectorAll(".subject-text").forEach(text => {
+            text.style.display = "inline-block";
+            text.style.position = "relative";
+
+            // --- จุดสำคัญ: ปรับค่า top เพื่อให้ตัวอักษรขยับลงมาวางบนเส้นพอดี ---
+            // ถ้าตัวอักษรลอยจากเส้นประมากไป ให้เพิ่มเลขนี้ (เช่น 8px, 9px)
+            // ถ้าตัวอักษรจมเส้นประ ให้ลดเลขนี้ลง (เช่น 6px, 5px)
+            text.style.top = "4px";
+
+            text.style.zIndex = "3";
+            text.style.background = "transparent";
+          });
+        });
+        const expenseTable = clone.querySelector("#expenseTable");
+
+        if (expenseTable) {
+          expenseTable.style.borderCollapse = "separate";
+          expenseTable.style.borderSpacing = "0";
+          expenseTable.style.width = "100%";
+          expenseTable.style.tableLayout = "fixed";
+          expenseTable.style.background = "#ffffff";
+
+          expenseTable.style.setProperty("border", "none", "important");
+          expenseTable.style.setProperty("border-top", "0.5px solid #414141", "important");
+          expenseTable.style.setProperty("border-left", "0.5px solid #414141", "important");
+
+          expenseTable.querySelectorAll("th").forEach(th => {
+            th.style.setProperty("border", "none", "important");
+            th.style.setProperty("border-bottom", "0.5px solid #414141", "important");
+            th.style.setProperty("border-right", "0.5px solid #414141", "important");
+            th.style.setProperty("background", "#ffffff", "important");
+            th.style.setProperty("color", "#000", "important");
+            th.style.setProperty("font-weight", "bold", "important");
+            th.style.setProperty("vertical-align", "middle", "important");
+            th.style.setProperty("text-align", "center", "important");
+            th.style.setProperty("line-height", "1.0", "important");
+            th.style.setProperty("padding-top", "2px", "important");
+            th.style.setProperty("padding-bottom", "12px", "important");
+            th.style.setProperty("padding-left", "4px", "important");
+            th.style.setProperty("padding-right", "4px", "important");
+          });
+
+          expenseTable.querySelectorAll("td").forEach(td => {
+            td.style.setProperty("border", "none", "important");
+            td.style.setProperty("border-bottom", "0.5px solid #414141", "important");
+            td.style.setProperty("border-right", "0.5px solid #414141", "important");
+            td.style.setProperty("background", "#ffffff", "important");
+            td.style.setProperty("color", "#000", "important");
+            td.style.setProperty("vertical-align", "middle", "important");
+            td.style.setProperty("line-height", "1.0", "important");
+            td.style.setProperty("padding-top", "2px", "important");
+            td.style.setProperty("padding-bottom", "12px", "important");
+            td.style.setProperty("padding-left", "8px", "important");
+            td.style.setProperty("padding-right", "8px", "important");
+          });
+
+          const totalRow = expenseTable.querySelector("tr:last-child");
+          if (totalRow) {
+            totalRow.querySelectorAll("th, td").forEach(cell => {
+              cell.style.setProperty("border", "none", "important");
+              cell.style.setProperty("border-bottom", "0.5px solid #414141", "important");
+              cell.style.setProperty("border-right", "0.5px solid #414141", "important");
+              cell.style.setProperty("background", "#ffffff", "important");
+              cell.style.setProperty("color", "#000", "important");
+              cell.style.setProperty("font-weight", "bold", "important");
+              cell.style.setProperty("vertical-align", "middle", "important");
+              cell.style.setProperty("line-height", "1.0", "important");
+              cell.style.setProperty("padding-top", "2px", "important");
+              cell.style.setProperty("padding-bottom", "12px", "important");
+            });
+
+            const totalCells = totalRow.querySelectorAll("th, td");
+            if (totalCells.length >= 3) {
+              totalCells[1].style.setProperty("text-align", "left", "important");
+              totalCells[1].style.setProperty("padding-left", "14px", "important");
+              totalCells[2].style.setProperty("text-align", "right", "important");
+              totalCells[2].style.setProperty("padding-right", "14px", "important");
+            }
+          }
         }
 
         document.body.appendChild(clone);
@@ -1669,7 +1946,144 @@ $len = max(20, $len);
       });
     }
   }
+
+  function parseThaiDate(str) {
+    const monthMap = {
+      "มกราคม": "01",
+      "กุมภาพันธ์": "02",
+      "มีนาคม": "03",
+      "เมษายน": "04",
+      "พฤษภาคม": "05",
+      "มิถุนายน": "06",
+      "กรกฎาคม": "07",
+      "สิงหาคม": "08",
+      "กันยายน": "09",
+      "ตุลาคม": "10",
+      "พฤศจิกายน": "11",
+      "ธันวาคม": "12"
+    };
+    const parts = str.trim().split(" ");
+    if (parts.length !== 3) return null;
+
+    const d = parts[0].replace(/\D/g, ""); // เลขวัน
+    const m = monthMap[parts[1]] || "01"; // เดือน
+    const y = parseInt(parts[2], 10) - 543; // ปี พ.ศ. → ค.ศ.
+
+    if (!d || !m || isNaN(y)) return null;
+    return `${y}-${m}-${d.padStart(2, "0")}`; // YYYY-MM-DD
+  }
+  document.getElementById("updateForm").addEventListener("submit", function() {
+    document.querySelectorAll("[contenteditable][data-target]").forEach(el => {
+      const target = el.dataset.target;
+      const hidden = document.getElementById("hidden_" + target);
+      if (hidden) {
+        let text = el.innerText.trim();
+
+        if (target === "doc_date_display") {
+          const isoDate = parseThaiDate(text);
+          if (isoDate) {
+            document.getElementById("hidden_doc_date").value = isoDate; // ✅ อัปเดตจริง
+          }
+        }
+
+        hidden.value = text;
+      }
+    });
+  });
+
+  function getQuery(name) {
+    const url = new URL(window.location.href);
+    return url.searchParams.get(name);
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const errType = getQuery("err");
+
+    if (["no_permission", "submitted", "checked", "locked_status"].includes(errType)) {
+      const alertMap = {
+        no_permission: {
+          title: "จำกัดสิทธิ์การแก้ไข",
+          html: `<div style="font-size: 1.15rem; line-height: 1.6;">คุณไม่มีสิทธิ์ในการแก้ไขเอกสารนี้<br>ต้องการกลับหน้าหลักหรืออยู่ต่อ?</div>`,
+          icon: "error"
+        },
+        submitted: {
+          title: "เอกสารถูกส่งแล้ว",
+          html: `<div style="font-size: 1.15rem; line-height: 1.6;">เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้<br>ต้องการกลับหน้าหลักหรืออยู่ต่อ?</div>`,
+          icon: "info"
+        },
+        checked: {
+          title: "เอกสารผ่านการตรวจสอบแล้ว",
+          html: `<div style="font-size: 1.15rem; line-height: 1.6;">เอกสารนี้ได้รับการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้<br>ต้องการกลับหน้าหลักหรืออยู่ต่อ?</div>`,
+          icon: "info"
+        },
+        locked_status: {
+          title: "ไม่สามารถแก้ไขเอกสารได้",
+          html: `<div style="font-size: 1.15rem; line-height: 1.6;">สถานะเอกสารปัจจุบันไม่อนุญาตให้แก้ไข<br>ต้องการกลับหน้าหลักหรืออยู่ต่อ?</div>`,
+          icon: "info"
+        }
+      };
+
+      const alertInfo = alertMap[errType] || alertMap.locked_status;
+
+      Swal.fire({
+        title: alertInfo.title,
+        html: alertInfo.html,
+        icon: alertInfo.icon,
+        showCancelButton: true,
+        confirmButtonText: "กลับหน้าหลัก",
+        cancelButtonText: "อยู่หน้านี้ต่อ",
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#aaa",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          window.location.href = "<?= $homePath ?>";
+        }
+      });
+    }
+  });
+
+
+  document.addEventListener("DOMContentLoaded", () => {
+    if (getQuery("saved") === "1" && getQuery("from") === "update") {
+      Swal.fire({
+        title: "บันทึกสำเร็จ",
+        text: "คุณต้องการกลับไปที่หน้าหลักหรือไม่?",
+        icon: "success",
+        showCancelButton: true,
+        confirmButtonText: "กลับหน้าหลัก",
+        cancelButtonText: "อยู่หน้านี้ต่อ",
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#aaa",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          window.location.href = "<?= $homePath ?>";
+
+        }
+      });
+    }
+  });
+
+  document.querySelectorAll('.editable[contenteditable], .chip[contenteditable]').forEach(el => {
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter') e.preventDefault();
+    });
+    el.addEventListener('paste', e => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData)
+        .getData('text')
+        .replace(/\r?\n/g, ' ');
+      document.execCommand('insertText', false, text);
+    });
+  });
+  (function() {
+    const box = document.getElementById('signatureBlock');
+    if (!box) return;
+    const nameEl = box.querySelector('.sig-name');
+    // กำหนดความกว้างกล่อง = ความกว้างบรรทัดชื่อ -> ตำแหน่งจะกึ่งกลางใต้ชื่อพอดี
+    box.style.width = nameEl.offsetWidth + 'px';
+  })();
   </script>
 </body>
+
 
 </html>
