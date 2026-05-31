@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt = $pdo->prepare("UPDATE departments SET faculty_id=?, department_name=? WHERE department_id=?");
     $stmt->execute([$faculty_id, $department_name, $id]);
 
-    header("Location: department_Managerment.php");
+    header("Location: department_Managerment.php?success=edit");
     exit;
 }
 ?>

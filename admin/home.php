@@ -973,6 +973,40 @@ main {
     }).then(result => {
       if (!result.isConfirmed) return;
 
+      Swal.fire({
+        html: `
+          <style>
+            @keyframes reviewSpin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          </style>
+          <div style="padding: 10px 6px 4px; text-align: center;">
+            <div style="
+              width: 58px;
+              height: 58px;
+              border-radius: 50%;
+              border: 7px solid #d9f3ef;
+              border-top-color: #14b8a6;
+              margin: 0 auto 18px;
+              animation: reviewSpin 0.8s linear infinite;
+            "></div>
+            <div style="font-size: 24px; font-weight: 700; color: #0f766e; margin-bottom: 6px;">
+              กำลังบันทึกผลการตรวจสอบ...
+            </div>
+            <div style="font-size: 15px; color: #64748b;">
+              กรุณารอสักครู่ ระบบกำลังบันทึกข้อมูลและส่งอีเมลแจ้งผู้ใช้
+            </div>
+          </div>
+        `,
+        width: 360,
+        padding: "24px 20px 26px",
+        background: "#ffffff",
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false
+      });
+
       fetch("../documents/update_status.php", {
           method: "POST",
           headers: {
@@ -1008,6 +1042,40 @@ main {
       cancelButtonText: "ยกเลิก"
     }).then(result => {
       if (!result.isConfirmed) return;
+
+      Swal.fire({
+        html: `
+          <style>
+            @keyframes reviewSpin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          </style>
+          <div style="padding: 10px 6px 4px; text-align: center;">
+            <div style="
+              width: 58px;
+              height: 58px;
+              border-radius: 50%;
+              border: 7px solid #d9f3ef;
+              border-top-color: #14b8a6;
+              margin: 0 auto 18px;
+              animation: reviewSpin 0.8s linear infinite;
+            "></div>
+            <div style="font-size: 24px; font-weight: 700; color: #0f766e; margin-bottom: 6px;">
+              กำลังบันทึกผลการตรวจสอบ...
+            </div>
+            <div style="font-size: 15px; color: #64748b;">
+              กรุณารอสักครู่ ระบบกำลังบันทึกข้อมูลและส่งอีเมลแจ้งผู้ใช้
+            </div>
+          </div>
+        `,
+        width: 360,
+        padding: "24px 20px 26px",
+        background: "#ffffff",
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false
+      });
 
       fetch("../documents/update_status.php", {
           method: "POST",

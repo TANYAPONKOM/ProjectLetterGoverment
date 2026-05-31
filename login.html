@@ -45,8 +45,6 @@
     </nav>
   </div>
 
-
-
   <!-- Login Form -->
   <div class="flex justify-center mt-8">
     <div class="w-full max-w-md bg-white border border-gray-200 shadow-lg p-6 rounded-xl">
@@ -58,6 +56,7 @@
 
       <!-- Form -->
       <div id="login-alert" class="hidden bg-red-100 text-red-700 px-4 py-2 rounded mt-4 mb-2"></div>
+
       <form action="callfunction.php" method="POST" class="bg-white px-4 pt-6 pb-4 rounded-b-xl space-y-4">
         <div>
           <label class="block text-sm text-teal-500 mb-1">Username</label>
@@ -65,6 +64,7 @@
             class="w-full px-4 py-2 border-2 border-teal-400 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500">
           <small id="error-user" class="text-red-500 text-xs mt-1 hidden"></small>
         </div>
+
         <div>
           <label class="block text-sm text-teal-500 mb-1">Password</label>
           <input type="password" name="password" placeholder="Password" required
@@ -89,49 +89,68 @@
 
     <!-- dialog -->
     <div class="absolute inset-0 flex items-center justify-center p-4">
-      <div class="bg-white rounded-xl shadow-xl w-full max-w-md">
-        <div class="flex flex-col items-center text-center p-6">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div class="flex flex-col items-center text-center px-8 py-8">
+
           <!-- วงกลม ! -->
-          <div class="w-16 h-16 rounded-full border-2 border-amber-300 flex items-center justify-center mb-4">
-            <span class="text-3xl text-amber-400">!</span>
+          <div class="w-20 h-20 rounded-full border-4 border-red-100 bg-red-50 flex items-center justify-center mb-5">
+            <span class="text-4xl text-red-500 font-bold">!</span>
           </div>
-          <div id="failText" class="text-gray-700 text-lg font-semibold leading-snug">
-            รหัสผ่านหรือชื่อผู้ใช้ไม่ถูกต้อง
+
+          <!-- หัวข้อ -->
+          <div id="failTitle" class="text-gray-800 text-2xl font-bold leading-snug">
+            เข้าสู่ระบบไม่สำเร็จ
           </div>
+
+          <!-- ข้อความแจ้งเตือน -->
+          <div id="failText" class="text-gray-500 text-base leading-relaxed mt-3">
+            กรุณาตรวจสอบชื่อผู้ใช้และรหัสผ่านอีกครั้ง
+          </div>
+
+          <!-- ปุ่มปิด -->
           <button id="failClose"
-            class="mt-6 px-6 py-2 bg-teal-500 text-white rounded-md hover:bg-teal-600 focus:outline-none">
-            ปิด
+            class="mt-7 px-8 py-2.5 bg-teal-500 text-white rounded-xl shadow hover:bg-teal-600 focus:outline-none font-semibold">
+            ตกลง
           </button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ✅ Script ตรวจสอบ error -->
+  <!-- Script ตรวจสอบ error -->
   <script>
     const params = new URLSearchParams(window.location.search);
     const error = params.get("error");
 
     if (error) {
       const modal = document.getElementById("failModal");
+      const failTitle = document.getElementById("failTitle");
       const failText = document.getElementById("failText");
 
       switch (error) {
         case "user":
-          failText.textContent = "ไม่พบบัญชีผู้ใช้นี้";
+          failTitle.textContent = "ไม่พบชื่อผู้ใช้นี้";
+          failText.textContent = "กรุณาตรวจสอบ Username ที่กรอกอีกครั้ง";
           break;
+
         case "pass":
-          failText.textContent = "รหัสผ่านไม่ถูกต้อง";
+          failTitle.textContent = "รหัสผ่านไม่ถูกต้อง";
+          failText.textContent = "กรุณาตรวจสอบ Password ที่กรอกอีกครั้ง";
           break;
+
         case "inactive":
-          failText.textContent =
-            "บัญชีนี้ถูกปิดการใช้งาน โปรดติดต่อผู้ดูแลระบบ";
+          failTitle.textContent = "บัญชีถูกปิดการใช้งาน";
+          failText.textContent = "บัญชีนี้ถูกปิดการใช้งาน กรุณาติดต่อผู้ดูแลระบบ";
           break;
+
         case "db":
-          failText.textContent = "ไม่สามารถเชื่อมต่อฐานข้อมูลได้";
+          failTitle.textContent = "เชื่อมต่อฐานข้อมูลไม่ได้";
+          failText.textContent = "ไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณาลองใหม่ภายหลัง";
           break;
+
         default:
-          failText.textContent = "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง";
+          failTitle.textContent = "เข้าสู่ระบบไม่สำเร็จ";
+          failText.textContent = "กรุณาตรวจสอบชื่อผู้ใช้และรหัสผ่านอีกครั้ง";
       }
 
       modal.classList.remove("hidden");
@@ -139,7 +158,6 @@
 
     document.getElementById("failClose").addEventListener("click", () => {
       document.getElementById("failModal").classList.add("hidden");
-      // ลบ query string ออก
       window.history.replaceState({}, document.title, "login.html");
     });
   </script>

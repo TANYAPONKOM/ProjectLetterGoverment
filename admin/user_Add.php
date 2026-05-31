@@ -270,6 +270,18 @@ $defaultFacultyId = $faculties[0]['faculty_id'] ?? '';
   facultySelect.addEventListener('change', filterDepartmentsByFaculty);
   filterDepartmentsByFaculty();
   </script>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const userForm = document.querySelector('form[action="user_process.php"]');
+    if (userForm) {
+      userForm.addEventListener("submit", function () {
+        sessionStorage.setItem("user_success_popup", "add");
+      });
+    }
+  });
+  </script>
+
 </body>
 
 </html>

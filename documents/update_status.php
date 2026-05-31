@@ -163,15 +163,40 @@ try {
     </div>
     ';
 
-    $mailSent = true;
-    if (!empty($ownerEmail)) {
-        $mailSent = sendSystemMail($ownerEmail, $emailSubject, $emailBody);
+    // ส่งผลลัพธ์กลับหน้าเว็บทันที เพื่อให้ popup สำเร็จขึ้นเร็วขึ้น
+    // จากนั้นค่อยส่งอีเมลต่อด้านหลัง โดยไม่ให้ผู้ใช้ต้องรอการส่งอีเมล
+    $response = json_encode([
+        'success' => true,
+        'mail_sent' => !empty($ownerEmail) ? 'processing' : false
+    ], JSON_UNESCAPED_UNICODE);
+
+    session_write_close();
+    ignore_user_abort(true);
+
+    if (!headers_sent()) {
+        header('Content-Length: ' . strlen($response));
+        header('Connection: close');
     }
 
-    echo json_encode([
-        'success' => true,
-        'mail_sent' => $mailSent
-    ]);
+    echo $response;
+
+    while (ob_get_level() > 0) {
+        @ob_end_flush();
+    }
+
+    @flush();
+
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+    }
+
+    if (!empty($ownerEmail)) {
+        $mailSent = sendSystemMail($ownerEmail, $emailSubject, $emailBody);
+        if (!$mailSent) {
+            error_log('Update Status Mail Error: cannot send mail to ' . $ownerEmail);
+        }
+    }
+
     exit;
 
 } catch (Exception $e) {

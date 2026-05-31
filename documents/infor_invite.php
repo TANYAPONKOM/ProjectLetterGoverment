@@ -658,13 +658,37 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
 
         <!-- เมนู Dropdown -->
         <div id="profileMenu" class="hidden absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-lg z-50">
-          <a href="../logout.php" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">ออกจากระบบ</a>
+          <a href="/Pro_letter/logout.php" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">ออกจากระบบ</a>
           <button onclick="closeMenu()"
             class="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">อยู่ต่อ</button>
         </div>
       </div>
     </div>
   </header>
+
+  <script>
+  const profileBtn = document.getElementById("profileBtn");
+  const profileMenu = document.getElementById("profileMenu");
+
+  if (profileBtn && profileMenu) {
+    profileBtn.addEventListener("click", function (event) {
+      event.stopPropagation();
+      profileMenu.classList.toggle("hidden");
+    });
+
+    document.addEventListener("click", function (event) {
+      if (!profileBtn.contains(event.target) && !profileMenu.contains(event.target)) {
+        profileMenu.classList.add("hidden");
+      }
+    });
+  }
+
+  function closeMenu() {
+    if (profileMenu) {
+      profileMenu.classList.add("hidden");
+    }
+  }
+  </script>
 
   <form method="post" action="<?= h($formAction) ?>" id="memoForm">
     <input type="hidden" name="department_id" id="selectedDepartmentId" value="<?= (int)$currentUserDepartmentId ?>">

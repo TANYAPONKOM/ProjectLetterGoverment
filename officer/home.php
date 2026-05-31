@@ -987,6 +987,52 @@ if (!isset($_SESSION['user_id'])) {
       });
   }
 
+
+  function showReviewLoadingPopup() {
+    Swal.fire({
+      html: `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 8px 10px;">
+          <div style="
+            width:58px;
+            height:58px;
+            border:7px solid #d8f3ef;
+            border-top:7px solid #14b8a6;
+            border-radius:50%;
+            animation: reviewSpin 0.8s linear infinite;
+            margin-bottom:18px;
+          "></div>
+          <div style="font-size:24px;font-weight:700;color:#0f766e;margin-bottom:8px;">
+            กำลังบันทึกผลการตรวจสอบ...
+          </div>
+          <div style="font-size:14px;color:#64748b;">
+            กรุณารอสักครู่ ระบบกำลังบันทึกข้อมูล
+          </div>
+        </div>
+      `,
+      width: 320,
+      padding: "18px",
+      showConfirmButton: false,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      customClass: {
+        popup: "rounded-2xl"
+      },
+      didOpen: () => {
+        if (!document.getElementById("review-loading-spin-style")) {
+          const style = document.createElement("style");
+          style.id = "review-loading-spin-style";
+          style.innerHTML = `
+            @keyframes reviewSpin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `;
+          document.head.appendChild(style);
+        }
+      }
+    });
+  }
+
   function approveDocument(id) {
     Swal.fire({
       title: "ยืนยันการตรวจสอบเอกสาร?",
@@ -997,6 +1043,8 @@ if (!isset($_SESSION['user_id'])) {
       cancelButtonText: "ยกเลิก"
     }).then(result => {
       if (!result.isConfirmed) return;
+
+      showReviewLoadingPopup();
 
       fetch("../documents/update_status.php", {
           method: "POST",
@@ -1033,6 +1081,8 @@ if (!isset($_SESSION['user_id'])) {
       cancelButtonText: "ยกเลิก"
     }).then(result => {
       if (!result.isConfirmed) return;
+
+      showReviewLoadingPopup();
 
       fetch("../documents/update_status.php", {
           method: "POST",

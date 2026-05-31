@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_department'])) {
     if ($faculty_id && $department_name) {
         $stmt = $pdo->prepare("INSERT INTO departments (faculty_id, department_name) VALUES (?, ?)");
         $stmt->execute([$faculty_id, $department_name]);
-        header("Location: department_Managerment.php");
+        header("Location: department_Managerment.php?success=add");
         exit;
     }
 }
