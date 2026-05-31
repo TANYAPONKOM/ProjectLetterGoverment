@@ -62,6 +62,8 @@ $historySql = "
         WHEN al.action = 'SUBMITTED' THEN 'ส่งคำขอเอกสาร'
         WHEN al.action = 'CREATED' THEN 'สร้างเอกสาร'
         WHEN al.action = 'UPDATED' THEN 'แก้ไขเอกสาร'
+        WHEN al.action = 'REVIEW_PASSED' THEN 'ผ่านการตรวจสอบ'
+        WHEN al.action = 'REVIEW_FAILED' THEN 'ไม่ผ่านการตรวจสอบ'
         WHEN al.action = 'APPROVED' THEN 'อนุมัติเอกสาร'
         WHEN al.action = 'REJECTED' THEN 'ตีกลับเอกสาร'
         ELSE al.action
@@ -70,9 +72,20 @@ $historySql = "
       d.document_id,
       d.doc_no,
       d.subject,
-      d.status,
+      CASE
+        WHEN al.action IN ('REVIEW_PASSED', 'APPROVED') THEN 'approved'
+        WHEN al.action IN ('REVIEW_FAILED', 'REJECTED') THEN 'rejected'
+        WHEN al.action IN ('SUBMITTED') THEN 'submitted'
+        WHEN al.action IN ('CREATED') THEN 'draft'
+        WHEN al.action = 'UPDATED' THEN
+          CASE
+            WHEN COALESCE(actor.role_id, 0) IN (1, 2) THEN 'submitted'
+            ELSE 'draft'
+          END
+        ELSE d.status
+      END AS status,
       t.template_name,
-      actor.fullname AS actor_name,
+      COALESCE(actor.fullname, owner.fullname, 'ไม่ระบุผู้ดำเนินการ') AS actor_name,
       owner.fullname AS owner_name
     FROM audit_logs al
     LEFT JOIN documents d ON al.document_id = d.document_id
@@ -91,7 +104,7 @@ $historySql = "
       d.document_id,
       d.doc_no,
       d.subject,
-      d.status,
+      'draft' AS status,
       t.template_name,
       owner.fullname AS actor_name,
       owner.fullname AS owner_name
@@ -110,15 +123,20 @@ $historySql = "
       d.document_id,
       d.doc_no,
       d.subject,
-      d.status,
+      'draft' AS status,
       t.template_name,
-      editor.fullname AS actor_name,
+      COALESCE(owner.fullname, 'ไม่ระบุผู้ดำเนินการ') AS actor_name,
       owner.fullname AS owner_name
     FROM documents d
-    LEFT JOIN users editor ON d.approved_by = editor.user_id
     LEFT JOIN users owner ON d.owner_id = owner.user_id
     LEFT JOIN templates t ON d.template_id = t.template_id
     WHERE d.updated_at IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1
+        FROM audit_logs al2
+        WHERE al2.document_id = d.document_id
+          AND al2.action = 'UPDATED'
+      )
   ) h
   $whereSql
   ORDER BY h.history_at DESC
@@ -196,7 +214,81 @@ function statusBadge($status)
 </head>
 
 <body class="bg-gray-100">
-  <?php require_once $_SERVER['DOCUMENT_ROOT'] . '/Pro_letter/includes/role_header.php'; ?>
+  <!-- Header -->
+  <header class="bg-teal-500 text-white p-4 flex justify-between items-center shadow-md">
+    <div class="flex items-center space-x-3">
+      <div class="w-[56px] h-[56px] flex items-center justify-center relative">
+        <svg xmlns="http://www.w3.org/2000/svg" class="absolute scale-[1.4] text-white"
+          style="width: 60px; height: 60px" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m0 0a2 2 0 00-2-2H5a2 2 0 00-2 2m18 0v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8" />
+        </svg>
+      </div>
+      <div class="leading-tight">
+        <div class="text-[16px] font-bold">Smart</div>
+        <div class="text-[16px] font-bold -mt-[2px]">Government</div>
+        <div class="text-[13px] mt-[0px]">Letter Assistant System</div>
+      </div>
+    </div>
+
+    <div class="flex items-center space-x-4">
+
+      <a href="/Pro_letter/officer/home.php">
+        <div
+          class="px-4 py-2 rounded-[11px] font-bold transition 
+        <?= $current === 'home.php' ? 'bg-white text-teal-500 shadow' : 'text-white hover:bg-white hover:text-teal-500' ?>">
+          หน้าหลัก
+        </div>
+      </a>
+
+      <a href="/Pro_letter/officer/history_page.php">
+        <div class="px-4 py-2 rounded-[11px] font-bold transition bg-white text-teal-500 shadow
+        <?= $current === 'history_page.php' ?>">
+          ประวัติการใช้งานเอกสาร
+        </div>
+      </a>
+
+      <?php 
+      if (isset($_SESSION['permissions']) && in_array(3, $_SESSION['permissions'])): 
+        renderAdminExtraMenus(); 
+      endif; 
+    ?>
+
+
+      <div class="relative">
+        <button id="profileBtn"
+          class="bg-white text-teal-500 px-4 py-2 rounded-[11px] shadow flex items-center space-x-2 hover:bg-gray-100">
+          <div class="text-right leading-tight">
+            <div class="font-bold text-[14px]"><?= htmlspecialchars($_SESSION['fullname']) ?></div>
+            <div class="text-[12px]"><?= htmlspecialchars($_SESSION['role_name']) ?></div>
+          </div>
+          <div class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M5.121 17.804A13.937 13.937 0 0112 15c2.33 0 4.487.577 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
+        </button>
+        <!-- เมนู Dropdown -->
+        <div id="profileMenu" class="hidden absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-lg z-50">
+          <a href="../logout.php" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">ออกจากระบบ</a>
+          <button onclick="closeMenu()" class="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">
+            อยู่ต่อ
+          </button>
+        </div>
+      </div>
+
+
+      <div id="profileMenu" class="hidden absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-lg z-50">
+        <a href="/Pro_letter/logout.php" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">ออกจากระบบ</a>
+        <button onclick="closeMenu()"
+          class="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">อยู่ต่อ</button>
+      </div>
+    </div>
+
+    </div>
+  </header>
 
 
   <!-- Main -->
@@ -361,11 +453,44 @@ function statusBadge($status)
   </main>
 
   <script>
+  const profileBtn = document.getElementById("profileBtn");
+  const profileMenu = document.getElementById("profileMenu");
+  if (profileBtn && profileMenu) {
+    profileBtn.addEventListener("click", () => {
+      profileMenu.classList.toggle("hidden");
+    });
+
+    function closeMenu() {
+      profileMenu.classList.add("hidden");
+    }
+    window.addEventListener("click", (e) => {
+      if (!profileBtn.contains(e.target) && !profileMenu.contains(e.target)) {
+        profileMenu.classList.add("hidden");
+      }
+    });
+  }
+
   function deleteLog(id) {
     if (confirm("คุณแน่ใจหรือไม่ว่าต้องการลบประวัติ?")) {
       window.location.href = "delete_log.php?id=" + id;
     }
   }
+  </script>
+
+  <script>
+  const templateBtn = document.getElementById("templateBtn");
+  const templateMenu = document.getElementById("templateMenu");
+
+  templateBtn.addEventListener("click", () => {
+    templateMenu.classList.toggle("hidden");
+  });
+
+  // ปิด dropdown ถ้าคลิกนอกเมนู
+  document.addEventListener("click", (e) => {
+    if (!templateBtn.contains(e.target) && !templateMenu.contains(e.target)) {
+      templateMenu.classList.add("hidden");
+    }
+  });
   </script>
 </body>
 

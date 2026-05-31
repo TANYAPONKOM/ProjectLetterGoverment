@@ -37,6 +37,19 @@ try {
 
   $roleId = (int)($_SESSION['role_id'] ?? 0);
   $roleName = strtolower(trim((string)($_SESSION['role_name'] ?? $_SESSION['role'] ?? '')));
+
+  // ใช้ role ของคนที่ล็อกอินจริงในการตัดสินสถานะหลังแก้ไข
+  // ถ้า session ไม่มี role_id ให้ดึงจากตาราง users สำรอง
+  if ($roleId <= 0) {
+    try {
+      $roleStmt = $pdo->prepare("SELECT role_id FROM users WHERE user_id = :uid LIMIT 1");
+      $roleStmt->execute([':uid' => $userId]);
+      $roleId = (int)($roleStmt->fetchColumn() ?: 0);
+    } catch (Throwable $roleError) {
+      $roleId = 0;
+    }
+  }
+
   $isAdminOrOfficer = in_array($roleId, [1, 2], true)
     || in_array($roleName, ['admin', 'administrator', 'officer', 'เจ้าหน้าที่', 'ผู้ดูแลระบบ'], true);
   $canEditByPermission = false;
@@ -806,41 +819,6 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
   // user แก้แล้วให้กลับไปเป็นเค้าโครง/รอยืนยันการส่ง (draft)
   $newStatusAfterEdit = $isAdminOrOfficer ? 'submitted' : 'draft';
 
-  // ถ้าเอกสารเดิมเป็นสถานะรอแก้ไข หลังบันทึกสำเร็จให้กลับเป็น draft เพื่อให้ผู้ใช้กดส่งใหม่เอง
-  $shouldResetStatusToDraft =
-    in_array($currentStatus, ['rejected', 'รอแก้เอกสาร', 'รอแก้ไข'], true)
-    || (($_POST['reset_status_to_draft'] ?? '') === '1');
-error_log("DEBUG SESSION: user_id=" . $_SESSION['user_id'] . " role_id=" . ($_SESSION['role_id'] ?? 'NULL'));
-error_log("DEBUG USER LOGIN => SESSION user_id=" . $_SESSION['user_id']);
-
-
-// ---- DEBUG: ยืนยันว่าใช้ฐานข้อมูลไหนแน่ ----
-$whichDb = $pdo->query("SELECT DATABASE()")->fetchColumn();
-error_log("DEBUG DB=" . $whichDb . " user_id=" . $userId);
-
-// --- ตรวจสิทธิ์ document.edit ---
-// 1) ห้ามแก้ถ้าไม่มีสิทธิ์ document.edit
-$sql = "
-  SELECT COUNT(*) 
-  FROM user_permissions up
-  JOIN permissions p ON p.perm_id = up.perm_id
-  WHERE up.user_id = :uid AND p.perm_code = 'document.edit'
-";
-$stmt = $pdo->prepare($sql);
-$stmt->execute([':uid'=>$userId]);
-$canEdit = (int)$stmt->fetchColumn() > 0;
-
-if (!$canEditThisDocument) {
-    header("Location: /Pro_letter/documents/view_memo.php?id={$documentId}&err=no_permission");
-    exit;
-}
-
-
-
-
-
-
-
   $pdo->beginTransaction();
 
 
@@ -903,6 +881,18 @@ $up->execute([
     ':new_status' => $newStatusAfterEdit,
     ':id' => $documentId
 ]);
+
+  // บันทึกประวัติการแก้ไขเอกสาร โดยใช้ user_id ของคนที่ล็อกอินอยู่จริง
+  // เพื่อให้หน้า History แสดงผู้ดำเนินการเป็น admin/officer/user ที่แก้จริง ไม่ใช่เจ้าของเอกสาร
+  $log = $pdo->prepare("
+      INSERT INTO audit_logs (user_id, document_id, action, detail)
+      VALUES (:user_id, :document_id, 'UPDATED', :detail)
+  ");
+  $log->execute([
+      ':user_id' => $userId,
+      ':document_id' => $documentId,
+      ':detail' => 'มีการแก้ไขข้อมูลเอกสาร'
+  ]);
 
   // ค่า field อื่น ๆ
 $valuesByKey = [];

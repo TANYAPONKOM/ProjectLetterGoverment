@@ -378,27 +378,6 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
       </div>
 
   </main>
-
-  <script>
-  const profileBtn = document.getElementById("profileBtn");
-  const profileMenu = document.getElementById("profileMenu");
-  if (profileBtn && profileMenu) {
-    profileBtn.addEventListener("click", () => {
-      profileMenu.classList.toggle("hidden");
-    });
-  }
-
-  function closeMenu() {
-    if (profileMenu) {
-      profileMenu.classList.add("hidden");
-    }
-  }
-  window.addEventListener("click", (e) => {
-    if (profileBtn && profileMenu && !profileBtn.contains(e.target) && !profileMenu.contains(e.target)) {
-      profileMenu.classList.add("hidden");
-    }
-  });
-  </script>
   <script>
   function showUserPopup(options = {}) {
     return new Promise((resolve) => {
@@ -630,24 +609,6 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
       });
     }
   }
-  </script>
-
-  <script>
-  const templateBtn = document.getElementById("templateBtn");
-  const templateMenu = document.getElementById("templateMenu");
-
-  if (templateBtn && templateMenu) {
-    templateBtn.addEventListener("click", () => {
-      templateMenu.classList.toggle("hidden");
-    });
-  }
-
-  // ปิด dropdown ถ้าคลิกนอกเมนู
-  document.addEventListener("click", (e) => {
-    if (templateBtn && templateMenu && !templateBtn.contains(e.target) && !templateMenu.contains(e.target)) {
-      templateMenu.classList.add("hidden");
-    }
-  });
   </script>
 
   <script>

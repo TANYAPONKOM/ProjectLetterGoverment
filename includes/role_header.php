@@ -180,7 +180,7 @@ $logoutPath = '/Pro_letter/logout.php';
 
   document.addEventListener('click', function(event) {
     if (templateMenu && templateBtn && !templateBtn.contains(event.target) && !templateMenu.contains(event
-      .target)) {
+        .target)) {
       templateMenu.classList.add('hidden');
     }
     if (profileMenu && profileBtn && !profileBtn.contains(event.target) && !profileMenu.contains(event.target)) {

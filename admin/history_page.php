@@ -72,7 +72,18 @@ $historySql = "
       d.document_id,
       d.doc_no,
       d.subject,
-      d.status,
+      CASE
+        WHEN al.action IN ('REVIEW_PASSED', 'APPROVED') THEN 'approved'
+        WHEN al.action IN ('REVIEW_FAILED', 'REJECTED') THEN 'rejected'
+        WHEN al.action IN ('SUBMITTED') THEN 'submitted'
+        WHEN al.action IN ('CREATED') THEN 'draft'
+        WHEN al.action = 'UPDATED' THEN
+          CASE
+            WHEN COALESCE(actor.role_id, 0) IN (1, 2) THEN 'submitted'
+            ELSE 'draft'
+          END
+        ELSE d.status
+      END AS status,
       t.template_name,
       COALESCE(actor.fullname, owner.fullname, 'ไม่ระบุผู้ดำเนินการ') AS actor_name,
       owner.fullname AS owner_name
@@ -93,7 +104,7 @@ $historySql = "
       d.document_id,
       d.doc_no,
       d.subject,
-      d.status,
+      'draft' AS status,
       t.template_name,
       owner.fullname AS actor_name,
       owner.fullname AS owner_name
@@ -112,7 +123,7 @@ $historySql = "
       d.document_id,
       d.doc_no,
       d.subject,
-      d.status,
+      'draft' AS status,
       t.template_name,
       COALESCE(owner.fullname, 'ไม่ระบุผู้ดำเนินการ') AS actor_name,
       owner.fullname AS owner_name
