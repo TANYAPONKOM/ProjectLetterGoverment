@@ -30,11 +30,71 @@ if (!$user) {
 try {
     $pdo->beginTransaction();
 
-    // ลบสิทธิ์ก่อน เพื่อไม่ให้ติด foreign key ใน user_permissions
-    $permStmt = $pdo->prepare("DELETE FROM user_permissions WHERE user_id = ?");
-    $permStmt->execute([$id]);
+    // ดึงเอกสารที่ผูกกับผู้ใช้นี้ เพื่อให้ลบผู้ใช้ได้จริง
+    $docStmt = $pdo->prepare("
+        SELECT document_id
+        FROM documents
+        WHERE owner_id = ?
+           OR approved_by = ?
+    ");
+    $docStmt->execute([$id, $id]);
+    $documentIds = $docStmt->fetchAll(PDO::FETCH_COLUMN);
 
-    // ลบผู้ใช้
+    if (!empty($documentIds)) {
+        $placeholders = implode(',', array_fill(0, count($documentIds), '?'));
+
+        // ลบข้อมูลลูกที่อ้างอิง document_id ก่อน เพื่อไม่ให้ติด foreign key
+        $fkDocStmt = $pdo->prepare("
+            SELECT TABLE_NAME, COLUMN_NAME
+            FROM information_schema.KEY_COLUMN_USAGE
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND REFERENCED_TABLE_NAME = 'documents'
+              AND REFERENCED_COLUMN_NAME = 'document_id'
+        ");
+        $fkDocStmt->execute();
+        $docRefs = $fkDocStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($docRefs as $ref) {
+            $table = str_replace('`', '``', $ref['TABLE_NAME']);
+            $column = str_replace('`', '``', $ref['COLUMN_NAME']);
+
+            if ($table === 'documents') {
+                continue;
+            }
+
+            $deleteChild = $pdo->prepare("DELETE FROM `{$table}` WHERE `{$column}` IN ({$placeholders})");
+            $deleteChild->execute($documentIds);
+        }
+
+        // ลบเอกสารเก่าที่ผูกกับผู้ใช้นี้
+        $deleteDocs = $pdo->prepare("DELETE FROM documents WHERE document_id IN ({$placeholders})");
+        $deleteDocs->execute($documentIds);
+    }
+
+    // ลบข้อมูลลูกที่อ้างอิง user_id ก่อน เพื่อไม่ให้ติด foreign key
+    $fkUserStmt = $pdo->prepare("
+        SELECT TABLE_NAME, COLUMN_NAME
+        FROM information_schema.KEY_COLUMN_USAGE
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND REFERENCED_TABLE_NAME = 'users'
+          AND REFERENCED_COLUMN_NAME = 'user_id'
+    ");
+    $fkUserStmt->execute();
+    $userRefs = $fkUserStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($userRefs as $ref) {
+        $table = str_replace('`', '``', $ref['TABLE_NAME']);
+        $column = str_replace('`', '``', $ref['COLUMN_NAME']);
+
+        if ($table === 'users') {
+            continue;
+        }
+
+        $deleteRef = $pdo->prepare("DELETE FROM `{$table}` WHERE `{$column}` = ?");
+        $deleteRef->execute([$id]);
+    }
+
+    // ลบผู้ใช้จริง
     $stmt = $pdo->prepare("DELETE FROM users WHERE user_id = ?");
     $stmt->execute([$id]);
 
@@ -44,7 +104,7 @@ try {
         addLog($currentUserId, "ผู้ใช้ {$currentUser} จัดการลบผู้ใช้: {$user['username']}");
     }
 
-    header("Location: user_Managerment.php?success=1");
+    header("Location: user_Managerment.php?success=delete");
     exit;
 
 } catch (PDOException $e) {
@@ -52,19 +112,7 @@ try {
         $pdo->rollBack();
     }
 
-    // ถ้าลบจริงไม่ได้ เพราะมีเอกสารหรือ log ผูกอยู่ ให้ปิดการใช้งานแทน
-    $soft = $pdo->prepare("
-        UPDATE users 
-        SET is_active = 0 
-        WHERE user_id = ?
-    ");
-    $soft->execute([$id]);
-
-    if (function_exists('addLog') && $currentUserId) {
-        addLog($currentUserId, "ผู้ใช้ {$currentUser} ปิดการใช้งานผู้ใช้: {$user['username']} เนื่องจากมีข้อมูลผูกอยู่ในระบบ");
-    }
-
-    header("Location: user_Managerment.php?success=deactivated");
+    header("Location: user_Managerment.php?error=delete_failed");
     exit;
 }
 ?>

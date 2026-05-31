@@ -119,7 +119,7 @@ try {
             addLog($currentUserId, "ผู้ใช้ {$currentUser} จัดการเพิ่มผู้ใช้: {$username}");
         }
 
-        goUserManagement('success=1');
+        goUserManagement('success=add');
     }
 
     /*
@@ -263,7 +263,7 @@ try {
             addLog($currentUserId, "แก้ไขข้อมูลผู้ใช้ {$username} และอัปเดตสิทธิ์การเข้าถึง");
         }
 
-        goUserManagement('success=1');
+        goUserManagement('success=edit');
     }
 
     /*
@@ -312,7 +312,7 @@ try {
             addLog($currentUserId, "ผู้ใช้ {$currentUser} จัดการลบผู้ใช้: {$user['username']}");
         }
 
-        goUserManagement('success=1');
+        goUserManagement('success=delete');
     }
 
     /*

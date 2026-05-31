@@ -432,6 +432,18 @@ $selectedDepartmentId = $user['department_id'] ?? '';
   facultySelect.addEventListener('change', () => filterDepartmentsByFaculty(false));
   filterDepartmentsByFaculty(true);
   </script>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const userForm = document.querySelector('form[action="user_process.php"]');
+    if (userForm) {
+      userForm.addEventListener("submit", function () {
+        sessionStorage.setItem("user_success_popup", "edit");
+      });
+    }
+  });
+  </script>
+
 </body>
 
 </html>

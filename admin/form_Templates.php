@@ -127,7 +127,7 @@ if ($flashStatus === 'deleted') {
 } elseif ($flashStatus === 'delete_blocked') {
     $flashMessage = 'ไม่สามารถลบเทมเพลตนี้ได้ เพราะมีเอกสารที่เคยใช้งานอยู่ แนะนำให้ปิดใช้งานแทน';
 } elseif ($flashStatus === 'saved') {
-    $flashMessage = 'บันทึกข้อมูลเทมเพลตเรียบร้อยแล้ว';
+    $flashMessage = 'แก้ไขเทมเพลตสำเร็จ';
 } elseif ($flashStatus === 'added') {
     $flashMessage = 'เพิ่มเทมเพลตเรียบร้อยแล้ว';
 } elseif ($flashStatus === 'status_changed') {
@@ -242,15 +242,6 @@ if ($flashStatus === 'deleted') {
                   </svg>
                 </button>
 
-                <button onclick="confirmTemplateAction('delete', <?= (int)$row['template_id'] ?>)"
-                  class="w-10 h-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-200 transition"
-                  title="ลบ">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0H7m3-3h4a1 1 0 011 1v2H9V5a1 1 0 011-1z" />
-                  </svg>
-                </button>
               </div>
             </td>
           </tr>
@@ -264,85 +255,366 @@ if ($flashStatus === 'deleted') {
       </table>
     </div>
   </main>
+
   <script>
-  function verifyTemplateAdminByPrompt(callback) {
-    const username = prompt("กรุณากรอกชื่อผู้ใช้:");
-    if (!username) return;
+  const profileBtn = document.getElementById("profileBtn");
+  const profileMenu = document.getElementById("profileMenu");
 
-    const password = prompt("กรุณากรอกรหัสผ่าน:");
-    if (!password) return;
-
-    const formData = new FormData();
-    formData.append("action", "verify_template_admin");
-    formData.append("admin_username", username);
-    formData.append("admin_password", password);
-
-    fetch("form_Templates.php", {
-        method: "POST",
-        body: formData
-      })
-      .then(async (response) => {
-        const text = await response.text();
-
-        try {
-          return JSON.parse(text);
-        } catch (error) {
-          console.error("Response is not JSON:", text);
-          throw new Error(
-            "ระบบตรวจสอบสิทธิ์ไม่ได้ส่ง JSON กลับมา อาจเกิดจาก path ผิด, redirect ไป login, หรือมี PHP error");
-        }
-      })
-      .then((data) => {
-        if (data && data.success) {
-          if (typeof callback === "function") {
-            callback();
-          }
-        } else {
-          alert((data && data.message) ? data.message : "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
-        }
-      })
-      .catch((error) => {
-        alert("เกิดข้อผิดพลาด: " + error.message);
-      });
+  function closeMenu() {
+    if (profileMenu) {
+      profileMenu.classList.add("hidden");
+    }
   }
 
-  function requestToggleTemplate(checkbox) {
-    const currentValue = checkbox.dataset.current === "1" ? 1 : 0;
-    const nextValue = checkbox.checked ? 1 : 0;
-
-    checkbox.checked = currentValue === 1;
-
-    verifyTemplateAdminByPrompt(() => {
-      const form = checkbox.form;
-      if (!form) return;
-
-      const activeInput = form.querySelector('input[type="hidden"][name="is_active"]');
-      if (activeInput) {
-        activeInput.value = String(nextValue);
-      }
-
-      checkbox.dataset.current = String(nextValue);
-      checkbox.checked = nextValue === 1;
-      form.submit();
-    });
-  }
-
-  function confirmTemplateAction(action, id = null) {
-    verifyTemplateAdminByPrompt(() => {
-      if (action === "add") {
-        window.location.href = "template_Add.php";
-      } else if (action === "edit") {
-        window.location.href = "template_Edit.php?id=" + id;
-      } else if (action === "delete") {
-        if (confirm(
-            "ยืนยันการลบเทมเพลตนี้หรือไม่?\nถ้าเทมเพลตนี้เคยถูกใช้สร้างเอกสาร ระบบจะไม่อนุญาตให้ลบ และควรใช้การปิดใช้งานแทน"
-            )) {
-          window.location.href = "template_Delete.php?id=" + id;
-        }
-      }
+  if (profileBtn) {
+    profileBtn.addEventListener("click", () => {
+      profileMenu.classList.toggle("hidden");
     });
   }
   </script>
+
+  <script>
+  function showTemplatePopup(options = {}) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.style.position = "fixed";
+      overlay.style.inset = "0";
+      overlay.style.zIndex = "99999";
+      overlay.style.background = "rgba(15, 23, 42, 0.45)";
+      overlay.style.display = "flex";
+      overlay.style.alignItems = "center";
+      overlay.style.justifyContent = "center";
+      overlay.style.padding = "18px";
+
+      const box = document.createElement("div");
+      box.style.width = "420px";
+      box.style.maxWidth = "100%";
+      box.style.background = "#ffffff";
+      box.style.borderRadius = "18px";
+      box.style.boxShadow = "0 24px 60px rgba(15, 23, 42, 0.28)";
+      box.style.padding = "28px";
+      box.style.fontFamily = "Arial, sans-serif";
+      box.style.textAlign = "center";
+
+      const icon = document.createElement("div");
+      icon.style.width = "64px";
+      icon.style.height = "64px";
+      icon.style.borderRadius = "999px";
+      icon.style.margin = "0 auto 18px";
+      icon.style.display = "flex";
+      icon.style.alignItems = "center";
+      icon.style.justifyContent = "center";
+      icon.style.fontSize = "34px";
+      icon.style.fontWeight = "700";
+      icon.style.background = options.danger ? "#fee2e2" : options.success ? "#dcfce7" : "#ccfbf1";
+      icon.style.color = options.danger ? "#dc2626" : options.success ? "#16a34a" : "#0f766e";
+      icon.innerHTML = options.danger ? "!" : options.success ? "✓" : "🔐";
+
+      const title = document.createElement("div");
+      title.textContent = options.title || "";
+      title.style.fontSize = options.success ? "30px" : "22px";
+      title.style.fontWeight = "800";
+      title.style.color = "#334155";
+      title.style.marginBottom = "8px";
+
+      const message = document.createElement("div");
+      message.textContent = options.message || "";
+      message.style.fontSize = "14px";
+      message.style.color = "#64748b";
+      message.style.lineHeight = "1.6";
+      message.style.marginBottom = "18px";
+
+      let input = null;
+      if (options.inputType) {
+        input = document.createElement("input");
+        input.type = options.inputType;
+        input.style.width = "100%";
+        input.style.height = "44px";
+        input.style.border = "1px solid #cbd5e1";
+        input.style.borderRadius = "12px";
+        input.style.padding = "0 14px";
+        input.style.fontSize = "15px";
+        input.style.outline = "none";
+        input.style.marginBottom = "20px";
+        input.addEventListener("focus", () => {
+          input.style.borderColor = "#14b8a6";
+          input.style.boxShadow = "0 0 0 4px rgba(20, 184, 166, 0.16)";
+        });
+        input.addEventListener("blur", () => {
+          input.style.borderColor = "#cbd5e1";
+          input.style.boxShadow = "none";
+        });
+      }
+
+      const btnWrap = document.createElement("div");
+      btnWrap.style.display = "flex";
+      btnWrap.style.justifyContent = options.hideCancel ? "center" : "flex-end";
+      btnWrap.style.gap = "10px";
+
+      const cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.textContent = options.cancelText || "ยกเลิก";
+      cancelBtn.style.border = "1px solid #e2e8f0";
+      cancelBtn.style.background = "#ffffff";
+      cancelBtn.style.color = "#475569";
+      cancelBtn.style.borderRadius = "12px";
+      cancelBtn.style.padding = "10px 18px";
+      cancelBtn.style.cursor = "pointer";
+      cancelBtn.style.fontWeight = "700";
+
+      const okBtn = document.createElement("button");
+      okBtn.type = "button";
+      okBtn.textContent = options.confirmText || "ตกลง";
+      okBtn.style.border = "none";
+      okBtn.style.background = options.danger ? "#ef4444" : "#14b8a6";
+      okBtn.style.color = "#ffffff";
+      okBtn.style.borderRadius = "12px";
+      okBtn.style.padding = "10px 18px";
+      okBtn.style.minWidth = options.hideCancel ? "110px" : "auto";
+      okBtn.style.cursor = "pointer";
+      okBtn.style.fontWeight = "800";
+      okBtn.style.boxShadow = options.danger ? "0 8px 18px rgba(239, 68, 68, 0.25)" :
+        "0 8px 18px rgba(20, 184, 166, 0.25)";
+
+      function close(value) {
+        overlay.remove();
+        resolve(value);
+      }
+
+      cancelBtn.addEventListener("click", () => close(null));
+      okBtn.addEventListener("click", () => {
+        if (input) {
+          close(input.value);
+        } else {
+          close(true);
+        }
+      });
+
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) close(null);
+      });
+
+      box.appendChild(icon);
+      box.appendChild(title);
+      if (options.message) box.appendChild(message);
+      if (input) box.appendChild(input);
+
+      if (!options.hideCancel) {
+        btnWrap.appendChild(cancelBtn);
+      }
+      btnWrap.appendChild(okBtn);
+      box.appendChild(btnWrap);
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+
+      if (input) {
+        setTimeout(() => input.focus(), 50);
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") okBtn.click();
+          if (e.key === "Escape") cancelBtn.click();
+        });
+      }
+    });
+  }
+
+  async function verifyTemplateAdminByPrompt(callback) {
+      const username = await showTemplatePopup({
+        title: "ยืนยันตัวตนผู้ดูแลระบบ",
+        message: "กรุณากรอกชื่อผู้ใช้ของผู้ดูแลระบบเพื่อยืนยัน",
+        inputType: "text",
+        confirmText: "ถัดไป"
+      });
+      if (username === null || username.trim() === "") return;
+
+      const password = await showTemplatePopup({
+        title: "ยืนยันรหัสผ่าน",
+        message: "กรุณากรอกรหัสผ่านของผู้ดูแลระบบเพื่อยืนยัน",
+        inputType: "password",
+        confirmText: "ยืนยัน"
+      });
+      if (password === null || password.trim() === "") return;
+
+      const formData = new FormData();
+      formData.append("action", "verify_template_admin");
+      formData.append("admin_username", username.trim());
+      formData.append("admin_password", password);
+
+      fetch("form_Templates.php", {
+          method: "POST",
+          body: formData
+        })
+        .then(async (response) => {
+          const text = await response.text();
+
+          try {
+            return JSON.parse(text);
+          } catch (error) {
+            console.error("Response is not JSON:", text);
+            throw new Error(
+              "ระบบตรวจสอบสิทธิ์ไม่ได้ส่ง JSON กลับมา อาจเกิดจาก path ผิด, redirect ไป login, หรือมี PHP error");
+          }
+        })
+        .then((data) => {
+          if (data && data.success) {
+            if (typeof callback === "function") {
+              callback();
+            }
+          } else {
+            alert((data && data.message) ? data.message : "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
+          }
+        })
+        .catch((error) => {
+            alert("เกิดข้อผิดพลาด: " + error.message);
+            try {
+              const response = await fetch("form_Templates.php", {
+                method: "POST",
+                body: formData
+              });
+
+              const text = await response.text();
+              let data;
+              try {
+                data = JSON.parse(text);
+              } catch (error) {
+                console.error("Response is not JSON:", text);
+                await showTemplatePopup({
+                  title: "ยืนยันตัวตนไม่สำเร็จ",
+                  message: "ระบบตรวจสอบสิทธิ์ไม่ได้ส่ง JSON กลับมา อาจเกิดจาก path ผิด, redirect ไป login, หรือมี PHP error",
+                  confirmText: "ตกลง",
+                  hideCancel: true,
+                  danger: true
+                });
+                return;
+              }
+
+              if (data && data.success) {
+                if (typeof callback === "function") {
+                  callback();
+                }
+              } else {
+                await showTemplatePopup({
+                  title: "ยืนยันตัวตนไม่สำเร็จ",
+                  message: (data && data.message) ? data.message : "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
+                  confirmText: "ตกลง",
+                  hideCancel: true,
+                  danger: true
+                });
+              }
+            } catch (error) {
+              await showTemplatePopup({
+                title: "เกิดข้อผิดพลาด",
+                message: "เกิดข้อผิดพลาด: " + error.message,
+                confirmText: "ตกลง",
+                hideCancel: true,
+                danger: true
+              });
+            }
+          }
+        }
+
+      function requestToggleTemplate(checkbox) {
+        const currentValue = checkbox.dataset.current === "1" ? 1 : 0;
+        const nextValue = checkbox.checked ? 1 : 0;
+
+        checkbox.checked = currentValue === 1;
+
+        verifyTemplateAdminByPrompt(() => {
+          const form = checkbox.form;
+          if (!form) return;
+
+          const activeInput = form.querySelector('input[type="hidden"][name="is_active"]');
+          if (activeInput) {
+            activeInput.value = String(nextValue);
+          }
+
+          checkbox.dataset.current = String(nextValue);
+          checkbox.checked = nextValue === 1;
+          form.submit();
+        });
+      }
+
+      function confirmTemplateAction(action, id = null) {
+        verifyTemplateAdminByPrompt(async () => {
+            if (action === "add") {
+              window.location.href = "template_Add.php";
+            } else if (action === "edit") {
+              window.location.href = "template_Edit.php?id=" + id;
+            } else if (action === "delete") {
+              if (confirm(
+                  "ยืนยันการลบเทมเพลตนี้หรือไม่?\nถ้าเทมเพลตนี้เคยถูกใช้สร้างเอกสาร ระบบจะไม่อนุญาตให้ลบ และควรใช้การปิดใช้งานแทน"
+                )) {
+                const confirmed = await showTemplatePopup({
+                  title: "ยืนยันการลบเทมเพลต",
+                  message: "ถ้าเทมเพลตนี้เคยถูกใช้สร้างเอกสาร ระบบจะไม่อนุญาตให้ลบ และควรใช้การปิดใช้งานแทน",
+                  confirmText: "ลบเทมเพลต",
+                  cancelText: "ยกเลิก",
+                  danger: true
+                });
+                if (confirmed) {
+                  window.location.href = "template_Delete.php?id=" + id;
+                }
+              }
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", async function() {
+          const templateStatus = <?= json_encode($flashStatus) ?>;
+
+          const successMessages = {
+            saved: "แก้ไขเทมเพลตสำเร็จ",
+            added: "เพิ่มเทมเพลตสำเร็จ",
+            deleted: "ลบเทมเพลตสำเร็จ",
+            status_changed: "แก้ไขสถานะเทมเพลตสำเร็จ"
+          };
+
+          const dangerMessages = {
+            delete_blocked: "ไม่สามารถลบเทมเพลตนี้ได้ เพราะมีเอกสารที่เคยใช้งานอยู่ แนะนำให้ปิดใช้งานแทน",
+            auth_required: "กรุณายืนยันชื่อผู้ใช้และรหัสผ่านก่อนดำเนินการ"
+          };
+
+          if (successMessages[templateStatus]) {
+            await showTemplatePopup({
+              title: successMessages[templateStatus],
+              message: "",
+              confirmText: "ตกลง",
+              hideCancel: true,
+              success: true
+            });
+          } else if (dangerMessages[templateStatus]) {
+            await showTemplatePopup({
+              title: "แจ้งเตือน",
+              message: dangerMessages[templateStatus],
+              confirmText: "ตกลง",
+              hideCancel: true,
+              danger: true
+            });
+          }
+
+          if (successMessages[templateStatus] || dangerMessages[templateStatus]) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("status");
+            window.history.replaceState({}, document.title, url.toString());
+          }
+        });
+  </script>
+
+  <script>
+  const templateBtn = document.getElementById("templateBtn");
+  const templateMenu = document.getElementById("templateMenu");
+
+  if (templateBtn && templateMenu) {
+    templateBtn.addEventListener("click", () => {
+      templateMenu.classList.toggle("hidden");
+    });
+  }
+
+  document.addEventListener("click", (e) => {
+    if (templateBtn && templateMenu && !templateBtn.contains(e.target) && !templateMenu.contains(e.target)) {
+      templateMenu.classList.add("hidden");
+    }
+  });
+  </script>
+
 </body>
 
 </html>

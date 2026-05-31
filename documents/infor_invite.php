@@ -690,7 +690,7 @@ $formAction = $isEdit ? '/Pro_letter/documents/update_memo.php' : '/Pro_letter/d
   </style>
 
   <script>
-    window.CATEGORY_LOCKED_BY_STATUS = <?= $categoryLocked ? 'true' : 'false' ?>;
+  window.CATEGORY_LOCKED_BY_STATUS = <?= $categoryLocked ? 'true' : 'false' ?>;
   </script>
 </head>
 
@@ -730,7 +730,8 @@ $formAction = $isEdit ? '/Pro_letter/documents/update_memo.php' : '/Pro_letter/d
         <div class="flex items-center gap-3">
           <label class="lbl text-gray-800 w-28 text-right">หมวดหลัก:</label>
           <div class="relative w-full">
-            <select name="main_category" class="custom-select w-full" id="mainCategory"<?= $categoryLocked ? ' disabled data-category-locked="1"' : '' ?>>
+            <select name="main_category" class="custom-select w-full" id="mainCategory"
+              <?= $categoryLocked ? ' disabled data-category-locked="1"' : '' ?>>
               <option value="">-- เลือกหมวดหลัก --</option>
               <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
               <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>ภายใน</option>
@@ -742,15 +743,16 @@ $formAction = $isEdit ? '/Pro_letter/documents/update_memo.php' : '/Pro_letter/d
         <div class="flex items-center gap-3">
           <label class="lbl text-gray-800 w-28 text-right">หมวดย่อย:</label>
           <div class="relative w-full">
-            <select name="sub_category" class="custom-select w-full" id="subCategory"<?= $categoryLocked ? ' data-category-locked="1"' : '' ?>
-              data-current="<?= h($CURRENT_SUB ?? '') ?>" disabled>
+            <select name="sub_category" class="custom-select w-full" id="subCategory"
+              <?= $categoryLocked ? ' data-category-locked="1"' : '' ?> data-current="<?= h($CURRENT_SUB ?? '') ?>"
+              disabled>
               <option value="">-- เลือกหมวดย่อย --</option>
             </select>
-              <?php if ($categoryLocked): ?>
-              <input type="hidden" name="main_category" value="<?= h($CURRENT_MAIN ?? '') ?>">
-              <input type="hidden" name="sub_category" value="<?= h($CURRENT_SUB ?? '') ?>">
-              <input type="hidden" name="main_category_locked_value" value="1">
-              <?php endif; ?>
+            <?php if ($categoryLocked): ?>
+            <input type="hidden" name="main_category" value="<?= h($CURRENT_MAIN ?? '') ?>">
+            <input type="hidden" name="sub_category" value="<?= h($CURRENT_SUB ?? '') ?>">
+            <input type="hidden" name="main_category_locked_value" value="1">
+            <?php endif; ?>
 
           </div>
         </div>
@@ -1025,7 +1027,29 @@ $formAction = $isEdit ? '/Pro_letter/documents/update_memo.php' : '/Pro_letter/d
       </div>
     </div>
   </form>
+  <script>
+  const profileBtn = document.getElementById("profileBtn");
+  const profileMenu = document.getElementById("profileMenu");
 
+  if (profileBtn && profileMenu) {
+    profileBtn.addEventListener("click", function(event) {
+      event.stopPropagation();
+      profileMenu.classList.toggle("hidden");
+    });
+
+    document.addEventListener("click", function(event) {
+      if (!profileBtn.contains(event.target) && !profileMenu.contains(event.target)) {
+        profileMenu.classList.add("hidden");
+      }
+    });
+  }
+
+  function closeMenu() {
+    if (profileMenu) {
+      profileMenu.classList.add("hidden");
+    }
+  }
+  </script>
   <script>
   const byId = (id) => document.getElementById(id);
   const form = byId("memoForm");
@@ -1817,8 +1841,8 @@ $formAction = $isEdit ? '/Pro_letter/documents/update_memo.php' : '/Pro_letter/d
       updateEventTime();
     }
 
-    
-const mainCategory = byId("mainCategory");
+
+    const mainCategory = byId("mainCategory");
     const subCategory = byId("subCategory");
     const faculty = byId("faculty");
     const dept = byId("dept");

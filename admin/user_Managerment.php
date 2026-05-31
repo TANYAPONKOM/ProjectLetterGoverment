@@ -378,12 +378,185 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
       </div>
 
   </main>
+
   <script>
+  const profileBtn = document.getElementById("profileBtn");
+  const profileMenu = document.getElementById("profileMenu");
+  if (profileBtn && profileMenu) {
+    profileBtn.addEventListener("click", () => {
+      profileMenu.classList.toggle("hidden");
+    });
+  }
+
+  function closeMenu() {
+    if (profileMenu) {
+      profileMenu.classList.add("hidden");
+    }
+  }
+  window.addEventListener("click", (e) => {
+    if (profileBtn && profileMenu && !profileBtn.contains(e.target) && !profileMenu.contains(e.target)) {
+      profileMenu.classList.add("hidden");
+    }
+  });
+  </script>
+  <script>
+  function showUserPopup(options = {}) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.style.position = "fixed";
+      overlay.style.inset = "0";
+      overlay.style.zIndex = "99999";
+      overlay.style.background = "rgba(15, 23, 42, 0.45)";
+      overlay.style.display = "flex";
+      overlay.style.alignItems = "center";
+      overlay.style.justifyContent = "center";
+      overlay.style.padding = "18px";
+
+      const box = document.createElement("div");
+      box.style.width = "420px";
+      box.style.maxWidth = "100%";
+      box.style.background = "#ffffff";
+      box.style.borderRadius = "18px";
+      box.style.boxShadow = "0 24px 60px rgba(15, 23, 42, 0.28)";
+      box.style.padding = "28px";
+      box.style.fontFamily = "Arial, sans-serif";
+      box.style.textAlign = "center";
+
+      const icon = document.createElement("div");
+      icon.style.width = "64px";
+      icon.style.height = "64px";
+      icon.style.borderRadius = "999px";
+      icon.style.margin = "0 auto 18px";
+      icon.style.display = "flex";
+      icon.style.alignItems = "center";
+      icon.style.justifyContent = "center";
+      icon.style.fontSize = "34px";
+      icon.style.fontWeight = "700";
+      icon.style.background = options.danger ? "#fee2e2" : options.success ? "#dcfce7" : "#ccfbf1";
+      icon.style.color = options.danger ? "#dc2626" : options.success ? "#16a34a" : "#0f766e";
+      icon.innerHTML = options.danger ? "!" : options.success ? "✓" : "🔐";
+
+      const title = document.createElement("div");
+      title.textContent = options.title || "";
+      title.style.fontSize = options.success ? "30px" : "22px";
+      title.style.fontWeight = "800";
+      title.style.color = "#334155";
+      title.style.marginBottom = "8px";
+
+      const message = document.createElement("div");
+      message.textContent = options.message || "";
+      message.style.fontSize = "14px";
+      message.style.color = "#64748b";
+      message.style.lineHeight = "1.6";
+      message.style.marginBottom = "18px";
+
+      let input = null;
+      if (options.inputType) {
+        input = document.createElement("input");
+        input.type = options.inputType;
+        input.style.width = "100%";
+        input.style.height = "44px";
+        input.style.border = "1px solid #cbd5e1";
+        input.style.borderRadius = "12px";
+        input.style.padding = "0 14px";
+        input.style.fontSize = "15px";
+        input.style.outline = "none";
+        input.style.marginBottom = "20px";
+        input.addEventListener("focus", () => {
+          input.style.borderColor = "#14b8a6";
+          input.style.boxShadow = "0 0 0 4px rgba(20, 184, 166, 0.16)";
+        });
+        input.addEventListener("blur", () => {
+          input.style.borderColor = "#cbd5e1";
+          input.style.boxShadow = "none";
+        });
+      }
+
+      const btnWrap = document.createElement("div");
+      btnWrap.style.display = "flex";
+      btnWrap.style.justifyContent = "flex-end";
+      btnWrap.style.gap = "10px";
+
+      const cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.textContent = options.cancelText || "ยกเลิก";
+      cancelBtn.style.border = "1px solid #e2e8f0";
+      cancelBtn.style.background = "#ffffff";
+      cancelBtn.style.color = "#475569";
+      cancelBtn.style.borderRadius = "12px";
+      cancelBtn.style.padding = "10px 18px";
+      cancelBtn.style.cursor = "pointer";
+      cancelBtn.style.fontWeight = "700";
+
+      const okBtn = document.createElement("button");
+      okBtn.type = "button";
+      okBtn.textContent = options.confirmText || "ตกลง";
+      okBtn.style.border = "none";
+      okBtn.style.background = options.danger ? "#ef4444" : "#14b8a6";
+      okBtn.style.color = "#ffffff";
+      okBtn.style.borderRadius = "12px";
+      okBtn.style.padding = "10px 18px";
+      okBtn.style.cursor = "pointer";
+      okBtn.style.fontWeight = "800";
+      okBtn.style.boxShadow = options.danger ? "0 8px 18px rgba(239, 68, 68, 0.25)" :
+        "0 8px 18px rgba(20, 184, 166, 0.25)";
+
+      function close(value) {
+        overlay.remove();
+        resolve(value);
+      }
+
+      cancelBtn.addEventListener("click", () => close(null));
+      okBtn.addEventListener("click", () => {
+        if (input) {
+          close(input.value);
+        } else {
+          close(true);
+        }
+      });
+
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) close(null);
+      });
+
+      box.appendChild(icon);
+      box.appendChild(title);
+      if (options.message) box.appendChild(message);
+      if (input) box.appendChild(input);
+
+      if (!options.hideCancel) {
+        btnWrap.appendChild(cancelBtn);
+      }
+      btnWrap.appendChild(okBtn);
+      box.appendChild(btnWrap);
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+
+      if (input) {
+        setTimeout(() => input.focus(), 50);
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") okBtn.click();
+          if (e.key === "Escape") cancelBtn.click();
+        });
+      }
+    });
+  }
+
   async function confirmUserAction(action, id = null) {
-    const username = prompt("กรุณากรอกชื่อผู้ใช้ของผู้ดูแลระบบเพื่อยืนยัน:");
+    const username = await showUserPopup({
+      title: "ยืนยันตัวตนผู้ดูแลระบบ",
+      message: "กรุณากรอกชื่อผู้ใช้ของผู้ดูแลระบบเพื่อยืนยัน",
+      inputType: "text",
+      confirmText: "ถัดไป"
+    });
     if (username === null || username.trim() === "") return false;
 
-    const password = prompt("กรุณากรอกรหัสผ่านของผู้ดูแลระบบเพื่อยืนยัน:");
+    const password = await showUserPopup({
+      title: "ยืนยันรหัสผ่าน",
+      message: "กรุณากรอกรหัสผ่านของผู้ดูแลระบบเพื่อยืนยัน",
+      inputType: "password",
+      confirmText: "ยืนยัน"
+    });
     if (password === null || password.trim() === "") return false;
 
     try {
@@ -403,7 +576,6 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
 
       const text = await res.text();
       let data;
-
       try {
         data = JSON.parse(text);
       } catch (e) {
@@ -411,50 +583,180 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
         alert(
           "ยืนยันตัวตนไม่สำเร็จ: verify_user.php ไม่ได้ส่ง JSON กลับมา\nให้ตรวจว่าไฟล์อยู่ที่ /Pro_letter/admin/verify_user.php และไม่มี PHP error"
         );
+        await showUserPopup({
+          title: "ยืนยันตัวตนไม่สำเร็จ",
+          message: "verify_user.php ไม่ได้ส่ง JSON กลับมา หรือมี PHP error",
+          confirmText: "ตกลง",
+          hideCancel: true,
+          danger: true
+        });
         return false;
       }
 
       if (!res.ok || !data.success) {
-        alert(data.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
+        await showUserPopup({
+          title: "ยืนยันตัวตนไม่สำเร็จ",
+          message: data.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
+          confirmText: "ตกลง",
+          hideCancel: true,
+          danger: true
+        });
         return false;
       }
 
       if (action === "add") {
         window.location.href = "user_Add.php";
-        return true;
-      }
-
-      if (action === "edit") {
-        if (!id) {
-          alert("ไม่พบรหัสผู้ใช้ที่ต้องการแก้ไข");
-          return false;
-        }
+      } else if (action === "edit") {
         window.location.href = "user_Edit.php?id=" + encodeURIComponent(id);
-        return true;
-      }
-
-      if (action === "delete") {
-        if (!id) {
-          alert("ไม่พบรหัสผู้ใช้ที่ต้องการลบ");
-          return false;
-        }
-
-        if (confirm("คุณแน่ใจว่าต้องการลบผู้ใช้นี้หรือไม่?")) {
+      } else if (action === "delete") {
+        const confirmed = await showUserPopup({
+          title: "ยืนยันการลบผู้ใช้",
+          message: "คุณแน่ใจว่าต้องการลบผู้ใช้นี้หรือไม่?",
+          confirmText: "ลบผู้ใช้",
+          cancelText: "ยกเลิก",
+          danger: true
+        });
+        if (confirmed) {
           window.location.href = "user_Delete.php?id=" + encodeURIComponent(id);
         }
-        return true;
       }
-
-      alert("ไม่พบคำสั่งที่ต้องการทำงาน");
-      return false;
-
     } catch (err) {
-      console.error(err);
-      alert("เกิดข้อผิดพลาดในการยืนยันตัวตน: " + err.message);
-      return false;
+      await showUserPopup({
+        title: "เกิดข้อผิดพลาด",
+        message: "เกิดข้อผิดพลาดในการยืนยันตัวตน: " + err.message,
+        confirmText: "ตกลง",
+        hideCancel: true,
+        danger: true
+      });
     }
   }
   </script>
+
+  <script>
+  const templateBtn = document.getElementById("templateBtn");
+  const templateMenu = document.getElementById("templateMenu");
+
+  if (templateBtn && templateMenu) {
+    templateBtn.addEventListener("click", () => {
+      templateMenu.classList.toggle("hidden");
+    });
+  }
+
+  // ปิด dropdown ถ้าคลิกนอกเมนู
+  document.addEventListener("click", (e) => {
+    if (templateBtn && templateMenu && !templateBtn.contains(e.target) && !templateMenu.contains(e.target)) {
+      templateMenu.classList.add("hidden");
+    }
+  });
+  </script>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", function() {
+    let userSuccessAction = <?= json_encode($_GET['success'] ?? '') ?>;
+
+    if (!userSuccessAction) {
+      userSuccessAction = sessionStorage.getItem("user_success_popup") || "";
+    }
+    sessionStorage.removeItem("user_success_popup");
+
+    const userSuccessMessages = {
+      add: "เพิ่มผู้ใช้สำเร็จ",
+      edit: "แก้ไขผู้ใช้สำเร็จ",
+      delete: "ลบผู้ใช้สำเร็จ"
+    };
+
+    if (!userSuccessMessages[userSuccessAction]) return;
+
+    const overlay = document.createElement("div");
+    overlay.style.position = "fixed";
+    overlay.style.inset = "0";
+    overlay.style.zIndex = "99999";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.style.background = "rgba(0, 0, 0, 0.38)";
+
+    const box = document.createElement("div");
+    box.style.width = "640px";
+    box.style.maxWidth = "calc(100vw - 32px)";
+    box.style.background = "#ffffff";
+    box.style.borderRadius = "6px";
+    box.style.padding = "44px 28px 30px";
+    box.style.textAlign = "center";
+    box.style.boxShadow = "0 22px 55px rgba(15, 23, 42, 0.28)";
+    box.style.fontFamily = "Arial, sans-serif";
+
+    const iconWrap = document.createElement("div");
+    iconWrap.style.width = "110px";
+    iconWrap.style.height = "110px";
+    iconWrap.style.margin = "6px auto 28px";
+    iconWrap.style.borderRadius = "50%";
+    iconWrap.style.border = "5px solid #d9f0ce";
+    iconWrap.style.display = "flex";
+    iconWrap.style.alignItems = "center";
+    iconWrap.style.justifyContent = "center";
+
+    const icon = document.createElement("div");
+    icon.innerHTML = "&#10003;";
+    icon.style.color = "#9bd68d";
+    icon.style.fontSize = "70px";
+    icon.style.lineHeight = "1";
+    icon.style.fontWeight = "400";
+
+    const title = document.createElement("div");
+    title.textContent = userSuccessMessages[userSuccessAction];
+    title.style.fontSize = "36px";
+    title.style.fontWeight = "800";
+    title.style.color = "#555555";
+    title.style.marginBottom = "4px";
+
+    const okBtn = document.createElement("button");
+    okBtn.type = "button";
+    okBtn.textContent = "ตกลง";
+    okBtn.style.marginTop = "28px";
+    okBtn.style.padding = "10px 34px";
+    okBtn.style.border = "none";
+    okBtn.style.borderRadius = "8px";
+    okBtn.style.background = "#14b8a6";
+    okBtn.style.color = "#ffffff";
+    okBtn.style.fontSize = "16px";
+    okBtn.style.fontWeight = "700";
+    okBtn.style.cursor = "pointer";
+
+    function closeSuccessPopup() {
+      if (document.body.contains(overlay)) {
+        document.body.removeChild(overlay);
+      }
+      const url = new URL(window.location.href);
+      url.searchParams.delete("success");
+      window.history.replaceState({}, document.title, url.toString());
+    }
+
+    okBtn.addEventListener("click", closeSuccessPopup);
+    overlay.addEventListener("click", function(e) {
+      if (e.target === overlay) closeSuccessPopup();
+    });
+    document.addEventListener("keydown", function escHandler(e) {
+      if (!document.body.contains(overlay)) {
+        document.removeEventListener("keydown", escHandler);
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Escape") {
+        document.removeEventListener("keydown", escHandler);
+        closeSuccessPopup();
+      }
+    });
+
+    iconWrap.appendChild(icon);
+    box.appendChild(iconWrap);
+    box.appendChild(title);
+    box.appendChild(okBtn);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    okBtn.focus();
+  });
+  </script>
+
 </body>
 
 </html>

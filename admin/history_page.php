@@ -62,6 +62,8 @@ $historySql = "
         WHEN al.action = 'SUBMITTED' THEN 'ส่งคำขอเอกสาร'
         WHEN al.action = 'CREATED' THEN 'สร้างเอกสาร'
         WHEN al.action = 'UPDATED' THEN 'แก้ไขเอกสาร'
+        WHEN al.action = 'REVIEW_PASSED' THEN 'ผ่านการตรวจสอบ'
+        WHEN al.action = 'REVIEW_FAILED' THEN 'ไม่ผ่านการตรวจสอบ'
         WHEN al.action = 'APPROVED' THEN 'อนุมัติเอกสาร'
         WHEN al.action = 'REJECTED' THEN 'ตีกลับเอกสาร'
         ELSE al.action
@@ -72,7 +74,7 @@ $historySql = "
       d.subject,
       d.status,
       t.template_name,
-      actor.fullname AS actor_name,
+      COALESCE(actor.fullname, owner.fullname, 'ไม่ระบุผู้ดำเนินการ') AS actor_name,
       owner.fullname AS owner_name
     FROM audit_logs al
     LEFT JOIN documents d ON al.document_id = d.document_id
@@ -112,13 +114,18 @@ $historySql = "
       d.subject,
       d.status,
       t.template_name,
-      editor.fullname AS actor_name,
+      COALESCE(owner.fullname, 'ไม่ระบุผู้ดำเนินการ') AS actor_name,
       owner.fullname AS owner_name
     FROM documents d
-    LEFT JOIN users editor ON d.approved_by = editor.user_id
     LEFT JOIN users owner ON d.owner_id = owner.user_id
     LEFT JOIN templates t ON d.template_id = t.template_id
     WHERE d.updated_at IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1
+        FROM audit_logs al2
+        WHERE al2.document_id = d.document_id
+          AND al2.action = 'UPDATED'
+      )
   ) h
   $whereSql
   ORDER BY h.history_at DESC

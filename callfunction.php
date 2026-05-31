@@ -19,7 +19,32 @@ $res = login($username, $password);
 // ✅ ต้องเช็คก่อนทำอย่างอื่น
 if (!$res['ok']) {
     $err = $res['error'] ?? 'unknown';
-    header("Location: login.html?error={$err}");
+
+    // แยกให้ชัดเจนว่า Username ผิด หรือ Password ผิด
+    if (!in_array($err, ['user', 'pass', 'inactive', 'db'], true)) {
+        try {
+            $pdo = getPDO();
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? LIMIT 1");
+            $stmt->execute([$username]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$user) {
+                $err = 'user';
+            } elseif (isset($user['is_active']) && (int)$user['is_active'] !== 1) {
+                $err = 'inactive';
+            } else {
+                $storedPassword = (string)($user['password'] ?? '');
+
+                if ($storedPassword !== '' && !password_verify($password, $storedPassword)) {
+                    $err = 'pass';
+                }
+            }
+        } catch (PDOException $e) {
+            $err = 'db';
+        }
+    }
+
+    header('Location: login.html?error=' . urlencode($err));
     exit;
 }
 
