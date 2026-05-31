@@ -57,7 +57,7 @@ if (!$document) {
   exit("ไม่พบเอกสาร");
 }
 
-$docStatus = (string)($document['status'] ?? '');
+$docStatus = trim((string)($document['status'] ?? ''));
 $isOwner = ((int)($document['owner_id'] ?? 0) === $userId);
 
 // โหลด role ซ้ำจาก session เพื่อกันกรณี role_id/role_name ไม่ตรงกัน
@@ -66,12 +66,16 @@ $roleId = (int) ($_SESSION['role_id'] ?? 0);
 $isAdmin = ($roleId === 1 || in_array($role, ['admin', 'administrator', 'ผู้ดูแลระบบ'], true));
 $isOfficer = ($roleId === 2 || in_array($role, ['officer', 'เจ้าหน้าที่'], true));
 
-// เช็กสิทธิ์ document.edit จากฐานข้อมูลและ session
+// เช็กสิทธิ์ document.edit และตรวจว่าผู้ใช้มีสิทธิ์รายบุคคลอยู่หรือไม่
 $hasEditPermission = false;
-
+$hasAnyExplicitPermission = false;
 try {
+  $permAnyStmt = $pdo->prepare("SELECT COUNT(*) FROM user_permissions WHERE user_id = :uid");
+  $permAnyStmt->execute([':uid' => $userId]);
+  $hasAnyExplicitPermission = ((int)$permAnyStmt->fetchColumn() > 0);
+
   $sql = "
-      SELECT COUNT(*) 
+      SELECT COUNT(*)
       FROM user_permissions up
       JOIN permissions p ON p.perm_id = up.perm_id
       WHERE up.user_id = :uid
@@ -82,6 +86,7 @@ try {
   $hasEditPermission = ((int)$st->fetchColumn() > 0);
 } catch (Throwable $e) {
   $hasEditPermission = false;
+  $hasAnyExplicitPermission = false;
 }
 
 $sessionPermissions = $_SESSION['permissions'] ?? [];
@@ -104,43 +109,36 @@ if (!$isAdmin && !$isOfficer && !$isOwner && !$hasEditPermission) {
   exit;
 }
 
-// สถานะเอกสาร
-$isSubmitted = ($docStatus === 'submitted');
-$isWaitingForEdit = in_array($docStatus, ['rejected', 'รอแก้เอกสาร'], true);
-$isCheckedDone = in_array($docStatus, [
-  'checked',
-  'reviewed',
-  'passed',
-  'approved',
-  'ผ่านการตรวจสอบ',
-  'ได้รับการตรวจสอบ',
-  'ตรวจสอบแล้ว',
-  'อนุมัติ'
-], true);
-$allowEditByStatus = in_array($docStatus, ['draft', 'rejected', 'รอแก้เอกสาร'], true);
+$userEditableStatuses = ['draft', 'รอยืนยันการส่ง', 'rejected', 'รอแก้เอกสาร', 'รอแก้ไข'];
+$officerEditableStatuses = array_merge($userEditableStatuses, ['submitted', 'รอตรวจ', 'รอตรวจสอบ', 'รอการตรวจสอบ']);
+$checkedStatuses = ['ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว', 'ได้รับการตรวจสอบ', 'ได้รับการตรวจสอบแล้ว', 'ตรวจสอบแล้ว', 'approved', 'checked', 'reviewed'];
 
-// เหตุผลที่กดแก้ไม่ได้ ใช้แสดงข้อความให้ชัดเจน
+$isCheckedDone = in_array($docStatus, $checkedStatuses, true);
+$isOfficerEditableStatus = in_array($docStatus, $officerEditableStatuses, true);
+$isUserEditableStatus = in_array($docStatus, $userEditableStatuses, true);
+
+// ถ้ามีสิทธิ์รายบุคคลแล้วแต่ไม่มี document.edit ให้เป็นดูอย่างเดียว แม้เป็นเจ้าของเอกสาร
+$legacyOwnerCanEdit = ($isOwner && !$hasAnyExplicitPermission);
+$hasBaseEditPermission = ($isAdmin || $isOfficer || $hasEditPermission || $legacyOwnerCanEdit);
+
 $editDisabledTitle = 'จำกัดสิทธิ์การแก้ไข';
 $editDisabledMessage = 'คุณไม่มีสิทธิ์แก้ไขเอกสารนี้';
 
-if ($isSubmitted) {
-  $editDisabledTitle = 'เอกสารถูกส่งแล้ว';
-  $editDisabledMessage = 'เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
-} elseif ($isCheckedDone) {
+if ($isCheckedDone) {
   $editDisabledTitle = 'เอกสารผ่านการตรวจสอบแล้ว';
   $editDisabledMessage = 'เอกสารนี้ได้รับการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
+} elseif ($hasBaseEditPermission && (($isAdmin || $isOfficer) ? !$isOfficerEditableStatus : !$isUserEditableStatus)) {
+  $editDisabledTitle = 'ไม่สามารถแก้ไขเอกสารได้';
+  $editDisabledMessage = 'สถานะเอกสารปัจจุบันไม่อนุญาตให้แก้ไข';
 }
 
-// ถ้า submitted หรือผ่านการตรวจสอบแล้ว ห้ามแก้ทุกกรณี
-// ถ้า rejected/รอแก้เอกสาร ให้แก้ได้ตามสิทธิ์ เพื่อแก้แล้วส่งใหม่
-if ($isSubmitted || $isCheckedDone) {
+if ($isCheckedDone) {
   $canEdit = false;
 } elseif ($isAdmin || $isOfficer) {
-  $canEdit = true;
+  $canEdit = $isOfficerEditableStatus;
 } else {
-  $canEdit = (($isOwner || $hasEditPermission) && $allowEditByStatus);
+  $canEdit = (($hasEditPermission || $legacyOwnerCanEdit) && $isUserEditableStatus);
 }
-
 $readonly = !$canEdit;
 
 $q = $pdo->prepare("SELECT field_id, value_text FROM document_values WHERE document_id = :id");
@@ -291,7 +289,17 @@ function ht_date($text)
 
 function ht($text)
 {
-  return h(thai_digits($text));
+  return h(arabic_digits($text));
+}
+
+// บังคับเลขที่ดึงมาจากฐานข้อมูลให้เป็นเลขอารบิกทุกช่อง ก่อนนำไปแสดงผล
+foreach ($valueMap as $k => $v) {
+  $valueMap[$k] = arabic_digits($v);
+}
+foreach (['doc_no', 'subject', 'header_text'] as $k) {
+  if (isset($document[$k])) {
+    $document[$k] = arabic_digits($document[$k]);
+  }
 }
 
 function thai_date($ymd)
@@ -314,6 +322,27 @@ function thai_date($ymd)
     12 => "ธันวาคม"
   ];
   return arabic_digits(intval($d) . " " . $months[intval($m)] . " " . (intval($y) + 543));
+}
+
+
+function extract_thai_year($text)
+{
+  $text = arabic_digits((string)$text);
+  if ($text === '') {
+    return '';
+  }
+
+  if (preg_match('/^\s*(\d{4})-\d{2}-\d{2}\s*$/', $text, $m)) {
+    $year = (int)$m[1];
+    return (string)($year < 2400 ? $year + 543 : $year);
+  }
+
+  if (preg_match_all('/\b(25\d{2}|24\d{2}|20\d{2}|19\d{2})\b/u', $text, $matches) && !empty($matches[1])) {
+    $year = (int)end($matches[1]);
+    return (string)($year < 2400 ? $year + 543 : $year);
+  }
+
+  return '';
 }
 
 $docDate = $valueMap[1] ?? $document['doc_date'];
@@ -403,14 +432,14 @@ $hdr_agency = trim(
   ($department ? "ภาควิชา" . $department : "ภาควิชา........................") .
   ($departmentPhone ? " โทร. " . $departmentPhone : "")
 );
-$hdr_agency = preg_replace('/\s+/u', '', $hdr_agency);
+$hdr_agency = arabic_digits(preg_replace('/\s+/u', ' ', $hdr_agency));
 
 $hdr_subject = $joinType ?: "เข้ารับการฝึกอบรมหลักสูตร";
 $hdr_to = "คณบดี" . ($faculty ?: "คณะ..................................");
 
-$thaiYear = "";
-if ($docDate && preg_match('/^\d{4}/', $docDate)) {
-  $thaiYear = ((int) substr($docDate, 0, 4) + 543);
+$thaiYear = extract_thai_year($docDate);
+if ($thaiYear === '') {
+  $thaiYear = extract_thai_year($joinDates);
 }
 
 $len = mb_strlen($subject, "UTF-8");
@@ -784,7 +813,7 @@ $len = max(20, $len);
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
       <div class="dot-line">
         <span class="chip gov-text">
-          <?= h(arabic_digits($hdr_agency ?: 'คณะ...ภาควิชา...โทร...')) ?>
+          <?= h(arabic_digits($hdr_agency ?: 'คณะ... ภาควิชา... โทร...')) ?>
         </span>
       </div>
     </div>
@@ -876,14 +905,17 @@ $len = max(20, $len);
         ดาวน์โหลด Word
       </a>
 
-      <a href="/Pro_letter/documents/form_Memo.php?id=<?= (int)$docId ?>" id="editBtn"
-        data-can-edit="<?= $canEdit ? '1' : '0' ?>" data-edit-title="<?= h($editDisabledTitle) ?>"
-        data-edit-message="<?= h($editDisabledMessage) ?>" class="px-6 py-2 rounded-md text-xl font-bold
-        <?= $canEdit
-          ? "bg-teal-500 hover:bg-teal-600 text-white"
-          : "bg-gray-300 text-gray-600 cursor-not-allowed" ?>">
+      <?php if ($canEdit): ?>
+      <a href="/Pro_letter/documents/form_Memo.php?id=<?= (int)$docId ?>"
+        class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
         แก้ไขเอกสาร
       </a>
+      <?php else: ?>
+      <span class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block"
+        title="<?= h($editDisabledMessage ?: 'ไม่สามารถแก้ไขเอกสารนี้ได้') ?>">
+        แก้ไขเอกสาร
+      </span>
+      <?php endif; ?>
 
       <a href="<?= $homePath ?>"
         class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md text-xl font-bold">
@@ -904,7 +936,7 @@ $len = max(20, $len);
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
       <div class="dot-line">
         <span class="chip gov-text">
-          <?= h(arabic_digits($hdr_agency ?: 'คณะ...ภาควิชา...โทร...')) ?>
+          <?= h(arabic_digits($hdr_agency ?: 'คณะ... ภาควิชา... โทร...')) ?>
         </span>
       </div>
     </div>
@@ -990,14 +1022,17 @@ $len = max(20, $len);
         ดาวน์โหลด Word
       </a>
 
-      <a href="/Pro_letter/documents/form_Memo.php?id=<?= (int)$docId ?>" id="editBtn"
-        data-can-edit="<?= $canEdit ? '1' : '0' ?>" data-edit-title="<?= h($editDisabledTitle) ?>"
-        data-edit-message="<?= h($editDisabledMessage) ?>" class="px-6 py-2 rounded-md text-xl font-bold
-        <?= $canEdit
-          ? "bg-teal-500 hover:bg-teal-600 text-white"
-          : "bg-gray-300 text-gray-600 cursor-not-allowed" ?>">
+      <?php if ($canEdit): ?>
+      <a href="/Pro_letter/documents/form_Memo.php?id=<?= (int)$docId ?>"
+        class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
         แก้ไขเอกสาร
       </a>
+      <?php else: ?>
+      <span class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block"
+        title="<?= h($editDisabledMessage ?: 'ไม่สามารถแก้ไขเอกสารนี้ได้') ?>">
+        แก้ไขเอกสาร
+      </span>
+      <?php endif; ?>
 
       <a href="<?= $homePath ?>"
         class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md text-xl font-bold">
@@ -1020,7 +1055,7 @@ $len = max(20, $len);
       <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
       <div class="dot-line">
         <span class="chip gov-text">
-          <?= h(arabic_digits($hdr_agency ?: 'คณะ...ภาควิชา...โทร...')) ?>
+          <?= h(arabic_digits($hdr_agency ?: 'คณะ... ภาควิชา... โทร...')) ?>
         </span>
       </div>
     </div>
@@ -1103,14 +1138,17 @@ $len = max(20, $len);
         ดาวน์โหลด Word
       </a>
 
-      <a href="/Pro_letter/documents/form_Memo.php?id=<?= (int)$docId ?>" id="editBtn"
-        data-can-edit="<?= $canEdit ? '1' : '0' ?>" data-edit-title="<?= h($editDisabledTitle) ?>"
-        data-edit-message="<?= h($editDisabledMessage) ?>" class="px-6 py-2 rounded-md text-xl font-bold
-        <?= $canEdit
-          ? "bg-teal-500 hover:bg-teal-600 text-white"
-          : "bg-gray-300 text-gray-600 cursor-not-allowed" ?>">
+      <?php if ($canEdit): ?>
+      <a href="/Pro_letter/documents/form_Memo.php?id=<?= (int)$docId ?>"
+        class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
         แก้ไขเอกสาร
       </a>
+      <?php else: ?>
+      <span class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block"
+        title="<?= h($editDisabledMessage ?: 'ไม่สามารถแก้ไขเอกสารนี้ได้') ?>">
+        แก้ไขเอกสาร
+      </span>
+      <?php endif; ?>
 
       <a href="<?= $homePath ?>"
         class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md text-xl font-bold">
@@ -1284,14 +1322,17 @@ $len = max(20, $len);
           ดาวน์โหลด Word
         </a>
 
-        <a href="/Pro_letter/documents/form_Memo.php?id=<?= (int)$docId ?>" id="editBtn"
-          data-can-edit="<?= $canEdit ? '1' : '0' ?>" data-edit-title="<?= h($editDisabledTitle) ?>"
-          data-edit-message="<?= h($editDisabledMessage) ?>" class="px-6 py-2 rounded-md text-xl font-bold
-   <?= $canEdit
-      ? "bg-teal-500 hover:bg-teal-600 text-white"
-      : "bg-gray-300 text-gray-600 cursor-not-allowed" ?>">
-          แก้ไขเอกสาร
-        </a>
+        <?php if ($canEdit): ?>
+      <a href="/Pro_letter/documents/form_Memo.php?id=<?= (int)$docId ?>"
+        class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
+        แก้ไขเอกสาร
+      </a>
+      <?php else: ?>
+      <span class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block"
+        title="<?= h($editDisabledMessage ?: 'ไม่สามารถแก้ไขเอกสารนี้ได้') ?>">
+        แก้ไขเอกสาร
+      </span>
+      <?php endif; ?>
         <a href="<?= $homePath ?>"
           class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md text-xl font-bold">
           กลับหน้าหลัก
@@ -1430,22 +1471,7 @@ $len = max(20, $len);
         }
       });
     }
-    document.querySelectorAll("#editBtn").forEach((editBtn) => {
-      editBtn.addEventListener("click", function(e) {
-        const canEdit = this.dataset.canEdit === "1";
-        if (!canEdit) {
-          e.preventDefault();
-          Swal.fire({
-            title: this.dataset.editTitle || "จำกัดสิทธิ์การแก้ไข",
-            text: this.dataset.editMessage || "คุณไม่มีสิทธิ์แก้ไขเอกสารนี้",
-            icon: "warning",
-            confirmButtonText: "ตกลง"
-          });
-        }
-      });
-    });
-
-    if (getQuery("saved") === "1" && getQuery("from") === "update") {
+if (getQuery("saved") === "1" && getQuery("from") === "update") {
       Swal.fire({
         title: "บันทึกสำเร็จ",
         text: "คุณต้องการกลับไปที่หน้าหลักหรือไม่?",

@@ -17,6 +17,98 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+
+
+/* ===== Edit permission + category lock guard (role/session based) ===== */
+$userId = (int)($_SESSION['user_id'] ?? 0);
+$roleIdForEditGuard = (int)($_SESSION['role_id'] ?? 0);
+$isAdminOrOfficerForEditGuard = in_array($roleIdForEditGuard, [1, 2], true);
+
+if (!isset($homePath)) {
+    if ($roleIdForEditGuard === 1) {
+        $homePath = '/Pro_letter/admin/home.php';
+    } elseif ($roleIdForEditGuard === 2) {
+        $homePath = '/Pro_letter/officer/home.php';
+    } else {
+        $homePath = '/Pro_letter/user/home.php';
+    }
+}
+
+$editGuardDocId = isset($_GET['id']) ? (int)$_GET['id'] : (int)($_POST['document_id'] ?? 0);
+$isEditModeForGuard = ($editGuardDocId > 0 && ((($_GET['edit'] ?? '') === '1') || isset($_GET['id']) || isset($_POST['document_id'])));
+$editGuardDocStatus = '';
+$categoryLocked = false;
+
+if ($isEditModeForGuard) {
+    try {
+        $editGuardPdo = db();
+        $editGuardStmt = $editGuardPdo->prepare("SELECT document_id, owner_id, status FROM documents WHERE document_id = :id LIMIT 1");
+        $editGuardStmt->execute([':id' => $editGuardDocId]);
+        $editGuardDoc = $editGuardStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        if (!$editGuardDoc) {
+            header('Location: ' . $homePath . '?err=notfound');
+            exit;
+        }
+
+        $editGuardOwnerId = (int)($editGuardDoc['owner_id'] ?? 0);
+        $editGuardDocStatus = trim((string)($editGuardDoc['status'] ?? ''));
+
+        $hasAnyExplicitPermissionForEditGuard = false;
+        $hasDocumentEditPermissionForEditGuard = false;
+
+        try {
+            $permAnyStmt = $editGuardPdo->prepare("SELECT COUNT(*) FROM user_permissions WHERE user_id = :uid");
+            $permAnyStmt->execute([':uid' => $userId]);
+            $hasAnyExplicitPermissionForEditGuard = ((int)$permAnyStmt->fetchColumn() > 0);
+
+            $permEditStmt = $editGuardPdo->prepare("
+                SELECT COUNT(*)
+                FROM user_permissions up
+                JOIN permissions p ON p.perm_id = up.perm_id
+                WHERE up.user_id = :uid
+                  AND p.perm_code = 'document.edit'
+            ");
+            $permEditStmt->execute([':uid' => $userId]);
+            $hasDocumentEditPermissionForEditGuard = ((int)$permEditStmt->fetchColumn() > 0);
+        } catch (Throwable $permError) {
+            $hasAnyExplicitPermissionForEditGuard = false;
+            $hasDocumentEditPermissionForEditGuard = false;
+        }
+
+        $checkedStatusesForEditGuard = [
+            'ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว', 'ได้รับการตรวจสอบ',
+            'ได้รับการตรวจสอบแล้ว', 'ตรวจสอบแล้ว', 'approved', 'checked', 'reviewed'
+        ];
+        $isCheckedStatusForEditGuard = in_array($editGuardDocStatus, $checkedStatusesForEditGuard, true);
+
+        // รองรับระบบเดิม: ถ้ายังไม่เคยกำหนดสิทธิ์รายบุคคล ให้เจ้าของเอกสารยังแก้เอกสารตัวเองได้
+        // แต่ถ้ามีการกำหนดสิทธิ์แล้วและไม่มี document.edit ให้ถือว่าเป็นสิทธิ์ดูอย่างเดียว
+        $legacyOwnerCanEditForEditGuard = ($editGuardOwnerId === $userId && !$hasAnyExplicitPermissionForEditGuard);
+
+        $canEditThisFormForEditGuard = (!$isCheckedStatusForEditGuard) && (
+            $isAdminOrOfficerForEditGuard
+            || $hasDocumentEditPermissionForEditGuard
+            || $legacyOwnerCanEditForEditGuard
+        );
+
+        if (!$canEditThisFormForEditGuard) {
+            header('Location: /Pro_letter/documents/view_memo.php?id=' . $editGuardDocId . '&err=no_permission');
+            exit;
+        }
+
+        $categoryLockedStatusesForEditGuard = [
+            'draft', 'submitted', 'reviewing', 'pending', 'pending_review',
+            'เค้าโครง', 'รอยืนยันการส่ง', 'ส่งแล้ว', 'รอตรวจ', 'รอตรวจสอบ',
+            'รอการตรวจสอบ', 'รอแก้ไข', 'รอแก้เอกสาร', 'rejected'
+        ];
+        $categoryLocked = in_array($editGuardDocStatus, $categoryLockedStatusesForEditGuard, true);
+    } catch (Throwable $editGuardError) {
+        header('Location: ' . $homePath . '?err=server');
+        exit;
+    }
+}
+/* ===== End edit permission + category lock guard ===== */
 $roleIdForHome = (int)($_SESSION['role_id'] ?? 0);
 if ($roleIdForHome === 1) {
     $homePath = '/Pro_letter/admin/home.php';
@@ -346,7 +438,7 @@ if ($eventTimeValue !== '') {
     $timeEndValue = trim($timeParts[1] ?? '');
 }
 
-$formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/save_memo.php';
+$formAction = $isEdit ? '/Pro_letter/documents/update_memo.php' : '/Pro_letter/documents/save_memo.php';
 ?>
 
 <!DOCTYPE html>
@@ -596,75 +688,14 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
     }
   }
   </style>
+
+  <script>
+    window.CATEGORY_LOCKED_BY_STATUS = <?= $categoryLocked ? 'true' : 'false' ?>;
+  </script>
 </head>
 
 <body class="bg-gray-100">
-  <header class="bg-teal-500 text-white p-4 flex justify-between items-center shadow-md"
-    style="font-family: Arial, Helvetica, sans-serif">
-    <div class="flex items-center space-x-3">
-      <div class="w-[56px] h-[56px] flex items-center justify-center relative overflow-visible">
-        <svg xmlns="http://www.w3.org/2000/svg" class="absolute scale-[1.4] text-white"
-          style="width: 60px; height: 60px" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
-            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m0 0a2 2 0 00-2-2H5a2 2 0 00-2 2m18 0v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8" />
-        </svg>
-      </div>
-      <div class="leading-tight">
-        <div class="text-[16px] font-bold">Smart</div>
-        <div class="text-[16px] font-bold -mt-[2px]">Government</div>
-        <div class="text-[13px] mt-[0px]">Letter Assistant System</div>
-      </div>
-    </div>
-    <div class="flex items-center space-x-4">
-      <a href="<?= h($homePath) ?>">
-        <div class="px-4 py-2 rounded-[11px] font-bold transition text-white">
-          หน้าหลัก
-        </div>
-      </a>
-
-      <?php 
-                if (isset($_SESSION['permissions']) && in_array(3, $_SESSION['permissions'])) {
-                    renderAdminExtraMenus(); 
-                }
-            ?>
-
-      <a href="/Pro_letter/form_Memo/Request/infor_invite.php">
-        <div class="px-4 py-2 rounded-[11px] font-bold transition bg-white text-teal-500 shadow">
-          แบบฟอร์มบันทึกข้อความ
-        </div>
-      </a>
-
-      <div class="relative">
-        <!-- ปุ่ม Profile -->
-        <button id="profileBtn"
-          class="bg-white text-teal-500 px-4 py-2 rounded-[11px] shadow flex items-center space-x-2 hover:bg-gray-100">
-          <div class="text-right leading-tight">
-            <div class="font-bold text-[14px]">
-              <?= htmlspecialchars($_SESSION['fullname'] ?? 'Guest') ?>
-            </div>
-            <div class="text-[12px]">
-              <?= htmlspecialchars($_SESSION['role_name'] ?? '') ?>
-            </div>
-
-          </div>
-          <div class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-              stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M5.121 17.804A13.937 13.937 0 0112 15c2.33 0 4.487.577 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </div>
-        </button>
-
-        <!-- เมนู Dropdown -->
-        <div id="profileMenu" class="hidden absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-lg z-50">
-          <a href="../logout.php" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">ออกจากระบบ</a>
-          <button onclick="closeMenu()"
-            class="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">อยู่ต่อ</button>
-        </div>
-      </div>
-    </div>
-  </header>
+  <?php require_once $_SERVER['DOCUMENT_ROOT'] . '/Pro_letter/includes/role_header.php'; ?>
 
   <form method="post" action="<?= h($formAction) ?>" id="memoForm">
     <input type="hidden" name="department_id" id="selectedDepartmentId" value="<?= (int)$currentUserDepartmentId ?>">
@@ -699,7 +730,7 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
         <div class="flex items-center gap-3">
           <label class="lbl text-gray-800 w-28 text-right">หมวดหลัก:</label>
           <div class="relative w-full">
-            <select name="main_category" class="custom-select w-full" id="mainCategory">
+            <select name="main_category" class="custom-select w-full" id="mainCategory"<?= $categoryLocked ? ' disabled data-category-locked="1"' : '' ?>>
               <option value="">-- เลือกหมวดหลัก --</option>
               <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
               <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>ภายใน</option>
@@ -711,10 +742,15 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
         <div class="flex items-center gap-3">
           <label class="lbl text-gray-800 w-28 text-right">หมวดย่อย:</label>
           <div class="relative w-full">
-            <select name="sub_category" class="custom-select w-full" id="subCategory"
+            <select name="sub_category" class="custom-select w-full" id="subCategory"<?= $categoryLocked ? ' data-category-locked="1"' : '' ?>
               data-current="<?= h($CURRENT_SUB ?? '') ?>" disabled>
               <option value="">-- เลือกหมวดย่อย --</option>
             </select>
+              <?php if ($categoryLocked): ?>
+              <input type="hidden" name="main_category" value="<?= h($CURRENT_MAIN ?? '') ?>">
+              <input type="hidden" name="sub_category" value="<?= h($CURRENT_SUB ?? '') ?>">
+              <input type="hidden" name="main_category_locked_value" value="1">
+              <?php endif; ?>
 
           </div>
         </div>
@@ -819,8 +855,8 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
 
           <div class="flex items-center gap-3 flex-nowrap pl-4 w-full overflow-x-auto">
             <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap shrink-0">
-              <input type="radio" name="doc_date_option" id="docDateUse" value="use_date"
-                class="accent-black" <?= ($docDateOption === 'use_date') ? 'checked' : '' ?>>
+              <input type="radio" name="doc_date_option" id="docDateUse" value="use_date" class="accent-black"
+                <?= ($docDateOption === 'use_date') ? 'checked' : '' ?>>
               วันที่
             </label>
 
@@ -839,8 +875,8 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
           </div>
 
           <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap pl-4">
-            <input type="radio" name="doc_date_option" id="docDateNone" value="no_date"
-              class="accent-black" <?= ($docDateOption === 'no_date') ? 'checked' : '' ?>>
+            <input type="radio" name="doc_date_option" id="docDateNone" value="no_date" class="accent-black"
+              <?= ($docDateOption === 'no_date') ? 'checked' : '' ?>>
             ไม่ประสงค์ใส่วันที่
           </label>
         </div>
@@ -1781,7 +1817,8 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
       updateEventTime();
     }
 
-    const mainCategory = byId("mainCategory");
+    
+const mainCategory = byId("mainCategory");
     const subCategory = byId("subCategory");
     const faculty = byId("faculty");
     const dept = byId("dept");
@@ -1883,7 +1920,7 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
     if (docDateNone?.checked) {
       if (docDateDisplay) docDateDisplay.value = "";
       if (docDateHidden) docDateHidden.value = "";
-    } else if (typeof docPicker !== "undefined" && docPicker?.selectedDates?.[0] && docDateHidden) {
+    } else if (typeof docPicker !== "undefined" && docPicker?.selectedDates?. [0] && docDateHidden) {
       docDateHidden.value = formatYMDInvite(docPicker.selectedDates[0]);
     }
 
@@ -2082,12 +2119,14 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
 
     function syncUI(keepCurrentSub = false) {
       const mainVal = String(main.value || "").trim().toLowerCase();
-      const currentSub = keepCurrentSub
-        ? String(sub.dataset.current || sub.value || "").trim()
-        : "";
+      const currentSub = keepCurrentSub ?
+        String(sub.dataset.current || sub.value || "").trim() :
+        "";
 
       if (mainVal === "internal" || mainVal === "external") {
-        sub.disabled = false;
+        if (!window.CATEGORY_LOCKED_BY_STATUS) {
+          sub.disabled = false;
+        }
 
         if (!keepCurrentSub) {
           sub.dataset.current = "";
@@ -2104,15 +2143,18 @@ $formAction = $isEdit ? '/Pro_letter/update_memo.php' : '/Pro_letter/documents/s
     }
 
     main.addEventListener("change", () => {
+      if (window.CATEGORY_LOCKED_BY_STATUS) return;
       sub.dataset.current = "";
       syncUI(false);
     });
 
     sub.addEventListener("focus", () => {
+      if (window.CATEGORY_LOCKED_BY_STATUS) return;
       syncUI(true);
     });
 
     sub.addEventListener("pointerdown", () => {
+      if (window.CATEGORY_LOCKED_BY_STATUS) return;
       syncUI(true);
     });
 

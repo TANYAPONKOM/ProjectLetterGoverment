@@ -13,7 +13,7 @@ require_once __DIR__ . '/../functions.php';
 
 try {
   if (empty($_SESSION['user_id'])) {
-    header('Location: /documents/form_Memo.html?err=unauthorized', true, 302);
+    header('Location: /Pro_letter/documents/form_Memo.php?err=unauthorized', true, 302);
     exit;
   }
   $userId = (int) $_SESSION['user_id'];
@@ -23,20 +23,30 @@ try {
   $documentTypeName = trim($_POST['document_type_name'] ?? '');
 
   if ($documentId <= 0) {
-    header('Location: /documents/form_Memo.html?err=nodoc', true, 302);
+    header('Location: /Pro_letter/documents/form_Memo.php?err=nodoc', true, 302);
     exit;
   }
 
-  // ตรวจสิทธิ์แก้ไขเอกสาร: เจ้าของเอกสาร / admin / officer / ผู้มีสิทธิ์ document.edit
+  // ตรวจสิทธิ์แก้ไขเอกสาร: admin/officer / ผู้มีสิทธิ์ document.edit / เจ้าของเอกสารเดิมที่ยังไม่ถูกกำหนดสิทธิ์รายบุคคล
   $pdo = db();
-  $chk = $pdo->prepare("SELECT owner_id FROM documents WHERE document_id = :id LIMIT 1");
+  $chk = $pdo->prepare("SELECT owner_id, status FROM documents WHERE document_id = :id LIMIT 1");
   $chk->execute([':id' => $documentId]);
-  $owner = (int) $chk->fetchColumn();
+  $docForPermission = $chk->fetch(PDO::FETCH_ASSOC) ?: [];
+  $owner = (int)($docForPermission['owner_id'] ?? 0);
+  $currentStatusForPermission = trim((string)($docForPermission['status'] ?? ''));
 
   $roleId = (int)($_SESSION['role_id'] ?? 0);
+  $roleName = strtolower(trim((string)($_SESSION['role_name'] ?? $_SESSION['role'] ?? '')));
+  $isAdminOrOfficer = in_array($roleId, [1, 2], true)
+    || in_array($roleName, ['admin', 'administrator', 'officer', 'เจ้าหน้าที่', 'ผู้ดูแลระบบ'], true);
   $canEditByPermission = false;
+  $hasAnyExplicitPermission = false;
 
   try {
+    $permAnyStmt = $pdo->prepare("SELECT COUNT(*) FROM user_permissions WHERE user_id = :uid");
+    $permAnyStmt->execute([':uid' => $userId]);
+    $hasAnyExplicitPermission = ((int)$permAnyStmt->fetchColumn() > 0);
+
     $permStmt = $pdo->prepare("
       SELECT COUNT(*)
       FROM user_permissions up
@@ -48,16 +58,26 @@ try {
     $canEditByPermission = ((int)$permStmt->fetchColumn() > 0);
   } catch (Throwable $permError) {
     $canEditByPermission = false;
+    $hasAnyExplicitPermission = false;
   }
 
-  $canEditThisDocument = (
-    $owner === $userId
-    || in_array($roleId, [1, 2], true)
+  $checkedStatusesForPermission = [
+    'ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว', 'ได้รับการตรวจสอบ',
+    'ได้รับการตรวจสอบแล้ว', 'ตรวจสอบแล้ว', 'approved', 'checked', 'reviewed'
+  ];
+  $isCheckedStatusForPermission = in_array($currentStatusForPermission, $checkedStatusesForPermission, true);
+
+  // ถ้ามีการกำหนดสิทธิ์รายบุคคลแล้ว แต่ไม่มี document.edit ให้ถือว่าเป็นสิทธิ์ดูอย่างเดียว
+  $legacyOwnerCanEdit = ($owner === $userId && !$hasAnyExplicitPermission);
+
+  $canEditThisDocument = (!$isCheckedStatusForPermission) && (
+    $isAdminOrOfficer
     || $canEditByPermission
+    || $legacyOwnerCanEdit
   );
 
   if (!$canEditThisDocument) {
-    header('Location: /Pro_letter/documents/view_memo.php?id=' . $documentId . '&err=forbidden', true, 302);
+    header('Location: /Pro_letter/documents/view_memo.php?id=' . $documentId . '&err=no_permission', true, 302);
     exit;
   }
 
@@ -167,7 +187,7 @@ try {
     $singleDate = $joinDates;
   }
 
-  $isOnline = isset($_POST['is_online']) ? 1 : 0;
+  $isOnline = (($_POST['is_online'] ?? '0') === '1') ? 1 : 0;
   $place = trim($_POST['place'] ?? $_POST['location'] ?? $_POST['location_input'] ?? '');
 
 $courseName = trim($_POST['course_name'] ?? '');
@@ -402,6 +422,17 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
   $amount = $noCost ? 0.00 : (is_numeric($amountRaw) ? (float) $amountRaw : 0.00);
 
   $carUsed = isset($_POST['car_used']) ? 1 : 0;
+
+  $expenseJson = trim((string)($_POST['expense_json'] ?? ''));
+  if ($noCost) {
+    $expenseJson = '';
+  }
+  if ($expenseJson !== '') {
+    json_decode($expenseJson, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+      $expenseJson = '';
+    }
+  }
   $carPlate = trim($_POST['car_plate'] ?? '');
 
   $departmentId = (int)($_POST['department_id'] ?? 0);
@@ -770,6 +801,11 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
   $stmtStatus->execute([':id' => $documentId]);
   $currentStatus = (string) $stmtStatus->fetchColumn();
 
+  // กำหนดสถานะหลังบันทึกตามผู้แก้ไข
+  // admin/officer แก้แล้วให้กลับไปรอตรวจสอบทันที (submitted)
+  // user แก้แล้วให้กลับไปเป็นเค้าโครง/รอยืนยันการส่ง (draft)
+  $newStatusAfterEdit = $isAdminOrOfficer ? 'submitted' : 'draft';
+
   // ถ้าเอกสารเดิมเป็นสถานะรอแก้ไข หลังบันทึกสำเร็จให้กลับเป็น draft เพื่อให้ผู้ใช้กดส่งใหม่เอง
   $shouldResetStatusToDraft =
     in_array($currentStatus, ['rejected', 'รอแก้เอกสาร', 'รอแก้ไข'], true)
@@ -853,10 +889,7 @@ if (!$canEditThisDocument) {
         subject = :subject,
         header_text = :header_text,
         document_type_name = COALESCE(NULLIF(:document_type_name, ''), document_type_name),
-        status = CASE
-            WHEN :reset_status_to_draft = 1 THEN 'draft'
-            ELSE status
-        END,
+        status = :new_status,
         updated_at = NOW() 
     WHERE document_id = :id
 ");
@@ -867,7 +900,7 @@ $up->execute([
     ':subject' => $subject,
     ':header_text' => $headerText,
     ':document_type_name' => $documentTypeName,
-    ':reset_status_to_draft' => $shouldResetStatusToDraft ? 1 : 0,
+    ':new_status' => $newStatusAfterEdit,
     ':id' => $documentId
 ]);
 
@@ -1116,6 +1149,12 @@ if ($isCoopEvaluation) {
     ];
   }
 
+
+  // เก็บรายละเอียดค่าใช้จ่ายแบบ JSON สำหรับโหลดกลับตอนแก้ไข
+  // โดยเฉพาะข้อ 1 ค่าตอบแทน และข้อ 2.4 ค่าพาหนะ/เครื่องบิน
+  $values[20] = $expenseJson;
+  $valuesByKey['expense_json'] = $expenseJson;
+
   $q = $pdo->prepare("SELECT field_id FROM template_fields WHERE template_id = :tid");
   $q->execute([':tid' => $templateId]);
   $allowIds = array_flip($q->fetchAll(PDO::FETCH_COLUMN));
@@ -1313,7 +1352,7 @@ exit;
     } elseif (!empty($isResearchData)) {
       header('Location: /Pro_letter/documents/infor_research_data.php?id=' . $documentId . '&err=server', true, 302);
     } elseif (!empty($isInviteMemo)) {
-      header('Location: /Pro_letter/documents/infor_invite.php?id=' . $documentId . '&err=server', true, 302);
+      header('Location: /Pro_letter/documents/infor_invite.php?id=' . $documentId . '&edit=1&err=server', true, 302);
     } elseif (!empty($isStudyVisit)) {
       header('Location: /Pro_letter/documents/infor_study_visit.php?id=' . $documentId . '&edit=1&err=server', true, 302);
     } elseif (!empty($isAcademicPresentation) || $purpose === 'academic') {

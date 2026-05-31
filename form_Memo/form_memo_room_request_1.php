@@ -94,28 +94,44 @@ if ($roleId !== 1 && $roleId !== 2) {
 /* --------------------------------------------------
    สิทธิ์แก้ไขเอกสาร
 -------------------------------------------------- */
-$sql = "
-    SELECT COUNT(*) 
-    FROM user_permissions up
-    JOIN permissions p ON p.perm_id = up.perm_id
-    WHERE up.user_id = :uid
-    AND p.perm_code = 'document.edit'
-";
-$st = $pdo->prepare($sql);
-$st->execute([':uid' => $userId]);
-
-$hasDocumentEditPermission = ((int)$st->fetchColumn() > 0);
+$roleId = (int)($_SESSION['role_id'] ?? 0);
+$isAdmin = ($roleId === 1);
+$isOfficer = ($roleId === 2);
 $isOwner = ((int)($document['owner_id'] ?? 0) === $userId);
 $docStatus = trim((string)($document['status'] ?? ''));
 
-$editableStatuses = ['draft', 'rejected', 'รอแก้เอกสาร', 'รอแก้ไข'];
-$submittedStatuses = ['submitted'];
+$hasDocumentEditPermission = false;
+$hasAnyExplicitPermission = false;
+try {
+  $permAnyStmt = $pdo->prepare("SELECT COUNT(*) FROM user_permissions WHERE user_id = :uid");
+  $permAnyStmt->execute([':uid' => $userId]);
+  $hasAnyExplicitPermission = ((int)$permAnyStmt->fetchColumn() > 0);
+
+  $permStmt = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM user_permissions up
+    JOIN permissions p ON p.perm_id = up.perm_id
+    WHERE up.user_id = :uid
+      AND p.perm_code = 'document.edit'
+  ");
+  $permStmt->execute([':uid' => $userId]);
+  $hasDocumentEditPermission = ((int)$permStmt->fetchColumn() > 0);
+} catch (Throwable $permError) {
+  $hasAnyExplicitPermission = false;
+  $hasDocumentEditPermission = false;
+}
+
+$userEditableStatuses = ['draft', 'รอยืนยันการส่ง', 'rejected', 'รอแก้เอกสาร', 'รอแก้ไข'];
+$officerEditableStatuses = array_merge($userEditableStatuses, ['submitted', 'รอตรวจ', 'รอตรวจสอบ', 'รอการตรวจสอบ']);
 $checkedStatuses = ['ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว', 'ได้รับการตรวจสอบ', 'ได้รับการตรวจสอบแล้ว', 'ตรวจสอบแล้ว', 'approved', 'checked', 'reviewed'];
 
-$hasBaseEditPermission = ($isAdmin || $isOfficer || $isOwner || $hasDocumentEditPermission);
-$isEditableStatus = in_array($docStatus, $editableStatuses, true);
-$isSubmittedStatus = in_array($docStatus, $submittedStatuses, true);
 $isCheckedStatus = in_array($docStatus, $checkedStatuses, true);
+$isOfficerEditableStatus = in_array($docStatus, $officerEditableStatuses, true);
+$isUserEditableStatus = in_array($docStatus, $userEditableStatuses, true);
+
+// ถ้ามีสิทธิ์รายบุคคลแล้วแต่ไม่มี document.edit ให้เป็นดูอย่างเดียว แม้เป็นเจ้าของเอกสาร
+$legacyOwnerCanEdit = ($isOwner && !$hasAnyExplicitPermission);
+$hasBaseEditPermission = ($isAdmin || $isOfficer || $hasDocumentEditPermission || $legacyOwnerCanEdit);
 
 $editDisabledReason = '';
 $editAlertTitle = '';
@@ -127,21 +143,27 @@ if (!$hasBaseEditPermission) {
   $editAlertTitle = 'จำกัดสิทธิ์การแก้ไข';
   $editAlertText = 'คุณไม่มีสิทธิ์ในการแก้ไขเอกสารนี้';
   $editAlertIcon = 'error';
-} elseif ($isSubmittedStatus) {
-  $editDisabledReason = 'submitted';
-  $editAlertTitle = 'เอกสารถูกส่งแล้ว';
-  $editAlertText = 'เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
 } elseif ($isCheckedStatus) {
   $editDisabledReason = 'checked';
   $editAlertTitle = 'เอกสารผ่านการตรวจสอบแล้ว';
   $editAlertText = 'เอกสารนี้ได้รับการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
-} elseif (!$isEditableStatus) {
+} elseif (($isAdmin || $isOfficer) && !$isOfficerEditableStatus) {
+  $editDisabledReason = 'locked_status';
+  $editAlertTitle = 'ไม่สามารถแก้ไขเอกสารได้';
+  $editAlertText = 'สถานะเอกสารปัจจุบันไม่อนุญาตให้แก้ไข';
+} elseif (!($isAdmin || $isOfficer) && !$isUserEditableStatus) {
   $editDisabledReason = 'locked_status';
   $editAlertTitle = 'ไม่สามารถแก้ไขเอกสารได้';
   $editAlertText = 'สถานะเอกสารปัจจุบันไม่อนุญาตให้แก้ไข';
 }
 
-$canEdit = ($hasBaseEditPermission && $isEditableStatus);
+if ($isCheckedStatus) {
+  $canEdit = false;
+} elseif ($isAdmin || $isOfficer) {
+  $canEdit = $isOfficerEditableStatus;
+} else {
+  $canEdit = (($hasDocumentEditPermission || $legacyOwnerCanEdit) && $isUserEditableStatus);
+}
 $readonly = !$canEdit;
 
 
@@ -280,6 +302,16 @@ function h_thai_digits($text)
   return h(arabic_digits($text));
 }
 
+// บังคับเลขที่ดึงมาจากฐานข้อมูลให้เป็นเลขอารบิกทุกช่อง ก่อนนำไปแสดงผล
+foreach ($valueMap as $k => $v) {
+  $valueMap[$k] = arabic_digits($v);
+}
+foreach (['doc_no', 'subject', 'header_text'] as $k) {
+  if (isset($document[$k])) {
+    $document[$k] = arabic_digits($document[$k]);
+  }
+}
+
 function room_header_subject_lines($text, $limit = 74)
 {
   $text = trim(preg_replace('/\s+/u', ' ', arabic_digits((string)$text)));
@@ -402,7 +434,26 @@ $prettyAmount = "";
 /* --------------------------------------------------
    สร้างข้อความส่วนหัวที่ใช้ในเนื้อหา
 -------------------------------------------------- */
-$hdr_agency = trim((string)$header_text) !== '' ? trim((string)$header_text) : trim($displayFaculty . " " . $displayDepartmentFull);
+$rawHeaderText = trim((string)$header_text);
+
+if ($rawHeaderText !== "" && preg_match('/โทร\.?\s*([0-9๐-๙\-\s]+)/u', $rawHeaderText, $mPhone)) {
+  $departmentPhone = trim(arabic_digits($mPhone[1]));
+}
+
+$headerWithoutPhone = trim(preg_replace('/\s*โทร\.?\s*[0-9๐-๙\-\s]+$/u', '', $rawHeaderText));
+
+// ถ้าเอกสารเก่าบันทึก header_text มาโดยไม่มีเบอร์ ให้เติมเบอร์คณะกลับเข้าไป
+// ไม่ยุ่งกับ layout อื่น และยังคงเว้นวรรค "คณะ ... ภาควิชา ... โทร. ..." ตามเดิม
+if ($departmentPhone === "") {
+  $departmentPhone = "7064";
+}
+
+if ($headerWithoutPhone !== "") {
+  $hdr_agency = trim($headerWithoutPhone . " โทร. " . $departmentPhone);
+} else {
+  $hdr_agency = trim($displayFaculty . " " . $displayDepartmentFull . " โทร. " . $departmentPhone);
+}
+
 $hdr_agency = arabic_digits($hdr_agency);
 
 $hdr_subject = "ขออนุมัติใช้ห้องพักรับรอง";
@@ -1198,21 +1249,7 @@ $len = max(20, $len);
         }
       });
     }
-
-    const editBtn = document.getElementById("editBtn");
-    if (editBtn) {
-      editBtn.addEventListener("click", function(e) {
-        const canEdit = this.dataset.canEdit === "1";
-        if (!canEdit) {
-          e.preventDefault();
-          Swal.fire({
-            title: "ไม่สามารถแก้ไขได้",
-            text: "คุณไม่มีสิทธิ์แก้ไขเอกสารนี้ หรือสถานะเอกสารไม่อนุญาตให้แก้ไข",
-            icon: "warning",
-            confirmButtonText: "ตกลง"
-          });
-        }
-      });
+});
     }
   });
 

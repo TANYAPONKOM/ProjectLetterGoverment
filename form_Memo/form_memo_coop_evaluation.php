@@ -70,7 +70,7 @@ $document = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$document)
   exit("ไม่พบเอกสาร");
 
-$editQuestionUrl = "/Pro_letter/documents/infor_academic_presentation.php?id=" . (int)$docId . "&edit=1";
+$editQuestionUrl = "/Pro_letter/documents/infor_coop_evaluation.php?id=" . (int)$docId . "&edit=1";
 
 /* --------------------------------------------------
    สิทธิ์ดูเอกสาร
@@ -92,28 +92,44 @@ if ($roleId !== 1 && $roleId !== 2) {
 /* --------------------------------------------------
    สิทธิ์แก้ไขเอกสาร
 -------------------------------------------------- */
-$sql = "
-    SELECT COUNT(*) 
-    FROM user_permissions up
-    JOIN permissions p ON p.perm_id = up.perm_id
-    WHERE up.user_id = :uid
-    AND p.perm_code = 'document.edit'
-";
-$st = $pdo->prepare($sql);
-$st->execute([':uid' => $userId]);
-
-$hasDocumentEditPermission = ((int)$st->fetchColumn() > 0);
+$roleId = (int)($_SESSION['role_id'] ?? 0);
+$isAdmin = ($roleId === 1);
+$isOfficer = ($roleId === 2);
 $isOwner = ((int)($document['owner_id'] ?? 0) === $userId);
 $docStatus = trim((string)($document['status'] ?? ''));
 
-$editableStatuses = ['draft', 'rejected', 'รอแก้เอกสาร', 'รอแก้ไข'];
-$submittedStatuses = ['submitted'];
+$hasDocumentEditPermission = false;
+$hasAnyExplicitPermission = false;
+try {
+  $permAnyStmt = $pdo->prepare("SELECT COUNT(*) FROM user_permissions WHERE user_id = :uid");
+  $permAnyStmt->execute([':uid' => $userId]);
+  $hasAnyExplicitPermission = ((int)$permAnyStmt->fetchColumn() > 0);
+
+  $permStmt = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM user_permissions up
+    JOIN permissions p ON p.perm_id = up.perm_id
+    WHERE up.user_id = :uid
+      AND p.perm_code = 'document.edit'
+  ");
+  $permStmt->execute([':uid' => $userId]);
+  $hasDocumentEditPermission = ((int)$permStmt->fetchColumn() > 0);
+} catch (Throwable $permError) {
+  $hasAnyExplicitPermission = false;
+  $hasDocumentEditPermission = false;
+}
+
+$userEditableStatuses = ['draft', 'รอยืนยันการส่ง', 'rejected', 'รอแก้เอกสาร', 'รอแก้ไข'];
+$officerEditableStatuses = array_merge($userEditableStatuses, ['submitted', 'รอตรวจ', 'รอตรวจสอบ', 'รอการตรวจสอบ']);
 $checkedStatuses = ['ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว', 'ได้รับการตรวจสอบ', 'ได้รับการตรวจสอบแล้ว', 'ตรวจสอบแล้ว', 'approved', 'checked', 'reviewed'];
 
-$hasBaseEditPermission = ($isAdmin || $isOfficer || $isOwner || $hasDocumentEditPermission);
-$isEditableStatus = in_array($docStatus, $editableStatuses, true);
-$isSubmittedStatus = in_array($docStatus, $submittedStatuses, true);
 $isCheckedStatus = in_array($docStatus, $checkedStatuses, true);
+$isOfficerEditableStatus = in_array($docStatus, $officerEditableStatuses, true);
+$isUserEditableStatus = in_array($docStatus, $userEditableStatuses, true);
+
+// ถ้ามีสิทธิ์รายบุคคลแล้วแต่ไม่มี document.edit ให้เป็นดูอย่างเดียว แม้เป็นเจ้าของเอกสาร
+$legacyOwnerCanEdit = ($isOwner && !$hasAnyExplicitPermission);
+$hasBaseEditPermission = ($isAdmin || $isOfficer || $hasDocumentEditPermission || $legacyOwnerCanEdit);
 
 $editDisabledReason = '';
 $editAlertTitle = '';
@@ -125,21 +141,27 @@ if (!$hasBaseEditPermission) {
   $editAlertTitle = 'จำกัดสิทธิ์การแก้ไข';
   $editAlertText = 'คุณไม่มีสิทธิ์ในการแก้ไขเอกสารนี้';
   $editAlertIcon = 'error';
-} elseif ($isSubmittedStatus) {
-  $editDisabledReason = 'submitted';
-  $editAlertTitle = 'เอกสารถูกส่งแล้ว';
-  $editAlertText = 'เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
 } elseif ($isCheckedStatus) {
   $editDisabledReason = 'checked';
   $editAlertTitle = 'เอกสารผ่านการตรวจสอบแล้ว';
   $editAlertText = 'เอกสารนี้ได้รับการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
-} elseif (!$isEditableStatus) {
+} elseif (($isAdmin || $isOfficer) && !$isOfficerEditableStatus) {
+  $editDisabledReason = 'locked_status';
+  $editAlertTitle = 'ไม่สามารถแก้ไขเอกสารได้';
+  $editAlertText = 'สถานะเอกสารปัจจุบันไม่อนุญาตให้แก้ไข';
+} elseif (!($isAdmin || $isOfficer) && !$isUserEditableStatus) {
   $editDisabledReason = 'locked_status';
   $editAlertTitle = 'ไม่สามารถแก้ไขเอกสารได้';
   $editAlertText = 'สถานะเอกสารปัจจุบันไม่อนุญาตให้แก้ไข';
 }
 
-$canEdit = ($hasBaseEditPermission && $isEditableStatus);
+if ($isCheckedStatus) {
+  $canEdit = false;
+} elseif ($isAdmin || $isOfficer) {
+  $canEdit = $isOfficerEditableStatus;
+} else {
+  $canEdit = (($hasDocumentEditPermission || $legacyOwnerCanEdit) && $isUserEditableStatus);
+}
 $readonly = !$canEdit;
 
 
@@ -276,9 +298,36 @@ function thai_digits($text)
   ]);
 }
 
+
+function arabic_digits($text)
+{
+  return strtr((string)$text, [
+    '๐' => '0',
+    '๑' => '1',
+    '๒' => '2',
+    '๓' => '3',
+    '๔' => '4',
+    '๕' => '5',
+    '๖' => '6',
+    '๗' => '7',
+    '๘' => '8',
+    '๙' => '9',
+  ]);
+}
+
 function h_thai_digits($text)
 {
-  return h(thai_digits($text));
+  return h(arabic_digits($text));
+}
+
+// บังคับเลขที่ดึงมาจากฐานข้อมูลให้เป็นเลขอารบิกก่อนนำไปแสดงผล
+foreach ($valueMap as $k => $v) {
+  $valueMap[$k] = arabic_digits($v);
+}
+foreach (['doc_no', 'subject', 'header_text'] as $k) {
+  if (isset($document[$k])) {
+    $document[$k] = arabic_digits($document[$k]);
+  }
 }
 
 /* --------------------------------------------------
@@ -295,6 +344,42 @@ $amountStr = $valueMap[8] ?? "";
 $vehicle = $valueMap[9] ?? "";
 $faculty = $valueMap[10] ?? "";
 $department = $valueMap[11] ?? "";
+
+// ถ้าชื่อเจ้าของเอกสารไม่ถูกบันทึกใน document_values ให้ดึงจากผู้ใช้เจ้าของเอกสารแทน
+if (trim((string)$ownerName) === '') {
+  $ownerIdForLookup = (int)($document['owner_id'] ?? 0);
+  if ($ownerIdForLookup > 0) {
+    $ownerRow = null;
+
+    try {
+      $ownerStmt = $pdo->prepare("SELECT * FROM users WHERE user_id = :uid LIMIT 1");
+      $ownerStmt->execute([':uid' => $ownerIdForLookup]);
+      $ownerRow = $ownerStmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+      $ownerRow = null;
+    }
+
+    if (!$ownerRow) {
+      try {
+        $ownerStmt = $pdo->prepare("SELECT * FROM users WHERE id = :uid LIMIT 1");
+        $ownerStmt->execute([':uid' => $ownerIdForLookup]);
+        $ownerRow = $ownerStmt->fetch(PDO::FETCH_ASSOC);
+      } catch (Throwable $e) {
+        $ownerRow = null;
+      }
+    }
+
+    if ($ownerRow) {
+      foreach (['fullname', 'full_name', 'name', 'username'] as $nameKey) {
+        if (!empty($ownerRow[$nameKey])) {
+          $ownerName = arabic_digits($ownerRow[$nameKey]);
+          break;
+        }
+      }
+    }
+  }
+}
+
 
 $displayFaculty = trim($faculty) !== '' ? trim($faculty) : "คณะเทคโนโลยีและการจัดการอุตสาหกรรม";
 $displayDepartment = trim($department) !== '' ? trim($department) : "เทคโนโลยีสารสนเทศ";
@@ -1252,7 +1337,7 @@ $len = max(20, $len);
 
         <!-- USER: ปุ่มแก้ไขเอกสาร -->
         <?php if ($canEdit): ?>
-        <a href="/Pro_letter/documents/infor_academic_presentation.php?id=<?= (int)$docId ?>&edit=1"
+        <a href="/Pro_letter/documents/infor_coop_evaluation.php?id=<?= (int)$docId ?>&edit=1"
           class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           แก้ไขเอกสาร
         </a>
@@ -1527,7 +1612,7 @@ $len = max(20, $len);
 
       <!-- USER: ปุ่มแก้ไขเอกสาร -->
       <?php if ($canEdit): ?>
-      <a href="/Pro_letter/documents/infor_academic_presentation.php?id=<?= (int)$docId ?>&edit=1"
+      <a href="/Pro_letter/documents/infor_coop_evaluation.php?id=<?= (int)$docId ?>&edit=1"
         class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
         แก้ไขเอกสาร
       </a>
@@ -1537,27 +1622,6 @@ $len = max(20, $len);
         แก้ไขเอกสาร
       </span>
       <?php endif; ?>
-
-      <!-- OFFICER & ADMIN -->
-      <?php if ($isAdmin || $isOfficer): ?>
-
-      <a href="/Pro_letter/documents/infor_academic_presentation.php?id=<?= (int)$docId ?>&edit=1"
-        class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
-        แก้ไขเอกสาร
-      </a>
-
-      <button type="button" onclick="updateStatus('approved')"
-        class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-        ผ่านการตรวจสอบ
-      </button>
-
-      <button type="button" onclick="updateStatus('rejected')"
-        class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-        ไม่ผ่านการตรวจสอบ
-      </button>
-
-      <?php endif; ?>
-
       <!-- ปุ่มกลับหน้าหลัก -->
       <a href="<?= $homePath ?>"
         class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md text-xl font-bold">

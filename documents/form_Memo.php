@@ -12,6 +12,98 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 
+
+
+/* ===== Edit permission + category lock guard (role/session based) ===== */
+$userId = (int)($_SESSION['user_id'] ?? 0);
+$roleIdForEditGuard = (int)($_SESSION['role_id'] ?? 0);
+$isAdminOrOfficerForEditGuard = in_array($roleIdForEditGuard, [1, 2], true);
+
+if (!isset($homePath)) {
+    if ($roleIdForEditGuard === 1) {
+        $homePath = '/Pro_letter/admin/home.php';
+    } elseif ($roleIdForEditGuard === 2) {
+        $homePath = '/Pro_letter/officer/home.php';
+    } else {
+        $homePath = '/Pro_letter/user/home.php';
+    }
+}
+
+$editGuardDocId = isset($_GET['id']) ? (int)$_GET['id'] : (int)($_POST['document_id'] ?? 0);
+$isEditModeForGuard = ($editGuardDocId > 0 && ((($_GET['edit'] ?? '') === '1') || isset($_GET['id']) || isset($_POST['document_id'])));
+$editGuardDocStatus = '';
+$categoryLocked = false;
+
+if ($isEditModeForGuard) {
+    try {
+        $editGuardPdo = db();
+        $editGuardStmt = $editGuardPdo->prepare("SELECT document_id, owner_id, status FROM documents WHERE document_id = :id LIMIT 1");
+        $editGuardStmt->execute([':id' => $editGuardDocId]);
+        $editGuardDoc = $editGuardStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        if (!$editGuardDoc) {
+            header('Location: ' . $homePath . '?err=notfound');
+            exit;
+        }
+
+        $editGuardOwnerId = (int)($editGuardDoc['owner_id'] ?? 0);
+        $editGuardDocStatus = trim((string)($editGuardDoc['status'] ?? ''));
+
+        $hasAnyExplicitPermissionForEditGuard = false;
+        $hasDocumentEditPermissionForEditGuard = false;
+
+        try {
+            $permAnyStmt = $editGuardPdo->prepare("SELECT COUNT(*) FROM user_permissions WHERE user_id = :uid");
+            $permAnyStmt->execute([':uid' => $userId]);
+            $hasAnyExplicitPermissionForEditGuard = ((int)$permAnyStmt->fetchColumn() > 0);
+
+            $permEditStmt = $editGuardPdo->prepare("
+                SELECT COUNT(*)
+                FROM user_permissions up
+                JOIN permissions p ON p.perm_id = up.perm_id
+                WHERE up.user_id = :uid
+                  AND p.perm_code = 'document.edit'
+            ");
+            $permEditStmt->execute([':uid' => $userId]);
+            $hasDocumentEditPermissionForEditGuard = ((int)$permEditStmt->fetchColumn() > 0);
+        } catch (Throwable $permError) {
+            $hasAnyExplicitPermissionForEditGuard = false;
+            $hasDocumentEditPermissionForEditGuard = false;
+        }
+
+        $checkedStatusesForEditGuard = [
+            'ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว', 'ได้รับการตรวจสอบ',
+            'ได้รับการตรวจสอบแล้ว', 'ตรวจสอบแล้ว', 'approved', 'checked', 'reviewed'
+        ];
+        $isCheckedStatusForEditGuard = in_array($editGuardDocStatus, $checkedStatusesForEditGuard, true);
+
+        // รองรับระบบเดิม: ถ้ายังไม่เคยกำหนดสิทธิ์รายบุคคล ให้เจ้าของเอกสารยังแก้เอกสารตัวเองได้
+        // แต่ถ้ามีการกำหนดสิทธิ์แล้วและไม่มี document.edit ให้ถือว่าเป็นสิทธิ์ดูอย่างเดียว
+        $legacyOwnerCanEditForEditGuard = ($editGuardOwnerId === $userId && !$hasAnyExplicitPermissionForEditGuard);
+
+        $canEditThisFormForEditGuard = (!$isCheckedStatusForEditGuard) && (
+            $isAdminOrOfficerForEditGuard
+            || $hasDocumentEditPermissionForEditGuard
+            || $legacyOwnerCanEditForEditGuard
+        );
+
+        if (!$canEditThisFormForEditGuard) {
+            header('Location: /Pro_letter/documents/view_memo.php?id=' . $editGuardDocId . '&err=no_permission');
+            exit;
+        }
+
+        $categoryLockedStatusesForEditGuard = [
+            'draft', 'submitted', 'reviewing', 'pending', 'pending_review',
+            'เค้าโครง', 'รอยืนยันการส่ง', 'ส่งแล้ว', 'รอตรวจ', 'รอตรวจสอบ',
+            'รอการตรวจสอบ', 'รอแก้ไข', 'รอแก้เอกสาร', 'rejected'
+        ];
+        $categoryLocked = in_array($editGuardDocStatus, $categoryLockedStatusesForEditGuard, true);
+    } catch (Throwable $editGuardError) {
+        header('Location: ' . $homePath . '?err=server');
+        exit;
+    }
+}
+/* ===== End edit permission + category lock guard ===== */
 /* ===== โหลดคณะ/ภาควิชา =====
    - ค่าเริ่มต้น = คณะ/ภาควิชาของ user ที่ล็อกอิน
    - แต่ dropdown ยังเปลี่ยนไปเลือกคณะ/ภาควิชาอื่นได้
@@ -640,65 +732,14 @@ if ($roleIdForHome === 1) {
     }
   }
   </style>
+
+  <script>
+  window.CATEGORY_LOCKED_BY_STATUS = <?= $categoryLocked ? 'true' : 'false' ?>;
+  </script>
 </head>
 
 <body class="bg-gray-100">
-  <header class="bg-teal-500 text-white p-4 flex justify-between items-center shadow-md"
-    style="font-family: Arial, Helvetica, sans-serif">
-    <div class="flex items-center space-x-3">
-      <div class="w-[56px] h-[56px] flex items-center justify-center relative overflow-visible">
-        <svg xmlns="http://www.w3.org/2000/svg" class="absolute scale-[1.4] text-white"
-          style="width: 60px; height: 60px" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
-            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m0 0a2 2 0 00-2-2H5a2 2 0 00-2 2m18 0v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8" />
-        </svg>
-      </div>
-      <div class="leading-tight">
-        <div class="text-[16px] font-bold">Smart</div>
-        <div class="text-[16px] font-bold -mt-[2px]">Government</div>
-        <div class="text-[13px] mt-[0px]">Letter Assistant System</div>
-      </div>
-    </div>
-    <div class="flex items-center space-x-4">
-      <a href="<?= h($homePath) ?>">
-        <div class="px-4 py-2 rounded-[11px] font-bold transition text-white">
-          หน้าหลัก
-        </div>
-      </a>
-      <?php if (isset($_SESSION['permissions']) && in_array(3, $_SESSION['permissions'])) {
-                    renderAdminExtraMenus(); }?>
-      <a href="form_Memo.php">
-        <div class="px-4 py-2 rounded-[11px] font-bold transition bg-white text-teal-500 shadow">
-          แบบฟอร์มบันทึกข้อความ
-        </div>
-      </a>
-      <div class="relative">
-        <button id="profileBtn"
-          class="bg-white text-teal-500 px-4 py-2 rounded-[11px] shadow flex items-center space-x-2 hover:bg-gray-100">
-          <div class="text-right leading-tight">
-            <div class="font-bold text-[14px]">
-              <?= htmlspecialchars($_SESSION['fullname'] ?? 'Guest') ?>
-            </div>
-            <div class="text-[12px]">
-              <?= htmlspecialchars($_SESSION['role_name'] ?? '') ?>
-            </div>
-          </div>
-          <div class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-              stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M5.121 17.804A13.937 13.937 0 0112 15c2.33 0 4.487.577 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </div>
-        </button>
-        <div id="profileMenu" class="hidden absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-lg z-50">
-          <a href="../logout.php" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">ออกจากระบบ</a>
-          <button onclick="closeMenu()"
-            class="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">อยู่ต่อ</button>
-        </div>
-      </div>
-    </div>
-  </header>
+  <?php require_once $_SERVER['DOCUMENT_ROOT'] . '/Pro_letter/includes/role_header.php'; ?>
   <form method="post" action="save_memo.php" id="memoForm">
     <input type="hidden" name="template_id" value="1">
     <input type="hidden" name="document_type_name" value="ขออนุมัติไปเข้ารับการฝึกอบรมหลักสูตร">
@@ -725,7 +766,8 @@ if ($roleIdForHome === 1) {
           <div class="flex items-center gap-3">
             <label class="lbl text-gray-800 w-28 text-right">หมวดหลัก:</label>
             <div class="relative w-full">
-              <select name="main_category" class="custom-select w-full" id="mainCategory">
+              <select name="main_category" class="custom-select w-full" id="mainCategory"
+                <?= $categoryLocked ? ' disabled data-category-locked="1"' : '' ?>>
                 <option value="">-- เลือกหมวดหลัก --</option>
                 <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>ภายใน</option>
                 <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
@@ -736,9 +778,15 @@ if ($roleIdForHome === 1) {
             <label class="lbl text-gray-800 w-28 text-right">หมวดย่อย:</label>
             <div class="relative w-full">
               <select name="sub_category" class="custom-select w-full" id="subCategory"
-                data-current="<?= h($CURRENT_SUB ?? '') ?>" disabled>
+                <?= $categoryLocked ? ' data-category-locked="1"' : '' ?> data-current="<?= h($CURRENT_SUB ?? '') ?>"
+                disabled>
                 <option value="">-- เลือกหมวดย่อย --</option>
               </select>
+              <?php if ($categoryLocked): ?>
+              <input type="hidden" name="main_category" value="<?= h($CURRENT_MAIN ?? '') ?>">
+              <input type="hidden" name="sub_category" value="<?= h($CURRENT_SUB ?? '') ?>">
+              <input type="hidden" name="main_category_locked_value" value="1">
+              <?php endif; ?>
             </div>
           </div>
           <div class="flex items-center gap-3">
@@ -1143,13 +1191,13 @@ if ($roleIdForHome === 1) {
           <div class="mb-6">
             <div class="flex items-center gap-2 flex-nowrap whitespace-nowrap">
               <label class="lbl text-gray-800 whitespace-nowrap" for="departmentPhone">
-                9. เบอร์โทรคณะ :
+                9. เบอร์โทรภาควิชา :
               </label>
               <span class="text-gray-800 whitespace-nowrap">โทร.</span>
               <input type="text" name="department_phone" id="departmentPhone"
-                class="border rounded-md p-2 w-[260px] shadow-sm"
-                placeholder="เช่น 704"
+                class="border rounded-md p-2 w-[260px] shadow-sm" placeholder="เช่น 7064"
                 value="<?= h($departmentPhoneInput) ?>">
+              <span class="text-gray-800 whitespace-nowrap">ที่ต้องการให้ขึ้นที่ส่วนราชการ</span>
             </div>
           </div>
           <div class="mt-24 flex justify-end gap-3">
@@ -1422,6 +1470,7 @@ if ($roleIdForHome === 1) {
     ];
     const memoForm = document.getElementById("memoForm");
 
+
     const mainCategory = document.getElementById("mainCategory");
     const subCategory = document.getElementById("subCategory");
 
@@ -1435,9 +1484,9 @@ if ($roleIdForHome === 1) {
       const deptText = (deptSelect?.value || "").trim();
       const phoneText = (departmentPhone?.value || "").trim().replace(/^โทร\.?\s*/u, "");
 
-      const deptFull = deptText
-        ? (deptText.startsWith("ภาควิชา") ? deptText : "ภาควิชา" + deptText)
-        : "";
+      const deptFull = deptText ?
+        (deptText.startsWith("ภาควิชา") ? deptText : "ภาควิชา" + deptText) :
+        "";
 
       return [facultyText, deptFull, phoneText ? "โทร. " + phoneText : ""]
         .filter(Boolean)
@@ -3056,11 +3105,19 @@ if ($roleIdForHome === 1) {
           !line.includes("บาท x")
         ) || "";
 
-        // แยกคร่าว ๆ: คำแรกเป็นสายการบิน ที่เหลือเป็นเส้นทาง
-        // ถ้าผู้ใช้เคยกรอก "thai bkk" จะให้ airline = thai, route = bkk
-        const parts = routeLine.split(/\s+/).filter(Boolean);
-        const airline = parts.length > 1 ? parts[0] : "";
-        const route = parts.length > 1 ? parts.slice(1).join(" ") : routeLine;
+        // แยกสายการบินกับเส้นทางบินจากข้อมูลเดิม
+        // เช่น "that naa BKK - JP" => airline = "that naa", route = "BKK - JP"
+        let airline = "";
+        let route = routeLine;
+        const routeCodeMatch = routeLine.match(/(.+?)\s+([A-Z]{2,5}\s*[-–]\s*[A-Z]{2,5}.*)$/u);
+        if (routeCodeMatch) {
+          airline = routeCodeMatch[1].trim();
+          route = routeCodeMatch[2].trim();
+        } else {
+          const parts = routeLine.split(/\s+/).filter(Boolean);
+          airline = parts.length > 1 ? parts[0] : "";
+          route = parts.length > 1 ? parts.slice(1).join(" ") : routeLine;
+        }
 
         return {
           type: "flight",
@@ -3309,6 +3366,17 @@ if ($roleIdForHome === 1) {
 
     function buildBudgetHiddenInputs() {
       memoForm.querySelectorAll('input[data-budget="1"]').forEach(el => el.remove());
+
+      // 1. ค่าตอบแทน: ต้องบันทึกลง budget_items ด้วย ไม่อย่างนั้นรายการข้อ 1 จะหายหลังบันทึก/แก้ไข
+      [...(compList?.children || [])].forEach(row => {
+        const desc = (row.querySelector(".js-desc")?.value || "").trim();
+        const amt = money(n(row.querySelector(".js-amt")?.value));
+        if (!desc && amt === "0.00") return;
+        addHidden("budget_type[]", "compensation");
+        addHidden("budget_desc[]", desc || "ค่าตอบแทน");
+        addHidden("budget_amount[]", amt);
+      });
+
       if (regEnabled?.checked) {
         const amt = money(calcReg());
         if (amt !== "0.00") {
@@ -3458,6 +3526,17 @@ if ($roleIdForHome === 1) {
         const type = String(item.item_type || item.type || "other");
         const desc = String(item.description || "");
         const amt = money(n(item.amount));
+
+        if (type === "compensation") {
+          makePresetBudgetRow({
+            type: "other",
+            container: compList,
+            emptyEl: compEmpty,
+            desc,
+            amount: amt
+          });
+          return;
+        }
 
         if (type === "registration") {
           const f = parseBudgetFormula(desc, ["price", "people"]);
@@ -4181,7 +4260,9 @@ if ($roleIdForHome === 1) {
       const currentSub = keepCurrentSub ? String(sub.dataset.current || "").trim() : "";
 
       if (mainVal === "internal" || mainVal === "external") {
-        sub.disabled = false;
+        if (!window.CATEGORY_LOCKED_BY_STATUS) {
+          sub.disabled = false;
+        }
         renderSubOptions(mainVal, currentSub);
       } else {
         sub.disabled = true;
@@ -4192,15 +4273,18 @@ if ($roleIdForHome === 1) {
     }
 
     main.addEventListener("change", () => {
+      if (window.CATEGORY_LOCKED_BY_STATUS) return;
       sub.dataset.current = "";
       syncUI(false);
     });
 
     sub.addEventListener("focus", () => {
+      if (window.CATEGORY_LOCKED_BY_STATUS) return;
       syncUI(true);
     });
 
     sub.addEventListener("pointerdown", () => {
+      if (window.CATEGORY_LOCKED_BY_STATUS) return;
       syncUI(true);
     });
 
@@ -4296,29 +4380,6 @@ if ($roleIdForHome === 1) {
 
     // โหลดหน้า: แสดงค่าของ user ก่อน แต่ยังเปลี่ยนเลือกคณะ/ภาควิชาอื่นได้
     renderDepartmentOptions(true);
-  });
-  </script>
-
-  <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const btn = document.getElementById("profileBtn");
-    const menu = document.getElementById("profileMenu");
-    if (!btn || !menu) return;
-
-    function openMenu() {
-      menu.classList.remove("hidden");
-    }
-
-    function closeMenu() {
-      menu.classList.add("hidden");
-    }
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      menu.classList.toggle("hidden");
-    });
-    document.addEventListener("click", () => closeMenu());
-    menu.addEventListener("click", (e) => e.stopPropagation());
-    window.closeMenu = closeMenu;
   });
   </script>
 </body>
