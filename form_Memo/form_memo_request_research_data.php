@@ -1120,7 +1120,7 @@ $len = max(20, $len);
           </div>
 
           <div>
-            <?= h($researchSubject) ?>
+            <?= h(thai_digits($researchSubject)) ?>
           </div>
 
         </div>
@@ -1139,7 +1139,7 @@ $len = max(20, $len);
           </div>
 
           <div>
-            <?= h($researchToPerson) ?>
+            <?= h(thai_digits($researchToPerson)) ?>
           </div>
 
         </div>
@@ -1160,8 +1160,8 @@ $len = max(20, $len);
           ได้เปิดทำการสอนรายวิชา <?= h(thai_digits($researchCourseText)) ?>
           ในหลักสูตร<?= h($researchCurriculumName) ?> สาขาวิชา<?= h($researchMajorName) ?>
           โดยหลักสูตรกำหนดให้นักศึกษาปริญญาตรี ชั้นปีที่ <?= h(thai_digits($researchStudentYear)) ?> จัดทำปริญญานิพนธ์
-          เรื่อง “<?= h($researchThesisTitle) ?>”
-          โดยมี<?= h($researchAdvisorName) ?>
+          เรื่อง “<?= h(thai_digits($researchThesisTitle)) ?>”
+          โดยมี<?= h(thai_digits($researchAdvisorName)) ?>
           เป็นอาจารย์ที่ปรึกษาปริญญานิพนธ์
 
         </div>
@@ -1175,7 +1175,7 @@ $len = max(20, $len);
 ">
 
           ทางคณะ<?= h($faculty ?: 'เทคโนโลยีและการจัดการอุตสาหกรรม') ?>
-          จึงขอความอนุเคราะห์มายังท่านได้โปรดให้ความอนุเคราะห์<?= h($researchDataRequestText ?: 'ข้อมูล') ?>
+          จึงขอความอนุเคราะห์มายังท่านได้โปรดให้ความอนุเคราะ<?= h(thai_digits($researchDataRequestText ?: 'ข้อมูล')) ?>
           <?= $researchDataAmount !== '' ? 'จำนวน ' . h(thai_digits($researchDataAmount)) : '' ?>
           เพื่อนำข้อมูลมาประกอบการจัดทำปริญญานิพนธ์หัวข้อดังกล่าวข้างต้น
           โดยมีรายชื่อนักศึกษาที่จะขอความอนุเคราะห์ในครั้งนี้ จำนวน <?= h(thai_int($researchStudentCount)) ?> คน ดังนี้
