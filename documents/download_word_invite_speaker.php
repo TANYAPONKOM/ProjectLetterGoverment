@@ -154,7 +154,7 @@ function inviteFormatThaiTimeRange($timeText) {
 }
 
 function inviteClean($text) {
-    return cleanWordText(str_replace(["\r", "\n"], ' ', (string)$text));
+    return wordThaiDigit(cleanWordText(str_replace(["\r", "\n"], ' ', (string)$text)));
 }
 
 function inviteInlineText($text) {
@@ -169,14 +169,116 @@ function inviteThaiWordWrap($text) {
         return '';
     }
 
-    // ใส่ zero-width space เพื่อบอก Word ว่า “ภาษาไทยตัดบรรทัดตรงนี้ได้”
-    // ไม่แสดงผลในเอกสาร แต่ช่วยไม่ให้ Word เอาข้อความไทยยาว ๆ ไปตัดมั่วแล้วเหลือพื้นที่ว่าง
     $zwsp = "\u{200B}";
 
-    // จุดตัดระหว่างตัวอักษรไทยกับตัวอักษรไทย
-    $text = preg_replace('/(?<=[\p{Thai}])(?=[\p{Thai}])/u', $zwsp, $text);
+    $wrapThaiRun = function ($thaiText) use ($zwsp) {
+        $thaiText = (string)$thaiText;
+        if ($thaiText === '') {
+            return '';
+        }
 
-    // เพิ่มจุดตัดหลังเครื่องหมาย/วงเล็บ/ทับ เผื่อมีข้อความยาวติดกัน
+        // ใช้ตัวตัดคำของ ICU ถ้าเครื่องเปิด extension intl ไว้
+        // เพื่อให้ Word ตัดบรรทัดที่ขอบคำ ไม่ใช่กลางคำไทย
+        if (class_exists('IntlBreakIterator')) {
+            $breaker = IntlBreakIterator::createWordInstance('th_TH');
+            if ($breaker) {
+                $breaker->setText($thaiText);
+                $parts = [];
+                $start = $breaker->first();
+                for ($end = $breaker->next(); $end !== IntlBreakIterator::DONE; $start = $end, $end = $breaker->next()) {
+                    $part = substr($thaiText, $start, $end - $start);
+                    if ($part !== '') {
+                        $parts[] = $part;
+                    }
+                }
+                if (count($parts) > 1) {
+                    return implode($zwsp, $parts);
+                }
+            }
+        }
+
+        // fallback กรณีเครื่องไม่มี intl:
+        // ตัดเฉพาะคำที่รู้จักในเอกสารนี้ และถ้าไม่รู้จักให้เก็บเป็นก้อนเดิม
+        // ห้ามแทรก zero-width space ระหว่างตัวอักษรทุกตัว เพราะจะทำให้ชื่อ/ตำแหน่งแตก เช่น "เรื่อ ง" หรือ "สร้ าง"
+        static $words = null;
+        if ($words === null) {
+            $words = [
+                'ผู้ช่วยศาสตราจารย์', 'รองศาสตราจารย์', 'ศาสตราจารย์', 'อาจารย์', 'ตำแหน่ง', 'ประจำสาขาวิชา',
+                'นวัตกรรมดิจิทัลและสื่อสร้างสรรค์', 'นวัตกรรมดิจิทัล', 'สื่อสร้างสรรค์', 'วัตกรรมดิจิทัลและสื่อสร้างสรรค์',
+                'มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ', 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม',
+                'ภาควิชาเทคโนโลยีสารสนเทศ', 'เทคโนโลยีสารสนเทศ', 'วิทยาเขตปราจีนบุรี', 'วิทยาเขตนนทบุรี',
+                'ศูนย์การเรียนรู้นวัตกรรมดิจิทัล', 'โครงการอบรมเชิงปฏิบัติการ', 'การสร้างสื่อดิจิทัล',
+                'อย่างสร้างสรรค์', 'เพื่อพัฒนาทักษะการเรียนรู้', 'ในศตวรรษที่', 'ห้องประชุมชั้น',
+                'โดยมีวัตถุประสงค์', 'เพื่อให้นักศึกษา', 'ได้รับความรู้', 'เกี่ยวกับ', 'กระบวนการ',
+                'การสร้าง', 'สื่อดิจิทัล', 'อย่างมีคุณภาพ', 'สามารถ', 'วางแผน', 'ออกแบบ', 'และพัฒนา',
+                'สื่อเพื่อใช้', 'ในการนำเสนอ', 'ข้อมูล', 'ได้อย่างเหมาะสม', 'รวมทั้ง', 'ส่งเสริม',
+                'ให้นักศึกษา', 'มีทักษะ', 'ด้านความคิดสร้างสรรค์', 'การทำงานเป็นทีม', 'และการประยุกต์ใช้',
+                'เทคโนโลยี', 'ในงานวิชาชีพ', 'รายละเอียดโครงการ', 'ตามสิ่งที่ส่งมาด้วย', 'ด้วยท่านเป็น',
+                'ผู้มีความรู้', 'ความสามารถ', 'และประสบการณ์', 'ด้านการออกแบบ', 'การพัฒนานวัตกรรม',
+                'เพื่อการเรียนรู้', 'และการประยุกต์ใช้เทคโนโลยี', 'สร้างสรรค์', 'จึงเห็นสมควร',
+                'เรียนเชิญ', 'ท่านเป็นวิทยากร', 'ถ่ายทอดความรู้', 'ให้แก่นักศึกษา', 'ตามวัน', 'เวลา',
+                'และสถานที่', 'ข้างต้น', 'จึงขอ', 'บรรยาย', 'เรื่องดังกล่าว', 'จึงเรียนมา',
+                'เพื่อโปรดพิจารณา', 'ให้ความอนุเคราะห์', 'จะขอบคุณยิ่ง', 'วันอาทิตย์ที่', 'พฤษภาคม',
+                'รายละเอียด', 'แบบตอบรับ', 'การเป็นวิทยากร', 'จำนวน', 'ฉบับ', 'ชุด', 'เรื่อง', 'เรียน',
+                'อาคาร', 'ห้องประชุม', 'โครงการ', 'อบรม', 'เชิงปฏิบัติการ', 'ดร', 'ณ', 'น', 'ใน', 'ให้',
+                'แก่', 'ซึ่ง', 'เป็น', 'และ', 'ของ', 'ที่'
+            ];
+            usort($words, function ($a, $b) {
+                return mb_strlen($b, 'UTF-8') <=> mb_strlen($a, 'UTF-8');
+            });
+        }
+
+        $outParts = [];
+        $len = mb_strlen($thaiText, 'UTF-8');
+        $pos = 0;
+
+        while ($pos < $len) {
+            $matched = '';
+            foreach ($words as $word) {
+                $wordLen = mb_strlen($word, 'UTF-8');
+                if ($wordLen > 0 && mb_substr($thaiText, $pos, $wordLen, 'UTF-8') === $word) {
+                    $matched = $word;
+                    break;
+                }
+            }
+
+            if ($matched !== '') {
+                $outParts[] = $matched;
+                $pos += mb_strlen($matched, 'UTF-8');
+                continue;
+            }
+
+            // กรณีเป็นชื่อคน/คำเฉพาะที่ไม่มีในรายการ ให้เก็บต่อเนื่องจนกว่าจะเจอคำรู้จักถัดไป
+            $unknown = '';
+            while ($pos < $len) {
+                $nextKnown = false;
+                foreach ($words as $word) {
+                    $wordLen = mb_strlen($word, 'UTF-8');
+                    if ($wordLen > 0 && mb_substr($thaiText, $pos, $wordLen, 'UTF-8') === $word) {
+                        $nextKnown = true;
+                        break;
+                    }
+                }
+                if ($nextKnown && $unknown !== '') {
+                    break;
+                }
+                $unknown .= mb_substr($thaiText, $pos, 1, 'UTF-8');
+                $pos++;
+            }
+            if ($unknown !== '') {
+                $outParts[] = $unknown;
+            }
+        }
+
+        return implode($zwsp, array_filter($outParts, fn($part) => $part !== ''));
+    };
+
+    // ใส่จุดตัดเฉพาะช่วงข้อความไทยติดกันยาว ๆ เท่านั้น ไม่ยุ่งกับช่องว่างเดิม
+    $text = preg_replace_callback('/[\p{Thai}]+/u', function ($m) use ($wrapThaiRun) {
+        return $wrapThaiRun($m[0]);
+    }, $text);
+
+    // เพิ่มจุดตัดหลังเครื่องหมาย ไม่กระทบการเว้นวรรคเดิม
     $text = preg_replace('/([\/\-–—,;:()（）])/u', '$1' . $zwsp, $text);
 
     return $text;

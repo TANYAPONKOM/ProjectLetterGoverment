@@ -236,6 +236,11 @@ function arabic_digit($text)
   ]);
 }
 
+function h_thai($text)
+{
+  return h(thai_digit($text));
+}
+
 function thai_months()
 {
   return [
@@ -1097,7 +1102,7 @@ $len = max(20, $len);
       position:relative;
       top:-5px;
   ">
-            <?= h($displayFaculty) ?>
+            <?= h_thai($displayFaculty) ?>
           </div>
 
           <div style="
@@ -1127,7 +1132,7 @@ $len = max(20, $len);
 
   left:38px;
 ">
-        <?= h($thaiDocDate ?: '') ?>
+        <?= h_thai($thaiDocDate ?: '') ?>
       </div>
 
       <div style="
@@ -1154,7 +1159,7 @@ $len = max(20, $len);
         text-align:left;
         line-height:1.38;
     ">
-            <?= h($displaySubject) ?>
+            <?= h_thai($displaySubject) ?>
           </div>
 
         </div>
@@ -1176,7 +1181,7 @@ $len = max(20, $len);
         text-align:left;
         line-height:1.38;
     ">
-            <?= nl2br(h($displayToPerson)) ?>
+            <?= nl2br(h_thai($displayToPerson)) ?>
           </div>
 
         </div>
@@ -1223,11 +1228,12 @@ $len = max(20, $len);
         letter-spacing:-0.1px;
         word-spacing:-1px;
     ">
-          ด้วย<?= h($displayDepartmentFull) ?> <?= h($displayFaculty) ?>
+          ด้วย<?= h_thai($displayDepartmentFull) ?> <?= h_thai($displayFaculty) ?>
           มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
-          ได้ดำเนินการจัด<?= h($displayProjectTitle) ?> ใน<?= h($displayEventDate) ?> เวลา <?= h($displayEventTime) ?>
+          ได้ดำเนินการจัด<?= h_thai($displayProjectTitle) ?> ใน<?= h_thai($displayEventDate) ?> เวลา
+          <?= h_thai($displayEventTime) ?>
           น.
-          ณ <?= h($displayLocation) ?> โดยมีวัตถุประสงค์<?= nl2br(h($displayObjective)) ?>
+          ณ <?= h_thai($displayLocation) ?> โดยมีวัตถุประสงค์<?= nl2br(h_thai($displayObjective)) ?>
           รายละเอียดโครงการตามสิ่งที่ส่งมาด้วย ๑
         </p>
 
@@ -1240,7 +1246,7 @@ $len = max(20, $len);
         letter-spacing:-0.1px;
         word-spacing:-1px;
     ">
-          <?= h($displayDepartmentFull) ?> <?= nl2br(h($displayInviteStatement)) ?>
+          <?= h_thai($displayDepartmentFull) ?> <?= nl2br(h_thai($displayInviteStatement)) ?>
           จึงขอเรียนเชิญท่านเป็นวิทยากรบรรยายเรื่องดังกล่าว ตามวัน เวลา และสถานที่ข้างต้น
         </p>
 
@@ -1276,7 +1282,7 @@ $len = max(20, $len);
           </div>
 
           <div>
-            <?= h($displayFacultyDean) ?>
+            <?= h_thai($displayFacultyDean) ?>
           </div>
 
         </div>
@@ -1295,7 +1301,7 @@ $len = max(20, $len);
     color:#111;
 ">
 
-          <?= h($displayDepartmentFull) ?><br>
+          <?= h_thai($displayDepartmentFull) ?><br>
 
           โทรศัพท์ ๐-๓๗๒๑-๗๓๔๐-๓ ต่อ ๗๐๖๕-๖<br>
 

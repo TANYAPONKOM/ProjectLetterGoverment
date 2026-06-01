@@ -257,23 +257,6 @@ if ($flashStatus === 'deleted') {
   </main>
 
   <script>
-  const profileBtn = document.getElementById("profileBtn");
-  const profileMenu = document.getElementById("profileMenu");
-
-  function closeMenu() {
-    if (profileMenu) {
-      profileMenu.classList.add("hidden");
-    }
-  }
-
-  if (profileBtn) {
-    profileBtn.addEventListener("click", () => {
-      profileMenu.classList.toggle("hidden");
-    });
-  }
-  </script>
-
-  <script>
   function showTemplatePopup(options = {}) {
     return new Promise((resolve) => {
       const overlay = document.createElement("div");
@@ -308,7 +291,7 @@ if ($flashStatus === 'deleted') {
       icon.style.fontWeight = "700";
       icon.style.background = options.danger ? "#fee2e2" : options.success ? "#dcfce7" : "#ccfbf1";
       icon.style.color = options.danger ? "#dc2626" : options.success ? "#16a34a" : "#0f766e";
-      icon.innerHTML = options.danger ? "!" : options.success ? "✓" : "🔐";
+      icon.textContent = options.danger ? "!" : options.success ? "✓" : "🔐";
 
       const title = document.createElement("div");
       title.textContent = options.title || "";
@@ -418,199 +401,154 @@ if ($flashStatus === 'deleted') {
   }
 
   async function verifyTemplateAdminByPrompt(callback) {
-      const username = await showTemplatePopup({
-        title: "ยืนยันตัวตนผู้ดูแลระบบ",
-        message: "กรุณากรอกชื่อผู้ใช้ของผู้ดูแลระบบเพื่อยืนยัน",
-        inputType: "text",
-        confirmText: "ถัดไป"
+    const username = await showTemplatePopup({
+      title: "ยืนยันตัวตนผู้ดูแลระบบ",
+      message: "กรุณากรอกชื่อผู้ใช้ของผู้ดูแลระบบเพื่อยืนยัน",
+      inputType: "text",
+      confirmText: "ถัดไป"
+    });
+    if (username === null || username.trim() === "") return;
+
+    const password = await showTemplatePopup({
+      title: "ยืนยันรหัสผ่าน",
+      message: "กรุณากรอกรหัสผ่านของผู้ดูแลระบบเพื่อยืนยัน",
+      inputType: "password",
+      confirmText: "ยืนยัน"
+    });
+    if (password === null || password.trim() === "") return;
+
+    const formData = new FormData();
+    formData.append("action", "verify_template_admin");
+    formData.append("admin_username", username.trim());
+    formData.append("admin_password", password);
+
+    try {
+      const response = await fetch("form_Templates.php", {
+        method: "POST",
+        body: formData
       });
-      if (username === null || username.trim() === "") return;
 
-      const password = await showTemplatePopup({
-        title: "ยืนยันรหัสผ่าน",
-        message: "กรุณากรอกรหัสผ่านของผู้ดูแลระบบเพื่อยืนยัน",
-        inputType: "password",
-        confirmText: "ยืนยัน"
-      });
-      if (password === null || password.trim() === "") return;
+      const text = await response.text();
+      let data;
 
-      const formData = new FormData();
-      formData.append("action", "verify_template_admin");
-      formData.append("admin_username", username.trim());
-      formData.append("admin_password", password);
-
-      fetch("form_Templates.php", {
-          method: "POST",
-          body: formData
-        })
-        .then(async (response) => {
-          const text = await response.text();
-
-          try {
-            return JSON.parse(text);
-          } catch (error) {
-            console.error("Response is not JSON:", text);
-            throw new Error(
-              "ระบบตรวจสอบสิทธิ์ไม่ได้ส่ง JSON กลับมา อาจเกิดจาก path ผิด, redirect ไป login, หรือมี PHP error");
-          }
-        })
-        .then((data) => {
-          if (data && data.success) {
-            if (typeof callback === "function") {
-              callback();
-            }
-          } else {
-            alert((data && data.message) ? data.message : "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
-          }
-        })
-        .catch((error) => {
-            alert("เกิดข้อผิดพลาด: " + error.message);
-            try {
-              const response = await fetch("form_Templates.php", {
-                method: "POST",
-                body: formData
-              });
-
-              const text = await response.text();
-              let data;
-              try {
-                data = JSON.parse(text);
-              } catch (error) {
-                console.error("Response is not JSON:", text);
-                await showTemplatePopup({
-                  title: "ยืนยันตัวตนไม่สำเร็จ",
-                  message: "ระบบตรวจสอบสิทธิ์ไม่ได้ส่ง JSON กลับมา อาจเกิดจาก path ผิด, redirect ไป login, หรือมี PHP error",
-                  confirmText: "ตกลง",
-                  hideCancel: true,
-                  danger: true
-                });
-                return;
-              }
-
-              if (data && data.success) {
-                if (typeof callback === "function") {
-                  callback();
-                }
-              } else {
-                await showTemplatePopup({
-                  title: "ยืนยันตัวตนไม่สำเร็จ",
-                  message: (data && data.message) ? data.message : "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
-                  confirmText: "ตกลง",
-                  hideCancel: true,
-                  danger: true
-                });
-              }
-            } catch (error) {
-              await showTemplatePopup({
-                title: "เกิดข้อผิดพลาด",
-                message: "เกิดข้อผิดพลาด: " + error.message,
-                confirmText: "ตกลง",
-                hideCancel: true,
-                danger: true
-              });
-            }
-          }
-        }
-
-      function requestToggleTemplate(checkbox) {
-        const currentValue = checkbox.dataset.current === "1" ? 1 : 0;
-        const nextValue = checkbox.checked ? 1 : 0;
-
-        checkbox.checked = currentValue === 1;
-
-        verifyTemplateAdminByPrompt(() => {
-          const form = checkbox.form;
-          if (!form) return;
-
-          const activeInput = form.querySelector('input[type="hidden"][name="is_active"]');
-          if (activeInput) {
-            activeInput.value = String(nextValue);
-          }
-
-          checkbox.dataset.current = String(nextValue);
-          checkbox.checked = nextValue === 1;
-          form.submit();
+      try {
+        data = JSON.parse(text);
+      } catch (error) {
+        console.error("Response is not JSON:", text);
+        await showTemplatePopup({
+          title: "ยืนยันตัวตนไม่สำเร็จ",
+          message: "ระบบตรวจสอบสิทธิ์ไม่ได้ส่ง JSON กลับมา อาจเกิดจาก path ผิด, redirect ไป login, หรือมี PHP error",
+          confirmText: "ตกลง",
+          hideCancel: true,
+          danger: true
         });
+        return;
       }
 
-      function confirmTemplateAction(action, id = null) {
-        verifyTemplateAdminByPrompt(async () => {
-            if (action === "add") {
-              window.location.href = "template_Add.php";
-            } else if (action === "edit") {
-              window.location.href = "template_Edit.php?id=" + id;
-            } else if (action === "delete") {
-              if (confirm(
-                  "ยืนยันการลบเทมเพลตนี้หรือไม่?\nถ้าเทมเพลตนี้เคยถูกใช้สร้างเอกสาร ระบบจะไม่อนุญาตให้ลบ และควรใช้การปิดใช้งานแทน"
-                )) {
-                const confirmed = await showTemplatePopup({
-                  title: "ยืนยันการลบเทมเพลต",
-                  message: "ถ้าเทมเพลตนี้เคยถูกใช้สร้างเอกสาร ระบบจะไม่อนุญาตให้ลบ และควรใช้การปิดใช้งานแทน",
-                  confirmText: "ลบเทมเพลต",
-                  cancelText: "ยกเลิก",
-                  danger: true
-                });
-                if (confirmed) {
-                  window.location.href = "template_Delete.php?id=" + id;
-                }
-              }
-            });
+      if (data && data.success) {
+        if (typeof callback === "function") {
+          callback();
         }
-
-        document.addEventListener("DOMContentLoaded", async function() {
-          const templateStatus = <?= json_encode($flashStatus) ?>;
-
-          const successMessages = {
-            saved: "แก้ไขเทมเพลตสำเร็จ",
-            added: "เพิ่มเทมเพลตสำเร็จ",
-            deleted: "ลบเทมเพลตสำเร็จ",
-            status_changed: "แก้ไขสถานะเทมเพลตสำเร็จ"
-          };
-
-          const dangerMessages = {
-            delete_blocked: "ไม่สามารถลบเทมเพลตนี้ได้ เพราะมีเอกสารที่เคยใช้งานอยู่ แนะนำให้ปิดใช้งานแทน",
-            auth_required: "กรุณายืนยันชื่อผู้ใช้และรหัสผ่านก่อนดำเนินการ"
-          };
-
-          if (successMessages[templateStatus]) {
-            await showTemplatePopup({
-              title: successMessages[templateStatus],
-              message: "",
-              confirmText: "ตกลง",
-              hideCancel: true,
-              success: true
-            });
-          } else if (dangerMessages[templateStatus]) {
-            await showTemplatePopup({
-              title: "แจ้งเตือน",
-              message: dangerMessages[templateStatus],
-              confirmText: "ตกลง",
-              hideCancel: true,
-              danger: true
-            });
-          }
-
-          if (successMessages[templateStatus] || dangerMessages[templateStatus]) {
-            const url = new URL(window.location.href);
-            url.searchParams.delete("status");
-            window.history.replaceState({}, document.title, url.toString());
-          }
+      } else {
+        await showTemplatePopup({
+          title: "ยืนยันตัวตนไม่สำเร็จ",
+          message: (data && data.message) ? data.message : "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
+          confirmText: "ตกลง",
+          hideCancel: true,
+          danger: true
         });
-  </script>
+      }
+    } catch (error) {
+      await showTemplatePopup({
+        title: "เกิดข้อผิดพลาด",
+        message: "เกิดข้อผิดพลาด: " + error.message,
+        confirmText: "ตกลง",
+        hideCancel: true,
+        danger: true
+      });
+    }
+  }
 
-  <script>
-  const templateBtn = document.getElementById("templateBtn");
-  const templateMenu = document.getElementById("templateMenu");
+  function requestToggleTemplate(checkbox) {
+    const currentValue = checkbox.dataset.current === "1" ? 1 : 0;
+    const nextValue = checkbox.checked ? 1 : 0;
 
-  if (templateBtn && templateMenu) {
-    templateBtn.addEventListener("click", () => {
-      templateMenu.classList.toggle("hidden");
+    checkbox.checked = currentValue === 1;
+
+    verifyTemplateAdminByPrompt(() => {
+      const form = checkbox.form;
+      if (!form) return;
+
+      const activeInput = form.querySelector('input[type="hidden"][name="is_active"]');
+      if (activeInput) {
+        activeInput.value = String(nextValue);
+      }
+
+      checkbox.dataset.current = String(nextValue);
+      checkbox.checked = nextValue === 1;
+      form.submit();
     });
   }
 
-  document.addEventListener("click", (e) => {
-    if (templateBtn && templateMenu && !templateBtn.contains(e.target) && !templateMenu.contains(e.target)) {
-      templateMenu.classList.add("hidden");
+  function confirmTemplateAction(action, id = null) {
+    verifyTemplateAdminByPrompt(async () => {
+      if (action === "add") {
+        window.location.href = "template_Add.php";
+      } else if (action === "edit") {
+        window.location.href = "template_Edit.php?id=" + id;
+      } else if (action === "delete") {
+        const confirmed = await showTemplatePopup({
+          title: "ยืนยันการลบเทมเพลต",
+          message: "ถ้าเทมเพลตนี้เคยถูกใช้สร้างเอกสาร ระบบจะไม่อนุญาตให้ลบ และควรใช้การปิดใช้งานแทน",
+          confirmText: "ลบเทมเพลต",
+          cancelText: "ยกเลิก",
+          danger: true
+        });
+
+        if (confirmed) {
+          window.location.href = "template_Delete.php?id=" + id;
+        }
+      }
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", async function() {
+    const templateStatus = <?= json_encode($flashStatus) ?>;
+
+    const successMessages = {
+      saved: "แก้ไขเทมเพลตสำเร็จ",
+      added: "เพิ่มเทมเพลตสำเร็จ",
+      deleted: "ลบเทมเพลตสำเร็จ",
+      status_changed: "แก้ไขสถานะเทมเพลตสำเร็จ"
+    };
+
+    const dangerMessages = {
+      delete_blocked: "ไม่สามารถลบเทมเพลตนี้ได้ เพราะมีเอกสารที่เคยใช้งานอยู่ แนะนำให้ปิดใช้งานแทน",
+      auth_required: "กรุณายืนยันชื่อผู้ใช้และรหัสผ่านก่อนดำเนินการ"
+    };
+
+    if (successMessages[templateStatus]) {
+      await showTemplatePopup({
+        title: successMessages[templateStatus],
+        message: "",
+        confirmText: "ตกลง",
+        hideCancel: true,
+        success: true
+      });
+    } else if (dangerMessages[templateStatus]) {
+      await showTemplatePopup({
+        title: "แจ้งเตือน",
+        message: dangerMessages[templateStatus],
+        confirmText: "ตกลง",
+        hideCancel: true,
+        danger: true
+      });
+    }
+
+    if (successMessages[templateStatus] || dangerMessages[templateStatus]) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("status");
+      window.history.replaceState({}, document.title, url.toString());
     }
   });
   </script>

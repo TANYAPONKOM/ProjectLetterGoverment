@@ -761,11 +761,20 @@ $len = max(20, $len);
   .doc-row.gov-row>.dot-line>.chip.gov-text {
     display: inline-block !important;
     white-space: nowrap !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
+    margin-left: 14px !important;
+    margin-right: 6px !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
     transform: none !important;
     line-height: 0.9 !important;
     top: -1px !important;
+  }
+
+  .page.gov-header-compact .doc-row.gov-row>.dot-line>.chip.gov-text {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
   }
 
   .page.gov-header-tight-margin {
@@ -1249,8 +1258,6 @@ $len = max(20, $len);
         }
       });
     }
-});
-    }
   });
 
 
@@ -1388,37 +1395,43 @@ $len = max(20, $len);
     const govLine = govChip?.closest(".dot-line");
     if (!govChip || !govLine) return;
 
-    const originalText = normalizeRoomGovHeaderText(govChip.textContent);
+    if (!govChip.dataset.originalGovText) {
+      govChip.dataset.originalGovText = normalizeRoomGovHeaderText(govChip.textContent).trim();
+    }
+
+    const originalText = govChip.dataset.originalGovText;
 
     const fits = () => {
-      // ใช้ getBoundingClientRect เพื่อให้วัดหลัง CSS/class ถูก apply แล้วจริง ๆ ทั้ง preview และ clone PDF
       const textWidth = Math.ceil(govChip.getBoundingClientRect().width || govChip.scrollWidth);
       const lineWidth = Math.floor(govLine.getBoundingClientRect().width || govLine.clientWidth);
       return lineWidth && textWidth <= lineWidth + 1;
     };
 
+    // ค่าเริ่มต้น: ถ้าไม่เกินเส้น ห้ามลดฟอนต์ ห้ามลบช่องว่าง
     govChip.textContent = originalText;
     govChip.style.setProperty("font-size", "16pt", "important");
     govChip.style.removeProperty("letter-spacing");
     page?.classList?.remove("gov-header-tight-margin");
+    page?.classList?.remove("gov-header-compact");
 
     if (fits()) return;
 
-    // เข้าเงื่อนไขเกินเส้น: ค่อยลบช่องว่าง และลดเป็น 15
+    // ถ้าเกินเส้น ค่อยลบช่องว่าง + ลดเป็น 15
+    page?.classList?.add("gov-header-compact");
     govChip.textContent = removeRoomGovHeaderSpaces(originalText);
     govChip.style.setProperty("font-size", "15pt", "important");
     if (fits()) return;
 
-    // ยังเกิน: ลดเป็น 14 แต่ไม่ลดต่ำกว่านี้
+    // ถ้ายังเกิน ลดเป็น 14 เท่านั้น ไม่ต่ำกว่านี้
     govChip.style.setProperty("font-size", "14pt", "important");
     if (fits()) return;
 
-    // ยังเกินที่ 14: ค่อยขยับขอบเฉพาะหน้านี้เป็นซ้าย 2.80cm / ขวา 1.80cm
+    // ถ้ายังเกินจริง ๆ ค่อยขยับขอบเฉพาะตอนเกินเส้น
     page?.classList?.add("gov-header-tight-margin");
     void page?.offsetWidth;
     if (fits()) return;
 
-    // กันเคสยาวมากจริง ๆ โดยไม่ลดฟอนต์ต่ำกว่า 14
+    // กันเคสยาวมาก โดยไม่ลดฟอนต์ต่ำกว่า 14
     govChip.style.setProperty("letter-spacing", "-0.25px", "important");
   }
 

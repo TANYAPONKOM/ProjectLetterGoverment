@@ -222,7 +222,7 @@ function thai_digits($text)
 
 function h_doc($text)
 {
-  return h(thai_digits($text));
+  return h(arabic_digits($text));
 }
 
 function arabic_digits($text)
@@ -1220,11 +1220,6 @@ $len = max(20, $len);
     }
   });
   document.addEventListener("DOMContentLoaded", () => {
-});
-    }
-  });
-
-  document.addEventListener("DOMContentLoaded", () => {
     if (getQuery("saved") === "1" && getQuery("from") === "update") {
       Swal.fire({
         title: "บันทึกสำเร็จ",
@@ -1326,6 +1321,47 @@ $len = max(20, $len);
     return false;
   }
 
+
+  function convertThaiDigitsToArabicInPdfClone(root) {
+    if (!root) return;
+
+    const thaiToArabicMap = {
+      "๐": "0",
+      "๑": "1",
+      "๒": "2",
+      "๓": "3",
+      "๔": "4",
+      "๕": "5",
+      "๖": "6",
+      "๗": "7",
+      "๘": "8",
+      "๙": "9"
+    };
+
+    const toArabicDigits = (text) => {
+      return String(text).replace(/[๐-๙]/g, digit => thaiToArabicMap[digit] || digit);
+    };
+
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    const textNodes = [];
+
+    while (walker.nextNode()) {
+      textNodes.push(walker.currentNode);
+    }
+
+    textNodes.forEach(node => {
+      node.nodeValue = toArabicDigits(node.nodeValue);
+    });
+
+    root.querySelectorAll("input, textarea").forEach(el => {
+      if (el.value) el.value = toArabicDigits(el.value);
+      if (el.getAttribute("value")) {
+        el.setAttribute("value", toArabicDigits(el.getAttribute("value")));
+      }
+      if (el.placeholder) el.placeholder = toArabicDigits(el.placeholder);
+    });
+  }
+
   async function downloadPdf() {
     const loadingOverlay = document.getElementById("pdfLoadingOverlay");
     const downloadButtons = document.querySelectorAll("button[onclick='downloadPdf()']");
@@ -1364,6 +1400,7 @@ $len = max(20, $len);
         const clone = pages[i].cloneNode(true);
 
         clone.classList.add("pdf-export-page");
+        convertThaiDigitsToArabicInPdfClone(clone);
 
         clone.style.width = "794px";
         clone.style.minHeight = "1123px";

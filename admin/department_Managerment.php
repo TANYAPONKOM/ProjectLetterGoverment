@@ -96,21 +96,6 @@ $departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
   </main>
 
   <script>
-  const profileBtn = document.getElementById("profileBtn");
-  const profileMenu = document.getElementById("profileMenu");
-
-  function closeMenu() {
-    if (profileMenu) {
-      profileMenu.classList.add("hidden");
-    }
-  }
-
-  if (profileBtn) {
-    profileBtn.addEventListener("click", () => {
-      profileMenu.classList.toggle("hidden");
-    });
-  }
-
   function showDepartmentPopup(options = {}) {
     return new Promise((resolve) => {
       const overlay = document.createElement("div");
@@ -359,21 +344,6 @@ $departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
       const url = new URL(window.location.href);
       url.searchParams.delete("success");
       window.history.replaceState({}, document.title, url.toString());
-    }
-  });
-
-  const templateBtn = document.getElementById("templateBtn");
-  const templateMenu = document.getElementById("templateMenu");
-
-  if (templateBtn && templateMenu) {
-    templateBtn.addEventListener("click", () => {
-      templateMenu.classList.toggle("hidden");
-    });
-  }
-
-  document.addEventListener("click", (e) => {
-    if (templateBtn && templateMenu && !templateBtn.contains(e.target) && !templateMenu.contains(e.target)) {
-      templateMenu.classList.add("hidden");
     }
   });
   </script>
