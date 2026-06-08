@@ -223,7 +223,14 @@ try {
           AND question_path IS NOT NULL
           AND question_path <> ''
           AND template_group IN ('internal', 'external')
-        ORDER BY sort_order ASC, template_id ASC
+        ORDER BY
+            CASE
+                WHEN template_group = 'internal' THEN 1
+                WHEN template_group = 'external' THEN 2
+                ELSE 3
+            END,
+            sort_order ASC,
+            template_id ASC
     ");
 
     $templateRows = $templateStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -756,8 +763,8 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
             <select name="main_category" class="custom-select w-full" id="mainCategory"
               <?= $categoryLocked ? ' disabled data-category-locked="1"' : '' ?>>
               <option value="">-- เลือกหมวดหลัก --</option>
-              <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
               <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>ภายใน</option>
+              <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
             </select>
 
           </div>
@@ -1999,7 +2006,7 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
   });
   </script>
   <script>
-  // หมวดหมู่ใช้สคริปต์ชุดเดียวด้านล่าง เพื่อไม่ให้ event ซ้ำและไม่ให้ redirect ตอนเลือกหมวดหลัก
+  // หมวดหมู่ใช้สคริปต์ชุดเดียวด้านล่าง เพื่อไม่ให้ event ซ้ำ และให้เปลี่ยนฟอร์มตามหมวดที่เลือก
   </script>
 
   <script>
@@ -2043,7 +2050,14 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
       const list = getActiveTemplates(group);
       let hasSelectedText = false;
 
-      sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
+      sub.innerHTML = "";
+
+      if (list.length === 0) {
+        sub.innerHTML = '<option value="" selected>-- เลือกหมวดย่อย --</option>';
+        sub.value = "";
+        sub.dataset.current = "";
+        return;
+      }
 
       list.forEach(item => {
         const name = String(item.name || "").trim();
@@ -2069,8 +2083,7 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
         sub.value = selectedText;
       } else {
         sub.selectedIndex = 0;
-        sub.value = "";
-        sub.dataset.current = "";
+        sub.dataset.current = sub.value;
       }
     }
 
@@ -2091,10 +2104,25 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
       }
     }
 
+    function goToSelectedTemplate() {
+      const subVal = String(sub.value || "").trim();
+      if (!subVal) return;
+
+      const selectedOption = sub.options[sub.selectedIndex];
+      const target = buildTemplateUrl(selectedOption?.dataset?.url || "");
+
+      if (!target || target === "#") return;
+
+      const separator = target.includes("?") ? "&" : "?";
+      window.location.href = target + separator + "main=" + encodeURIComponent(main.value || "") + "&sub=" +
+        encodeURIComponent(subVal);
+    }
+
     main.addEventListener("change", () => {
       if (window.CATEGORY_LOCKED_BY_STATUS) return;
       sub.dataset.current = "";
       syncUI(false);
+      goToSelectedTemplate();
     });
 
     sub.addEventListener("focus", () => {
@@ -2110,17 +2138,7 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
     sub.addEventListener("change", () => {
       const subVal = String(sub.value || "").trim();
       sub.dataset.current = subVal;
-
-      if (!subVal) return;
-
-      const selectedOption = sub.options[sub.selectedIndex];
-      const target = buildTemplateUrl(selectedOption?.dataset?.url || "");
-
-      if (!target || target === "#") return;
-
-      const separator = target.includes("?") ? "&" : "?";
-      window.location.href = target + separator + "main=" + encodeURIComponent(main.value || "") + "&sub=" +
-        encodeURIComponent(subVal);
+      goToSelectedTemplate();
     });
 
     window.addEventListener("pageshow", () => {

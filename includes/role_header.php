@@ -121,7 +121,7 @@ $isSettingsPage = in_array($current, ['form_Templates.php', 'department_Managerm
 
     <a href="/Pro_letter/documents/form_Memo.php">
       <div class="px-4 py-2 rounded-[11px] font-bold transition <?= nav_active_class('form_Memo.php') ?>">
-        แบบฟอร์มบันทึกข้อความ
+        สร้างแบบฟอร์มบันทึกข้อความ
       </div>
     </a>
     <?php endif; ?>

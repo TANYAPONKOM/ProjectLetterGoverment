@@ -219,7 +219,14 @@ try {
           AND question_path IS NOT NULL
           AND question_path <> ''
           AND template_group IN ('internal', 'external')
-        ORDER BY sort_order ASC, template_id ASC
+        ORDER BY
+            CASE
+                WHEN template_group = 'internal' THEN 1
+                WHEN template_group = 'external' THEN 2
+                ELSE 3
+            END,
+            sort_order ASC,
+            template_id ASC
     ");
 
     $templateRows = $templateStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -698,8 +705,8 @@ $position    = $formData[3]  ?? '';
             <select name="main_category" class="custom-select w-full" id="mainCategory"
               <?= $categoryLocked ? ' disabled data-category-locked="1"' : '' ?>>
               <option value="">-- เลือกหมวดหลัก --</option>
-              <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
               <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>ภายใน</option>
+              <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
             </select>
           </div>
         </div>
@@ -1886,7 +1893,14 @@ $position    = $formData[3]  ?? '';
     const list = getActiveTemplates(group);
     let hasSelectedText = false;
 
-    sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
+    sub.innerHTML = "";
+
+    if (list.length === 0) {
+      sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
+      sub.value = "";
+      sub.dataset.current = "";
+      return;
+    }
 
     list.forEach(item => {
       const name = String(item.name || "").trim();
@@ -1912,8 +1926,7 @@ $position    = $formData[3]  ?? '';
       sub.dataset.current = selectedText;
     } else {
       sub.selectedIndex = 0;
-      sub.value = "";
-      sub.dataset.current = "";
+      sub.dataset.current = sub.value;
     }
   }
 
@@ -1934,20 +1947,7 @@ $position    = $formData[3]  ?? '';
     }
   }
 
-  main.addEventListener("change", () => {
-    sub.dataset.current = "";
-    syncUI(false);
-  });
-
-  sub.addEventListener("focus", () => {
-    syncUI(true);
-  });
-
-  sub.addEventListener("pointerdown", () => {
-    syncUI(true);
-  });
-
-  sub.addEventListener("change", () => {
+  function goToSelectedTemplate() {
     const subVal = String(sub.value || "").trim();
     sub.dataset.current = subVal;
 
@@ -1964,6 +1964,24 @@ $position    = $formData[3]  ?? '';
       connector +
       "main=" + encodeURIComponent(String(main.value || "").trim()) +
       "&sub=" + encodeURIComponent(subVal);
+  }
+
+  main.addEventListener("change", () => {
+    sub.dataset.current = "";
+    syncUI(false);
+    goToSelectedTemplate();
+  });
+
+  sub.addEventListener("focus", () => {
+    syncUI(true);
+  });
+
+  sub.addEventListener("pointerdown", () => {
+    syncUI(true);
+  });
+
+  sub.addEventListener("change", () => {
+    goToSelectedTemplate();
   });
 
   window.addEventListener("pageshow", () => {

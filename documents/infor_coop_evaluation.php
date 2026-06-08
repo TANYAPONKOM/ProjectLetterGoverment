@@ -220,7 +220,14 @@ try {
         FROM templates
         WHERE CAST(COALESCE(is_active, 0) AS UNSIGNED) = 1
           AND LOWER(TRIM(template_group)) IN ('internal', 'external')
-        ORDER BY sort_order ASC, template_id ASC
+        ORDER BY
+            CASE
+                WHEN LOWER(TRIM(template_group)) = 'internal' THEN 1
+                WHEN LOWER(TRIM(template_group)) = 'external' THEN 2
+                ELSE 3
+            END,
+            sort_order ASC,
+            template_id ASC
     ");
     $templateRows = $templateStmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -776,8 +783,8 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
             <select name="main_category" class="custom-select w-full" id="mainCategory"
               <?= $categoryLocked ? ' disabled data-category-locked="1"' : '' ?>>
               <option value="">-- เลือกหมวดหลัก --</option>
-              <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
               <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>ภายใน</option>
+              <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
             </select>
 
           </div>
@@ -1034,15 +1041,6 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
             </div>
           </div>
         </div>
-      </div>
-      <!-- 10. เบอร์โทรภาควิชา -->
-      <div class="mb-4 flex items-center gap-3 flex-nowrap">
-        <label class="lbl text-gray-800 whitespace-nowrap w-48" for="departmentPhone">10. เบอร์โทรภาควิชา :</label>
-        <span class="text-gray-800 whitespace-nowrap">โทร.</span>
-        <input type="text" name="department_phone" id="departmentPhone"
-          class="border rounded-md p-2 shadow-sm w-[260px]" placeholder="เช่น 7064"
-          value="<?= h($departmentPhoneValue) ?>">
-        <span class="text-gray-700 whitespace-nowrap">ที่ต้องการให้ขึ้นที่ส่วนราชการ</span>
       </div>
 
       <!-- ปุ่ม -->
@@ -2065,8 +2063,9 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
     function renderSubOptions(list, selectedValue = "") {
       const selectedText = String(selectedValue || "").trim();
       let hasSelectedText = false;
+      let optionCount = 0;
 
-      sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
+      sub.innerHTML = "";
 
       (Array.isArray(list) ? list : []).forEach(item => {
         const isActive = Number(item?.is_active || 0) === 1;
@@ -2088,12 +2087,19 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
         }
 
         sub.appendChild(opt);
+        optionCount++;
       });
+
+      if (optionCount === 0) {
+        sub.innerHTML = '<option value="">-- เลือกหมวดย่อย --</option>';
+        sub.value = "";
+        sub.dataset.current = "";
+        return;
+      }
 
       if (!selectedText || !hasSelectedText) {
         sub.selectedIndex = 0;
-        sub.value = "";
-        if (selectedText) sub.dataset.current = "";
+        sub.dataset.current = sub.value;
       }
     }
 
@@ -2114,13 +2120,7 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
       }
     }
 
-    main.addEventListener("change", () => {
-      if (window.CATEGORY_LOCKED_BY_STATUS) return;
-      sub.dataset.current = "";
-      syncUI(false);
-    });
-
-    sub.addEventListener("change", () => {
+    function goToSelectedTemplate() {
       const subVal = String(sub.value || "").trim();
       sub.dataset.current = subVal;
 
@@ -2136,7 +2136,16 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
         separator +
         "main=" + encodeURIComponent(String(main.value || "").trim()) +
         "&sub=" + encodeURIComponent(subVal);
+    }
+
+    main.addEventListener("change", () => {
+      if (window.CATEGORY_LOCKED_BY_STATUS) return;
+      sub.dataset.current = "";
+      syncUI(false);
+      goToSelectedTemplate();
     });
+
+    sub.addEventListener("change", goToSelectedTemplate);
 
     syncUI(true);
   });

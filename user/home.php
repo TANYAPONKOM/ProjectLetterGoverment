@@ -131,16 +131,25 @@ try {
 
     <!-- Tabs -->
     <div class="flex space-x-6 border-b mb-4">
-      <button id="tab-pending" class="bg-teal-500 text-white px-4 py-2 rounded-t-md font-semibold">
+      <button id="tab-pending" class="relative bg-teal-500 text-white px-4 py-2 rounded-t-md font-semibold">
         รอตรวจสอบ
+        <span id="pendingCount" class="absolute -top-2 -right-3 min-w-[22px] h-[22px] px-1 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center shadow">
+          0
+        </span>
       </button>
-        <button id="tab-edit" class="text-gray-500 px-4 py-2 rounded-t-md font-semibold">
+      <button id="tab-edit" class="relative text-gray-500 px-4 py-2 rounded-t-md font-semibold">
         รอการแก้ไข
+        <span id="editCount" class="absolute -top-2 -right-3 min-w-[22px] h-[22px] px-1 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center shadow">
+          0
+        </span>
       </button>
-      <button id="tab-done" class="text-gray-500 px-4 py-2 rounded-t-md font-semibold">
+      <button id="tab-done" class="relative text-gray-500 px-4 py-2 rounded-t-md font-semibold">
         ผ่านการตรวจสอบแล้ว
+        <span id="approvedCount" class="absolute -top-2 -right-3 min-w-[22px] h-[22px] px-1 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center shadow">
+          0
+        </span>
       </button>
-      
+
     </div>
 
     <!-- Filter + Sort -->
@@ -259,11 +268,13 @@ try {
   let dataAll = [];
 
   async function loadRequests() {
-    const res = await fetch("../documents/get_requests.php");
+    const res = await fetch("../documents/get_requests.php?_=" + Date.now(), {
+      cache: "no-store"
+    });
 
     const data = await res.json();
 
-    dataAll = data.map(d => {
+    dataAll = (Array.isArray(data) ? data : []).map(d => {
 
       // ====== สถานะสำหรับแสดงผล ======
       let statusTh = "";
@@ -332,10 +343,15 @@ try {
       };
     });
 
+    updateStatusCounts();
     renderList();
   }
 
   loadRequests();
+
+  async function refreshRequestsAfterAction() {
+    await loadRequests();
+  }
 
 
   let currentPage = 1;
@@ -350,6 +366,9 @@ try {
   const tabPending = document.getElementById("tab-pending");
   const tabDone = document.getElementById("tab-done");
   const tabEdit = document.getElementById("tab-edit");
+  const pendingCount = document.getElementById("pendingCount");
+  const editCount = document.getElementById("editCount");
+  const approvedCount = document.getElementById("approvedCount");
 
   function hasThaiMonth(value) {
     const text = String(value || "").trim();
@@ -413,6 +432,20 @@ try {
     }
 
     return null;
+  }
+
+  function updateStatusCounts() {
+    const pendingCountEl = document.getElementById("pendingCount");
+    const editCountEl = document.getElementById("editCount");
+    const approvedCountEl = document.getElementById("approvedCount");
+
+    const totalPending = dataAll.filter(d => d.view_status === "pending_view").length;
+    const totalEdit = dataAll.filter(d => d.view_status === "rejected").length;
+    const totalApproved = dataAll.filter(d => d.view_status === "approved").length;
+
+    if (pendingCountEl) pendingCountEl.textContent = totalPending;
+    if (editCountEl) editCountEl.textContent = totalEdit;
+    if (approvedCountEl) approvedCountEl.textContent = totalApproved;
   }
 
   function formatDate(value) {
@@ -480,13 +513,13 @@ try {
     <button onclick="submitDocument(${req.document_id})"
       class="px-5 py-2 bg-teal-500 hover:bg-teal-600
              text-white text-sm font-semibold rounded-xl shadow">
-      ยืนยันการส่ง
+      ส่งเพื่อตรวจสอบ
     </button>
 
     <button onclick="cancelDocument(${req.document_id})"
       class="px-5 py-2 bg-red-500 hover:bg-red-600
              text-white text-sm font-semibold rounded-xl shadow">
-      ยกเลิกคำขอ
+      ลบรายการนี้
     </button>
   </div>
 `;
@@ -622,6 +655,10 @@ tabEdit.onclick = () => {
   currentPage = 1;
   renderList();
 };
+
+// อัปเดตตัวเลขสถานะใหม่เมื่อกลับมาหน้านี้ และรีเฟรชข้อมูลเป็นระยะ
+window.addEventListener("focus", loadRequests);
+setInterval(loadRequests, 10000);
 
 
   renderList();
@@ -890,6 +927,19 @@ tabEdit.onclick = () => {
         .then(res => {
           if (res.success) {
 
+            dataAll = dataAll.map(item => {
+              if (Number(item.document_id) === Number(id)) {
+                return {
+                  ...item,
+                  raw_status: "submitted",
+                  view_status: "pending_view",
+                  status: "รอตรวจสอบ"
+                };
+              }
+              return item;
+            });
+            updateStatusCounts();
+            renderList();
 
             Swal.fire({
               icon: "success",
@@ -899,8 +949,8 @@ tabEdit.onclick = () => {
               showConfirmButton: false
             });
 
-            // ✅ โหลดข้อมูลใหม่จาก DB
-            loadRequests();
+            // ✅ อัปเดตตัวเลขและรายการจาก DB อีกครั้งหลังส่งสำเร็จ
+            refreshRequestsAfterAction();
 
 
           } else {
@@ -912,16 +962,16 @@ tabEdit.onclick = () => {
 
   function cancelDocument(id) {
     Swal.fire({
-      title: "ยกเลิกคำขอนี้?",
+      title: "ลบรายการนี้?",
       html: `
       <p style="font-size:16px; margin-bottom:10px; text-align:center;">
-        หากยกเลิกแล้ว รายการนี้จะถูกลบออกจากรายการคำขอ
+        หากลบรายการนี้แล้ว รายการนี้จะถูกลบออกจากรายการคำขอ
       </p>
     `,
       icon: "warning",
       showConfirmButton: false,
       showCancelButton: true,
-      cancelButtonText: "ไม่ยกเลิก",
+      cancelButtonText: "ยกเลิก",
       buttonsStyling: false,
       customClass: {
         actions: "cancel-actions-row",
@@ -973,6 +1023,10 @@ tabEdit.onclick = () => {
               .then(r => r.json())
               .then(res => {
                 if (res.success) {
+                  dataAll = dataAll.filter(item => Number(item.document_id) !== Number(id));
+                  updateStatusCounts();
+                  renderList();
+
                   Swal.fire({
                     icon: "success",
                     title: "ยกเลิกคำขอแล้ว",
@@ -980,7 +1034,8 @@ tabEdit.onclick = () => {
                     showConfirmButton: false
                   });
 
-                  loadRequests();
+                  // ✅ อัปเดตตัวเลขและรายการจาก DB อีกครั้งหลังลบสำเร็จ
+                  refreshRequestsAfterAction();
                 } else {
                   Swal.fire(
                     "ผิดพลาด",

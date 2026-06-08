@@ -53,9 +53,18 @@ main {
 
     <!-- Tabs -->
     <div class="flex space-x-6 border-b mb-4">
-      <button id="tab-pending" class="bg-teal-500 text-white px-4 py-2 rounded-t-md font-semibold">รอตรวจสอบ</button>
-        <button id="tab-edit" class="text-gray-500 px-4 py-2 rounded-t-md font-semibold">รอการแก้ไข</button>
-      <button id="tab-done" class="text-gray-500 px-4 py-2 rounded-t-md font-semibold">ผ่านการตรวจสอบแล้ว</button>
+      <button id="tab-pending" class="relative bg-teal-500 text-white px-4 py-2 rounded-t-md font-semibold">
+        รอตรวจสอบ
+        <span id="pendingCount" class="absolute -top-2 -right-3 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[11px] leading-5 text-center shadow">0</span>
+      </button>
+      <button id="tab-edit" class="relative text-gray-500 px-4 py-2 rounded-t-md font-semibold">
+        รอการแก้ไข
+        <span id="editCount" class="absolute -top-2 -right-3 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[11px] leading-5 text-center shadow">0</span>
+      </button>
+      <button id="tab-done" class="relative text-gray-500 px-4 py-2 rounded-t-md font-semibold">
+        ผ่านการตรวจสอบแล้ว
+        <span id="doneCount" class="absolute -top-2 -right-3 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[11px] leading-5 text-center shadow">0</span>
+      </button>
       
     </div>
 
@@ -91,7 +100,9 @@ main {
   let dataAll = [];
 
   async function loadRequests() {
-    const res = await fetch("get_requests.php");
+    const res = await fetch("get_requests.php?_=" + Date.now(), {
+      cache: "no-store"
+    });
     const data = await res.json();
 
     dataAll = data.map(d => {
@@ -141,6 +152,7 @@ main {
       };
     });
 
+    updateStatusCounts();
     renderList();
   }
 
@@ -158,6 +170,9 @@ main {
   const tabPending = document.getElementById("tab-pending");
   const tabDone = document.getElementById("tab-done");
   const tabEdit = document.getElementById("tab-edit");
+  const pendingCount = document.getElementById("pendingCount");
+  const editCount = document.getElementById("editCount");
+  const doneCount = document.getElementById("doneCount");
 
   function hasThaiMonth(value) {
     const text = String(value || "").trim();
@@ -453,6 +468,21 @@ main {
   }
 
 
+  function updateStatusCounts() {
+    if (!pendingCount || !editCount || !doneCount) return;
+
+    pendingCount.textContent = dataAll.filter(d => d.status === "pending").length;
+    editCount.textContent = dataAll.filter(d => d.status === "edit").length;
+    doneCount.textContent = dataAll.filter(d => d.status === "done").length;
+  }
+
+  function refreshRequestsAfterReview() {
+    updateStatusCounts();
+    renderList();
+    loadRequests();
+  }
+
+
   function renderList() {
     const dataFiltered = dataAll.filter(d => d.status === activeTab);
 
@@ -502,13 +532,13 @@ main {
           <button onclick="approveDocument(${req.document_id})"
             class="px-6 py-2 bg-teal-500 hover:bg-teal-600
                    text-white text-sm font-semibold rounded-xl shadow">
-            ผ่าน
+            ตรวจสอบแล้ว: ผ่าน
           </button>
 
           <button onclick="rejectDocument(${req.document_id})"
             class="px-6 py-2 bg-red-400 hover:bg-red-500
                    text-white text-sm font-semibold rounded-xl shadow">
-            ไม่ผ่าน
+            ตรวจสอบแล้ว: ไม่ผ่าน
           </button>
         </div>`;
       } else if (req.status === "done") {
@@ -929,7 +959,18 @@ tabEdit.onclick = () => {
               timer: 1500,
               showConfirmButton: false
             });
-            loadRequests();
+            dataAll = dataAll.map(item => {
+              if (Number(item.document_id) === Number(id)) {
+                return {
+                  ...item,
+                  status: "done",
+                  statusText: "ผ่านการตรวจสอบแล้ว",
+                  statusClass: "bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold"
+                };
+              }
+              return item;
+            });
+            refreshRequestsAfterReview();
           }
         });
     });
@@ -999,7 +1040,18 @@ tabEdit.onclick = () => {
               timer: 1500,
               showConfirmButton: false
             });
-            loadRequests();
+            dataAll = dataAll.map(item => {
+              if (Number(item.document_id) === Number(id)) {
+                return {
+                  ...item,
+                  status: "edit",
+                  statusText: "รอการแก้ไข",
+                  statusClass: "bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold"
+                };
+              }
+              return item;
+            });
+            refreshRequestsAfterReview();
           }
         });
     });

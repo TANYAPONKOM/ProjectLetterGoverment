@@ -221,7 +221,14 @@ try {
           AND question_path IS NOT NULL
           AND question_path <> ''
           AND template_group IN ('internal', 'external')
-        ORDER BY sort_order ASC, template_id ASC
+        ORDER BY
+            CASE
+                WHEN template_group = 'internal' THEN 1
+                WHEN template_group = 'external' THEN 2
+                ELSE 3
+            END,
+            sort_order ASC,
+            template_id ASC
     ");
 
     $templateRows = $templateStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -853,8 +860,8 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
               <select name="main_category" class="custom-select w-full" id="mainCategory"
                 <?= $categoryLocked ? ' disabled data-category-locked="1"' : '' ?>>
                 <option value="">-- เลือกหมวดหลัก --</option>
-                <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
                 <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>ภายใน</option>
+                <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
               </select>
             </div>
           </div>
@@ -4525,7 +4532,14 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       const list = getActiveTemplates(group);
       let hasSelectedText = false;
 
-      sub.innerHTML = '<option value="" selected>-- เลือกหมวดย่อย --</option>';
+      sub.innerHTML = "";
+
+      if (list.length === 0) {
+        sub.innerHTML = '<option value="" selected>-- เลือกหมวดย่อย --</option>';
+        sub.value = "";
+        sub.dataset.current = "";
+        return;
+      }
 
       list.forEach(item => {
         const name = String(item.name || "").trim();
@@ -4548,9 +4562,9 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
       if (!selectedText || !hasSelectedText) {
         sub.selectedIndex = 0;
-        sub.value = "";
-        sub.dataset.current = "";
       }
+
+      sub.dataset.current = String(sub.value || "").trim();
     }
 
     function syncUI(keepCurrentSub = false) {
@@ -4570,10 +4584,28 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       }
     }
 
+    function goToSelectedTemplate() {
+      const subVal = String(sub.value || "").trim();
+      sub.dataset.current = subVal;
+
+      if (!subVal) return;
+
+      const selectedOption = sub.options[sub.selectedIndex];
+      const target = buildTemplateUrl(selectedOption?.dataset?.url || "");
+
+      if (!target || target === "#") return;
+
+      const nextUrl = withSelection(target, String(main.value || "").trim(), subVal);
+      if (nextUrl !== window.location.href) {
+        window.location.href = nextUrl;
+      }
+    }
+
     main.addEventListener("change", () => {
       if (window.CATEGORY_LOCKED_BY_STATUS) return;
       sub.dataset.current = "";
       syncUI(false);
+      goToSelectedTemplate();
     });
 
     sub.addEventListener("focus", () => {
@@ -4587,16 +4619,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     });
 
     sub.addEventListener("change", () => {
-      const subVal = String(sub.value || "").trim();
-      sub.dataset.current = subVal;
-
-      if (!subVal) return;
-
-      const selectedOption = sub.options[sub.selectedIndex];
-      const target = buildTemplateUrl(selectedOption?.dataset?.url || "");
-
-      if (!target || target === "#") return;
-      window.location.href = withSelection(target, String(main.value || "").trim(), subVal);
+      goToSelectedTemplate();
     });
 
     window.addEventListener("pageshow", () => {

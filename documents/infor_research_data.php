@@ -224,7 +224,14 @@ try {
           AND question_path IS NOT NULL
           AND question_path <> ''
           AND template_group IN ('internal', 'external')
-        ORDER BY sort_order ASC, template_id ASC
+        ORDER BY
+            CASE
+              WHEN template_group = 'internal' THEN 1
+              WHEN template_group = 'external' THEN 2
+              ELSE 3
+            END,
+            sort_order ASC,
+            template_id ASC
     ");
 
     $templateRows = $templateStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -675,8 +682,8 @@ $editStudentsJsonForJs = json_encode($editStudents, JSON_UNESCAPED_UNICODE | JSO
             <select name="main_category" class="custom-select w-full" id="mainCategory"
               <?= $categoryLocked ? ' disabled data-category-locked="1"' : '' ?>>
               <option value="">-- เลือกหมวดหลัก --</option>
-              <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
               <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>ภายใน</option>
+              <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
             </select>
           </div>
         </div>
@@ -1913,10 +1920,15 @@ const SPELL_CHECK_API_URL = `${SPELL_API_BASE_URL}/api/spell-check`;
       if (selectedText && hasSelectedText) {
         sub.value = selectedText;
         sub.dataset.current = selectedText;
+      } else if (list.length > 0) {
+        sub.selectedIndex = 1;
+        sub.dataset.current = sub.value;
+        sub.setAttribute("data-current", sub.value);
       } else {
         sub.selectedIndex = 0;
         sub.value = "";
         sub.dataset.current = "";
+        sub.setAttribute("data-current", "");
       }
     }
 
@@ -1937,23 +1949,7 @@ const SPELL_CHECK_API_URL = `${SPELL_API_BASE_URL}/api/spell-check`;
       }
     }
 
-    main.addEventListener("change", () => {
-      sub.dataset.current = "";
-      sub.setAttribute("data-current", "");
-      syncUI(false);
-    });
-
-    sub.addEventListener("focus", () => {
-      if (window.CATEGORY_LOCKED_BY_STATUS) return;
-      syncUI(true);
-    });
-
-    sub.addEventListener("pointerdown", () => {
-      if (window.CATEGORY_LOCKED_BY_STATUS) return;
-      syncUI(true);
-    });
-
-    sub.addEventListener("change", () => {
+    function redirectToSelectedTemplate() {
       const subVal = String(sub.value || "").trim();
       sub.dataset.current = subVal;
       sub.setAttribute("data-current", subVal);
@@ -1969,6 +1965,27 @@ const SPELL_CHECK_API_URL = `${SPELL_API_BASE_URL}/api/spell-check`;
       nextUrl.searchParams.set("main", String(main.value || "").trim());
       nextUrl.searchParams.set("sub", subVal);
       window.location.href = nextUrl.toString();
+    }
+
+    main.addEventListener("change", () => {
+      sub.dataset.current = "";
+      sub.setAttribute("data-current", "");
+      syncUI(false);
+      redirectToSelectedTemplate();
+    });
+
+    sub.addEventListener("focus", () => {
+      if (window.CATEGORY_LOCKED_BY_STATUS) return;
+      syncUI(true);
+    });
+
+    sub.addEventListener("pointerdown", () => {
+      if (window.CATEGORY_LOCKED_BY_STATUS) return;
+      syncUI(true);
+    });
+
+    sub.addEventListener("change", () => {
+      redirectToSelectedTemplate();
     });
 
     window.addEventListener("pageshow", () => {

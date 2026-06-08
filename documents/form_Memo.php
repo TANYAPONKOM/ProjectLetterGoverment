@@ -206,7 +206,14 @@ try {
           AND question_path IS NOT NULL
           AND question_path <> ''
           AND template_group IN ('internal', 'external')
-        ORDER BY sort_order ASC, template_id ASC
+        ORDER BY
+            CASE
+                WHEN template_group = 'internal' THEN 1
+                WHEN template_group = 'external' THEN 2
+                ELSE 3
+            END,
+            sort_order ASC,
+            template_id ASC
     ");
 
     $templateRows = $templateStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -4338,7 +4345,14 @@ if ($roleIdForHome === 1) {
       const list = getActiveTemplates(group);
       let hasSelectedText = false;
 
-      sub.innerHTML = '<option value="" selected>-- เลือกหมวดย่อย --</option>';
+      sub.innerHTML = "";
+
+      if (list.length === 0) {
+        sub.innerHTML = '<option value="" selected>-- เลือกหมวดย่อย --</option>';
+        sub.value = "";
+        sub.dataset.current = "";
+        return;
+      }
 
       list.forEach(item => {
         const name = String(item.name || "").trim();
@@ -4361,8 +4375,7 @@ if ($roleIdForHome === 1) {
 
       if (!selectedText || !hasSelectedText) {
         sub.selectedIndex = 0;
-        sub.value = "";
-        sub.dataset.current = "";
+        sub.dataset.current = String(sub.value || "").trim();
       }
     }
 
@@ -4383,10 +4396,22 @@ if ($roleIdForHome === 1) {
       }
     }
 
+    function openSelectedTemplate() {
+      const subVal = String(sub.value || "").trim();
+      if (!subVal) return;
+
+      const selectedOption = sub.options[sub.selectedIndex];
+      const target = buildTemplateUrl(selectedOption?.dataset?.url || "");
+
+      if (!target || target === "#") return;
+      window.location.href = withSelection(target, String(main.value || "").trim(), subVal);
+    }
+
     main.addEventListener("change", () => {
       if (window.CATEGORY_LOCKED_BY_STATUS) return;
       sub.dataset.current = "";
       syncUI(false);
+      openSelectedTemplate();
     });
 
     sub.addEventListener("focus", () => {
@@ -4400,16 +4425,8 @@ if ($roleIdForHome === 1) {
     });
 
     sub.addEventListener("change", () => {
-      const subVal = String(sub.value || "").trim();
-      sub.dataset.current = subVal;
-
-      if (!subVal) return;
-
-      const selectedOption = sub.options[sub.selectedIndex];
-      const target = buildTemplateUrl(selectedOption?.dataset?.url || "");
-
-      if (!target || target === "#") return;
-      window.location.href = withSelection(target, String(main.value || "").trim(), subVal);
+      sub.dataset.current = String(sub.value || "").trim();
+      openSelectedTemplate();
     });
 
     window.addEventListener("pageshow", () => {
