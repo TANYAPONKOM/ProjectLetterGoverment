@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Thai Spell Checker</title>
+  <style>
+    body { font-family: sans-serif; margin: 40px; }
+    textarea { width: 100%; height: 100px; }
+    button { padding: 10px 20px; margin-top: 10px; cursor: pointer; }
+    .highlight { margin-top: 20px; font-size: 18px; }
+    .highlight span { color: red; text-decoration: underline; }
+    .corrected { margin-top: 20px; font-size: 18px; color: green; }
+  </style>
+</head>
+<body>
+  <h2>Thai Spell Checker (ML Model)</h2>
+  <textarea id="text" placeholder="พิมพ์ข้อความภาษาไทย..."></textarea><br>
+  <button onclick="checkText()">ตรวจสอบ</button>
+
+  <!-- ส่วนแสดงผล -->
+  <div id="highlight" class="highlight"></div>
+  <div id="corrected" class="corrected"></div>
+
+  <script>
+    async function checkText() {
+      let text = document.getElementById("text").value;
+      let res = await fetch("/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+      });
+      let data = await res.json();
+
+      // แสดงประโยคพร้อม highlight
+      let highlighted = data.highlighted
+        .replace(/<คำผิด>/g, "<span>")
+        .replace(/<\/คำผิด>/g, "</span>");
+      document.getElementById("highlight").innerHTML =
+        "🔎 คำผิดที่พบ: " + highlighted;
+
+      // แสดงประโยคที่แก้แล้ว
+      document.getElementById("corrected").innerHTML =
+        "✅ แก้ไขแล้ว: " + data.corrected;
+    }
+  </script>
+</body>
+</html>

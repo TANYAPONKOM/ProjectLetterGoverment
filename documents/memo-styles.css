@@ -1,0 +1,476 @@
+@import url("https://fonts.googleapis.com/css2?family=Sarabun:wght@300;700&display=swap");
+
+html,
+body {
+  margin: 0;
+  background: #f3f4f6;
+  font-family: "TH SarabunPSK", sans-serif;
+}
+
+.page {
+  width: 794px;
+  min-height: 1123px;
+  margin: 40px auto;
+  padding: 60px 70px 50px 100px;
+  background: #fff;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+  position: relative;
+  border: 2px solid #fff;
+}
+
+h1 {
+  font-family: "TH SarabunPSK";
+  font-size: 29pt;
+  font-weight: bold;
+  text-align: center;
+  line-height: 1.2;
+  margin-bottom: 1.5em;
+}
+
+.doc-title {
+  margin-left: -30px;
+}
+
+.doc-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+  flex-wrap: nowrap;
+}
+
+.doc-label {
+  margin-right: 2px;
+}
+
+/* .dot-line { flex: 1; display: flex; align-items: flex-end; height: 22px; margin: 0; position: relative; } .doc-line { display: flex; align-items: center; } */
+.doc-spacer {
+  display: inline-block;
+  width: 2.5cm;
+  /* ← ขนาดช่องว่าง ปรับตรงนี้ */
+}
+
+.content-block {
+  font-family: "TH SarabunPSK";
+  font-size: 16pt;
+  line-height: 1;
+  margin: 0;
+  text-align: justify;
+  text-justify: inter-word;
+}
+
+.content-block.paragraph {
+  text-indent: 2.5cm;
+  margin-top: 0.5em;
+  line-height: 1.3;
+}
+
+.content-block.single {
+  margin-left: 3cm;
+  line-height: 1;
+}
+
+.content-block.indent-first {
+  display: block;
+}
+
+/* SweetAlert */
+.swal2-popup {
+  font-size: 1rem !important;
+  font-family: "Arial", sans-serif !important;
+}
+
+.swal2-title {
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+}
+
+.swal2-html-container {
+  font-size: 1rem !important;
+}
+
+.indent-block {
+  margin-left: 2.5cm;
+  text-align: left;
+  font-family: "TH SarabunPSK";
+  font-size: 16pt;
+  line-height: 1.2;
+}
+
+.keep {
+  white-space: nowrap;
+}
+
+.signature-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 2em;
+  margin-bottom: 1em;
+}
+
+.signature-block {
+  margin-top: 50px;
+  margin-left: 187px;
+  text-align: center;
+  font-family: "TH SarabunPSK";
+  font-size: 16pt;
+  line-height: 1.2;
+}
+
+.sig-name {
+  display: block;
+  white-space: nowrap;
+}
+
+.sig-position {
+  display: block;
+  white-space: nowrap;
+}
+
+.footer-actions {
+  margin-top: 24px;
+  padding-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.dot-line {
+  flex: 1;
+  position: relative;
+  height: 28px;
+  display: flex;
+  align-items: flex-end !important;
+}
+
+.dot-line::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 4px;
+  height: 2px;
+  background-image: radial-gradient(circle, #000 1.5px, transparent 1.5px);
+  background-size: 5px 2px;
+  background-repeat: repeat-x;
+}
+/* ===============================
+   EDIT MODE ONLY
+   =============================== */
+body:not(.view-document) .chip {
+  display: inline;
+  padding: 0 1px;
+  margin: 0;
+  border: 1px solid #000;
+  background: #fff;
+  font-family: "TH SarabunPSK";
+  font-size: 16pt;
+  line-height: 1em;
+  white-space: nowrap;
+}
+
+/* ระยะว่างหน้าคำ + หลังคำ ตามรูป */
+.dot-line .chip {
+  line-height: 0.9 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+
+  margin-left: 14px !important;
+  margin-right: 6px !important;
+
+  display: inline-flex !important;
+  align-items: flex-end !important;
+  /* ดึงข้อความให้แตะเส้น */
+  position: relative;
+  top: 1px;
+  /* ⭐ กดลงมาอีกนิดเพื่อให้ชิดเส้นมากที่สุด */
+}
+.print-mode header,
+.print-mode .footer-actions {
+  display: none !important;
+}
+
+.print-mode {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  background: #fff !important;
+  margin: 0;
+  padding: 0;
+}
+
+.print-mode.page {
+  margin: 0;
+  box-shadow: none;
+  padding: 2.5cm 2cm 2cm 3cm !important;
+  width: 21cm;
+  height: 29.7cm;
+  border: none !important;
+  background: #fff !important;
+}
+
+.print-mode .dot-line::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2px;
+  height: 2px;
+  background-image: radial-gradient(circle, #000 0.6px, transparent 0.6px);
+  background-size: 4px 2px;
+  background-repeat: repeat-x;
+}
+
+.print-mode .dot-input {
+  border: none !important;
+  background: transparent !important;
+  outline: none !important;
+  font-size: 16pt !important;
+  line-height: 1.2 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  height: auto !important;
+  position: relative;
+  top: 3px !important;
+}
+
+.print-mode .chip {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.print-mode table {
+  width: 100%;
+  font-family: "TH SarabunPSK";
+  font-size: 16pt !important;
+  border-collapse: collapse;
+  border: none !important;
+}
+
+.print-mode td,
+.print-mode th {
+  border: none !important;
+  padding: 3px 4px !important;
+}
+/* สำหรับ print */
+@media print {
+  header,
+  .footer-actions {
+    display: none !important;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background: #fff !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  main,
+  .page {
+    margin: 0;
+    box-shadow: none;
+    padding: 2.5cm 2cm 2cm 3cm !important;
+    width: 21cm;
+    height: 29.7cm;
+    border: none !important;
+    page-break-after: always;
+    background: #fff !important;
+  }
+
+  /* ซ่อน tailwind spacing classes ในการพิมพ์ */
+  .mt-4,
+  .mb-10,
+  .mb-6,
+  .mb-1,
+  .mb-3,
+  .mt-4 {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  .dot-line::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 2px;
+    height: 2px;
+    background-image: radial-gradient(circle, #000 0.6px, transparent 0.6px);
+    background-size: 4px 2px;
+    background-repeat: repeat-x;
+  }
+
+  .dot-input {
+    border: none !important;
+    background: transparent !important;
+    outline: none !important;
+    font-size: 16pt !important;
+    line-height: 1.2 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    height: auto !important;
+    position: relative;
+    top: 3px !important;
+  }
+
+  .chip {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  /* ซ่อนปุ่มทั้งหมดในการพิมพ์ */
+  button,
+  button[type="button"],
+  button[type="submit"],
+  input[type="button"] {
+    display: none !important;
+  }
+
+  /* ลบการแสดงขององค์ประกอบที่ไม่จำเป็นในการพิมพ์ */
+  form {
+    margin: 0;
+    padding: 0;
+  }
+
+  h2 {
+    font-family: "TH SarabunPSK";
+    font-size: 16pt !important;
+    line-height: 1.3 !important;
+    margin-top: 0.5em !important;
+    margin-bottom: 0.5em !important;
+  }
+
+  table {
+    width: 100%;
+    font-family: "TH SarabunPSK";
+    font-size: 16pt !important;
+    border-collapse: collapse;
+    border: none !important;
+  }
+
+  td,
+  th {
+    border: none !important;
+    padding: 3px 4px !important;
+  }
+}
+
+/* ฟอนต์ Sarabun */
+@font-face {
+  font-family: "TH SarabunPSK";
+  src: url("/fonts/THSarabunPSK.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "TH SarabunPSK";
+  src: url("/fonts/THSarabunPSK-Bold.ttf") format("truetype");
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "TH SarabunPSK";
+  src: url("fonts/THSarabunPSK.ttf") format("truetype");
+}
+
+body {
+  font-family: "TH SarabunPSK", sans-serif;
+}
+
+.doc-header .doc-row {
+  margin-bottom: 12px !important;
+  /* เดิม 6px → เพิ่มเป็น 12px */
+  line-height: 0.5 !important;
+  /* เพิ่มความสูงบรรทัด */
+}
+
+.doc-row .dot-line .chip {
+  margin-left: 14px !important;
+  /* เดิม 10px → เพิ่มออกมาอีก */
+  margin-right: 6px !important;
+  /* ขยับปลายด้านหลังให้สวยขึ้น */
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+  display: inline-flex !important;
+  align-items: flex-end !important;
+}
+
+.doc-row .doc-label {
+  line-height: 1 !important;
+  height: 32px !important;
+  display: flex;
+  align-items: flex-end;
+}
+
+/* ★ สำหรับบรรทัด "ที่ – วันที่" ให้เส้นประต่อกันสนิท */
+.row-ty-date .ty-left::after {
+  margin-right: -13px !important;
+  /* ดึงเส้นให้ต่อกับคำว่า “วันที่” */
+}
+
+.row-ty-date .ty-right::after {
+  margin-left: -6px !important;
+  /* ดึงเส้นให้ต่อจากเส้นฝั่งซ้าย */
+}
+
+/* ลดช่องว่างหลังกล่อง เพื่อไม่ให้เกิดรูเล็กๆ */
+.row-ty-date .chip {
+  margin-right: 0px !important;
+  margin-left: 12px !important;
+  /* เว้นหลังคำว่า “ที่” พอดี */
+}
+
+/* เอาช่องว่างเล็กๆ หลังเลขเอกสารออก */
+.row-ty-date .ty-left .chip {
+  margin-right: 0 !important;
+}
+
+/* ⭐ ขยับ "วันที่" ไปทางซ้าย */
+.row-ty-date .doc-label[style*="margin-left"] {
+  margin-left: 0.2cm !important;
+  /* ← จาก 1cm ลดเหลือ 0.6cm (ขยับซ้าย) */
+}
+
+.font-regular {
+  font-family: "Sarabun", sans-serif !important;
+  font-weight: 20 !important;
+}
+
+.content-block,
+.chip {
+  font-family: "TH SarabunPSK";
+  font-size: 16pt !important;
+  /* ← เทียบเท่า 16pt จริงใน Word */
+  font-weight: 300 !important;
+}
+
+/* ===============================
+   VIEW DOCUMENT – HARD LOCK CHIP
+   =============================== */
+
+.view-document .chip::selection {
+  background: transparent !important;
+}
+
+.view-document *:focus,
+.view-document *:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* ===============================
+   VIEW DOCUMENT – NO BOX
+   =============================== */
+.view-document .chip {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}

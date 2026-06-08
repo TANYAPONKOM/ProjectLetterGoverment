@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Login | Smart Government</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-white font-sans">
+  <!-- Header -->
+  <header class="bg-teal-500 text-white p-4 flex justify-between items-center shadow-md">
+    <!-- Logo -->
+    <div class="flex items-center space-x-3">
+      <div class="w-[56px] h-[56px] flex items-center justify-center relative overflow-visible">
+        <svg xmlns="http://www.w3.org/2000/svg" class="absolute scale-[1.4] text-white"
+          style="width: 60px; height: 60px" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m0 0a2 2 0 00-2-2H5a2 2 0 00-2 2m18 0v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8" />
+        </svg>
+      </div>
+      <div class="leading-tight">
+        <div class="text-[16px] font-bold">Smart</div>
+        <div class="text-[16px] font-bold -mt-[2px]">Government</div>
+        <div class="text-[13px] mt-[0px]">Letter Assistant  System</div>
+      </div>
+    </div>
+
+    <!-- Login Button -->
+    <a href="login.html" class="inline-block">
+      <button class="bg-white text-teal-500 px-4 py-2 rounded-[11px] shadow hover:bg-gray-100 font-bold">
+        เข้าสู่ระบบ
+      </button>
+    </a>
+  </header>
+
+  <!-- Breadcrumb -->
+  <div class="p-6">
+    <nav class="text-sm text-gray-700 space-x-1">
+      <span class="font-bold text-gray-900">หน้าแรก</span>
+      <span>›</span>
+      <span class="text-gray-500">หน้าแรก</span>
+      <span>›</span>
+      <a class="text-teal-600 font-semibold">เข้าสู่ระบบ</a>
+    </nav>
+  </div>
+
+  <!-- Login Form -->
+  <div class="flex justify-center mt-8">
+    <div class="w-full max-w-md bg-white border border-gray-200 shadow-lg p-6 rounded-xl">
+
+      <!-- หัวข้อ -->
+      <div class="bg-teal-500 text-white text-center rounded-t-xl py-3 font-bold text-[17px]">
+        กรุณาป้อนชื่อผู้ใช้ และ รหัสผ่าน
+      </div>
+
+      <!-- Form -->
+      <div id="login-alert" class="hidden bg-red-100 text-red-700 px-4 py-2 rounded mt-4 mb-2"></div>
+
+      <form action="callfunction.php" method="POST" class="bg-white px-4 pt-6 pb-4 rounded-b-xl space-y-4">
+        <div>
+          <label class="block text-sm text-teal-500 mb-1">Username</label>
+          <input type="text" name="username" placeholder="Username" required
+            class="w-full px-4 py-2 border-2 border-teal-400 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500">
+          <small id="error-user" class="text-red-500 text-xs mt-1 hidden"></small>
+        </div>
+
+        <div>
+          <label class="block text-sm text-teal-500 mb-1">Password</label>
+          <input type="password" name="password" placeholder="Password" required
+            class="w-full px-4 py-2 border-2 border-teal-400 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          <small id="error-pass" class="text-red-500 text-xs mt-1 hidden"></small>
+        </div>
+
+        <div class="pt-2">
+          <button type="submit"
+            class="w-full bg-teal-500 text-white font-bold py-2 rounded-full shadow hover:bg-teal-600">
+            Login
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Login Failed -->
+  <div id="failModal" class="fixed inset-0 z-50 hidden">
+    <!-- backdrop -->
+    <div class="absolute inset-0 bg-black/50"></div>
+
+    <!-- dialog -->
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div class="flex flex-col items-center text-center px-8 py-8">
+
+          <!-- วงกลม ! -->
+          <div class="w-20 h-20 rounded-full border-4 border-red-100 bg-red-50 flex items-center justify-center mb-5">
+            <span class="text-4xl text-red-500 font-bold">!</span>
+          </div>
+
+          <!-- หัวข้อ -->
+          <div id="failTitle" class="text-gray-800 text-2xl font-bold leading-snug">
+            เข้าสู่ระบบไม่สำเร็จ
+          </div>
+
+          <!-- ข้อความแจ้งเตือน -->
+          <div id="failText" class="text-gray-500 text-base leading-relaxed mt-3">
+            กรุณาตรวจสอบชื่อผู้ใช้และรหัสผ่านอีกครั้ง
+          </div>
+
+          <!-- ปุ่มปิด -->
+          <button id="failClose"
+            class="mt-7 px-8 py-2.5 bg-teal-500 text-white rounded-xl shadow hover:bg-teal-600 focus:outline-none font-semibold">
+            ตกลง
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script ตรวจสอบ error -->
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get("error");
+
+    if (error) {
+      const modal = document.getElementById("failModal");
+      const failTitle = document.getElementById("failTitle");
+      const failText = document.getElementById("failText");
+
+      switch (error) {
+        case "user":
+          failTitle.textContent = "ไม่พบชื่อผู้ใช้นี้";
+          failText.textContent = "กรุณาตรวจสอบ Username ที่กรอกอีกครั้ง";
+          break;
+
+        case "pass":
+          failTitle.textContent = "รหัสผ่านไม่ถูกต้อง";
+          failText.textContent = "กรุณาตรวจสอบ Password ที่กรอกอีกครั้ง";
+          break;
+
+        case "inactive":
+          failTitle.textContent = "บัญชีถูกปิดการใช้งาน";
+          failText.textContent = "บัญชีนี้ถูกปิดการใช้งาน กรุณาติดต่อผู้ดูแลระบบ";
+          break;
+
+        case "db":
+          failTitle.textContent = "เชื่อมต่อฐานข้อมูลไม่ได้";
+          failText.textContent = "ไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณาลองใหม่ภายหลัง";
+          break;
+
+        default:
+          failTitle.textContent = "เข้าสู่ระบบไม่สำเร็จ";
+          failText.textContent = "กรุณาตรวจสอบชื่อผู้ใช้และรหัสผ่านอีกครั้ง";
+      }
+
+      modal.classList.remove("hidden");
+    }
+
+    document.getElementById("failClose").addEventListener("click", () => {
+      document.getElementById("failModal").classList.add("hidden");
+      window.history.replaceState({}, document.title, "login.html");
+    });
+  </script>
+</body>
+
+</html>
