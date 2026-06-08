@@ -1,30 +1,11 @@
 <?php
 // Pro_letter/documents/download_word_invite_speaker.php
 // ดาวน์โหลด Word (.docx) สำหรับหนังสือเรียนเชิญวิทยากร
-<<<<<<< HEAD
 // เวอร์ชัน OpenXML โดยตรง: เปิดได้ + จัดหน้า/รูปครุฑตามโครงเดิม
-=======
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 
 session_start();
 require_once __DIR__ . '/../functions.php';
 
-<<<<<<< HEAD
-=======
-$autoload = __DIR__ . '/../vendor/autoload.php';
-if (!file_exists($autoload)) {
-    http_response_code(500);
-    exit('ยังไม่ได้ติดตั้ง PHPWord: กรุณารัน composer require phpoffice/phpword ที่โฟลเดอร์ Pro_letter ก่อน');
-}
-require_once $autoload;
-require_once __DIR__ . '/word_templates/word_common.php';
-
-use PhpOffice\PhpWord\PhpWord;
-use PhpOffice\PhpWord\IOFactory;
-use PhpOffice\PhpWord\Shared\Converter;
-use PhpOffice\PhpWord\SimpleType\Jc;
-
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 if (empty($_SESSION['user_id'])) {
     http_response_code(401);
     exit('Unauthorized');
@@ -70,33 +51,21 @@ foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
     }
 }
 
-<<<<<<< HEAD
 function invite_word_thai_digit($text) {
-=======
-function wordThaiDigit($text) {
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     return strtr((string)$text, [
         '0' => '๐', '1' => '๑', '2' => '๒', '3' => '๓', '4' => '๔',
         '5' => '๕', '6' => '๖', '7' => '๗', '8' => '๘', '9' => '๙',
     ]);
 }
 
-<<<<<<< HEAD
 function invite_word_arabic_digit($text) {
-=======
-function wordArabicDigit($text) {
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     return strtr((string)$text, [
         '๐' => '0', '๑' => '1', '๒' => '2', '๓' => '3', '๔' => '4',
         '๕' => '5', '๖' => '6', '๗' => '7', '๘' => '8', '๙' => '9',
     ]);
 }
 
-<<<<<<< HEAD
 function invite_word_thai_months() {
-=======
-function inviteThaiMonths() {
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     return [
         1 => 'มกราคม', 2 => 'กุมภาพันธ์', 3 => 'มีนาคม', 4 => 'เมษายน',
         5 => 'พฤษภาคม', 6 => 'มิถุนายน', 7 => 'กรกฎาคม', 8 => 'สิงหาคม',
@@ -104,33 +73,17 @@ function inviteThaiMonths() {
     ];
 }
 
-<<<<<<< HEAD
 function invite_word_thai_date_from_parts($year, $month, $day, $withWeekday = false) {
     $year = (int)$year;
     $month = (int)$month;
     $day = (int)$day;
     $christYear = $year > 2400 ? $year - 543 : $year;
     $thaiYear = $year > 2400 ? $year : $year + 543;
-=======
-function inviteThaiDateFromParts($year, $month, $day, $withWeekday = false) {
-    $year = (int)$year;
-    $month = (int)$month;
-    $day = (int)$day;
-
-    if ($year > 2400) {
-        $christYear = $year - 543;
-        $thaiYear = $year;
-    } else {
-        $christYear = $year;
-        $thaiYear = $year + 543;
-    }
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 
     if (!checkdate($month, $day, $christYear)) {
         return '';
     }
 
-<<<<<<< HEAD
     $months = invite_word_thai_months();
     $dateText = $day . ' ' . ($months[$month] ?? '') . ' ' . $thaiYear;
     if ($withWeekday) {
@@ -145,27 +98,10 @@ function inviteThaiDateFromParts($year, $month, $day, $withWeekday = false) {
 
 function invite_word_thai_date_any($rawDate, $withWeekday = false) {
     $rawDate = trim(invite_word_arabic_digit((string)$rawDate));
-=======
-    $months = inviteThaiMonths();
-    $dateText = wordThaiDigit($day) . ' ' . $months[$month] . ' ' . wordThaiDigit($thaiYear);
-
-    if ($withWeekday) {
-        $weekdays = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
-        $w = (int)date('w', strtotime(sprintf('%04d-%02d-%02d', $christYear, $month, $day)));
-        return 'วัน' . $weekdays[$w] . 'ที่ ' . $dateText;
-    }
-
-    return $dateText;
-}
-
-function inviteThaiDateAny($rawDate, $withWeekday = false) {
-    $rawDate = trim((string)$rawDate);
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     if ($rawDate === '') {
         return '';
     }
     if ($withWeekday && preg_match('/^วัน/u', $rawDate)) {
-<<<<<<< HEAD
         return invite_word_thai_digit($rawDate);
     }
     if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $rawDate, $m)) {
@@ -178,39 +114,12 @@ function inviteThaiDateAny($rawDate, $withWeekday = false) {
 }
 
 function invite_word_format_time_range($timeText) {
-=======
-        return wordThaiDigit($rawDate);
-    }
-
-    $date = wordArabicDigit($rawDate);
-    if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $date, $m)) {
-        return inviteThaiDateFromParts($m[1], $m[2], $m[3], $withWeekday);
-    }
-    if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $date, $m)) {
-        return inviteThaiDateFromParts($m[3], $m[2], $m[1], $withWeekday);
-    }
-
-    $months = inviteThaiMonths();
-    $monthRegex = implode('|', array_map('preg_quote', $months));
-    if (preg_match('/(\d{1,2})\s+(' . $monthRegex . ')\s+(\d{4})/u', $date, $m)) {
-        $monthNumber = array_search($m[2], $months, true);
-        if ($monthNumber !== false) {
-            return inviteThaiDateFromParts($m[3], $monthNumber, $m[1], $withWeekday);
-        }
-    }
-
-    return wordThaiDigit($rawDate);
-}
-
-function inviteFormatThaiTimeRange($timeText) {
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     $timeText = trim((string)$timeText);
     if ($timeText === '') {
         return '';
     }
     $timeText = str_replace(':', '.', $timeText);
     $timeText = preg_replace('/\s*-\s*/', ' - ', $timeText);
-<<<<<<< HEAD
     return invite_word_thai_digit($timeText);
 }
 
@@ -234,30 +143,12 @@ function invite_word_clean_text($text, $thaiDigit = true) {
 
 function invite_word_wrap_thai_text($text) {
     $text = invite_word_clean_text($text, true);
-=======
-    return wordThaiDigit($timeText);
-}
-
-function inviteClean($text) {
-    return wordThaiDigit(cleanWordText(str_replace(["\r", "\n"], ' ', (string)$text)));
-}
-
-function inviteInlineText($text) {
-    $text = inviteClean($text);
-    $text = preg_replace('/\s+/u', ' ', $text);
-    return trim($text);
-}
-
-function inviteThaiWordWrap($text) {
-    $text = inviteInlineText($text);
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     if ($text === '') {
         return '';
     }
 
     $zwsp = "\u{200B}";
 
-<<<<<<< HEAD
     static $words = null;
     if ($words === null) {
         $words = [
@@ -296,69 +187,6 @@ function inviteThaiWordWrap($text) {
 
         $parts = [];
         $pos = 0;
-=======
-    $wrapThaiRun = function ($thaiText) use ($zwsp) {
-        $thaiText = (string)$thaiText;
-        if ($thaiText === '') {
-            return '';
-        }
-
-        // ใช้ตัวตัดคำของ ICU ถ้าเครื่องเปิด extension intl ไว้
-        // เพื่อให้ Word ตัดบรรทัดที่ขอบคำ ไม่ใช่กลางคำไทย
-        if (class_exists('IntlBreakIterator')) {
-            $breaker = IntlBreakIterator::createWordInstance('th_TH');
-            if ($breaker) {
-                $breaker->setText($thaiText);
-                $parts = [];
-                $start = $breaker->first();
-                for ($end = $breaker->next(); $end !== IntlBreakIterator::DONE; $start = $end, $end = $breaker->next()) {
-                    $part = substr($thaiText, $start, $end - $start);
-                    if ($part !== '') {
-                        $parts[] = $part;
-                    }
-                }
-                if (count($parts) > 1) {
-                    return implode($zwsp, $parts);
-                }
-            }
-        }
-
-        // fallback กรณีเครื่องไม่มี intl:
-        // ตัดเฉพาะคำที่รู้จักในเอกสารนี้ และถ้าไม่รู้จักให้เก็บเป็นก้อนเดิม
-        // ห้ามแทรก zero-width space ระหว่างตัวอักษรทุกตัว เพราะจะทำให้ชื่อ/ตำแหน่งแตก เช่น "เรื่อ ง" หรือ "สร้ าง"
-        static $words = null;
-        if ($words === null) {
-            $words = [
-                'ผู้ช่วยศาสตราจารย์', 'รองศาสตราจารย์', 'ศาสตราจารย์', 'อาจารย์', 'ตำแหน่ง', 'ประจำสาขาวิชา',
-                'นวัตกรรมดิจิทัลและสื่อสร้างสรรค์', 'นวัตกรรมดิจิทัล', 'สื่อสร้างสรรค์', 'วัตกรรมดิจิทัลและสื่อสร้างสรรค์',
-                'มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ', 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม',
-                'ภาควิชาเทคโนโลยีสารสนเทศ', 'เทคโนโลยีสารสนเทศ', 'วิทยาเขตปราจีนบุรี', 'วิทยาเขตนนทบุรี',
-                'ศูนย์การเรียนรู้นวัตกรรมดิจิทัล', 'โครงการอบรมเชิงปฏิบัติการ', 'การสร้างสื่อดิจิทัล',
-                'อย่างสร้างสรรค์', 'เพื่อพัฒนาทักษะการเรียนรู้', 'ในศตวรรษที่', 'ห้องประชุมชั้น',
-                'โดยมีวัตถุประสงค์', 'เพื่อให้นักศึกษา', 'ได้รับความรู้', 'เกี่ยวกับ', 'กระบวนการ',
-                'การสร้าง', 'สื่อดิจิทัล', 'อย่างมีคุณภาพ', 'สามารถ', 'วางแผน', 'ออกแบบ', 'และพัฒนา',
-                'สื่อเพื่อใช้', 'ในการนำเสนอ', 'ข้อมูล', 'ได้อย่างเหมาะสม', 'รวมทั้ง', 'ส่งเสริม',
-                'ให้นักศึกษา', 'มีทักษะ', 'ด้านความคิดสร้างสรรค์', 'การทำงานเป็นทีม', 'และการประยุกต์ใช้',
-                'เทคโนโลยี', 'ในงานวิชาชีพ', 'รายละเอียดโครงการ', 'ตามสิ่งที่ส่งมาด้วย', 'ด้วยท่านเป็น',
-                'ผู้มีความรู้', 'ความสามารถ', 'และประสบการณ์', 'ด้านการออกแบบ', 'การพัฒนานวัตกรรม',
-                'เพื่อการเรียนรู้', 'และการประยุกต์ใช้เทคโนโลยี', 'สร้างสรรค์', 'จึงเห็นสมควร',
-                'เรียนเชิญ', 'ท่านเป็นวิทยากร', 'ถ่ายทอดความรู้', 'ให้แก่นักศึกษา', 'ตามวัน', 'เวลา',
-                'และสถานที่', 'ข้างต้น', 'จึงขอ', 'บรรยาย', 'เรื่องดังกล่าว', 'จึงเรียนมา',
-                'เพื่อโปรดพิจารณา', 'ให้ความอนุเคราะห์', 'จะขอบคุณยิ่ง', 'วันอาทิตย์ที่', 'พฤษภาคม',
-                'รายละเอียด', 'แบบตอบรับ', 'การเป็นวิทยากร', 'จำนวน', 'ฉบับ', 'ชุด', 'เรื่อง', 'เรียน',
-                'อาคาร', 'ห้องประชุม', 'โครงการ', 'อบรม', 'เชิงปฏิบัติการ', 'ดร', 'ณ', 'น', 'ใน', 'ให้',
-                'แก่', 'ซึ่ง', 'เป็น', 'และ', 'ของ', 'ที่'
-            ];
-            usort($words, function ($a, $b) {
-                return mb_strlen($b, 'UTF-8') <=> mb_strlen($a, 'UTF-8');
-            });
-        }
-
-        $outParts = [];
-        $len = mb_strlen($thaiText, 'UTF-8');
-        $pos = 0;
-
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
         while ($pos < $len) {
             $matched = '';
             foreach ($words as $word) {
@@ -370,21 +198,13 @@ function inviteThaiWordWrap($text) {
             }
 
             if ($matched !== '') {
-<<<<<<< HEAD
                 $parts[] = $matched;
-=======
-                $outParts[] = $matched;
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
                 $pos += mb_strlen($matched, 'UTF-8');
                 continue;
             }
 
-<<<<<<< HEAD
             // คำเฉพาะ/ชื่อเฉพาะที่ไม่อยู่ใน dictionary ให้เก็บเป็นก้อนยาวพอสมควร
             // ไม่ตัดทีละตัว และไม่ตัดสั้นเกินไป เพราะจะทำให้กระจายไทยห่างผิดธรรมชาติ
-=======
-            // กรณีเป็นชื่อคน/คำเฉพาะที่ไม่มีในรายการ ให้เก็บต่อเนื่องจนกว่าจะเจอคำรู้จักถัดไป
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
             $unknown = '';
             while ($pos < $len) {
                 $nextKnown = false;
@@ -400,7 +220,6 @@ function inviteThaiWordWrap($text) {
                 }
                 $unknown .= mb_substr($thaiText, $pos, 1, 'UTF-8');
                 $pos++;
-<<<<<<< HEAD
 
                 // ถ้าเป็นคำไม่รู้จักที่ยาวมาก ให้เปิดจุดตัดแบบก้อน 12 ตัวอักษร
                 // เพื่อให้ Word มีจุดขึ้นบรรทัด แต่ยังไม่แตกเป็นรายตัว
@@ -423,29 +242,11 @@ function inviteThaiWordWrap($text) {
     }, $text);
 
     // เพิ่มจุดตัดหลังเครื่องหมายที่มักติดคำ โดยไม่เพิ่มช่องว่างจริง
-=======
-            }
-            if ($unknown !== '') {
-                $outParts[] = $unknown;
-            }
-        }
-
-        return implode($zwsp, array_filter($outParts, fn($part) => $part !== ''));
-    };
-
-    // ใส่จุดตัดเฉพาะช่วงข้อความไทยติดกันยาว ๆ เท่านั้น ไม่ยุ่งกับช่องว่างเดิม
-    $text = preg_replace_callback('/[\p{Thai}]+/u', function ($m) use ($wrapThaiRun) {
-        return $wrapThaiRun($m[0]);
-    }, $text);
-
-    // เพิ่มจุดตัดหลังเครื่องหมาย ไม่กระทบการเว้นวรรคเดิม
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     $text = preg_replace('/([\/\-–—,;:()（）])/u', '$1' . $zwsp, $text);
 
     return $text;
 }
 
-<<<<<<< HEAD
 function invite_word_xml($text, $thaiDigit = true) {
     $text = invite_word_clean_text($text, $thaiDigit);
     return htmlspecialchars($text, ENT_QUOTES | ENT_XML1, 'UTF-8');
@@ -620,247 +421,6 @@ function invite_word_create_docx($path, $documentXml, $footerXml, $garudaPath) {
     $zip->close();
 
     return is_file($path) && filesize($path) > 0;
-=======
-function addInviteTextRunPara($section, array $parts, $spaceAfter = 35) {
-    $text = '';
-
-    foreach ($parts as $part) {
-        if (is_array($part)) {
-            $text .= $part[0] ?? '';
-        } else {
-            $text .= $part;
-        }
-    }
-
-    $text = inviteThaiWordWrap($text);
-    if ($text === '') {
-        return;
-    }
-
-    $section->addText($text, 'normalFont', [
-        // ใช้กระจายแบบไทย แต่ต้องใส่จุดตัดคำก่อน ไม่งั้น Word จะกินพื้นที่/เว้นช่องว่างแปลก
-        'alignment' => 'thaiDistribute',
-        'lineHeight' => 0.92,
-        'spaceBefore' => 0,
-        'spaceAfter' => $spaceAfter,
-        'indentation' => ['firstLine' => Converter::cmToTwip(2.5)],
-    ]);
-}
-
-function inviteNoBorderCell($valign = 'top') {
-    return [
-        'borderSize' => 0,
-        'borderColor' => 'FFFFFF',
-        'cellMarginTop' => 0,
-        'cellMarginBottom' => 0,
-        'cellMarginLeft' => 0,
-        'cellMarginRight' => 0,
-        'valign' => $valign,
-    ];
-}
-
-function addInvitePairRow($section, $label, $value) {
-    $label = inviteInlineText($label);
-    $value = inviteThaiWordWrap($value);
-
-    $table = $section->addTable([
-        'borderSize' => 0,
-        'borderColor' => 'FFFFFF',
-        'cellMargin' => 0,
-        'cellSpacing' => 0,
-        'layout' => 'fixed',
-        'width' => 9072,
-    ]);
-
-    $table->addRow();
-
-    // ช่องหัวข้อ เช่น เรื่อง / เรียน ให้แคบลงนิด เพื่อเพิ่มพื้นที่ข้อความด้านขวา
-    $table->addCell(Converter::cmToTwip(1.0), inviteNoBorderCell())->addText($label, 'normalFont', [
-        'spaceBefore' => 0,
-        'spaceAfter' => 0,
-        'lineHeight' => 1.0,
-    ]);
-
-    // ช่องข้อความด้านขวา เพิ่มความกว้างจากเดิม เพื่อไม่ให้ขึ้นบรรทัดใหม่เร็วเกินไป
-    $table->addCell(Converter::cmToTwip(15.0), inviteNoBorderCell())->addText($value, 'normalFont', [
-        'spaceBefore' => 0,
-        'spaceAfter' => 0,
-        'lineHeight' => 1.0,
-    ]);
-}
-
-function addInviteAttachmentRows($section) {
-    $table = $section->addTable([
-        'borderSize' => 0,
-        'borderColor' => 'FFFFFF',
-        'cellMargin' => 0,
-        'cellSpacing' => 0,
-        'layout' => 'fixed',
-        'width' => 9072,
-    ]);
-
-    $rows = [
-        ['สิ่งที่ส่งมาด้วย', '๑. รายละเอียดโครงการ', 'จำนวน ๑ ชุด'],
-        ['', '๒. แบบตอบรับการเป็นวิทยากร', 'จำนวน ๑ ฉบับ'],
-    ];
-
-    foreach ($rows as $r) {
-        $table->addRow();
-
-        $table->addCell(Converter::cmToTwip(2.2), inviteNoBorderCell())->addText($r[0], 'normalFont', [
-            'spaceBefore' => 0,
-            'spaceAfter' => 0,
-            'lineHeight' => 1.0,
-        ]);
-
-        $table->addCell(Converter::cmToTwip(8.3), inviteNoBorderCell())->addText($r[1], 'normalFont', [
-            'spaceBefore' => 0,
-            'spaceAfter' => 0,
-            'lineHeight' => 1.0,
-            'indentation' => ['left' => Converter::cmToTwip(0.25)],
-        ]);
-
-        $table->addCell(Converter::cmToTwip(5.5), inviteNoBorderCell())->addText($r[2], 'normalFont', [
-            'spaceBefore' => 0,
-            'spaceAfter' => 0,
-            'lineHeight' => 1.0,
-        ]);
-    }
-
-    // ลดช่องว่างก่อนขึ้นย่อหน้า "ด้วยภาควิชา..."
-    $section->addText('', 'normalFont', [
-        'spaceBefore' => 0,
-        'spaceAfter' => 0,
-        'lineHeight' => 1.0,
-    ]);
-}
-
-function addInviteHeader($section, $displayFaculty, $thaiDocDate) {
-    $garuda = __DIR__ . '/../assets/img/garuda.jpg';
-
-    $table = $section->addTable([
-        'borderSize' => 0,
-        'borderColor' => 'FFFFFF',
-        'cellMargin' => 0,
-        'cellSpacing' => 0,
-        'layout' => 'fixed',
-        'width' => Converter::cmToTwip(17.10),
-    ]);
-
-    $table->addRow(Converter::cmToTwip(3.1));
-
-    $left = $table->addCell(Converter::cmToTwip(4.95), inviteNoBorderCell('top'));
-    $left->addText('', 'normalFont', ['spaceAfter' => 800, 'lineHeight' => 1.0]);
-    $left->addText('ที่', 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
-
-    $middle = $table->addCell(Converter::cmToTwip(3.55), inviteNoBorderCell('top'));
-    if (file_exists($garuda)) {
-        $middle->addImage($garuda, [
-            'width' => 80,
-            'alignment' => Jc::CENTER,
-        ]);
-    } else {
-        $middle->addText('');
-    }
-
-    $right = $table->addCell(Converter::cmToTwip(8.60), inviteNoBorderCell('top'));
-    $right->addText('', 'normalFont', ['spaceAfter' => 720, 'lineHeight' => 0.95]);
-    $right->addText(inviteClean($displayFaculty), 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
-    $right->addText('มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ', 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
-    $right->addText('๑๒๙ หมู่ ๒๑ ต.เนินหอม อ.เมือง จ.ปราจีนบุรี ๒๕๒๓๐', 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
-
-    $section->addText(inviteClean($thaiDocDate ?: '๗ ตุลาคม ๒๕๖๘'), 'normalFont', [
-        'alignment' => Jc::CENTER,
-        'spaceBefore' => 80,
-        'spaceAfter' => 160,
-        'lineHeight' => 1.0,
-        'indentation' => ['left' => Converter::cmToTwip(1.0)],
-    ]);
-}
-
-function addInviteSignature($section, $displayFacultyDean) {
-    $section->addText('จึงเรียนมาเพื่อโปรดพิจารณาให้ความอนุเคราะห์ จะขอบคุณยิ่ง', 'normalFont', [
-        'indentation' => ['firstLine' => Converter::cmToTwip(2.5)],
-        'lineHeight' => 1.38,
-        'spaceAfter' => 220,
-    ]);
-
-    $section->addText('ขอแสดงความนับถือ', 'normalFont', [
-        'alignment' => Jc::CENTER,
-        'spaceAfter' => 500,
-        'lineHeight' => 1.0,
-    ]);
-
-    $section->addText('(ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์)', 'normalFont', [
-        'alignment' => Jc::CENTER,
-        'spaceAfter' => 0,
-        'lineHeight' => 1.0,
-    ]);
-    $section->addText(inviteClean($displayFacultyDean), 'normalFont', [
-        'alignment' => Jc::CENTER,
-        'spaceAfter' => 0,
-        'lineHeight' => 1.0,
-    ]);
-}
-
-function addInviteFooter($section, $displayDepartmentFull) {
-    /*
-     * อย่าใส่ข้อมูลติดต่อเป็นเนื้อหา body ต่อท้ายเอกสาร
-     * เพราะถ้าเนื้อหายาว Word จะดัน 3 บรรทัดนี้ไปหน้าใหม่
-     * ให้ใช้ footer ของ Word แทน เพื่อให้เกาะอยู่ท้ายหน้ากระดาษ
-     */
-    $footer = $section->addFooter();
-
-    $footer->addText(inviteClean($displayDepartmentFull), 'normalFont', [
-        'spaceBefore' => 0,
-        'spaceAfter' => 0,
-        'lineHeight' => 0.9,
-    ]);
-    $footer->addText('โทรศัพท์ ๐-๓๗๒๑-๗๓๔๐-๓ ต่อ ๗๐๖๕-๖', 'normalFont', [
-        'spaceBefore' => 0,
-        'spaceAfter' => 0,
-        'lineHeight' => 0.9,
-    ]);
-    $footer->addText('ไปรษณีย์อิเล็กทรอนิกส์ : it@itm.kmutnb.ac.th', 'normalFont', [
-        'spaceBefore' => 0,
-        'spaceAfter' => 0,
-        'lineHeight' => 0.9,
-    ]);
-}
-
-function addInviteSpeakerPage($phpWord, array $data) {
-    $section = $phpWord->addSection([
-        'paperSize' => 'A4',
-        'marginTop' => Converter::cmToTwip(2),
-        'marginBottom' => Converter::cmToTwip(1.15),
-        'marginLeft' => Converter::cmToTwip(3.0),
-        'marginRight' => Converter::cmToTwip(2.0),
-        // พื้นที่ footer สำหรับ ภาควิชา/โทรศัพท์/อีเมล ไม่ให้โดนดันไปหน้าใหม่
-        'footerHeight' => Converter::cmToTwip(0.85),
-    ]);
-
-    addInviteHeader($section, $data['displayFaculty'], $data['thaiDocDate']);
-    addInvitePairRow($section, 'เรื่อง', $data['displaySubject']);
-    addInvitePairRow($section, 'เรียน', $data['displayToPerson']);
-    addInviteAttachmentRows($section);
-
-    addInviteTextRunPara($section, [
-        'ด้วย', $data['displayDepartmentFull'], ' ', $data['displayFaculty'],
-        ' มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี',
-        ' ได้ดำเนินการจัด', $data['displayProjectTitle'], ' ใน', $data['displayEventDate'],
-        ' เวลา ', $data['displayEventTime'], ' น. ณ ', $data['displayLocation'],
-        ' โดยมีวัตถุประสงค์', $data['displayObjective'],
-        ' รายละเอียดโครงการตามสิ่งที่ส่งมาด้วย ๑',
-    ]);
-
-    addInviteTextRunPara($section, [
-        $data['displayDepartmentFull'], ' ', $data['displayInviteStatement'],
-        ' จึงขอเรียนเชิญท่านเป็นวิทยากรบรรยายเรื่องดังกล่าว ตามวัน เวลา และสถานที่ข้างต้น',
-    ]);
-
-    addInviteSignature($section, $data['displayFacultyDean']);
-    addInviteFooter($section, $data['displayDepartmentFull']);
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 }
 
 $docDate = $valueMap[1] ?? ($document['doc_date'] ?? '');
@@ -875,15 +435,9 @@ $toPerson = $valueMap[26] ?? '';
 $inviteStatement = $valueMapByKey['invite_statement'] ?? '';
 $eventTime = $valueMapByKey['event_time'] ?? '';
 
-<<<<<<< HEAD
 $thaiDocDate = invite_word_thai_date_any($docDate, false);
 $thaiEventDate = invite_word_thai_date_any($eventDate, true);
 $thaiEventTime = invite_word_format_time_range($eventTime);
-=======
-$thaiDocDate = inviteThaiDateAny($docDate, false);
-$thaiEventDate = inviteThaiDateAny($eventDate, true);
-$thaiEventTime = inviteFormatThaiTimeRange($eventTime);
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 
 $displayFaculty = trim($faculty) !== '' ? trim($faculty) : 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม';
 $displayDepartment = trim($department) !== '' ? trim($department) : 'เทคโนโลยีสารสนเทศ';
@@ -900,7 +454,6 @@ $displayEventDate = trim($thaiEventDate) !== '' ? $thaiEventDate : 'วันท
 $displayEventTime = trim($thaiEventTime) !== '' ? $thaiEventTime : '................';
 $displayLocation = trim($location) !== '' ? $location : '................................................';
 
-<<<<<<< HEAD
 $garudaPath = __DIR__ . '/../assets/img/garuda.jpg';
 $hasGaruda = is_file($garudaPath);
 
@@ -952,40 +505,3 @@ header('Content-Length: ' . filesize($tmpDocx));
 readfile($tmpDocx);
 @unlink($tmpDocx);
 exit;
-=======
-$phpWord = new PhpWord();
-setupWordDefaults($phpWord);
-$phpWord->addFontStyle('addressFont', [
-    'name' => 'TH SarabunPSK',
-    'size' => 15.5,
-]);
-
-addInviteSpeakerPage($phpWord, [
-    'displayFaculty' => $displayFaculty,
-    'thaiDocDate' => $thaiDocDate,
-    'displaySubject' => $displaySubject,
-    'displayToPerson' => $displayToPerson,
-    'displayDepartmentFull' => $displayDepartmentFull,
-    'displayFaculty' => $displayFaculty,
-    'displayProjectTitle' => $displayProjectTitle,
-    'displayEventDate' => $displayEventDate,
-    'displayEventTime' => $displayEventTime,
-    'displayLocation' => $displayLocation,
-    'displayObjective' => $displayObjective,
-    'displayInviteStatement' => $displayInviteStatement,
-    'displayFacultyDean' => $displayFacultyDean,
-]);
-
-$filename = 'invite_speaker_' . $docId . '.docx';
-if (ob_get_length()) {
-    ob_end_clean();
-}
-header('Content-Description: File Transfer');
-header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-header('Content-Disposition: attachment; filename="' . $filename . '"');
-header('Cache-Control: max-age=0');
-
-$writer = IOFactory::createWriter($phpWord, 'Word2007');
-$writer->save('php://output');
-exit;
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a

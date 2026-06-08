@@ -1,22 +1,14 @@
 <?php
 // session_start();
 // if (!isset($_SESSION['role_id']) || $_SESSION['role_id'] != 1) {
-<<<<<<< HEAD
 //     header('Location: ../login.html');
-=======
-//     header('Location: login.html');
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 //     exit;
 // }
 session_start();
 
 // ถ้ายังไม่ได้ล็อกอินเลย → กลับหน้า login
 if (!isset($_SESSION['user_id'])) {
-<<<<<<< HEAD
     header('Location: ../login.html');
-=======
-    header('Location: login.html');
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     exit;
 }
 
@@ -25,7 +17,6 @@ if ($_SESSION['role_id'] != 1 && !in_array(3, $_SESSION['permissions'] ?? [])) {
     // ถ้าไม่มีสิทธิ์ ก็ให้กลับไปหน้าหลักของ role ตัวเอง
     switch ($_SESSION['role_id']) {
         case 2:
-<<<<<<< HEAD
             header('Location: ../officer/home.php');
             break;
         case 3:
@@ -33,15 +24,6 @@ if ($_SESSION['role_id'] != 1 && !in_array(3, $_SESSION['permissions'] ?? [])) {
             break;
         default:
             header('Location: ../login.html');
-=======
-            header('Location: officer/home.php');
-            break;
-        case 3:
-            header('Location: user/home.php');
-            break;
-        default:
-            header('Location: login.html');
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     }
     exit;
 }
@@ -540,7 +522,6 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
   }
 
   async function confirmUserAction(action, id = null) {
-<<<<<<< HEAD
     if (action === "add") {
       window.location.href = "user_Add.php";
       return false;
@@ -567,94 +548,6 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
     }
 
     return false;
-=======
-    const username = await showUserPopup({
-      title: "ยืนยันตัวตนผู้ดูแลระบบ",
-      message: "กรุณากรอกชื่อผู้ใช้ของผู้ดูแลระบบเพื่อยืนยัน",
-      inputType: "text",
-      confirmText: "ถัดไป"
-    });
-    if (username === null || username.trim() === "") return false;
-
-    const password = await showUserPopup({
-      title: "ยืนยันรหัสผ่าน",
-      message: "กรุณากรอกรหัสผ่านของผู้ดูแลระบบเพื่อยืนยัน",
-      inputType: "password",
-      confirmText: "ยืนยัน"
-    });
-    if (password === null || password.trim() === "") return false;
-
-    try {
-      const params = new URLSearchParams();
-      params.append("username", username.trim());
-      params.append("password", password);
-
-      const res = await fetch("verify_user.php", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-          "Accept": "application/json"
-        },
-        credentials: "same-origin",
-        body: params.toString()
-      });
-
-      const text = await res.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        console.error("verify_user.php response:", text);
-        alert(
-          "ยืนยันตัวตนไม่สำเร็จ: verify_user.php ไม่ได้ส่ง JSON กลับมา\nให้ตรวจว่าไฟล์อยู่ที่ /Pro_letter/admin/verify_user.php และไม่มี PHP error"
-        );
-        await showUserPopup({
-          title: "ยืนยันตัวตนไม่สำเร็จ",
-          message: "verify_user.php ไม่ได้ส่ง JSON กลับมา หรือมี PHP error",
-          confirmText: "ตกลง",
-          hideCancel: true,
-          danger: true
-        });
-        return false;
-      }
-
-      if (!res.ok || !data.success) {
-        await showUserPopup({
-          title: "ยืนยันตัวตนไม่สำเร็จ",
-          message: data.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
-          confirmText: "ตกลง",
-          hideCancel: true,
-          danger: true
-        });
-        return false;
-      }
-
-      if (action === "add") {
-        window.location.href = "user_Add.php";
-      } else if (action === "edit") {
-        window.location.href = "user_Edit.php?id=" + encodeURIComponent(id);
-      } else if (action === "delete") {
-        const confirmed = await showUserPopup({
-          title: "ยืนยันการลบผู้ใช้",
-          message: "คุณแน่ใจว่าต้องการลบผู้ใช้นี้หรือไม่?",
-          confirmText: "ลบผู้ใช้",
-          cancelText: "ยกเลิก",
-          danger: true
-        });
-        if (confirmed) {
-          window.location.href = "user_Delete.php?id=" + encodeURIComponent(id);
-        }
-      }
-    } catch (err) {
-      await showUserPopup({
-        title: "เกิดข้อผิดพลาด",
-        message: "เกิดข้อผิดพลาดในการยืนยันตัวตน: " + err.message,
-        confirmText: "ตกลง",
-        hideCancel: true,
-        danger: true
-      });
-    }
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
   }
   </script>
 

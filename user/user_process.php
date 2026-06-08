@@ -1,31 +1,6 @@
 <?php
 session_start();
 
-<<<<<<< HEAD
-=======
-if (!isset($_SESSION['user_id'])) {
-    header('Location: ../login.html');
-    exit;
-}
-
-$permissions = array_map('intval', $_SESSION['permissions'] ?? []);
-$isAdmin = ((int)($_SESSION['role_id'] ?? 0) === 1);
-$canManageUsers = in_array(3, $permissions, true);
-
-if (!$isAdmin && !$canManageUsers) {
-    $roleId = (int)($_SESSION['role_id'] ?? 0);
-
-    if ($roleId === 2) {
-        header('Location: ../officer/home.php');
-    } elseif ($roleId === 3) {
-        header('Location: ../user/home.php');
-    } else {
-        header('Location: ../login.html');
-    }
-    exit;
-}
-
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 require_once __DIR__ . '/../functions.php';
 $pdo = getPDO();
 
@@ -36,11 +11,6 @@ $pdo = getPDO();
 */
 function goUserManagement($params = '')
 {
-<<<<<<< HEAD
-=======
-    // กลับไปหน้า user_Managerment.php ที่อยู่โฟลเดอร์เดียวกับไฟล์นี้
-    // เช่น /admin/user_Managerment.php, /officer/user_Managerment.php, /user/user_Managerment.php
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     $url = 'user_Managerment.php';
 
     if ($params !== '') {
@@ -149,11 +119,7 @@ try {
             addLog($currentUserId, "ผู้ใช้ {$currentUser} จัดการเพิ่มผู้ใช้: {$username}");
         }
 
-<<<<<<< HEAD
         goUserManagement('success=add');
-=======
-        goUserManagement('success=1');
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     }
 
     /*
@@ -297,11 +263,7 @@ try {
             addLog($currentUserId, "แก้ไขข้อมูลผู้ใช้ {$username} และอัปเดตสิทธิ์การเข้าถึง");
         }
 
-<<<<<<< HEAD
         goUserManagement('success=edit');
-=======
-        goUserManagement('success=1');
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     }
 
     /*
@@ -350,11 +312,7 @@ try {
             addLog($currentUserId, "ผู้ใช้ {$currentUser} จัดการลบผู้ใช้: {$user['username']}");
         }
 
-<<<<<<< HEAD
         goUserManagement('success=delete');
-=======
-        goUserManagement('success=1');
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     }
 
     /*

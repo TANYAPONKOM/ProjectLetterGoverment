@@ -779,17 +779,12 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
       if (trim($teacher['name'] ?? '') === '') $errors['teacher_name_' . $idx] = 'required';
       if (trim($teacher['affiliation'] ?? '') === '') $errors['teacher_affiliation_' . $idx] = 'required';
     }
-<<<<<<< HEAD
     } else {
     // ถ้าเลือก “ไม่ประสงค์ใส่วันที่” ไม่ต้องบังคับ doc_date
     if (!$hideDocDateOnDocument && $docDate === '') {
       $errors['doc_date'] = 'required';
     }
 
-=======
-  } else {
-    if ($docDate === '') $errors['doc_date'] = 'required';
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     if ($purpose === '') $errors['purpose'] = 'required';
     if ($eventTitle === '') $errors['event_title'] = 'required';
 
@@ -1231,11 +1226,7 @@ if ($isCoopEvaluation) {
         $aRaw = str_replace(',', '', (string)($amounts[$i] ?? '0'));
         $a = is_numeric($aRaw) ? (float)$aRaw : 0.0;
 
-<<<<<<< HEAD
                 if (!in_array($t, ['compensation', 'registration', 'transport', 'accommodation', 'per_diem', 'other'], true)) {
-=======
-        if (!in_array($t, ['registration', 'transport', 'accommodation', 'per_diem', 'other'], true)) {
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
           $t = 'other';
         }
 

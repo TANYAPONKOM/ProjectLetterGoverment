@@ -10,21 +10,9 @@ function getPDO() {
         $dbUser = 'root';
         $dbPass = '';
         try {
-<<<<<<< HEAD
-            $pdo = new PDO(
-                "mysql:host=$dbHost;port=3306;dbname=$dbName;charset=utf8mb4",
-                $dbUser,
-                $dbPass,
-                [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
-                ]
-            );
-=======
             $pdo = new PDO("mysql:host=$dbHost;dbname=$dbName;charset=utf8mb4",
                            $dbUser, $dbPass,
                            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
         } catch (PDOException $e) {
             die("Database connection failed: " . $e->getMessage());
         }
@@ -105,9 +93,6 @@ function getActiveUsers() {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 function db(): PDO {
-<<<<<<< HEAD
-    return getPDO();
-=======
     $dbHost = 'localhost';
     $dbName = 'pro_letter';
     $dbUser = 'root';
@@ -118,7 +103,6 @@ function db(): PDO {
         $dbPass,
         [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
     );
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 }
 function renderAdminExtraMenus() {
     $current = basename($_SERVER['PHP_SELF']); // ดึงชื่อไฟล์ปัจจุบัน เช่น home.php
