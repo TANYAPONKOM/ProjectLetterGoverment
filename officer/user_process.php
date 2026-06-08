@@ -144,7 +144,11 @@ try {
             addLog($currentUserId, "ผู้ใช้ {$currentUser} จัดการเพิ่มผู้ใช้: {$username}");
         }
 
+<<<<<<< HEAD
         goUserManagement('success=add');
+=======
+        goUserManagement('success=1');
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     }
 
     /*
@@ -288,7 +292,11 @@ try {
             addLog($currentUserId, "แก้ไขข้อมูลผู้ใช้ {$username} และอัปเดตสิทธิ์การเข้าถึง");
         }
 
+<<<<<<< HEAD
         goUserManagement('success=edit');
+=======
+        goUserManagement('success=1');
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     }
 
     /*
@@ -337,7 +345,11 @@ try {
             addLog($currentUserId, "ผู้ใช้ {$currentUser} จัดการลบผู้ใช้: {$user['username']}");
         }
 
+<<<<<<< HEAD
         goUserManagement('success=delete');
+=======
+        goUserManagement('success=1');
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     }
 
     /*

@@ -421,8 +421,11 @@ $downloadBaseName = 'หนังสือเรียนเชิญวิท�
 $pdfDownloadName = $downloadBaseName . '.pdf';
 $wordDownloadName = $downloadBaseName . '.docx';
 
+<<<<<<< HEAD
 $referer = $_SERVER['HTTP_REFERER'] ?? '';
 
+=======
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 
 /* --------------------------------------------------
    คำนวณวันที่ไทย, งบประมาณ
@@ -805,6 +808,7 @@ $len = max(20, $len);
 
   /* ฟอนต์ Sarabun */
   @font-face {
+<<<<<<< HEAD
   font-family: 'TH SarabunPSK';
   src: url('../fonts/THSarabun.ttf') format('truetype');
   font-weight: normal;
@@ -828,6 +832,29 @@ body,
 .signature-block {
   font-family: 'TH SarabunPSK', sans-serif !important;
 }
+=======
+    font-family: 'TH SarabunPSK';
+    src: url('/fonts/THSarabunPSK.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'TH SarabunPSK';
+    src: url('/fonts/THSarabunPSK-Bold.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'TH SarabunPSK';
+    src: url('fonts/THSarabunPSK.ttf') format('truetype');
+  }
+
+  body {
+    font-family: 'TH SarabunPSK', sans-serif;
+  }
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 
   /* ⭐⭐⭐ อันที่คุณย้ำว่าห้ามหาย — ใส่ให้อยู่ท้ายเหมือนเดิม ⭐⭐⭐ */
   .doc-header .doc-row {
@@ -1027,7 +1054,11 @@ body,
       <input type="hidden" name="doc_no" id="hidden_doc_no" value="<?= h($doc_no) ?>">
 
       <!-- hidden input ครบทุก field_id -->
+<<<<<<< HEAD
       <input type="hidden" name="redirect_back" value="<?= h($referer) ?>">
+=======
+      <input type="hidden" name="redirect_back" value="<?= htmlspecialchars($referer) ?>">
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 
       <input type="hidden" name="document_id" value="<?= h($document['document_id']) ?>">
 
@@ -1335,10 +1366,15 @@ body,
         </button>
 
         <!-- ปุ่มดาวน์โหลด Word -->
+<<<<<<< HEAD
         <a href="/Pro_letter/documents/download_word_invite_speaker.php?id=<?= (int)$docId ?>"
           download="<?= h($wordDownloadName) ?>"
           data-word-download="1"
           data-word-filename="<?= h($wordDownloadName) ?>"
+=======
+        <a href="/Pro_letter/documents/download_word_invite_speaker.php?id=<?= (int)$docId ?>&filename=<?= urlencode($wordDownloadName) ?>"
+          download="<?= h($wordDownloadName) ?>" data-word-download="1" data-word-filename="<?= h($wordDownloadName) ?>"
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
           onclick="return downloadWord(this);"
           class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           ดาวน์โหลด Word
@@ -1578,10 +1614,15 @@ body,
         method: "GET",
         credentials: "same-origin"
       })
+<<<<<<< HEAD
       .then(async response => {
         if (!response.ok) {
           const errorText = await response.text().catch(() => "");
           console.error("Word download response:", response.status, errorText);
+=======
+      .then(response => {
+        if (!response.ok) {
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
           throw new Error("Word download failed");
         }
         return response.blob();

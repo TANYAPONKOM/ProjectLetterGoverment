@@ -180,7 +180,76 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
 
 <body class="bg-gray-100">
   <!-- Header -->
+<<<<<<< HEAD
   <?php require_once $_SERVER['DOCUMENT_ROOT'] . '/Pro_letter/includes/role_header.php'; ?>
+=======
+  <header class="bg-teal-500 text-white p-4 flex justify-between items-center shadow-md">
+    <div class="flex items-center space-x-3">
+      <div class="w-[56px] h-[56px] flex items-center justify-center relative overflow-visible">
+        <svg xmlns="http://www.w3.org/2000/svg" class="absolute scale-[1.4] text-white"
+          style="width: 60px; height: 60px" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m0 0a2 2 0 00-2-2H5a2 2 0 00-2 2m18 0v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8" />
+        </svg>
+      </div>
+      <div class="leading-tight">
+        <div class="text-[16px] font-bold">Smart</div>
+        <div class="text-[16px] font-bold -mt-[2px]">Government</div>
+        <div class="text-[13px] mt-[0px]">Letter Assistant System</div>
+      </div>
+    </div>
+    <div class="flex items-center space-x-4">
+      <a href="home.php">
+        <div class="px-4 py-2 rounded-[11px] font-bold transition  text-white shadow">
+          หน้าหลัก
+        </div>
+      </a>
+      <a href="/Pro_letter/officer/history_page.php">
+        <div
+          class="px-4 py-2 rounded-[11px] font-bold transition 
+        <?= $current === 'history_page.php' ? 'bg-white text-teal-500 shadow' : 'text-white hover:bg-white hover:text-teal-500' ?>">
+          ประวัติการใช้งานเอกสาร
+        </div>
+      </a>
+
+      <?php 
+                if (isset($_SESSION['permissions']) && in_array(3, $_SESSION['permissions'])) {
+                    renderAdminExtraMenus(); 
+                }
+            ?>
+
+      <div class="relative">
+        <!-- ปุ่มโปรไฟล์ -->
+        <button id="profileBtn"
+          class="bg-white text-teal-500 px-4 py-2 rounded-[11px] shadow flex items-center space-x-2 hover:bg-gray-100">
+          <div class="text-right leading-tight">
+            <div class="font-bold text-[14px]">
+              <?= htmlspecialchars($_SESSION['fullname'] ?? 'Guest') ?>
+            </div>
+            <div class="text-[12px]">
+              <?= htmlspecialchars($_SESSION['role_name'] ?? '') ?>
+            </div>
+          </div>
+          <div class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M5.121 17.804A13.937 13.937 0 0112 15c2.33 0 4.487.577 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
+        </button>
+
+        <!-- เมนู Dropdown -->
+        <div id="profileMenu" class="hidden absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-lg z-50">
+          <a href="../logout.php" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">ออกจากระบบ</a>
+          <button onclick="closeMenu()" class="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">
+            อยู่ต่อ
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 
   <!-- Main Content -->
   <main class="max-w-7xl w-full px-8 mx-auto mt-6 mb-12 min-h-[85vh]">
@@ -374,6 +443,7 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
       </div>
 
   </main>
+<<<<<<< HEAD
   <script>
   function showUserPopup(options = {}) {
     return new Promise((resolve) => {
@@ -658,6 +728,124 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
   });
   </script>
 
+=======
+
+  <script>
+  const profileBtn = document.getElementById("profileBtn");
+  const profileMenu = document.getElementById("profileMenu");
+  if (profileBtn && profileMenu) {
+    profileBtn.addEventListener("click", () => {
+      profileMenu.classList.toggle("hidden");
+    });
+  }
+
+  function closeMenu() {
+    if (profileMenu) {
+      profileMenu.classList.add("hidden");
+    }
+  }
+  window.addEventListener("click", (e) => {
+    if (profileBtn && profileMenu && !profileBtn.contains(e.target) && !profileMenu.contains(e.target)) {
+      profileMenu.classList.add("hidden");
+    }
+  });
+  </script>
+  <script>
+  async function confirmUserAction(action, id = null) {
+    const username = prompt("กรุณากรอกชื่อผู้ใช้ของผู้ดูแลระบบเพื่อยืนยัน:");
+    if (username === null || username.trim() === "") return false;
+
+    const password = prompt("กรุณากรอกรหัสผ่านของผู้ดูแลระบบเพื่อยืนยัน:");
+    if (password === null || password.trim() === "") return false;
+
+    try {
+      const params = new URLSearchParams();
+      params.append("username", username.trim());
+      params.append("password", password);
+
+      const res = await fetch("verify_user.php", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "Accept": "application/json"
+        },
+        credentials: "same-origin",
+        body: params.toString()
+      });
+
+      const text = await res.text();
+      let data;
+
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error("verify_user.php response:", text);
+        alert(
+          "ยืนยันตัวตนไม่สำเร็จ: verify_user.php ไม่ได้ส่ง JSON กลับมา\nให้ตรวจว่าไฟล์อยู่ที่ /Pro_letter/officer/verify_user.php และไม่มี PHP error"
+        );
+        return false;
+      }
+
+      if (!res.ok || !data.success) {
+        alert(data.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
+        return false;
+      }
+
+      if (action === "add") {
+        window.location.href = "user_Add.php";
+        return true;
+      }
+
+      if (action === "edit") {
+        if (!id) {
+          alert("ไม่พบรหัสผู้ใช้ที่ต้องการแก้ไข");
+          return false;
+        }
+        window.location.href = "user_Edit.php?id=" + encodeURIComponent(id);
+        return true;
+      }
+
+      if (action === "delete") {
+        if (!id) {
+          alert("ไม่พบรหัสผู้ใช้ที่ต้องการลบ");
+          return false;
+        }
+
+        if (confirm("คุณแน่ใจว่าต้องการลบผู้ใช้นี้หรือไม่?")) {
+          window.location.href = "user_Delete.php?id=" + encodeURIComponent(id);
+        }
+        return true;
+      }
+
+      alert("ไม่พบคำสั่งที่ต้องการทำงาน");
+      return false;
+
+    } catch (err) {
+      console.error(err);
+      alert("เกิดข้อผิดพลาดในการยืนยันตัวตน: " + err.message);
+      return false;
+    }
+  }
+  </script>
+
+  <script>
+  const templateBtn = document.getElementById("templateBtn");
+  const templateMenu = document.getElementById("templateMenu");
+
+  if (templateBtn && templateMenu) {
+    templateBtn.addEventListener("click", () => {
+      templateMenu.classList.toggle("hidden");
+    });
+  }
+
+  // ปิด dropdown ถ้าคลิกนอกเมนู
+  document.addEventListener("click", (e) => {
+    if (templateBtn && templateMenu && !templateBtn.contains(e.target) && !templateMenu.contains(e.target)) {
+      templateMenu.classList.add("hidden");
+    }
+  });
+  </script>
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 </body>
 
 </html>

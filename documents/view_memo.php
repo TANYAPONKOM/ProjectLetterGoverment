@@ -460,6 +460,7 @@ $len = max(20, $len);
   <link rel="stylesheet" href="../documents/memo-styles.css">
 
   <style>
+<<<<<<< HEAD
       @font-face {
   font-family: 'TH SarabunPSK';
   src: url('../fonts/THSarabun.ttf') format('truetype');
@@ -484,6 +485,8 @@ body,
 .signature-block {
   font-family: 'TH SarabunPSK', sans-serif !important;
 }
+=======
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
   .memo-title-row {
     position: relative;
     height: 1.65cm;
@@ -830,7 +833,11 @@ body,
 
   <main class="page">
     <div class="memo-title-row">
+<<<<<<< HEAD
        <img src="/Pro_letter/assets/img/garuda.jpg" class="garuda-img" />
+=======
+      <img src="/pro_letter/assets/img/garuda.jpg" class="garuda-img" />
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
       <h1 class="doc-title">บันทึกข้อความ</h1>
     </div>
     <div class="doc-row gov-row">
@@ -1378,6 +1385,7 @@ body,
       const page = el.closest(".page");
       if (!line) return;
 
+<<<<<<< HEAD
       if (!el.dataset.govOriginalText) {
         el.dataset.govOriginalText = (el.textContent || "").trim();
       }
@@ -1385,6 +1393,8 @@ body,
       const originalText = el.dataset.govOriginalText;
       const compactText = originalText.replace(/\s+/gu, "");
 
+=======
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
       if (page) {
         page.classList.remove("gov-agency-overflow-fit");
       }
@@ -1392,6 +1402,7 @@ body,
       el.style.setProperty("display", "inline-block", "important");
       el.style.setProperty("white-space", "nowrap", "important");
       el.style.setProperty("max-width", "none", "important");
+<<<<<<< HEAD
       el.style.setProperty("letter-spacing", "normal", "important");
 
       const fits = () => {
@@ -1423,6 +1434,36 @@ body,
     });
   }
 
+=======
+
+      const sizes = [16, 15, 14];
+      let lineWidth = Math.floor(line.getBoundingClientRect().width || line.clientWidth);
+      let stillOverflow = false;
+
+      for (const size of sizes) {
+        el.style.setProperty("font-size", size + "pt", "important");
+
+        const textWidth = Math.ceil(el.getBoundingClientRect().width || el.scrollWidth);
+        stillOverflow = !!lineWidth && textWidth > lineWidth + 1;
+        if (!stillOverflow) {
+          break;
+        }
+      }
+
+      // ถ้าลดถึง 14 แล้วยังเกินเส้น ค่อยขยับขอบเฉพาะหน้านั้นเท่านั้น
+      if (stillOverflow && page) {
+        page.classList.add("gov-agency-overflow-fit");
+        el.style.setProperty("font-size", "14pt", "important");
+
+        lineWidth = Math.floor(line.getBoundingClientRect().width || line.clientWidth);
+        const textWidth = Math.ceil(el.getBoundingClientRect().width || el.scrollWidth);
+        if (lineWidth && textWidth > lineWidth + 1) {
+          el.style.setProperty("letter-spacing", "-0.2px", "important");
+        }
+      }
+    });
+  }
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
   document.addEventListener("DOMContentLoaded", () => {
 
     fitGovAgencyText(document);

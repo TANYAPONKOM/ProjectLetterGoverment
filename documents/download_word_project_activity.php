@@ -1,7 +1,10 @@
 <?php
+<<<<<<< HEAD
 ob_start();
 ini_set('display_errors', '0');
 ini_set('log_errors', '1');
+=======
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 // Pro_letter/documents/download_word_project_activity.php
 // ดาวน์โหลด Word (.docx) สำหรับหนังสือขอเข้าไปจัดกิจกรรมโครงการ
 
@@ -134,6 +137,7 @@ function projectClean($text) {
     $text = str_replace(["\r", "\n", "\t"], ' ', (string)$text);
     $text = cleanWordText($text);
     $text = preg_replace('/[ ]{2,}/u', ' ', $text);
+<<<<<<< HEAD
     $text = projectThaiDigit(trim($text));
 
     // สำคัญ: PHPWord รุ่นที่ใช้อยู่ไม่ได้ escape XML special chars ให้ครบ
@@ -143,6 +147,9 @@ function projectClean($text) {
     $text = str_replace(['<', '>'], ['&lt;', '&gt;'], $text);
 
     return $text;
+=======
+    return projectThaiDigit(trim($text));
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 }
 
 function projectInlineText($text) {
@@ -412,7 +419,11 @@ function addProjectFooter($section, $displayDepartmentFull) {
 function addProjectActivityPage($phpWord, array $data) {
     $section = $phpWord->addSection([
         'paperSize' => 'A4',
+<<<<<<< HEAD
         'marginTop' => Converter::cmToTwip(1.5),
+=======
+        'marginTop' => Converter::cmToTwip(2),
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
         'marginBottom' => Converter::cmToTwip(1.15),
         'marginLeft' => Converter::cmToTwip(3.0),
         'marginRight' => Converter::cmToTwip(2.0),
@@ -537,6 +548,7 @@ addProjectActivityPage($phpWord, [
 
 $filename = 'project_activity_' . $docId . '.docx';
 
+<<<<<<< HEAD
 $tmpFile = tempnam(sys_get_temp_dir(), 'project_activity_word_');
 if ($tmpFile === false) {
     http_response_code(500);
@@ -558,6 +570,8 @@ if ($signature !== 'PK') {
     exit('สร้างไฟล์ Word ไม่สำเร็จ');
 }
 
+=======
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 while (ob_get_level() > 0) {
     ob_end_clean();
 }
@@ -565,8 +579,15 @@ while (ob_get_level() > 0) {
 header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 header('Content-Disposition: attachment; filename="' . $filename . '"');
 header('Cache-Control: max-age=0');
+<<<<<<< HEAD
 header('Content-Length: ' . filesize($tmpFile));
 
 readfile($tmpFile);
 @unlink($tmpFile);
 exit;
+=======
+
+$writer = IOFactory::createWriter($phpWord, 'Word2007');
+$writer->save('php://output');
+exit;
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a

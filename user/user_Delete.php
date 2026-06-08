@@ -61,7 +61,11 @@ try {
         addLog($currentUserId, "ผู้ใช้ {$currentUser} จัดการลบผู้ใช้: {$user['username']}");
     }
 
+<<<<<<< HEAD
     header("Location: user_Managerment.php?success=delete");
+=======
+    header("Location: user_Managerment.php?success=1");
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     exit;
 
 } catch (PDOException $e) {
@@ -81,7 +85,11 @@ try {
         addLog($currentUserId, "ผู้ใช้ {$currentUser} ปิดการใช้งานผู้ใช้: {$user['username']} เนื่องจากมีข้อมูลผูกอยู่ในระบบ");
     }
 
+<<<<<<< HEAD
     header("Location: user_Managerment.php?success=delete");
+=======
+    header("Location: user_Managerment.php?success=deactivated");
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     exit;
 }
 ?>

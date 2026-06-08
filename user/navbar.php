@@ -13,7 +13,11 @@
       <div class="leading-tight">
         <div class="text-[16px] font-bold">Smart</div>
         <div class="text-[16px] font-bold -mt-[2px]">Government</div>
+<<<<<<< HEAD
         <div class="text-[16px] font-bold  mt-[0px]">Letter Assistant System</div>
+=======
+        <div class="text-[13px] mt-[0px]">Letter Assistant System</div>
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
       </div>
     </div>
     <div class="flex items-center space-x-4">
@@ -58,7 +62,13 @@
         <!-- เมนู Dropdown -->
         <div id="profileMenu" class="hidden absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-lg z-50">
           <a href="../logout.php" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">ออกจากระบบ</a>
+<<<<<<< HEAD
          
+=======
+          <button onclick="closeMenu()" class="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">
+            อยู่ต่อ
+          </button>
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
         </div>
 
       </div>

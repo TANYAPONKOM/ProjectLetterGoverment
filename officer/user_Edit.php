@@ -1,6 +1,9 @@
 <?php
 session_start();
+<<<<<<< HEAD
 
+=======
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 require_once __DIR__ . '/../functions.php';
 $pdo = getPDO();
 
@@ -9,6 +12,7 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+<<<<<<< HEAD
 $permissions = array_map('intval', $_SESSION['permissions'] ?? []);
 $isAdmin = ((int)($_SESSION['role_id'] ?? 0) === 1);
 $canManageUsers = in_array(3, $permissions, true);
@@ -24,6 +28,23 @@ if (!$isAdmin && !$canManageUsers) {
 }
 
 if (!$isAdmin && !$canManageUsers) {
+=======
+// อนุญาตให้เข้าได้เฉพาะ admin หรือผู้ที่มีสิทธิ์กำหนดสิทธิ์ (perm_id = 3)
+$sessionPerms = array_map('intval', $_SESSION['permissions'] ?? []);
+$hasManageUserPermission = ((int)($_SESSION['role_id'] ?? 0) === 1) || in_array(3, $sessionPerms, true);
+
+if (!$hasManageUserPermission) {
+    $permCheck = $pdo->prepare("SELECT 1 FROM user_permissions WHERE user_id = ? AND perm_id = 3 LIMIT 1");
+    $permCheck->execute([(int)$_SESSION['user_id']]);
+    $hasManageUserPermission = (bool)$permCheck->fetchColumn();
+
+    if ($hasManageUserPermission) {
+        $_SESSION['permissions'] = array_values(array_unique(array_merge($sessionPerms, [3])));
+    }
+}
+
+if (!$hasManageUserPermission) {
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     header('Location: home.php');
     exit;
 }
@@ -451,6 +472,7 @@ $selectedDepartmentId = $user['department_id'] ?? '';
   facultySelect.addEventListener('change', () => filterDepartmentsByFaculty(false));
   filterDepartmentsByFaculty(true);
   </script>
+<<<<<<< HEAD
 
   <script>
   document.addEventListener("DOMContentLoaded", function () {
@@ -463,6 +485,8 @@ $selectedDepartmentId = $user['department_id'] ?? '';
   });
   </script>
 
+=======
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 </body>
 
 </html>

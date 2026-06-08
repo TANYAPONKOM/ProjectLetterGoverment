@@ -857,6 +857,7 @@ $len = max(20, $len);
 
   /* ฟอนต์ Sarabun */
   @font-face {
+<<<<<<< HEAD
   font-family: 'TH SarabunPSK';
   src: url('../fonts/THSarabun.ttf') format('truetype');
   font-weight: normal;
@@ -880,6 +881,29 @@ body,
 .signature-block {
   font-family: 'TH SarabunPSK', sans-serif !important;
 }
+=======
+    font-family: 'TH SarabunPSK';
+    src: url('/fonts/THSarabunPSK.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'TH SarabunPSK';
+    src: url('/fonts/THSarabunPSK-Bold.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'TH SarabunPSK';
+    src: url('fonts/THSarabunPSK.ttf') format('truetype');
+  }
+
+  body {
+    font-family: 'TH SarabunPSK', sans-serif;
+  }
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 
   /* ⭐⭐⭐ อันที่คุณย้ำว่าห้ามหาย — ใส่ให้อยู่ท้ายเหมือนเดิม ⭐⭐⭐ */
   .doc-header .doc-row {
@@ -1402,7 +1426,10 @@ body,
     }
 
     const originalText = govChip.dataset.originalGovText;
+<<<<<<< HEAD
     const compactText = removeRoomGovHeaderSpaces(originalText);
+=======
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 
     const fits = () => {
       const textWidth = Math.ceil(govChip.getBoundingClientRect().width || govChip.scrollWidth);
@@ -1417,6 +1444,7 @@ body,
     page?.classList?.remove("gov-header-tight-margin");
     page?.classList?.remove("gov-header-compact");
 
+<<<<<<< HEAD
     // ขั้นที่ 1: ลดฟอนต์ทีละระดับโดยยังคงช่องว่างเดิมไว้ก่อน
     for (const size of [16, 15, 14]) {
       govChip.style.setProperty("font-size", size + "pt", "important");
@@ -1430,15 +1458,37 @@ body,
     if (fits()) return;
 
     // ขั้นที่ 3: ถ้ายังเกินจริง ๆ ค่อยขยับขอบเฉพาะตอนเกินเส้น
+=======
+    if (fits()) return;
+
+    // ถ้าเกินเส้น ค่อยลบช่องว่าง + ลดเป็น 15
+    page?.classList?.add("gov-header-compact");
+    govChip.textContent = removeRoomGovHeaderSpaces(originalText);
+    govChip.style.setProperty("font-size", "15pt", "important");
+    if (fits()) return;
+
+    // ถ้ายังเกิน ลดเป็น 14 เท่านั้น ไม่ต่ำกว่านี้
+    govChip.style.setProperty("font-size", "14pt", "important");
+    if (fits()) return;
+
+    // ถ้ายังเกินจริง ๆ ค่อยขยับขอบเฉพาะตอนเกินเส้น
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     page?.classList?.add("gov-header-tight-margin");
     void page?.offsetWidth;
     if (fits()) return;
 
+<<<<<<< HEAD
     // กันเคสยาวมาก โดยไม่ลดฟอนต์ต่ำกว่า 14pt
     govChip.style.setProperty("letter-spacing", "-0.25px", "important");
   }
 
 
+=======
+    // กันเคสยาวมาก โดยไม่ลดฟอนต์ต่ำกว่า 14
+    govChip.style.setProperty("letter-spacing", "-0.25px", "important");
+  }
+
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
   window.addEventListener("load", () => applyRoomGovHeaderFit(document));
 
   async function downloadPdf() {

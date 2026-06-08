@@ -41,9 +41,12 @@ if ($roleId === 1) {
 }
 
 $logoutPath = '/Pro_letter/logout.php';
+<<<<<<< HEAD
 $settingsVerifyUrl = '/Pro_letter/admin/form_Templates.php';
 $userPermissionVerifyUrl = '/Pro_letter/admin/verify_user.php';
 $isSettingsPage = in_array($current, ['form_Templates.php', 'department_Managerment.php', 'user_Managerment.php'], true);
+=======
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 ?>
 <header class="bg-teal-500 text-white p-4 flex justify-between items-center shadow-md"
   style="font-family: Arial, Helvetica, sans-serif;">
@@ -58,7 +61,11 @@ $isSettingsPage = in_array($current, ['form_Templates.php', 'department_Managerm
     <div class="leading-tight">
       <div class="text-[16px] font-bold">Smart</div>
       <div class="text-[16px] font-bold -mt-[2px]">Government</div>
+<<<<<<< HEAD
       <div class="text-[16px] font-bold mt-[0px]">Letter Assistant System</div>
+=======
+      <div class="text-[13px] mt-[0px]">Letter Assistant System</div>
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     </div>
   </div>
 
@@ -144,6 +151,13 @@ $isSettingsPage = in_array($current, ['form_Templates.php', 'department_Managerm
       <div id="profileMenu" class="hidden absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-lg z-50">
         <a href="<?= nav_h($logoutPath) ?>"
           class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">ออกจากระบบ</a>
+<<<<<<< HEAD
+=======
+        <button type="button" onclick="closeMenu()"
+          class="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">
+          อยู่ต่อ
+        </button>
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
       </div>
     </div>
   </div>
@@ -155,6 +169,7 @@ $isSettingsPage = in_array($current, ['form_Templates.php', 'department_Managerm
   const templateMenu = document.getElementById('templateMenu');
   const profileBtn = document.getElementById('profileBtn');
   const profileMenu = document.getElementById('profileMenu');
+<<<<<<< HEAD
   const settingsVerifyUrl = '<?= nav_h($settingsVerifyUrl) ?>';
   const userPermissionVerifyUrl = '<?= nav_h($userPermissionVerifyUrl) ?>';
   const currentRoleId = <?= (int)$roleId ?>;
@@ -448,6 +463,8 @@ $isSettingsPage = in_array($current, ['form_Templates.php', 'department_Managerm
       return false;
     }
   }
+=======
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 
   window.closeMenu = function() {
     if (profileMenu) profileMenu.classList.add('hidden');
@@ -455,6 +472,7 @@ $isSettingsPage = in_array($current, ['form_Templates.php', 'department_Managerm
   };
 
   if (templateBtn && templateMenu) {
+<<<<<<< HEAD
     templateBtn.addEventListener('click', async function(event) {
       event.stopPropagation();
 
@@ -463,6 +481,10 @@ $isSettingsPage = in_array($current, ['form_Templates.php', 'department_Managerm
         if (!verified) return;
       }
 
+=======
+    templateBtn.addEventListener('click', function(event) {
+      event.stopPropagation();
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
       templateMenu.classList.toggle('hidden');
       if (profileMenu) profileMenu.classList.add('hidden');
     });
@@ -476,6 +498,7 @@ $isSettingsPage = in_array($current, ['form_Templates.php', 'department_Managerm
     });
   }
 
+<<<<<<< HEAD
 
   document.querySelectorAll('a[href*="user_Managerment.php"]').forEach(function(link) {
     link.addEventListener('click', async function(event) {
@@ -496,6 +519,11 @@ $isSettingsPage = in_array($current, ['form_Templates.php', 'department_Managerm
   document.addEventListener('click', function(event) {
     if (templateMenu && templateBtn && !templateBtn.contains(event.target) && !templateMenu.contains(event
       .target)) {
+=======
+  document.addEventListener('click', function(event) {
+    if (templateMenu && templateBtn && !templateBtn.contains(event.target) && !templateMenu.contains(event
+        .target)) {
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
       templateMenu.classList.add('hidden');
     }
     if (profileMenu && profileBtn && !profileBtn.contains(event.target) && !profileMenu.contains(event.target)) {

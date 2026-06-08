@@ -79,7 +79,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'verif
     $password = (string)($_POST['admin_password'] ?? '');
 
     if (verifyTemplateAdminCredentials($pdo, $username, $password)) {
+<<<<<<< HEAD
         $_SESSION['settings_menu_verified'] = true;
+=======
+        $_SESSION['template_admin_verified_until'] = time() + 60;
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
         echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
     } else {
         echo json_encode([
@@ -92,6 +96,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'verif
 
 // อัปเดตสถานะเปิด/ปิดการใช้งานเทมเพลต
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggle_template') {
+<<<<<<< HEAD
+=======
+    $verifiedUntil = (int)($_SESSION['template_admin_verified_until'] ?? 0);
+    if ($verifiedUntil < time()) {
+        header('Location: form_Templates.php?status=auth_required');
+        exit;
+    }
+
+    unset($_SESSION['template_admin_verified_until']);
+
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     $templateId = (int)($_POST['template_id'] ?? 0);
     $isActive = (int)($_POST['is_active'] ?? 0);
     $isActive = $isActive === 1 ? 1 : 0;
@@ -467,6 +482,7 @@ if ($flashStatus === 'deleted') {
 
     checkbox.checked = currentValue === 1;
 
+<<<<<<< HEAD
     const form = checkbox.form;
     if (!form) return;
 
@@ -499,6 +515,41 @@ if ($flashStatus === 'deleted') {
       }
     }
   }
+=======
+    verifyTemplateAdminByPrompt(() => {
+      const form = checkbox.form;
+      if (!form) return;
+
+      const activeInput = form.querySelector('input[type="hidden"][name="is_active"]');
+      if (activeInput) {
+        activeInput.value = String(nextValue);
+      }
+
+      checkbox.dataset.current = String(nextValue);
+      checkbox.checked = nextValue === 1;
+      form.submit();
+    });
+  }
+
+  function confirmTemplateAction(action, id = null) {
+    verifyTemplateAdminByPrompt(async () => {
+      if (action === "add") {
+        window.location.href = "template_Add.php";
+      } else if (action === "edit") {
+        window.location.href = "template_Edit.php?id=" + id;
+      } else if (action === "delete") {
+        const confirmed = await showTemplatePopup({
+          title: "ยืนยันการลบเทมเพลต",
+          message: "ถ้าเทมเพลตนี้เคยถูกใช้สร้างเอกสาร ระบบจะไม่อนุญาตให้ลบ และควรใช้การปิดใช้งานแทน",
+          confirmText: "ลบเทมเพลต",
+          cancelText: "ยกเลิก",
+          danger: true
+        });
+
+        if (confirmed) {
+          window.location.href = "template_Delete.php?id=" + id;
+        }
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
       }
     });
   }

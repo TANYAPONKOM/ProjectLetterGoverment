@@ -744,7 +744,11 @@ function addAcademicExpenseTablePage($phpWord, $budgetItems, $budgetTotal, $owne
     academicExpenseInfoRow($infoTable, 'ชื่อผลงานวิจัย', $researchTitle ?: '-', 80);
 
     $section->addTextBreak(1);
+<<<<<<< HEAD
     $section->addText('ตารางประมาณการค่าใช้จ่ายในการไปนำเสนอผลงานวิจัย', 'boldFont', [
+=======
+    $section->addText('ตารางสรุปค่าใช้จ่ายในการไปนำเสนอผลงานวิจัย', 'boldFont', [
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
         'spaceAfter' => 80,
         'lineHeight' => 1.0,
     ]);

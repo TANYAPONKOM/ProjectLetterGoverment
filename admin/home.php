@@ -39,14 +39,100 @@ main {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<<<<<<< HEAD
   <title>รายการส่งคำขอ</title>
+=======
+  <title>ประวัติการใช้งานเอกสาร</title>
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 </head>
 
 <body class="bg-gray-100">
+<<<<<<< HEAD
    <?php require_once $_SERVER['DOCUMENT_ROOT'] . '/Pro_letter/includes/role_header.php'; ?>
+=======
+  <!-- Header -->
+  <header class="bg-teal-500 text-white p-4 flex justify-between items-center shadow-md">
+    <div class="flex items-center space-x-3">
+      <div class="w-[56px] h-[56px] flex items-center justify-center relative">
+        <svg xmlns="http://www.w3.org/2000/svg" class="absolute scale-[1.4] text-white"
+          style="width: 60px; height: 60px" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m0 0a2 2 0 00-2-2H5a2 2 0 00-2 2m18 0v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8" />
+        </svg>
+      </div>
+      <div class="leading-tight">
+        <div class="text-[16px] font-bold">Smart</div>
+        <div class="text-[16px] font-bold -mt-[2px]">Government</div>
+        <div class="text-[13px] mt-[0px]">Letter Assistant System</div>
+      </div>
+    </div>
+    <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-4">
+        <a href="home.php">
+          <div class="px-4 py-2 rounded-[11px] font-bold transition bg-white text-teal-500 shadow">หน้าหลัก</div>
+        </a>
+        <a href="history_page.php">
+          <div class="px-4 py-2 rounded-[11px] font-bold transition text-white hover:bg-white hover:text-teal-500">
+            ประวัติการใช้งานเอกสาร
+          </div>
+        </a>
+        <a href="department_report_dashboard.php">
+          <div class="px-4 py-2 rounded-[11px] font-bold transition text-white hover:bg-white hover:text-teal-500">
+            รายงานภาควิชา
+          </div>
+        </a>
+
+        <!-- เมนู: ตั้งค่าระบบเริ่มต้น -->
+        <div class="relative">
+          <button id="templateBtn" class="px-4 py-2 rounded-[11px] font-bold transition 
+                text-white hover:bg-white hover:text-teal-500 flex items-center space-x-1">
+            <span>ตั้งค่าระบบเริ่มต้น</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <!-- เมนูย่อย -->
+          <div id="templateMenu" class="hidden absolute bg-white text-gray-700 mt-1 rounded-lg shadow-lg w-48 z-50">
+            <a href="form_Templates.php" class="block px-4 py-2 hover:bg-teal-100">การจัดการเทมเพลต</a>
+            <a href="department_Managerment.php" class="block px-4 py-2 hover:bg-teal-100">การจัดการภาควิชา</a>
+            <a href="user_Managerment.php" class="block px-4 py-2 hover:bg-teal-100">กำหนดสิทธิ์ผู้ใช้งาน</a>
+          </div>
+        </div>
+
+        <div class="relative">
+          <button id="profileBtn"
+            class="bg-white text-teal-500 px-4 py-2 rounded-[11px] shadow flex items-center space-x-2 hover:bg-gray-100">
+            <div class="text-right leading-tight">
+              <div class="font-bold text-[14px]"><?= htmlspecialchars($_SESSION['fullname']) ?></div>
+              <div class="text-[12px]"><?= htmlspecialchars($_SESSION['role_name']) ?></div>
+            </div>
+            <div class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M5.121 17.804A13.937 13.937 0 0112 15c2.33 0 4.487.577 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+          </button>
+          <!-- เมนู Dropdown -->
+          <div id="profileMenu" class="hidden absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-lg z-50">
+            <a href="/Pro_letter/logout.php"
+              class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">ออกจากระบบ</a>
+            <button onclick="closeMenu()" class="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">
+              อยู่ต่อ
+            </button>
+          </div>
+        </div>
+      </div>
+      </a>
+
+    </div>
+  </header>
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 
   <main class="max-w-7xl w-full px-8 mx-auto bg-white mt-4 mb-12 p-6 rounded shadow min-h-[85vh]">
     <h2 class="text-xl font-bold mb-4">รายการส่งคำขอ</h2>
@@ -54,9 +140,14 @@ main {
     <!-- Tabs -->
     <div class="flex space-x-6 border-b mb-4">
       <button id="tab-pending" class="bg-teal-500 text-white px-4 py-2 rounded-t-md font-semibold">รอตรวจสอบ</button>
+<<<<<<< HEAD
         <button id="tab-edit" class="text-gray-500 px-4 py-2 rounded-t-md font-semibold">รอการแก้ไข</button>
       <button id="tab-done" class="text-gray-500 px-4 py-2 rounded-t-md font-semibold">ผ่านการตรวจสอบแล้ว</button>
       
+=======
+      <button id="tab-done" class="text-gray-500 px-4 py-2 rounded-t-md font-semibold">ผ่านการตรวจสอบแล้ว</button>
+      <button id="tab-edit" class="text-gray-500 px-4 py-2 rounded-t-md font-semibold">รอการแก้ไข</button>
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     </div>
 
     <!-- Filter + Sort -->
@@ -502,13 +593,21 @@ main {
           <button onclick="approveDocument(${req.document_id})"
             class="px-6 py-2 bg-teal-500 hover:bg-teal-600
                    text-white text-sm font-semibold rounded-xl shadow">
+<<<<<<< HEAD
             ผ่าน
+=======
+            ยืนยันการตรวจสอบ
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
           </button>
 
           <button onclick="rejectDocument(${req.document_id})"
             class="px-6 py-2 bg-red-400 hover:bg-red-500
                    text-white text-sm font-semibold rounded-xl shadow">
+<<<<<<< HEAD
             ไม่ผ่าน
+=======
+            ไม่ผ่านการตรวจสอบ
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
           </button>
         </div>`;
       } else if (req.status === "done") {
@@ -601,6 +700,7 @@ main {
     currentPage = 1;
     renderList();
   };
+<<<<<<< HEAD
 function setActiveTab(activeButton) {
   const tabs = [tabPending, tabEdit, tabDone];
 
@@ -636,6 +736,63 @@ tabEdit.onclick = () => {
 
   loadRequests();
 
+=======
+  tabPending.onclick = () => {
+    activeTab = "pending";
+    renderList();
+    tabPending.classList.add("bg-teal-500", "text-white");
+    tabDone.classList.remove("bg-teal-500", "text-white");
+    tabEdit.classList.remove("bg-teal-500", "text-white");
+    currentPage = 1;
+  };
+  tabDone.onclick = () => {
+    activeTab = "done";
+    renderList();
+    tabDone.classList.add("bg-teal-500", "text-white");
+    tabPending.classList.remove("bg-teal-500", "text-white");
+    tabEdit.classList.remove("bg-teal-500", "text-white");
+    currentPage = 1;
+  };
+  tabEdit.onclick = () => {
+    activeTab = "edit";
+    renderList();
+    tabEdit.classList.add("bg-teal-500", "text-white");
+    tabPending.classList.remove("bg-teal-500", "text-white");
+    tabDone.classList.remove("bg-teal-500", "text-white");
+    currentPage = 1;
+  };
+
+  loadRequests();
+
+  const profileBtn = document.getElementById("profileBtn");
+  const profileMenu = document.getElementById("profileMenu");
+  profileBtn.addEventListener("click", () => {
+    profileMenu.classList.toggle("hidden");
+  });
+
+  function closeMenu() {
+    profileMenu.classList.add("hidden");
+  }
+  const templateBtn = document.getElementById("templateBtn");
+  const templateMenu = document.getElementById("templateMenu");
+
+  templateBtn.addEventListener("click", () => {
+    templateMenu.classList.toggle("hidden");
+  });
+
+  // ปิด dropdown ถ้าคลิกนอกเมนู
+  document.addEventListener("click", (e) => {
+    if (!templateBtn.contains(e.target) && !templateMenu.contains(e.target)) {
+      templateMenu.classList.add("hidden");
+    }
+  });
+  // กดนอกเมนูให้ปิด
+  window.addEventListener("click", (e) => {
+    if (!profileBtn.contains(e.target) && !profileMenu.contains(e.target)) {
+      profileMenu.classList.add("hidden");
+    }
+  });
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 
   document.addEventListener("DOMContentLoaded", () => {
     const params = new URLSearchParams(window.location.search);

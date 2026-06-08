@@ -674,6 +674,7 @@ $len = max(20, $len);
     font-style: normal;
   }
 
+<<<<<<< HEAD
 @font-face {
   font-family: 'TH SarabunPSK';
   src: url('../fonts/THSarabun.ttf') format('truetype');
@@ -698,6 +699,23 @@ body,
 .signature-block {
   font-family: 'TH SarabunPSK', sans-serif !important;
 }
+=======
+  @font-face {
+    font-family: 'TH SarabunPSK';
+    src: url('/fonts/THSarabunPSK-Bold.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'TH SarabunPSK';
+    src: url('fonts/THSarabunPSK.ttf') format('truetype');
+  }
+
+  body {
+    font-family: 'TH SarabunPSK', sans-serif;
+  }
+>>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 
   /* ⭐⭐⭐ อันที่คุณย้ำว่าห้ามหาย — ใส่ให้อยู่ท้ายเหมือนเดิม ⭐⭐⭐ */
   .doc-header .doc-row {
