@@ -461,7 +461,7 @@ if ($roleIdForHome === 1) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>แบบฟอร์มบันทึกข้อความ</title>
+  <title>สร้างแบบฟอร์มบันทึกข้อความ</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/airbnb.css" />
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -756,7 +756,7 @@ if ($roleIdForHome === 1) {
     <div id="step1">
       <div class="w-[900px] mx-auto mt-16 mb-6 bg-white shadow-md rounded-md p-8" style="min-height: 1122px">
         <h1 class="text-center font-bold mb-6 text-black">
-          แบบฟอร์มบันทึกข้อความ
+          สร้างแบบฟอร์มบันทึกข้อความ
         </h1>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 p-6 rounded-[25px] border-2" style="
             background-color: #e3f9f8;
@@ -4012,6 +4012,20 @@ if ($roleIdForHome === 1) {
     const SPELL_TIMEOUT_MS = 60000;
     const SPELL_CHUNK_LIMIT = 350;
 
+    /*
+      Spell Check API URL
+      - ถ้ารันระบบบนเครื่องตัวเองผ่าน localhost / 127.0.0.1
+        จะเรียก API ที่ http://127.0.0.1:8001
+      - ถ้ารันบนเว็บจริง
+        จะเรียก API ที่ Render
+    */
+    const SPELL_API_BASE_URL =
+      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") ?
+      "http://127.0.0.1:8001" :
+      "https://checkspell-api.onrender.com";
+
+    const SPELL_CHECK_API_URL = `${SPELL_API_BASE_URL}/api/spell-check`;
+
     function splitTextForSpellCheck(text, limit = SPELL_CHUNK_LIMIT) {
       const clean = String(text || "").trim();
       if (!clean) return [];
@@ -4117,7 +4131,7 @@ if ($roleIdForHome === 1) {
       const timeoutId = setTimeout(() => controller.abort(), SPELL_TIMEOUT_MS);
 
       try {
-        const response = await fetch("http://127.0.0.1:8001/api/spell-check", {
+        const response = await fetch(SPELL_CHECK_API_URL, {
           method: "POST",
           headers: {
             "Content-Type": "application/json"

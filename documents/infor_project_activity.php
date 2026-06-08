@@ -718,7 +718,7 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
   </style>
 
   <script>
-    window.CATEGORY_LOCKED_BY_STATUS = <?= $categoryLocked ? 'true' : 'false' ?>;
+  window.CATEGORY_LOCKED_BY_STATUS = <?= $categoryLocked ? 'true' : 'false' ?>;
   </script>
 </head>
 
@@ -753,7 +753,8 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
         <div class="flex items-center gap-3">
           <label class="lbl text-gray-800 w-28 text-right">หมวดหลัก:</label>
           <div class="relative w-full">
-            <select name="main_category" class="custom-select w-full" id="mainCategory"<?= $categoryLocked ? ' disabled data-category-locked="1"' : '' ?>>
+            <select name="main_category" class="custom-select w-full" id="mainCategory"
+              <?= $categoryLocked ? ' disabled data-category-locked="1"' : '' ?>>
               <option value="">-- เลือกหมวดหลัก --</option>
               <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
               <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>ภายใน</option>
@@ -765,15 +766,16 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
         <div class="flex items-center gap-3">
           <label class="lbl text-gray-800 w-28 text-right">หมวดย่อย:</label>
           <div class="relative w-full">
-            <select name="sub_category" class="custom-select w-full" id="subCategory"<?= $categoryLocked ? ' data-category-locked="1"' : '' ?>
-              data-current="<?= h($CURRENT_SUB ?? '') ?>" disabled>
+            <select name="sub_category" class="custom-select w-full" id="subCategory"
+              <?= $categoryLocked ? ' data-category-locked="1"' : '' ?> data-current="<?= h($CURRENT_SUB ?? '') ?>"
+              disabled>
               <option value="">-- เลือกหมวดย่อย --</option>
             </select>
-              <?php if ($categoryLocked): ?>
-              <input type="hidden" name="main_category" value="<?= h($CURRENT_MAIN ?? '') ?>">
-              <input type="hidden" name="sub_category" value="<?= h($CURRENT_SUB ?? '') ?>">
-              <input type="hidden" name="main_category_locked_value" value="1">
-              <?php endif; ?>
+            <?php if ($categoryLocked): ?>
+            <input type="hidden" name="main_category" value="<?= h($CURRENT_MAIN ?? '') ?>">
+            <input type="hidden" name="sub_category" value="<?= h($CURRENT_SUB ?? '') ?>">
+            <input type="hidden" name="main_category_locked_value" value="1">
+            <?php endif; ?>
 
           </div>
         </div>
@@ -832,8 +834,8 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
 
           <div class="flex items-center gap-3 flex-nowrap pl-4 w-full overflow-x-auto">
             <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap shrink-0">
-              <input type="radio" name="doc_date_option" id="docDateUse" value="use_date"
-                class="accent-black" <?= ($projectDocDateOption === 'use_date') ? 'checked' : '' ?>>
+              <input type="radio" name="doc_date_option" id="docDateUse" value="use_date" class="accent-black"
+                <?= ($projectDocDateOption === 'use_date') ? 'checked' : '' ?>>
               วันที่
             </label>
 
@@ -855,8 +857,8 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
           </div>
 
           <label class="flex items-center gap-2 text-gray-800 whitespace-nowrap pl-4">
-            <input type="radio" name="doc_date_option" id="docDateNone" value="no_date"
-              class="accent-black" <?= ($projectDocDateOption === 'no_date') ? 'checked' : '' ?>>
+            <input type="radio" name="doc_date_option" id="docDateNone" value="no_date" class="accent-black"
+              <?= ($projectDocDateOption === 'no_date') ? 'checked' : '' ?>>
             ไม่ประสงค์ใส่วันที่
           </label>
         </div>
@@ -1558,6 +1560,20 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
   const SPELL_TIMEOUT_MS = 60000;
   const SPELL_CHUNK_LIMIT = 350;
 
+  /*
+    Spell Check API URL
+    - ถ้ารันระบบบนเครื่องตัวเองผ่าน localhost / 127.0.0.1
+      จะเรียก API ที่ http://127.0.0.1:8001
+    - ถ้ารันบนเว็บจริง
+      จะเรียก API ที่ Render
+  */
+  const SPELL_API_BASE_URL =
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") ?
+    "http://127.0.0.1:8001" :
+    "https://checkspell-api.onrender.com";
+
+  const SPELL_CHECK_API_URL = `${SPELL_API_BASE_URL}/api/spell-check`;
+
   function splitTextForSpellCheck(text, limit = SPELL_CHUNK_LIMIT) {
     const clean = String(text || "").trim();
     if (!clean) return [];
@@ -1663,7 +1679,7 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
     const timeoutId = setTimeout(() => controller.abort(), SPELL_TIMEOUT_MS);
 
     try {
-      const response = await fetch("http://127.0.0.1:8001/api/spell-check", {
+      const response = await fetch(SPELL_CHECK_API_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -1988,8 +2004,8 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
 
   <script>
   document.addEventListener("DOMContentLoaded", () => {
-    
-const main = document.getElementById("mainCategory");
+
+    const main = document.getElementById("mainCategory");
     const sub = document.getElementById("subCategory");
     if (!main || !sub) return;
 

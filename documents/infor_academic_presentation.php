@@ -441,10 +441,16 @@ $amountStr   = $formData[8]  ?? '';
 $vehicle     = $formData[9]  ?? '';
 $faculty     = $formData[10] ?? '';
 $department  = $formData[11] ?? '';
-$memoSubject   = $formData[14] ?? ($doc['subject'] ?? '');
+
+$memoSubject = trim((string)($formData[14] ?? ''));
+if ($memoSubject === '' && $isEdit && !empty($doc['subject'])) {
+    $memoSubject = trim((string)$doc['subject']);
+}
+
 $academicTopic = $formData[13] ?? '';
 $academicLevel = $formData[15] ?? '';
 $eventDate     = $formData[16] ?? '';
+
 $departmentPhone = '';
 if (!empty($editValuesByKey['department_phone'])) {
     $departmentPhone = trim((string)$editValuesByKey['department_phone']);
@@ -4193,6 +4199,20 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     const SPELL_TIMEOUT_MS = 60000;
     const SPELL_CHUNK_LIMIT = 350;
 
+    /*
+      Spell Check API URL
+      - ถ้ารันระบบบนเครื่องตัวเองผ่าน localhost / 127.0.0.1
+        จะเรียก API ที่ http://127.0.0.1:8001
+      - ถ้ารันบนเว็บจริง
+        จะเรียก API ที่ Render
+    */
+    const SPELL_API_BASE_URL =
+      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") ?
+      "http://127.0.0.1:8001" :
+      "https://checkspell-api.onrender.com";
+
+    const SPELL_CHECK_API_URL = `${SPELL_API_BASE_URL}/api/spell-check`;
+
     function splitTextForSpellCheck(text, limit = SPELL_CHUNK_LIMIT) {
       const clean = String(text || "").trim();
       if (!clean) return [];
@@ -4298,7 +4318,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       const timeoutId = setTimeout(() => controller.abort(), SPELL_TIMEOUT_MS);
 
       try {
-        const response = await fetch("http://127.0.0.1:8001/api/spell-check", {
+        const response = await fetch(SPELL_CHECK_API_URL, {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
