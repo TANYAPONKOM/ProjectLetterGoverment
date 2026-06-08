@@ -769,52 +769,37 @@ $len = max(20, $len);
   }
 
   /* ฟอนต์ Sarabun */
-<<<<<<< HEAD
-
-
-  @font-face {
-    font-family: 'TH SarabunPSK';
-    src: url('../fonts/THSarabun.ttf') format('truetype');
-=======
   @font-face {
     font-family: 'TH SarabunPSK';
     src: url('/fonts/THSarabunPSK.ttf') format('truetype');
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     font-weight: normal;
     font-style: normal;
   }
 
-  @font-face {
-    font-family: 'TH SarabunPSK';
-<<<<<<< HEAD
-    src: url('../fonts/THSarabun-Bold.ttf') format('truetype');
-=======
-    src: url('/fonts/THSarabunPSK-Bold.ttf') format('truetype');
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
-    font-weight: bold;
-    font-style: normal;
-  }
+ @font-face {
+  font-family: 'TH SarabunPSK';
+  src: url('../fonts/THSarabun.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
 
-<<<<<<< HEAD
-  html,
-  body,
-  .page,
-  .content-block,
-  .chip,
-  .dot-input,
-  .subject-line,
-  .signature-block {
-    font-family: 'TH SarabunPSK', sans-serif !important;
-=======
-  @font-face {
-    font-family: 'TH SarabunPSK';
-    src: url('fonts/THSarabunPSK.ttf') format('truetype');
-  }
+@font-face {
+  font-family: 'TH SarabunPSK';
+  src: url('../fonts/THSarabun-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
 
-  body {
-    font-family: 'TH SarabunPSK', sans-serif;
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
-  }
+html,
+body,
+.page,
+.content-block,
+.chip,
+.dot-input,
+.subject-line,
+.signature-block {
+  font-family: 'TH SarabunPSK', sans-serif !important;
+}
 
   /* ⭐⭐⭐ อันที่คุณย้ำว่าห้ามหาย — ใส่ให้อยู่ท้ายเหมือนเดิม ⭐⭐⭐ */
   .doc-header .doc-row {
@@ -1591,16 +1576,12 @@ $len = max(20, $len);
     const govLine = govChip?.closest(".dot-line");
     if (!govChip || !govLine) return;
 
-<<<<<<< HEAD
     if (!govChip.dataset.originalGovText) {
       govChip.dataset.originalGovText = normalizeSpeakerGovHeaderText(govChip.textContent).trim();
     }
 
     const originalText = govChip.dataset.originalGovText;
     const compactText = removeSpeakerGovHeaderSpaces(originalText);
-=======
-    const originalText = normalizeSpeakerGovHeaderText(govChip.textContent);
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 
     const fits = () => {
       const textWidth = Math.ceil(govChip.getBoundingClientRect().width || govChip.scrollWidth);
@@ -1613,7 +1594,6 @@ $len = max(20, $len);
     govChip.style.removeProperty("letter-spacing");
     page?.classList?.remove("gov-header-tight-margin");
 
-<<<<<<< HEAD
     // ขั้นที่ 1: ลดฟอนต์ทีละระดับโดยยังคงช่องว่างเดิมไว้ก่อน
     for (const size of [16, 15, 14]) {
       govChip.style.setProperty("font-size", size + "pt", "important");
@@ -1626,35 +1606,15 @@ $len = max(20, $len);
     if (fits()) return;
 
     // ขั้นที่ 3: ยังเกินที่ 14pt: ค่อยขยับขอบเฉพาะหน้านี้เป็นซ้าย 2.80cm / ขวา 1.80cm
-=======
-    if (fits()) return;
-
-    // เข้าเงื่อนไขเกินเส้น: ค่อยลบช่องว่างและลดขนาดตัวอักษร
-    govChip.textContent = removeSpeakerGovHeaderSpaces(originalText);
-    govChip.style.setProperty("font-size", "15pt", "important");
-    if (fits()) return;
-
-    govChip.style.setProperty("font-size", "14pt", "important");
-    if (fits()) return;
-
-    // ยังเกินที่ 14: ค่อยขยับขอบเฉพาะหน้านี้เป็นซ้าย 2.80cm / ขวา 1.80cm
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     page?.classList?.add("gov-header-tight-margin");
     void page?.offsetWidth;
     if (fits()) return;
 
-<<<<<<< HEAD
     // กันเคสยาวมากจริง ๆ โดยไม่ลดฟอนต์ต่ำกว่า 14pt
     govChip.style.setProperty("letter-spacing", "-0.25px", "important");
   }
 
 
-=======
-    // กันเคสยาวมากจริง ๆ โดยไม่ลดฟอนต์ต่ำกว่า 14
-    govChip.style.setProperty("letter-spacing", "-0.25px", "important");
-  }
-
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
   window.addEventListener("load", () => applySpeakerGovHeaderFit(document));
 
   async function downloadPdf() {

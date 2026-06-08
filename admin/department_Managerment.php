@@ -82,7 +82,6 @@ $departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     d="M12 20h9M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z" />
                 </svg>
               </button>
-<<<<<<< HEAD
 
               <!-- ปุ่มลบ -->
               <button onclick="confirmUserAction('delete', <?= $row['department_id'] ?>)"
@@ -94,8 +93,6 @@ $departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0H7m3 0V5a2 2 0 012-2h0a2 2 0 012 2v2" />
                 </svg>
               </button>
-=======
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
             </div>
           </td>
         </tr>
@@ -253,7 +250,6 @@ $departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
   }
 
   async function confirmUserAction(action, id = null) {
-<<<<<<< HEAD
     if (action === "add") {
       window.location.href = "department_Add.php";
     } else if (action === "edit") {
@@ -269,99 +265,13 @@ $departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
       if (confirmed) {
         window.location.href = "department_Delete.php?id=" + encodeURIComponent(id);
       }
-=======
-    const username = await showDepartmentPopup({
-      title: "ยืนยันตัวตนผู้ดูแลระบบ",
-      message: "กรุณากรอกชื่อผู้ใช้ของผู้ดูแลระบบเพื่อยืนยัน",
-      inputType: "text",
-      confirmText: "ถัดไป"
-    });
-    if (username === null || username.trim() === "") return false;
-
-    const password = await showDepartmentPopup({
-      title: "ยืนยันรหัสผ่าน",
-      message: "กรุณากรอกรหัสผ่านของผู้ดูแลระบบเพื่อยืนยัน",
-      inputType: "password",
-      confirmText: "ยืนยัน"
-    });
-    if (password === null || password.trim() === "") return false;
-
-    try {
-      const params = new URLSearchParams();
-      params.append("username", username.trim());
-      params.append("password", password);
-
-      const res = await fetch("verify_user.php", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-          "Accept": "application/json"
-        },
-        credentials: "same-origin",
-        body: params.toString()
-      });
-
-      const text = await res.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        await showDepartmentPopup({
-          title: "ยืนยันตัวตนไม่สำเร็จ",
-          message: "verify_user.php ไม่ได้ส่ง JSON กลับมา หรือมี PHP error",
-          confirmText: "ตกลง",
-          hideCancel: true,
-          danger: true
-        });
-        return false;
-      }
-
-      if (!res.ok || !data.success) {
-        await showDepartmentPopup({
-          title: "ยืนยันตัวตนไม่สำเร็จ",
-          message: data.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
-          confirmText: "ตกลง",
-          hideCancel: true,
-          danger: true
-        });
-        return false;
-      }
-
-      if (action === "add") {
-        window.location.href = "department_Add.php";
-      } else if (action === "edit") {
-        window.location.href = "department_Edit.php?id=" + encodeURIComponent(id);
-      } else if (action === "delete") {
-        const confirmed = await showDepartmentPopup({
-          title: "ยืนยันการลบภาควิชา",
-          message: "คุณแน่ใจว่าต้องการลบภาควิชานี้หรือไม่?",
-          confirmText: "ลบภาควิชา",
-          cancelText: "ยกเลิก",
-          danger: true
-        });
-        if (confirmed) {
-          window.location.href = "department_Delete.php?id=" + encodeURIComponent(id);
-        }
-      }
-    } catch (err) {
-      await showDepartmentPopup({
-        title: "เกิดข้อผิดพลาด",
-        message: "เกิดข้อผิดพลาดในการยืนยันตัวตน: " + err.message,
-        confirmText: "ตกลง",
-        hideCancel: true,
-        danger: true
-      });
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
     }
   }
 
   document.addEventListener("DOMContentLoaded", async function() {
     const departmentSuccessAction = <?= json_encode($_GET['success'] ?? '') ?>;
-<<<<<<< HEAD
     const departmentErrorAction = <?= json_encode($_GET['error'] ?? '') ?>;
     const departmentErrorDetail = <?= json_encode($_GET['detail'] ?? '') ?>;
-=======
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 
     const departmentSuccessMessages = {
       add: "เพิ่มภาควิชาสำเร็จ",
@@ -382,7 +292,6 @@ $departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
       url.searchParams.delete("success");
       window.history.replaceState({}, document.title, url.toString());
     }
-<<<<<<< HEAD
 
     const departmentErrorMessages = {
       delete_in_use: "ไม่สามารถลบภาควิชานี้ได้",
@@ -405,8 +314,6 @@ $departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
       url.searchParams.delete("detail");
       window.history.replaceState({}, document.title, url.toString());
     }
-=======
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
   });
   </script>
 

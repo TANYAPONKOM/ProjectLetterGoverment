@@ -886,7 +886,6 @@ $len = max(20, $len);
     }
   }
 
-<<<<<<< HEAD
 
 /* ฟอนต์ TH SarabunPSK */
 @font-face {
@@ -913,31 +912,6 @@ body,
 .signature-block {
   font-family: 'TH SarabunPSK', sans-serif !important;
 }
-=======
-  /* ฟอนต์ Sarabun */
-  @font-face {
-    font-family: 'TH SarabunPSK';
-    src: url('/fonts/THSarabunPSK.ttf') format('truetype');
-    font-weight: normal;
-    font-style: normal;
-  }
-
-  @font-face {
-    font-family: 'TH SarabunPSK';
-    src: url('/fonts/THSarabunPSK-Bold.ttf') format('truetype');
-    font-weight: bold;
-    font-style: normal;
-  }
-
-  @font-face {
-    font-family: 'TH SarabunPSK';
-    src: url('fonts/THSarabunPSK.ttf') format('truetype');
-  }
-
-  body {
-    font-family: 'TH SarabunPSK', sans-serif;
-  }
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 
   /* ⭐⭐⭐ อันที่คุณย้ำว่าห้ามหาย — ใส่ให้อยู่ท้ายเหมือนเดิม ⭐⭐⭐ */
   .doc-header .doc-row {
@@ -1466,15 +1440,10 @@ body,
       ณ <span class="chip"><?= h_thai_digits($location ?: '') ?></span>
       วงเงินทั้งสิ้น <span class="chip"><?= h_thai_digits($displayAmountNumber) ?></span> บาท
       (<span class="chip"><?= h_thai_digits($displayAmountThai) ?></span>)
-<<<<<<< HEAD
       โดยขอใช้แหล่งเงินจัดสรรให้หน่วยงาน ประจำปีงบประมาณ พ.ศ.
         <span class="chip" contenteditable="true" data-target="fiscal_year_display">
           <?= h_thai_digits($thaiYear ?: date('Y') + 543) ?>
         </span>
-=======
-      โดยขอใช้แหล่งเงินจัดสรรให้หน่วยงาน ประจำปีงบประมาณ
-      <span class="chip"><?= h_thai_digits($thaiYear ? 'พ.ศ. ' . $thaiYear : 'พ.ศ. ....') ?></span>
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
       ในส่วนของ<?= h_thai_digits($displayDepartmentFull) ?> แผนงานจัดการศึกษาระดับอุดมศึกษา
       กองทุนพัฒนาบุคลากร หมวดค่าใช้สอย
       <span class="keep">(รายละเอียดตามเอกสารแนบ)</span>
@@ -1725,13 +1694,9 @@ body,
       if (!el.dataset.govOriginalText) {
         el.dataset.govOriginalText = (el.textContent || "").trim();
       }
-<<<<<<< HEAD
 
       const originalText = el.dataset.govOriginalText;
       const compactText = originalText.replace(/\s+/gu, "");
-=======
-      el.textContent = el.dataset.govOriginalText;
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
 
       if (page) {
         page.classList.remove("gov-agency-overflow-fit");
@@ -1742,7 +1707,6 @@ body,
       el.style.setProperty("max-width", "none", "important");
       el.style.setProperty("letter-spacing", "normal", "important");
 
-<<<<<<< HEAD
       const fits = () => {
         const lineWidth = Math.floor(line.getBoundingClientRect().width || line.clientWidth);
         const textWidth = Math.ceil(el.getBoundingClientRect().width || el.scrollWidth);
@@ -1768,40 +1732,6 @@ body,
       }
       if (!fits()) {
         el.style.setProperty("letter-spacing", "-0.2px", "important");
-=======
-      let lineWidth = Math.floor(line.getBoundingClientRect().width || line.clientWidth);
-      el.style.setProperty("font-size", "16pt", "important");
-      const widthAtNormalSize = Math.ceil(el.getBoundingClientRect().width || el.scrollWidth);
-      const enteredOverflowCondition = !!lineWidth && widthAtNormalSize > lineWidth + 1;
-
-      // ลบช่องว่างเฉพาะตอนเข้าเงื่อนไขข้อความส่วนราชการเกินเส้นเท่านั้น
-      if (enteredOverflowCondition) {
-        el.textContent = el.dataset.govOriginalText.replace(/\s+/gu, "");
-      }
-
-      const sizes = [16, 15, 14];
-      let stillOverflow = false;
-
-      for (const size of sizes) {
-        el.style.setProperty("font-size", size + "pt", "important");
-        const textWidth = Math.ceil(el.getBoundingClientRect().width || el.scrollWidth);
-        stillOverflow = !!lineWidth && textWidth > lineWidth + 1;
-        if (!stillOverflow) {
-          break;
-        }
-      }
-
-      // ถ้าลดถึง 14 แล้วยังเกินเส้น ค่อยขยับขอบเฉพาะหน้านั้นเท่านั้น
-      if (stillOverflow && page) {
-        page.classList.add("gov-agency-overflow-fit");
-        el.style.setProperty("font-size", "14pt", "important");
-
-        lineWidth = Math.floor(line.getBoundingClientRect().width || line.clientWidth);
-        const textWidth = Math.ceil(el.getBoundingClientRect().width || el.scrollWidth);
-        if (lineWidth && textWidth > lineWidth + 1) {
-          el.style.setProperty("letter-spacing", "-0.2px", "important");
-        }
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
       }
     });
   }

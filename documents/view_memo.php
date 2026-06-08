@@ -460,33 +460,31 @@ $len = max(20, $len);
   <link rel="stylesheet" href="../documents/memo-styles.css">
 
   <style>
-<<<<<<< HEAD
-      @font-face {
-  font-family: 'TH SarabunPSK';
-  src: url('../fonts/THSarabun.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
+  @font-face {
+    font-family: 'TH SarabunPSK';
+    src: url('../fonts/THSarabun.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
 
-@font-face {
-  font-family: 'TH SarabunPSK';
-  src: url('../fonts/THSarabun-Bold.ttf') format('truetype');
-  font-weight: bold;
-  font-style: normal;
-}
+  @font-face {
+    font-family: 'TH SarabunPSK';
+    src: url('../fonts/THSarabun-Bold.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+  }
 
-html,
-body,
-.page,
-.content-block,
-.chip,
-.dot-input,
-.subject-line,
-.signature-block {
-  font-family: 'TH SarabunPSK', sans-serif !important;
-}
-=======
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
+  html,
+  body,
+  .page,
+  .content-block,
+  .chip,
+  .dot-input,
+  .subject-line,
+  .signature-block {
+    font-family: 'TH SarabunPSK', sans-serif !important;
+  }
+
   .memo-title-row {
     position: relative;
     height: 1.65cm;
@@ -833,11 +831,7 @@ body,
 
   <main class="page">
     <div class="memo-title-row">
-<<<<<<< HEAD
-       <img src="/Pro_letter/assets/img/garuda.jpg" class="garuda-img" />
-=======
-      <img src="/pro_letter/assets/img/garuda.jpg" class="garuda-img" />
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
+      <img src="/Pro_letter/assets/img/garuda.jpg" class="garuda-img" />
       <h1 class="doc-title">บันทึกข้อความ</h1>
     </div>
     <div class="doc-row gov-row">
@@ -1354,16 +1348,16 @@ body,
         </a>
 
         <?php if ($canEdit): ?>
-      <a href="/Pro_letter/documents/form_Memo.php?id=<?= (int)$docId ?>"
-        class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
-        แก้ไขเอกสาร
-      </a>
-      <?php else: ?>
-      <span class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block"
-        title="<?= h($editDisabledMessage ?: 'ไม่สามารถแก้ไขเอกสารนี้ได้') ?>">
-        แก้ไขเอกสาร
-      </span>
-      <?php endif; ?>
+        <a href="/Pro_letter/documents/form_Memo.php?id=<?= (int)$docId ?>"
+          class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
+          แก้ไขเอกสาร
+        </a>
+        <?php else: ?>
+        <span class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block"
+          title="<?= h($editDisabledMessage ?: 'ไม่สามารถแก้ไขเอกสารนี้ได้') ?>">
+          แก้ไขเอกสาร
+        </span>
+        <?php endif; ?>
         <a href="<?= $homePath ?>"
           class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md text-xl font-bold">
           กลับหน้าหลัก
@@ -1385,7 +1379,6 @@ body,
       const page = el.closest(".page");
       if (!line) return;
 
-<<<<<<< HEAD
       if (!el.dataset.govOriginalText) {
         el.dataset.govOriginalText = (el.textContent || "").trim();
       }
@@ -1393,8 +1386,6 @@ body,
       const originalText = el.dataset.govOriginalText;
       const compactText = originalText.replace(/\s+/gu, "");
 
-=======
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
       if (page) {
         page.classList.remove("gov-agency-overflow-fit");
       }
@@ -1402,7 +1393,6 @@ body,
       el.style.setProperty("display", "inline-block", "important");
       el.style.setProperty("white-space", "nowrap", "important");
       el.style.setProperty("max-width", "none", "important");
-<<<<<<< HEAD
       el.style.setProperty("letter-spacing", "normal", "important");
 
       const fits = () => {
@@ -1434,36 +1424,6 @@ body,
     });
   }
 
-=======
-
-      const sizes = [16, 15, 14];
-      let lineWidth = Math.floor(line.getBoundingClientRect().width || line.clientWidth);
-      let stillOverflow = false;
-
-      for (const size of sizes) {
-        el.style.setProperty("font-size", size + "pt", "important");
-
-        const textWidth = Math.ceil(el.getBoundingClientRect().width || el.scrollWidth);
-        stillOverflow = !!lineWidth && textWidth > lineWidth + 1;
-        if (!stillOverflow) {
-          break;
-        }
-      }
-
-      // ถ้าลดถึง 14 แล้วยังเกินเส้น ค่อยขยับขอบเฉพาะหน้านั้นเท่านั้น
-      if (stillOverflow && page) {
-        page.classList.add("gov-agency-overflow-fit");
-        el.style.setProperty("font-size", "14pt", "important");
-
-        lineWidth = Math.floor(line.getBoundingClientRect().width || line.clientWidth);
-        const textWidth = Math.ceil(el.getBoundingClientRect().width || el.scrollWidth);
-        if (lineWidth && textWidth > lineWidth + 1) {
-          el.style.setProperty("letter-spacing", "-0.2px", "important");
-        }
-      }
-    });
-  }
->>>>>>> 74fc84333157a4da620127e2e8ede3798723df6a
   document.addEventListener("DOMContentLoaded", () => {
 
     fitGovAgencyText(document);
@@ -1546,7 +1506,7 @@ body,
         }
       });
     }
-if (getQuery("saved") === "1" && getQuery("from") === "update") {
+    if (getQuery("saved") === "1" && getQuery("from") === "update") {
       Swal.fire({
         title: "บันทึกสำเร็จ",
         text: "คุณต้องการกลับไปที่หน้าหลักหรือไม่?",
