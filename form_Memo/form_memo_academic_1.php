@@ -1580,7 +1580,7 @@ $len = max(20, $len);
     </div>
 
     <h2 class="text-[16pt] font-bold mt-4 mb-3 text-left">
-      ตารางสรุปค่าใช้จ่ายในการไปนำเสนอผลงานวิจัย
+      ตารางประมาณการค่าใช้จ่ายในการไปนำเสนอผลงานวิจัย
     </h2>
 
     <table id="expenseTable" style="width:100%; border-collapse:collapse; font-family:'TH SarabunPSK';

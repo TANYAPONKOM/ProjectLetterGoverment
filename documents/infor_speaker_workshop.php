@@ -1986,6 +1986,42 @@ if (!empty($document['header_text']) && preg_match('/โทร\.?\s*([^\s]+)/u',
       return true;
     }
 
+    function clearError(el) {
+      if (!el) return;
+      el.classList.remove("error", "shake");
+      const hint = el.parentElement?.querySelector(".hint");
+      if (hint) hint.remove();
+    }
+
+    function setError(el, msg) {
+      if (!el) return false;
+
+      clearError(el);
+      el.classList.add("error", "shake");
+
+      const hint = document.createElement("div");
+      hint.className = "hint";
+      hint.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24">
+          <path d="M12 9v4m0 4h.01M10.29 3.86l-7.5 13A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.71-3.14l-7.5-13a2 2 0 0 0-3.42 0Z"
+            stroke="#991b1b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>${msg}</span>
+      `;
+      (el.parentElement || el).appendChild(hint);
+
+      return false;
+    }
+
+    function focusFirstError(el) {
+      if (!el) return;
+      el.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
+      setTimeout(() => el.focus?.(), 150);
+    }
+
     function validateSpeakerWorkshopForm() {
       const memoSubject = document.getElementById("memoSubject");
       const referenceOrg = document.getElementById("referenceOrg");
@@ -1998,9 +2034,14 @@ if (!empty($document['header_text']) && preg_match('/โทร\.?\s*([^\s]+)/u',
       const projectTitle = document.getElementById("projectTitle");
       const courseName = document.getElementById("courseName");
       const eventLocation = document.getElementById("eventLocation");
+      const internStart = document.getElementById("internStart");
+      const internEnd = document.getElementById("internEnd");
       const internPeriod = document.getElementById("internPeriod");
+      const travelStart = document.getElementById("travelStart");
+      const travelEnd = document.getElementById("travelEnd");
       const travelPeriod = document.getElementById("travelPeriod");
       const intentionText = document.getElementById("intentionText");
+      const departmentPhone = document.getElementById("departmentPhone");
 
       [
         memoSubject,
@@ -2013,30 +2054,57 @@ if (!empty($document['header_text']) && preg_match('/โทร\.?\s*([^\s]+)/u',
         projectTitle,
         courseName,
         eventLocation,
-        intentionText
-      ].forEach(el => el?.classList.remove("error", "shake"));
+        intentionText,
+        internStart,
+        internEnd,
+        travelStart,
+        travelEnd,
+        departmentPhone
+      ].forEach(clearError);
 
-      if (!memoSubject?.value.trim()) return setError(memoSubject, "กรุณากรอกเรื่อง");
-      if (!teacherName?.value.trim()) return setError(teacherName,
-        "ไม่พบชื่อเจ้าของเอกสาร กรุณาตรวจสอบข้อมูลผู้ใช้งาน");
-      if (!position?.value.trim()) return setError(position, "กรุณากรอกตำแหน่ง");
-      if (!referenceOrg?.value.trim()) return setError(referenceOrg, "กรุณากรอกหน่วยงานผู้ออกหนังสืออ้างอิง");
-      if (!docDateNone?.checked && !docDate?.value.trim()) return setError(docDate,
-        "กรุณาเลือกวัน เดือน ปี ที่ต้องการให้ปรากฎบนบันทึกข้อความ");
-      if (!referenceNo?.value.trim()) return setError(referenceNo, "กรุณากรอกเลขที่หนังสืออ้างอิง");
-      if (!referenceDate?.value.trim()) return setError(referenceDate, "กรุณาเลือกวันที่หนังสืออ้างอิง");
-      if (!projectTitle?.value.trim()) return setError(projectTitle, "กรุณากรอกชื่อโครงการอบรม");
-      if (!courseName?.value.trim()) return setError(courseName, "กรุณากรอกชื่อหลักสูตร");
-      if (!eventLocation?.value.trim()) return setError(eventLocation, "กรุณากรอกสถานที่จัดงาน");
-      if (!intentionText?.value.trim()) return setError(intentionText, "กรุณากรอกความประสงค์");
+      let firstError = null;
 
-      if (!internPeriod?.value.trim()) {
-        alert("กรุณาเลือกวันที่เริ่มและวันที่สิ้นสุดโครงการ");
-        return false;
+      function requireField(el, msg) {
+        if (!el?.value?.trim()) {
+          firstError = firstError || el;
+          setError(el, msg);
+          return false;
+        }
+        return true;
       }
 
-      if (!travelPeriod?.value.trim()) {
-        alert("กรุณาเลือกวันที่เดินทางไปและวันที่เดินทางกลับ");
+      requireField(memoSubject, "กรุณากรอกเรื่อง");
+      requireField(teacherName, "ไม่พบชื่อเจ้าของเอกสาร กรุณาตรวจสอบข้อมูลผู้ใช้งาน");
+      requireField(position, "กรุณากรอกตำแหน่ง");
+      requireField(referenceOrg, "กรุณากรอกหน่วยงานผู้ออกหนังสืออ้างอิง");
+
+      if (!docDateNone?.checked) {
+        requireField(docDate, "กรุณาเลือกวัน เดือน ปี ที่ต้องการให้ปรากฎบนบันทึกข้อความ");
+      }
+
+      requireField(referenceNo, "กรุณากรอกเลขที่หนังสืออ้างอิง");
+      requireField(referenceDate, "กรุณาเลือกวันที่หนังสืออ้างอิง");
+      requireField(projectTitle, "กรุณากรอกชื่อโครงการอบรม");
+      requireField(courseName, "กรุณากรอกชื่อหลักสูตร");
+      requireField(eventLocation, "กรุณากรอกสถานที่จัดงาน");
+      requireField(intentionText, "กรุณากรอกความประสงค์");
+
+      if (!internPeriod?.value?.trim()) {
+        firstError = firstError || internStart;
+        setError(internStart, "กรุณาเลือกวันที่เริ่มโครงการ");
+        setError(internEnd, "กรุณาเลือกวันที่สิ้นสุดโครงการ");
+      }
+
+      if (!travelPeriod?.value?.trim()) {
+        firstError = firstError || travelStart;
+        setError(travelStart, "กรุณาเลือกวันที่เดินทางไป");
+        setError(travelEnd, "กรุณาเลือกวันที่เดินทางกลับ");
+      }
+
+      requireField(departmentPhone, "กรุณากรอกเบอร์โทรภาควิชา");
+
+      if (firstError) {
+        focusFirstError(firstError);
         return false;
       }
 

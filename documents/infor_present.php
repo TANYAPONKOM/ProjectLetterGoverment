@@ -649,7 +649,7 @@ $position    = $formData[3]  ?? '';
   </style>
 
   <script>
-    window.CATEGORY_LOCKED_BY_STATUS = <?= $categoryLocked ? 'true' : 'false' ?>;
+  window.CATEGORY_LOCKED_BY_STATUS = <?= $categoryLocked ? 'true' : 'false' ?>;
   </script>
 </head>
 
@@ -695,7 +695,8 @@ $position    = $formData[3]  ?? '';
         <div class="flex items-center gap-3">
           <label class="lbl text-gray-800 w-28 text-right">หมวดหลัก:</label>
           <div class="relative w-full">
-            <select name="main_category" class="custom-select w-full" id="mainCategory"<?= $categoryLocked ? ' disabled data-category-locked="1"' : '' ?>>
+            <select name="main_category" class="custom-select w-full" id="mainCategory"
+              <?= $categoryLocked ? ' disabled data-category-locked="1"' : '' ?>>
               <option value="">-- เลือกหมวดหลัก --</option>
               <option value="external" <?= ($CURRENT_MAIN=="external"?"selected":"") ?>>ภายนอก</option>
               <option value="internal" <?= ($CURRENT_MAIN=="internal"?"selected":"") ?>>ภายใน</option>
@@ -706,15 +707,16 @@ $position    = $formData[3]  ?? '';
         <div class="flex items-center gap-3">
           <label class="lbl text-gray-800 w-28 text-right">หมวดย่อย:</label>
           <div class="relative w-full">
-            <select name="sub_category" class="custom-select w-full" id="subCategory"<?= $categoryLocked ? ' data-category-locked="1"' : '' ?>
-              data-current="<?= h($CURRENT_SUB ?? '') ?>" disabled>
+            <select name="sub_category" class="custom-select w-full" id="subCategory"
+              <?= $categoryLocked ? ' data-category-locked="1"' : '' ?> data-current="<?= h($CURRENT_SUB ?? '') ?>"
+              disabled>
               <option value="">-- เลือกหมวดย่อย --</option>
             </select>
-              <?php if ($categoryLocked): ?>
-              <input type="hidden" name="main_category" value="<?= h($CURRENT_MAIN ?? '') ?>">
-              <input type="hidden" name="sub_category" value="<?= h($CURRENT_SUB ?? '') ?>">
-              <input type="hidden" name="main_category_locked_value" value="1">
-              <?php endif; ?>
+            <?php if ($categoryLocked): ?>
+            <input type="hidden" name="main_category" value="<?= h($CURRENT_MAIN ?? '') ?>">
+            <input type="hidden" name="sub_category" value="<?= h($CURRENT_SUB ?? '') ?>">
+            <input type="hidden" name="main_category_locked_value" value="1">
+            <?php endif; ?>
           </div>
         </div>
 
@@ -981,6 +983,30 @@ $position    = $formData[3]  ?? '';
       el.classList.add("shake");
       setTimeout(() => el.classList.remove("shake"), 250);
     }
+  }
+
+  function clearHintError(el) {
+    if (!el) return;
+    el.classList.remove("error", "shake");
+    const oldHint = el.parentElement?.querySelector(".hint");
+    if (oldHint) oldHint.remove();
+  }
+
+  function setHintError(el, msg) {
+    if (!el) return;
+    clearHintError(el);
+    el.classList.add("error", "shake");
+
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24">
+        <path d="M12 9v4m0 4h.01M10.29 3.86l-7.5 13A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.71-3.14l-7.5-13a2 2 0 0 0-3.42 0Z"
+          stroke="#991b1b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>${msg}</span>
+    `;
+    (el.parentElement || el).appendChild(hint);
   }
 
   function getSpellBoxByField(el) {
@@ -1576,6 +1602,7 @@ $position    = $formData[3]  ?? '';
     const conferenceLevel = byId("conferenceLevel");
     const conferencePlace = byId("conferencePlace");
     const internPeriod = byId("internPeriod");
+    const signatureAffiliation = byId("signatureAffiliation");
 
     [
       fullName,
@@ -1585,6 +1612,7 @@ $position    = $formData[3]  ?? '';
       conferenceLevel,
       conferencePlace
     ].forEach(el => setErr(el, false));
+    clearHintError(signatureAffiliation);
 
     if (!fullName?.value.trim()) {
       setErr(fullName, true);
@@ -1615,6 +1643,12 @@ $position    = $formData[3]  ?? '';
       setErr(conferencePlace, true);
       firstInvalid = firstInvalid || conferencePlace;
     }
+
+    if (!signatureAffiliation?.value.trim()) {
+      setHintError(signatureAffiliation, "กรุณากรอกหน่วยงานใต้ลายเซ็น");
+      firstInvalid = firstInvalid || signatureAffiliation;
+    }
+
     if (!internPeriod?.value.trim()) {
       alert("กรุณาเลือกวันที่นำเสนอ");
       firstInvalid = firstInvalid || byId("internStart");
@@ -1801,8 +1835,7 @@ $position    = $formData[3]  ?? '';
   }
   </script>
   <script>
-  
-const main = document.getElementById("mainCategory");
+  const main = document.getElementById("mainCategory");
   const sub = document.getElementById("subCategory");
 
   const TEMPLATE_OPTIONS =
@@ -1876,8 +1909,8 @@ const main = document.getElementById("mainCategory");
 
     if (mainVal === "internal" || mainVal === "external") {
       if (!window.CATEGORY_LOCKED_BY_STATUS) {
-          sub.disabled = false;
-        }
+        sub.disabled = false;
+      }
       renderSubOptions(mainVal, currentSub);
     } else {
       sub.disabled = true;

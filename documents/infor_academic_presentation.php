@@ -272,7 +272,7 @@ $expenseDataForEdit = [];
 if ($isEdit) {
     $pdo = db();
     $stmt = $pdo->prepare("
-        SELECT document_id, owner_id, status, header_text
+        SELECT document_id, owner_id, status, header_text, subject
         FROM documents
         WHERE document_id = :id
         LIMIT 1
@@ -441,7 +441,7 @@ $amountStr   = $formData[8]  ?? '';
 $vehicle     = $formData[9]  ?? '';
 $faculty     = $formData[10] ?? '';
 $department  = $formData[11] ?? '';
-$memoSubject   = $formData[14] ?? '';
+$memoSubject   = $formData[14] ?? ($doc['subject'] ?? '');
 $academicTopic = $formData[13] ?? '';
 $academicLevel = $formData[15] ?? '';
 $eventDate     = $formData[16] ?? '';
@@ -1578,6 +1578,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
 
     const carCheckbox = document.getElementById("carCheckbox");
     const carPlateInput = document.getElementById("carPlateInput");
+    const departmentPhone = document.getElementById("departmentPhone");
 
 
     function getSpellLoadingByField(el) {
@@ -2158,7 +2159,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
         memoSubject, academicTopic, academicLevel,
         eventSingleDate, eventStartDate, eventEndDate,
         eventTitle, singleDate, startDate, endDate, rangeDisplay,
-        placeOnsite, amountInput
+        placeOnsite, amountInput, departmentPhone
       ].forEach(clearError);
       let firstError = null;
       const chosenPurpose = document.querySelector('input[name="purpose"]:checked');
@@ -2251,6 +2252,11 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
         firstError = firstError || onlineCheckbox;
         setError(onlineCheckbox, "กรุณาเลือก ออนไลน์ หรือ ออนไซต์");
       }
+      if (!departmentPhone?.value?.trim()) {
+        firstError = firstError || departmentPhone;
+        setError(departmentPhone, "กรุณากรอกเบอร์โทรภาควิชา");
+      }
+
       // หน้านี้เป็นแค่ Step 1 จึงยังไม่บังคับกรอกยอดค่าใช้จ่าย
       // ยอดจริงจะถูกคำนวณ/ตรวจตอนกด "ดำเนินการ" ใน Step 2
       if (noCostCheckbox?.checked && amountInput) {
@@ -2449,7 +2455,7 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
           eventSingleDate, eventStartDate, eventEndDate,
           eventTitle,
           singleDate, startDate, endDate, rangeDisplay,
-          placeOnsite, amountInput, carPlateInput
+          placeOnsite, amountInput, carPlateInput, departmentPhone
         ].forEach(clearError);
 
         let firstError = null;
@@ -2551,6 +2557,11 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
         } else {
           firstError = firstError || (onlineCheckbox || onsiteCheckbox);
           setError((onlineCheckbox || onsiteCheckbox), "กรุณาเลือก ออนไลน์ หรือ ออนไซต์");
+        }
+
+        if (!departmentPhone?.value?.trim()) {
+          firstError = firstError || departmentPhone;
+          setError(departmentPhone, "กรุณากรอกเบอร์โทรภาควิชา");
         }
 
         amountInput.value = (amountInput.value || "").replace(/,/g, "").trim();
@@ -3769,6 +3780,51 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       return !trEnabled?.checked && [...(trList?.children || [])].some(rowHasAnyExpenseInput);
     }
 
+    function showExpenseStep2Error(el, msg) {
+      setError(el, msg);
+      alert(msg);
+      el?.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
+      setTimeout(() => el?.focus?.(), 150);
+      return false;
+    }
+
+    function validateCheckedTransportRowsComplete() {
+      if (!trEnabled?.checked) return true;
+
+      const rows = [...(trList?.children || [])];
+      if (rows.length === 0) {
+        return showExpenseStep2Error(trEnabled, "กรุณาเพิ่มรายการค่าพาหนะอย่างน้อย 1 รายการ");
+      }
+
+      for (const row of rows) {
+        const data = getTransportRowData(row);
+
+        if (data.type === "fuel") {
+          if (!data.origin || !data.destination || n(data.distance) <= 0 || n(data.rate) <= 0 || n(data.trips) <=
+            0) {
+            return showExpenseStep2Error(trEnabled,
+              "กรุณากรอกต้นทาง ปลายทาง ระยะทาง บาท/กม. และจำนวนเที่ยวของค่าพาหนะให้ครบ");
+          }
+        } else if (data.type === "flight") {
+          if (!data.airline || !data.route || n(data.ticket_price) <= 0 || n(data.trips) <= 0 || n(data.people) <=
+            0) {
+            return showExpenseStep2Error(trEnabled,
+              "กรุณากรอกสายการบิน เส้นทางบิน ราคาตั๋ว จำนวนเที่ยว และจำนวนคนของค่าพาหนะให้ครบ");
+          }
+        } else {
+          if (!data.route || n(data.unit_price) <= 0 || n(data.trips) <= 0 || n(data.people) <= 0) {
+            return showExpenseStep2Error(trEnabled,
+              "กรุณากรอกรายละเอียด/เส้นทาง ราคา จำนวนเที่ยว และจำนวนคนของค่าพาหนะให้ครบ");
+          }
+        }
+      }
+
+      return true;
+    }
+
     function validateExpenseStep2() {
       [regEnabled, lodEnabled, perEnabled, trEnabled].forEach(clearError);
 
@@ -3778,14 +3834,41 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
           msg: "กรุณาติ๊กเลือกค่าลงทะเบียนก่อน หากต้องการบันทึกรายการนี้"
         },
         {
+          invalid: regEnabled?.checked && n(regPrice?.value) <= 0,
+          el: regEnabled,
+          msg: "กรุณากรอกค่าลงทะเบียนให้มากกว่า 0 บาท"
+        },
+        {
+          invalid: regEnabled?.checked && n(regPeople?.value || 1) <= 0,
+          el: regEnabled,
+          msg: "กรุณากรอกจำนวนคนของค่าลงทะเบียนให้ถูกต้อง"
+        },
+        {
           invalid: hasLodgingInputWithoutTick(),
           el: lodEnabled,
           msg: "กรุณาติ๊กเลือกค่าที่พักค้างคืนก่อน หากต้องการบันทึกรายการนี้"
         },
         {
+          invalid: lodEnabled?.checked && !String(lodDateText?.value || "").trim(),
+          el: lodEnabled,
+          msg: "กรุณาเลือกช่วงวันที่เข้าพัก"
+        },
+        {
+          invalid: lodEnabled?.checked && (n(lodUnit?.value) <= 0 || n(lodNights?.value || 1) <= 0 || n(lodPeople
+            ?.value || 1) <= 0),
+          el: lodEnabled,
+          msg: "กรุณากรอกราคา/คืน จำนวนคืน และจำนวนคนของค่าที่พักให้ถูกต้อง"
+        },
+        {
           invalid: hasPerDiemInputWithoutTick(),
           el: perEnabled,
           msg: "กรุณาติ๊กเลือกค่าอาหารก่อน หากต้องการบันทึกรายการนี้"
+        },
+        {
+          invalid: perEnabled?.checked && (n(perUnit?.value) <= 0 || n(perMeals?.value || 1) <= 0 || n(perPeople
+            ?.value || 1) <= 0),
+          el: perEnabled,
+          msg: "กรุณากรอกราคา/มื้อ จำนวนมื้อ และจำนวนคนของค่าอาหารให้ถูกต้อง"
         },
         {
           invalid: hasTransportInputWithoutTick(),
@@ -3795,16 +3878,11 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
       ];
 
       const firstInvalid = checks.find(item => item.invalid);
-      if (!firstInvalid) return true;
+      if (firstInvalid) {
+        return showExpenseStep2Error(firstInvalid.el, firstInvalid.msg);
+      }
 
-      setError(firstInvalid.el, firstInvalid.msg);
-      alert(firstInvalid.msg);
-      firstInvalid.el?.scrollIntoView({
-        behavior: "smooth",
-        block: "center"
-      });
-      setTimeout(() => firstInvalid.el?.focus?.(), 150);
-      return false;
+      return validateCheckedTransportRowsComplete();
     }
 
     finalSubmitBtn?.addEventListener("click", (event) => {
@@ -3841,6 +3919,20 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
           if (rangeDisplay?.value?.trim()) {
             joinDate.value = rangeDisplay.value.trim();
           }
+        }
+
+        if (!departmentPhone?.value?.trim()) {
+          showStep1();
+          setError(departmentPhone, "กรุณากรอกเบอร์โทรภาควิชา");
+          setTimeout(() => {
+            departmentPhone.scrollIntoView({
+              behavior: "smooth",
+              block: "center"
+            });
+            departmentPhone.focus?.();
+          }, 150);
+          finalSubmitBtn.disabled = false;
+          return;
         }
 
         // sync สถานที่จาก radio ให้ชัดเจนก่อนส่งจาก Step 2

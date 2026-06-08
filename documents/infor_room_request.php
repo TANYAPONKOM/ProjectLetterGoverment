@@ -1210,6 +1210,9 @@ function checked_value($a, $b) {
   const reasonOtherInput = byId("reasonOtherInput");
   const reasonOtherRadio = byId("reasonOtherRadio");
   const roomType = byId("roomType");
+  const departmentPhone = byId("departmentPhone");
+  const startDate = byId("startDate");
+  const endDate = byId("endDate");
 
   const personTypeRadios = $$('input[name="person_type"]');
   const reasonRadios = $$('input[name="reason"]');
@@ -1892,20 +1895,45 @@ function checked_value($a, $b) {
     otherTypeInput,
     reasonOtherInput,
     singleDate,
+    startDate,
+    endDate,
     rangeDate,
-    roomType
+    roomType,
+    departmentPhone
   ].forEach((el) => {
     if (!el) return;
     el.addEventListener("input", () => setErr(el, false));
     el.addEventListener("change", () => setErr(el, false));
   });
 
-  function setErr(el, isError) {
+  function clearFieldHint(el) {
+    if (!el) return;
+    el.classList.remove("error", "shake", "border-red-500", "ring-2", "ring-red-300");
+    const parent = el.parentElement;
+    const oldHint = parent?.querySelector(":scope > .hint");
+    if (oldHint) oldHint.remove();
+  }
+
+  function setErr(el, isError, msg = "กรุณากรอกข้อมูลให้ครบถ้วน") {
     if (!el) return;
 
-    el.classList.toggle("border-red-500", !!isError);
-    el.classList.toggle("ring-2", !!isError);
-    el.classList.toggle("ring-red-300", !!isError);
+    clearFieldHint(el);
+
+    if (!isError) return;
+
+    el.classList.add("error", "shake", "border-red-500", "ring-2", "ring-red-300");
+    setTimeout(() => el.classList.remove("shake"), 250);
+
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24">
+        <path d="M12 9v4m0 4h.01M10.29 3.86l-7.5 13A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.71-3.14l-7.5-13a2 2 0 0 0-3.42 0Z"
+          stroke="#991b1b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>${msg}</span>
+    `;
+    (el.parentElement || el).appendChild(hint);
   }
 
   function scrollFocus(el) {
@@ -1920,67 +1948,92 @@ function checked_value($a, $b) {
   function validate() {
     let firstInvalid = null;
 
+    [
+      docDateDisplay,
+      toPerson,
+      roomRequestOtherInput,
+      guestFullname,
+      otherTypeInput,
+      reasonOtherInput,
+      singleDate,
+      startDate,
+      endDate,
+      roomType,
+      departmentPhone,
+      ...roomRequestRadios,
+      ...personTypeRadios,
+      ...reasonRadios
+    ].forEach(el => setErr(el, false));
+
     if (!docDateNone?.checked && !docDate.value) {
-      setErr(docDateDisplay, true);
+      setErr(docDateDisplay, true, "กรุณาเลือกวันที่บนบันทึกข้อความ");
       firstInvalid = firstInvalid || docDateDisplay;
     }
+
     if (!toPerson.value.trim()) {
-      setErr(toPerson, true);
+      setErr(toPerson, true, "กรุณากรอกผู้รับหนังสือ");
       firstInvalid = firstInvalid || toPerson;
     }
 
-    const roomRequestRadios = $$('input[name="room_request"]');
     const hasRoomRequest = roomRequestRadios.some(r => r.checked);
-
     if (!hasRoomRequest) {
+      setErr(roomRequestRadios[0], true, "กรุณาเลือกขออนุมัติใช้ห้องพักรับรองสำหรับ");
       firstInvalid = firstInvalid || roomRequestRadios[0];
     }
 
     if (roomRequestOtherRadio.checked && !roomRequestOtherInput.value.trim()) {
-      setErr(roomRequestOtherInput, true);
+      setErr(roomRequestOtherInput, true, "กรุณาระบุรายละเอียดอื่น ๆ");
       firstInvalid = firstInvalid || roomRequestOtherInput;
     }
 
     if (!guestFullname.value.trim()) {
-      setErr(guestFullname, true);
+      setErr(guestFullname, true, "กรุณากรอกชื่อ - นามสกุลผู้เข้าพัก");
       firstInvalid = firstInvalid || guestFullname;
     }
 
     const hasPersonType = personTypeRadios.some(r => r.checked);
     if (!hasPersonType) {
+      setErr(personTypeRadios[0], true, "กรุณาเลือกประเภทผู้เข้าพัก");
       firstInvalid = firstInvalid || personTypeRadios[0];
     }
 
     if (otherTypeRadio.checked && !otherTypeInput.value.trim()) {
-      setErr(otherTypeInput, true);
+      setErr(otherTypeInput, true, "กรุณาระบุประเภทผู้เข้าพัก");
       firstInvalid = firstInvalid || otherTypeInput;
     }
 
     const hasReason = reasonRadios.some(r => r.checked);
     if (!hasReason) {
+      setErr(reasonRadios[0], true, "กรุณาเลือกเหตุผลในการขอใช้ห้องพักรับรอง");
       firstInvalid = firstInvalid || reasonRadios[0];
     }
 
     if (reasonOtherRadio.checked && !reasonOtherInput.value.trim()) {
-      setErr(reasonOtherInput, true);
+      setErr(reasonOtherInput, true, "กรุณาระบุเหตุผลอื่น ๆ");
       firstInvalid = firstInvalid || reasonOtherInput;
     }
 
     if (optSingle.checked) {
       if (!singleDate.value.trim()) {
-        setErr(singleDate, true);
+        setErr(singleDate, true, "กรุณาเลือกวันที่เข้าพัก");
         firstInvalid = firstInvalid || singleDate;
       }
     } else if (optRange.checked) {
       if (!rangeDate.value.trim()) {
-        setErr(rangeDate, true);
-        firstInvalid = firstInvalid || rangeDate;
+        setErr(startDate, true, "กรุณาเลือกวันที่เริ่มต้น");
+        setErr(endDate, true, "กรุณาเลือกวันที่สิ้นสุด");
+        firstInvalid = firstInvalid || startDate;
       }
     }
 
     if (!roomType.value.trim()) {
-      setErr(roomType, true);
+      setErr(roomType, true, "กรุณากรอกห้องพัก/สถานที่ที่ต้องการใช้");
       firstInvalid = firstInvalid || roomType;
+    }
+
+    if (!departmentPhone.value.trim()) {
+      setErr(departmentPhone, true, "กรุณากรอกเบอร์โทรภาควิชา");
+      firstInvalid = firstInvalid || departmentPhone;
     }
 
     if (firstInvalid) {

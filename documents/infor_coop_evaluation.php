@@ -1080,6 +1080,7 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
   const advisorName = byId("advisorName");
   const receiverNameInput = byId("receiverNameInput");
   const receiverPositionInput = byId("receiverPositionInput");
+  const departmentPhone = byId("departmentPhone");
 
   const spellState = {
     subject: {
@@ -1125,12 +1126,56 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
   const approvedTexts = {};
   const correctedTexts = {};
 
-  function setErr(el, on = true) {
+  function getRequiredMessage(el) {
+    if (!el) return "กรุณากรอกข้อมูลให้ครบถ้วน";
+
+    const messages = {
+      subjectInput: "กรุณากรอกเรื่อง",
+      toPerson: "กรุณากรอกเรียนถึง",
+      organizationName: "กรุณากรอกหน่วยงาน",
+      studentCount: "กรุณากรอกจำนวนนักศึกษา",
+      coopStartDate: "กรุณาเลือกวันที่เริ่มต้น",
+      coopEndDate: "กรุณาเลือกวันที่สิ้นสุด",
+      advisorName: "กรุณากรอกผู้รับแบบประเมิน",
+      receiverNameInput: "กรุณากรอกชื่อผู้ลงนาม",
+      receiverPositionInput: "กรุณากรอกตำแหน่งผู้ลงนาม",
+      departmentPhone: "กรุณากรอกเบอร์โทรภาควิชา"
+    };
+
+    if (el.classList?.contains("student-name-input")) {
+      return "กรุณากรอกชื่อนักศึกษา";
+    }
+
+    if (el.classList?.contains("student-id-input")) {
+      return "กรุณากรอกรหัสนักศึกษา";
+    }
+
+    return messages[el.id] || "กรุณากรอกข้อมูลให้ครบถ้วน";
+  }
+
+  function setErr(el, on = true, msg = "") {
     if (!el) return;
+
     el.classList.toggle("error", on);
+
+    const parent = el.parentElement || el;
+    const oldHint = parent.querySelector(".hint");
+    if (oldHint) oldHint.remove();
+
     if (on) {
       el.classList.add("shake");
       setTimeout(() => el.classList.remove("shake"), 250);
+
+      const hint = document.createElement("div");
+      hint.className = "hint";
+      hint.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24">
+          <path d="M12 9v4m0 4h.01M10.29 3.86l-7.5 13A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.71-3.14l-7.5-13a2 2 0 0 0-3.42 0Z"
+            stroke="#991b1b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>${msg || getRequiredMessage(el)}</span>
+      `;
+      parent.appendChild(hint);
     }
   }
 
@@ -1867,6 +1912,7 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
       advisorName,
       receiverNameInput,
       receiverPositionInput,
+      departmentPhone,
       ...studentRows.flatMap(row => [
         row.querySelector(".student-name-input"),
         row.querySelector(".student-id-input")
@@ -1882,7 +1928,8 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
       coopEndDate,
       advisorName,
       receiverNameInput,
-      receiverPositionInput
+      receiverPositionInput,
+      departmentPhone
     ];
 
     requiredFields.forEach(el => {

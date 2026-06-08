@@ -17,6 +17,7 @@ use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\Shared\Converter;
 use PhpOffice\PhpWord\SimpleType\Jc;
+use PhpOffice\PhpWord\Settings;
 
 if (empty($_SESSION['user_id'])) {
     http_response_code(401);
@@ -148,34 +149,38 @@ function coopInlineText($text) {
     return trim($text);
 }
 
-function coopThaiWordWrap($text) {
-    $text = coopInlineText($text);
-    if ($text === '') {
-        return '';
+
+function coopWordSafeXmlText($text) {
+    $text = (string)$text;
+
+    // ตัด control characters ที่ XML/Word ไม่รับ เพราะเป็นสาเหตุหลักที่ทำให้ docx เปิดแล้วฟ้อง unreadable content
+    if ($text !== '' && !mb_check_encoding($text, 'UTF-8')) {
+        $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
     }
-
-    $zwsp = "\u{200B}";
-
-    // ห้ามแทรกกลางตัวอักษรไทยทุกตัว เพราะทำให้สระ/วรรณยุกต์เพี้ยนใน Word
-    $text = preg_replace('/([\/\-–—,;:()（）"“”])/u', '$1' . $zwsp, $text);
-
-    $safeWords = [
-        'ภาควิชา', 'เทคโนโลยีสารสนเทศ', 'คณะ', 'มหาวิทยาลัย', 'วิทยาเขต', 'ปราจีนบุรี',
-        'สหกิจศึกษา', 'ปฏิบัติงาน', 'นักศึกษา', 'หน่วยงาน', 'ของท่าน', 'แบบประเมิน',
-        'แบบสำรวจ', 'คุณลักษณะ', 'สถานประกอบการ', 'ความต้องการ', 'พนักงานที่ปรึกษา',
-        'ข้อมูล', 'รวบรวม', 'วิเคราะห์', 'สรุปผล', 'ความอนุเคราะห์', 'ดำเนินการครั้งต่อไป',
-        'พิจารณา', 'แจ้งผู้เกี่ยวข้อง', 'ขอขอบคุณ', 'โอกาสต่อไป', 'ตั้งแต่วันที่', 'ทั้งนี้',
-        'ในการนี้', 'สุดท้ายนี้', 'จึงเรียนมา', 'รายงานการปฏิบัติงาน', 'ผลรายงาน',
-    ];
-
-    foreach ($safeWords as $word) {
-        $quoted = preg_quote($word, '/');
-        $text = preg_replace('/(' . $quoted . ')/u', '$1' . $zwsp, $text);
-    }
+    $text = str_replace(["\x00", "\x0B", "\x0C"], '', $text);
+    $text = preg_replace('/[^\x{0009}\x{000A}\x{000D}\x{0020}-\x{D7FF}\x{E000}-\x{FFFD}]/u', '', $text);
+    $text = str_replace(["\u{200B}", "\u{FEFF}"], '', $text);
 
     return $text;
 }
 
+function coopWordText($text) {
+    return coopWordSafeXmlText(coopInlineText($text));
+}
+
+function coopThaiWordWrap($text) {
+    // สำหรับ Word ให้คืนข้อความสะอาดเท่านั้น ไม่แทรก ZWSP/ไม่ patch XML
+    // เพื่อให้ไฟล์ .docx เปิดได้ก่อนและไม่เกิด unreadable content
+    return coopWordText($text);
+}
+
+function coopWordJustifyValue($alignment) {
+    // ใช้ค่ามาตรฐานที่ PHPWord/Word รองรับแน่นอน แทน thaiDistribute ที่บางเครื่องเปิดแล้วไฟล์เสีย
+    if ($alignment === 'thaiDistribute' || $alignment === 'distribute' || $alignment === 'both') {
+        return Jc::BOTH;
+    }
+    return $alignment ?: Jc::BOTH;
+}
 function coopNoBorderCell($valign = 'top') {
     return [
         'borderSize' => 0,
@@ -189,7 +194,7 @@ function coopNoBorderCell($valign = 'top') {
 }
 
 function addCoopPairRow($section, $label, $value, $spaceAfter = 0) {
-    $label = coopInlineText($label);
+    $label = coopWordText($label);
     $value = coopThaiWordWrap($value);
 
     $table = $section->addTable([
@@ -229,7 +234,7 @@ function addCoopPara($section, array $parts, $spaceAfter = 20, $firstLineCm = 2.
     }
 
     $section->addText($text, 'normalFont', [
-        'alignment' => $alignment,
+        'alignment' => coopWordJustifyValue($alignment),
         'lineHeight' => 0.94,
         'spaceBefore' => 0,
         'spaceAfter' => $spaceAfter,
@@ -328,7 +333,7 @@ function addCoopHeader($section, $docNo, $displayFaculty, $thaiDocDate, $display
 
     $left = $table->addCell(Converter::cmToTwip(4.95), coopNoBorderCell('top'));
     $left->addText('', 'normalFont', ['spaceAfter' => 800, 'lineHeight' => 1.0]);
-    $left->addText('ที่ ' . coopInlineText($docNo ?: ''), 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
+    $left->addText('ที่ ' . coopWordText($docNo ?: ''), 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
 
     $middle = $table->addCell(Converter::cmToTwip(3.55), coopNoBorderCell('top'));
     if (file_exists($garuda)) {
@@ -342,11 +347,11 @@ function addCoopHeader($section, $docNo, $displayFaculty, $thaiDocDate, $display
 
     $right = $table->addCell(Converter::cmToTwip(8.60), coopNoBorderCell('top'));
     $right->addText('', 'normalFont', ['spaceAfter' => 720, 'lineHeight' => 0.95]);
-    $right->addText(coopClean($displayHeaderAgency !== '' ? $displayHeaderAgency : $displayFaculty), 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
+    $right->addText(coopWordText($displayHeaderAgency !== '' ? $displayHeaderAgency : $displayFaculty), 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
     $right->addText('มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ', 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
     $right->addText('๑๒๙ หมู่ ๒๑ ต.เนินหอม อ.เมือง จ.ปราจีนบุรี ๒๕๒๓๐', 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
 
-    $section->addText(coopClean($thaiDocDate), 'normalFont', [
+    $section->addText(coopWordText($thaiDocDate), 'normalFont', [
         'alignment' => Jc::CENTER,
         'spaceBefore' => 80,
         'spaceAfter' => 160,
@@ -363,12 +368,12 @@ function addCoopSignature($section, $receiverName, $receiverPosition) {
         'lineHeight' => 1.0,
     ]);
 
-    $section->addText('(' . coopInlineText($receiverName) . ')', 'normalFont', [
+    $section->addText('(' . coopWordText($receiverName) . ')', 'normalFont', [
         'alignment' => Jc::CENTER,
         'spaceAfter' => 0,
         'lineHeight' => 1.0,
     ]);
-    $section->addText(coopClean($receiverPosition), 'normalFont', [
+    $section->addText(coopWordText($receiverPosition), 'normalFont', [
         'alignment' => Jc::CENTER,
         'spaceAfter' => 0,
         'lineHeight' => 1.0,
@@ -378,7 +383,7 @@ function addCoopSignature($section, $receiverName, $receiverPosition) {
 function addCoopFooter($section, $displayDepartmentFull) {
     $footer = $section->addFooter();
 
-    $footer->addText(coopClean($displayDepartmentFull), 'normalFont', [
+    $footer->addText(coopWordText($displayDepartmentFull), 'normalFont', [
         'spaceBefore' => 0,
         'spaceAfter' => 0,
         'lineHeight' => 0.9,
@@ -398,7 +403,7 @@ function addCoopFooter($section, $displayDepartmentFull) {
 function addCoopEvaluationPage($phpWord, array $data) {
     $section = $phpWord->addSection([
         'paperSize' => 'A4',
-        'marginTop' => Converter::cmToTwip(2),
+        'marginTop' => Converter::cmToTwip(1.5),
         'marginBottom' => Converter::cmToTwip(1.15),
         'marginLeft' => Converter::cmToTwip(3.0),
         'marginRight' => Converter::cmToTwip(2.0),
@@ -511,14 +516,52 @@ addCoopEvaluationPage($phpWord, [
 ]);
 
 $filename = 'coop_evaluation_' . $docId . '.docx';
-if (ob_get_length()) {
-    ob_end_clean();
+$tmpDir = sys_get_temp_dir();
+if (class_exists(Settings::class)) {
+    Settings::setTempDir($tmpDir);
 }
-header('Content-Description: File Transfer');
-header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-header('Content-Disposition: attachment; filename="' . $filename . '"');
-header('Cache-Control: max-age=0');
+$tmpFile = $tmpDir . DIRECTORY_SEPARATOR . 'coop_word_' . uniqid('', true) . '.docx';
 
-$writer = IOFactory::createWriter($phpWord, 'Word2007');
-$writer->save('php://output');
+try {
+    $writer = IOFactory::createWriter($phpWord, 'Word2007');
+    $writer->save($tmpFile);
+
+    if (!is_file($tmpFile) || filesize($tmpFile) < 100) {
+        throw new RuntimeException('สร้างไฟล์ Word ไม่สำเร็จ');
+    }
+
+    $fh = fopen($tmpFile, 'rb');
+    $sig = $fh ? fread($fh, 2) : '';
+    if ($fh) {
+        fclose($fh);
+    }
+    if ($sig !== 'PK') {
+        throw new RuntimeException('ไฟล์ Word ที่สร้างไม่ใช่ DOCX ที่ถูกต้อง');
+    }
+
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
+    header('Content-Description: File Transfer');
+    header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Content-Transfer-Encoding: binary');
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: public');
+    clearstatcache(true, $tmpFile);
+    header('Content-Length: ' . filesize($tmpFile));
+
+    readfile($tmpFile);
+} catch (Throwable $e) {
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    http_response_code(500);
+    echo 'Word export error: ' . $e->getMessage();
+} finally {
+    if (is_file($tmpFile)) {
+        unlink($tmpFile);
+    }
+}
 exit;

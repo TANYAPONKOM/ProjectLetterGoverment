@@ -1402,7 +1402,7 @@ if ($roleIdForHome === 1) {
             class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md transition">
             ย้อนกลับ
           </button>
-          <button type="submit" id="finalSubmitBtn"
+          <button type="button" id="finalSubmitBtn"
             class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md transition">
             ดำเนินการ
           </button>
@@ -2140,7 +2140,7 @@ if ($roleIdForHome === 1) {
         memoSubject, academicTopic, academicLevel,
         eventSingleDate, eventStartDate, eventEndDate,
         eventTitle, singleDate, startDate, endDate, rangeDisplay,
-        placeOnsite, amountInput
+        placeOnsite, amountInput, departmentPhone
       ].forEach(clearError);
       let firstError = null;
       const chosenPurpose = document.querySelector('input[name="purpose"]:checked');
@@ -2233,6 +2233,11 @@ if ($roleIdForHome === 1) {
         firstError = firstError || onlineCheckbox;
         setError(onlineCheckbox, "กรุณาเลือก ออนไลน์ หรือ ออนไซต์");
       }
+      if (!departmentPhone?.value?.trim()) {
+        firstError = firstError || departmentPhone;
+        setError(departmentPhone, "กรุณากรอกเบอร์โทรภาควิชา");
+      }
+
       // หน้านี้เป็นแค่ Step 1 จึงยังไม่บังคับกรอกยอดค่าใช้จ่าย
       // ยอดจริงจะถูกคำนวณ/ตรวจตอนกด "ดำเนินการ" ใน Step 2
       if (noCostCheckbox?.checked && amountInput) {
@@ -2378,7 +2383,7 @@ if ($roleIdForHome === 1) {
           eventSingleDate, eventStartDate, eventEndDate,
           eventTitle,
           singleDate, startDate, endDate, rangeDisplay,
-          placeOnsite, amountInput, carPlateInput
+          placeOnsite, amountInput, departmentPhone, carPlateInput
         ].forEach(clearError);
 
         let firstError = null;
@@ -2489,6 +2494,11 @@ if ($roleIdForHome === 1) {
         } else {
           firstError = firstError || (onlineCheckbox || onsiteCheckbox);
           setError((onlineCheckbox || onsiteCheckbox), "กรุณาเลือก ออนไลน์ หรือ ออนไซต์");
+        }
+
+        if (!departmentPhone?.value?.trim()) {
+          firstError = firstError || departmentPhone;
+          setError(departmentPhone, "กรุณากรอกเบอร์โทรภาควิชา");
         }
 
         amountInput.value = (amountInput.value || "").replace(/,/g, "").trim();
@@ -3594,18 +3604,15 @@ if ($roleIdForHome === 1) {
     }
 
     function markExpenseBlockError(enabledEl, message) {
-      if (!enabledEl) return;
-      const box = enabledEl.closest(".p-4") || enabledEl.parentElement;
-      if (box) {
-        box.classList.add("error", "shake");
-        setTimeout(() => box.classList.remove("shake"), 450);
-      }
+      if (!enabledEl) return false;
+      setError(enabledEl, message);
       alert(message);
       enabledEl.scrollIntoView({
         behavior: "smooth",
         block: "center"
       });
       setTimeout(() => enabledEl.focus?.(), 150);
+      return false;
     }
 
     function hasRegistrationInput() {
@@ -3635,14 +3642,59 @@ if ($roleIdForHome === 1) {
       });
     }
 
+    function validateTransportRowsComplete() {
+      if (!trEnabled?.checked) return true;
+
+      const rows = [...(trList?.children || [])];
+      if (rows.length === 0) {
+        markExpenseBlockError(trEnabled, "กรุณาเพิ่มรายการ 2.4 ค่าพาหนะ อย่างน้อย 1 รายการ");
+        return false;
+      }
+
+      for (const row of rows) {
+        const data = getTransportRowData(row);
+
+        if (data.type === "fuel") {
+          if (!data.origin || !data.destination || n(data.distance) <= 0 || n(data.rate) <= 0 || n(data.trips) <=
+            0) {
+            markExpenseBlockError(trEnabled,
+              "กรุณากรอกต้นทาง ปลายทาง ระยะทาง บาท/กม. และจำนวนเที่ยวของค่าพาหนะให้ครบ");
+            return false;
+          }
+        } else if (data.type === "flight") {
+          if (!data.airline || !data.route || n(data.ticket_price) <= 0 || n(data.trips) <= 0 || n(data.people) <=
+            0) {
+            markExpenseBlockError(trEnabled,
+              "กรุณากรอกสายการบิน เส้นทางบิน ราคาตั๋ว จำนวนเที่ยว และจำนวนคนของค่าพาหนะให้ครบ");
+            return false;
+          }
+        } else {
+          if (!data.route || n(data.unit_price) <= 0 || n(data.trips) <= 0 || n(data.people) <= 0) {
+            markExpenseBlockError(trEnabled,
+              "กรุณากรอกรายละเอียด/เส้นทาง ราคา จำนวนเที่ยว และจำนวนคนของค่าพาหนะให้ครบ");
+            return false;
+          }
+        }
+      }
+
+      return true;
+    }
+
     function validateExpenseCheckboxes() {
-      [regEnabled, lodEnabled, perEnabled, trEnabled].forEach(el => {
-        const box = el?.closest(".p-4") || el?.parentElement;
-        box?.classList.remove("error", "shake");
-      });
+      [regEnabled, lodEnabled, perEnabled, trEnabled].forEach(clearError);
 
       if (!regEnabled?.checked && hasRegistrationInput()) {
         markExpenseBlockError(regEnabled, "กรุณาติ๊กเลือก 2.1 ค่าลงทะเบียน ก่อนกรอกหรือบันทึกรายการนี้");
+        return false;
+      }
+
+      if (regEnabled?.checked && n(regPrice?.value) <= 0) {
+        markExpenseBlockError(regEnabled, "กรุณากรอกค่าลงทะเบียนให้มากกว่า 0 บาท");
+        return false;
+      }
+
+      if (regEnabled?.checked && n(regPeople?.value || 1) <= 0) {
+        markExpenseBlockError(regEnabled, "กรุณากรอกจำนวนคนของค่าลงทะเบียนให้ถูกต้อง");
         return false;
       }
 
@@ -3651,13 +3703,35 @@ if ($roleIdForHome === 1) {
         return false;
       }
 
+      if (lodEnabled?.checked) {
+        updateLodDateText();
+        if (!String(lodDateText?.value || "").trim()) {
+          markExpenseBlockError(lodEnabled, "กรุณาเลือกช่วงวันที่เข้าพัก");
+          return false;
+        }
+        if (n(lodUnit?.value) <= 0 || n(lodNights?.value || 1) <= 0 || n(lodPeople?.value || 1) <= 0) {
+          markExpenseBlockError(lodEnabled, "กรุณากรอกราคา/คืน จำนวนคืน และจำนวนคนของค่าที่พักให้ถูกต้อง");
+          return false;
+        }
+      }
+
       if (!perEnabled?.checked && hasPerDiemInput()) {
         markExpenseBlockError(perEnabled, "กรุณาติ๊กเลือก 2.3 ค่าอาหาร ก่อนกรอกหรือบันทึกรายการนี้");
         return false;
       }
 
+      if (perEnabled?.checked && (n(perUnit?.value) <= 0 || n(perMeals?.value || 1) <= 0 || n(perPeople?.value ||
+          1) <= 0)) {
+        markExpenseBlockError(perEnabled, "กรุณากรอกราคา/มื้อ จำนวนมื้อ และจำนวนคนของค่าอาหารให้ถูกต้อง");
+        return false;
+      }
+
       if (!trEnabled?.checked && hasTransportInput()) {
         markExpenseBlockError(trEnabled, "กรุณาติ๊กเลือก 2.4 ค่าพาหนะ ก่อนเพิ่มหรือบันทึกรายการนี้");
+        return false;
+      }
+
+      if (!validateTransportRowsComplete()) {
         return false;
       }
 
@@ -3673,19 +3747,42 @@ if ($roleIdForHome === 1) {
     calcAll();
 
     finalSubmitBtn?.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (finalSubmitBtn.disabled) return;
+
       if (!preparePlaceForSubmit(true)) {
-        event.preventDefault();
-        event.stopPropagation();
         return;
       }
 
       if (!noCostCheckbox?.checked && !validateExpenseCheckboxes()) {
-        event.preventDefault();
-        event.stopPropagation();
         return;
       }
-      calcAll();
-      syncExpenseJsonForPresentation();
+
+      finalSubmitBtn.disabled = true;
+
+      try {
+        calcAll();
+        syncExpenseJsonForPresentation();
+        updateMemoHeaderText();
+
+        if (amountInput) {
+          amountInput.disabled = false;
+          amountInput.value = (totalAmountHidden?.value || totalAmountEl?.value || amountInput.value || "0.00")
+            .replace(/,/g, "")
+            .trim();
+        }
+
+        memoForm.action = "save_memo.php";
+
+        // ส่งแบบ native เพื่อไม่ให้ submit handler ตรวจ Step 1 ซ้ำจนขัดกับ Step 2
+        HTMLFormElement.prototype.submit.call(memoForm);
+      } catch (err) {
+        console.error(err);
+        finalSubmitBtn.disabled = false;
+        alert("ไม่สามารถส่งข้อมูลได้ กรุณาตรวจสอบข้อมูลอีกครั้ง");
+      }
     });
 
     function getSpellBoxByField(el) {

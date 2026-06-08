@@ -158,6 +158,18 @@ try {
     || isset($_POST['teacher_count'])
   );
 
+  $isCoopEvaluation = (
+    $purpose === 'coop_evaluation'
+    || $redirectTo === 'form_memo_coop_evaluation.php'
+    || $targetForm === 'infor_coop_evaluation.php'
+    || $targetForm === 'form_memo_coop_evaluation.php'
+    || ($_POST['form_type'] ?? '') === 'coop_evaluation'
+    || ($_POST['document_type'] ?? '') === 'infor_coop_evaluation'
+    || isset($_POST['organization_name'])
+    || isset($_POST['student_count'])
+    || isset($_POST['student_list_json'])
+  );
+
   $isAcademicPresentation = (
     $purpose === 'academic'
     || $redirectTo === 'form_memo_academic_1.php'
@@ -1337,7 +1349,9 @@ exit;
   if ($DEBUG_ERRORS) {
     echo 'server error: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
   } else {
-    if (!empty($isProjectActivity)) {
+    if (!empty($isCoopEvaluation)) {
+      header('Location: /Pro_letter/documents/infor_coop_evaluation.php?id=' . $documentId . '&edit=1&err=server', true, 302);
+    } elseif (!empty($isProjectActivity)) {
       header('Location: /Pro_letter/documents/infor_project_activity.php?id=' . $documentId . '&edit=1&err=server', true, 302);
     } elseif (!empty($isResearchData)) {
       header('Location: /Pro_letter/documents/infor_research_data.php?id=' . $documentId . '&err=server', true, 302);
