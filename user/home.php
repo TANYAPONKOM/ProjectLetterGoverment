@@ -180,6 +180,7 @@ try {
 
   <script>
   const homeDocDetailMap = <?= json_encode($homeDocDetailMap, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+  const currentOwnerName = <?= json_encode($_SESSION['full_name'] ?? $_SESSION['fullname'] ?? $_SESSION['name'] ?? '', JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 
   function cleanHomeDetailValue(value) {
     return String(value || "").replace(/\s+/g, " ").trim();
@@ -224,7 +225,6 @@ try {
       d.join_type || ""
     ].join(" ");
 
-    const fallback = cleanHomeDetailValue(d.course_name || d.memo_subject || d.subject);
     let detailParts = [];
 
     if (textForType.includes("ขออนุมัติใช้ห้องพักรับรอง") || textForType.includes("room_request")) {
@@ -238,7 +238,7 @@ try {
     } else if (textForType.includes("ขอประเมินสถานประกอบการสหกิจศึกษา") || textForType.includes("coop")) {
       const orgName = firstHomeDetailValue(detailMap, [72]);
 
-      if (orgName) detailParts.push(`สถานประกอบการ: ${orgName}`);
+      if (orgName) detailParts.push(`หน่วยงาน: ${orgName}`);
     } else if (textForType.includes("ขอเข้าไปจัดกิจกรรมโครงการ") || textForType.includes("project_activity")) {
       const mainProject = firstHomeDetailValue(detailMap, [61]);
       const subActivity = firstHomeDetailValue(detailMap, [62]);
@@ -262,7 +262,18 @@ try {
     }
 
     const detail = cleanHomeDetailValue(detailParts.join(", "));
-    return detail || fallback || "(ไม่มีรายละเอียด)";
+    if (detail) return detail;
+
+    const courseName = cleanHomeDetailValue(d.course_name);
+    if (courseName) return `ชื่อหลักสูตร: ${courseName}`;
+
+    const memoSubject = cleanHomeDetailValue(d.memo_subject);
+    if (memoSubject) return `เรื่อง: ${memoSubject}`;
+
+    const subject = cleanHomeDetailValue(d.subject);
+    if (subject) return `เรื่อง: ${subject}`;
+
+    return "(ไม่มีรายละเอียด)";
   }
 
   let dataAll = [];
@@ -300,6 +311,11 @@ try {
         d.course_name || "",
         d.subject || "",
         d.memo_subject || "",
+        d.document_type_name || "",
+        d.template_code || "",
+        d.template_name || "",
+        d.question_path || "",
+        d.document_path || "",
         d.form_type || "",
         d.document_type || "",
         d.target_form || "",
@@ -309,7 +325,7 @@ try {
         d.pdf_file || ""
       ].join(" ");
 
-      let title = d.join_type || "";
+      let title = d.join_type || d.template_name || d.document_type_name || d.subject || "";
 
       // แสดงชื่อรายการสำหรับเอกสารนำเสนอผลงานวิจัยให้ตรงกับชื่อฟอร์ม
       if (title.trim() === "นำเสนอผลงานวิจัย") {
@@ -329,9 +345,13 @@ try {
       return {
         document_id: d.document_id,
         join_type: d.join_type || "",
+        template_code: d.template_code || "",
+        template_name: d.template_name || "",
+        document_type_name: d.document_type_name || "",
         route_hint: routeHint,
         title: title || "(ไม่มีชื่อเรื่อง)",
         detail: buildHomeDocumentDetail(d, title, routeHint),
+        owner_name: d.owner_name || d.fullname || d.owner_fullname || d.created_by_name || d.user_name || currentOwnerName || "",
         date: d.doc_date,
 
         raw_status: d.status, // ⭐ สถานะจริง DB
@@ -553,6 +573,11 @@ try {
               ${req.detail}
             </div>
 
+            ${req.owner_name ? `
+            <div class="break-words mt-1">
+              เจ้าของเอกสาร: ${req.owner_name}
+            </div>` : ""}
+
             <!-- สถานะ -->
             <div class="mt-2 flex items-center gap-2">
               <span>สถานะ:</span>
@@ -737,6 +762,10 @@ setInterval(loadRequests, 10000);
       {
         keywords: ["ยินยอมให้นำเสนอผลงาน", "consent_research_presentation"],
         url: "../form_Memo/form_consent_research_presentation.php"
+      },
+      {
+        keywords: ["FREE_DOCUMENT", "free_document", "form_memo_free_document", "infor_free_document", "เอกสารราชการแบบกำหนดเอง", "บันทึกข้อความทั่วไป"],
+        url: "../form_Memo/form_memo_free_document.php"
       },
       {
         keywords: ["นำเสนอผลงานวิจัย", "academic"],

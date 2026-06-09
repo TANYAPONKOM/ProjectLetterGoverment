@@ -71,11 +71,18 @@ function homeFirstValue(...$values) {
 function homeBuildDetail(array $row) {
     $joinType = homeCleanValue($row['join_type'] ?? '');
     $subject = homeCleanValue($row['subject'] ?? '');
-    $hint = $joinType . ' ' . $subject . ' ' . homeCleanValue($row['course_name_raw'] ?? '');
+    $templateCode = homeCleanValue($row['template_code'] ?? '');
+    $templateName = homeCleanValue($row['template_name'] ?? '');
+    $freeSubject = homeFirstValue($row['free_subject'] ?? '', $subject);
+    $hint = $joinType . ' ' . $subject . ' ' . $templateCode . ' ' . $templateName . ' ' . homeCleanValue($row['course_name_raw'] ?? '');
+
+    if ($templateCode === 'FREE_DOCUMENT' || mb_strpos($hint, 'form_memo_free_document') !== false) {
+        return $freeSubject !== '' ? 'เรื่อง: ' . $freeSubject : '(ไม่มีรายละเอียด)';
+    }
 
     $coopOrg = homeCleanValue($row['coop_organization_name'] ?? '');
     if ($coopOrg !== '') {
-        return 'สถานประกอบการ: ' . $coopOrg;
+        return 'หน่วยงาน: ' . $coopOrg;
     }
 
     $roomFor = homeFirstValue($row['room_request_other'] ?? '', $row['room_request'] ?? '');
@@ -116,17 +123,26 @@ function homeBuildDetail(array $row) {
     }
 
     $courseName = homeCleanValue($row['course_name_raw'] ?? '');
-    return $courseName !== '' ? $courseName : '(ไม่มีรายละเอียด)';
+    return $courseName !== '' ? 'ชื่อหลักสูตร: ' . $courseName : '(ไม่มีรายละเอียด)';
 }
 
 $selectSql = "
     SELECT 
       d.document_id,
+      d.owner_id,
+      u.role_id AS owner_role_id,
+      u.role_id AS created_by_role_id,
+      CASE WHEN u.role_id = 2 THEN 1 ELSE 0 END AS is_officer_created_document,
       d.doc_date,
       d.status,
       d.subject,
+      t.template_code,
+      t.template_name,
+      t.question_path,
+      t.document_path,
       MAX(CASE WHEN f.field_key = 'join_type' THEN v.value_text END) AS join_type,
       MAX(CASE WHEN f.field_key = 'course_name' THEN v.value_text END) AS course_name_raw,
+      MAX(CASE WHEN f.field_key IN ('free_subject', 'subject') THEN v.value_text END) AS free_subject,
       MAX(CASE WHEN f.field_key = 'coop_organization_name' THEN v.value_text END) AS coop_organization_name,
       MAX(CASE WHEN f.field_key = 'room_request' THEN v.value_text END) AS room_request,
       MAX(CASE WHEN f.field_key = 'room_request_other' THEN v.value_text END) AS room_request_other,
@@ -138,6 +154,8 @@ $selectSql = "
       MAX(CASE WHEN f.field_key = 'research_thesis_title' THEN v.value_text END) AS research_thesis_title,
       MAX(CASE WHEN f.field_key = 'research_data_detail' THEN v.value_text END) AS research_data_detail
     FROM documents d
+    LEFT JOIN templates t ON d.template_id = t.template_id
+    LEFT JOIN users u ON d.owner_id = u.user_id
     LEFT JOIN document_values v ON d.document_id = v.document_id
     LEFT JOIN template_fields f ON v.field_id = f.field_id
 ";
@@ -146,7 +164,7 @@ if ($roleId == 1 || $roleId == 2) {
 
     // 🟢 admin + officer ทั้งคู่เห็นเอกสารทุกอัน
     $sql = $selectSql . "
-        GROUP BY d.document_id, d.doc_date, d.status, d.subject
+        GROUP BY d.document_id, d.owner_id, u.role_id, d.doc_date, d.status, d.subject, t.template_code, t.template_name, t.question_path, t.document_path
         ORDER BY d.created_at DESC
     ";
     $stmt = $pdo->query($sql);
@@ -156,7 +174,7 @@ if ($roleId == 1 || $roleId == 2) {
     // 🔒 user เห็นเฉพาะของตัวเอง
     $sql = $selectSql . "
         WHERE d.owner_id = :u
-        GROUP BY d.document_id, d.doc_date, d.status, d.subject
+        GROUP BY d.document_id, d.owner_id, u.role_id, d.doc_date, d.status, d.subject, t.template_code, t.template_name, t.question_path, t.document_path
         ORDER BY d.created_at DESC
     ";
     $stmt = $pdo->prepare($sql);

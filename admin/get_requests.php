@@ -5,6 +5,19 @@ $pdo = getPDO();
 
 $userId = $_SESSION['user_id'] ?? 0;
 $roleId = $_SESSION['role_id'] ?? 0;
+$roleName = strtolower((string)($_SESSION['role'] ?? $_SESSION['user_role'] ?? ''));
+
+if (!$roleId && $userId) {
+    try {
+        $roleStmt = $pdo->prepare("SELECT role_id FROM users WHERE user_id = ? LIMIT 1");
+        $roleStmt->execute([$userId]);
+        $roleId = (int)$roleStmt->fetchColumn();
+    } catch (Throwable $e) {
+        $roleId = 0;
+    }
+}
+
+$isReviewer = in_array((int)$roleId, [1, 2], true) || in_array($roleName, ['admin', 'administrator', 'officer'], true);
 
 /* ---------------------------------------------
    ROLE:
@@ -115,8 +128,13 @@ function homeBuildDetail(array $row) {
         ])));
     }
 
+    if (homeCleanValue($row['template_code'] ?? '') === 'FREE_DOCUMENT') {
+        $freeSubject = homeFirstValue($row['free_subject'] ?? '', $row['subject'] ?? '');
+        return $freeSubject !== '' ? 'เรื่อง: ' . $freeSubject : '(ไม่มีรายละเอียด)';
+    }
+
     $courseName = homeCleanValue($row['course_name_raw'] ?? '');
-    return $courseName !== '' ? $courseName : '(ไม่มีรายละเอียด)';
+    return $courseName !== '' ? $courseName : homeFirstValue($row['subject'] ?? '', $row['template_name'] ?? '', '(ไม่มีรายละเอียด)');
 }
 
 $selectSql = "
@@ -125,6 +143,11 @@ $selectSql = "
       d.doc_date,
       d.status,
       d.subject,
+      d.template_id,
+      t.template_code,
+      t.template_name,
+      t.question_path,
+      t.document_path,
       MAX(CASE WHEN f.field_key = 'join_type' THEN v.value_text END) AS join_type,
       MAX(CASE WHEN f.field_key = 'course_name' THEN v.value_text END) AS course_name_raw,
       MAX(CASE WHEN f.field_key = 'coop_organization_name' THEN v.value_text END) AS coop_organization_name,
@@ -136,17 +159,21 @@ $selectSql = "
       MAX(CASE WHEN f.field_key = 'project_main_project' THEN v.value_text END) AS project_main_project,
       MAX(CASE WHEN f.field_key = 'project_sub_activity' THEN v.value_text END) AS project_sub_activity,
       MAX(CASE WHEN f.field_key = 'research_thesis_title' THEN v.value_text END) AS research_thesis_title,
-      MAX(CASE WHEN f.field_key = 'research_data_detail' THEN v.value_text END) AS research_data_detail
+      MAX(CASE WHEN f.field_key = 'research_data_detail' THEN v.value_text END) AS research_data_detail,
+      MAX(CASE WHEN f.field_key = 'free_subject' THEN v.value_text END) AS free_subject,
+      MAX(CASE WHEN f.field_key = 'free_to_person' THEN v.value_text END) AS free_to_person,
+      MAX(CASE WHEN f.field_key = 'free_paragraph_1' THEN v.value_text END) AS free_paragraph_1
     FROM documents d
+    LEFT JOIN templates t ON d.template_id = t.template_id
     LEFT JOIN document_values v ON d.document_id = v.document_id
     LEFT JOIN template_fields f ON v.field_id = f.field_id
 ";
 
-if ($roleId == 1 || $roleId == 2) {
+if ($isReviewer) {
 
     // 🟢 admin + officer ทั้งคู่เห็นเอกสารทุกอัน
     $sql = $selectSql . "
-        GROUP BY d.document_id, d.doc_date, d.status, d.subject
+        GROUP BY d.document_id, d.doc_date, d.status, d.subject, d.template_id, t.template_code, t.template_name, t.question_path, t.document_path
         ORDER BY d.created_at DESC
     ";
     $stmt = $pdo->query($sql);
@@ -156,7 +183,7 @@ if ($roleId == 1 || $roleId == 2) {
     // 🔒 user เห็นเฉพาะของตัวเอง
     $sql = $selectSql . "
         WHERE d.owner_id = :u
-        GROUP BY d.document_id, d.doc_date, d.status, d.subject
+        GROUP BY d.document_id, d.doc_date, d.status, d.subject, d.template_id, t.template_code, t.template_name, t.question_path, t.document_path
         ORDER BY d.created_at DESC
     ";
     $stmt = $pdo->prepare($sql);
