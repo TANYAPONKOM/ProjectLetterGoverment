@@ -1,7 +1,7 @@
 <?php  // pro_letter/admin/department_report_dashboard.php
 session_start();
 
-if (!isset($_SESSION['role_id']) || (int)$_SESSION['role_id'] !== 1) {
+if (!isset($_SESSION['role_id']) || (int) $_SESSION['role_id'] !== 1) {
   header('Location: ../login.html');
   exit;
 }
@@ -11,8 +11,9 @@ $pdo = getPDO();
 $current = basename($_SERVER['PHP_SELF']);
 
 if (!function_exists('h')) {
-  function h($value) {
-    return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
+  function h($value)
+  {
+    return htmlspecialchars((string) ($value ?? ''), ENT_QUOTES, 'UTF-8');
   }
 }
 
@@ -48,7 +49,7 @@ $departmentWhereSql = "";
 $departmentParams = [];
 if ($departmentId !== '' && $departmentId !== 'all') {
   $departmentWhereSql = " WHERE dep.department_id = ?";
-  $departmentParams[] = (int)$departmentId;
+  $departmentParams[] = (int) $departmentId;
 }
 
 $departmentSql = "
@@ -108,7 +109,7 @@ if ($dateTo !== '') {
 $templateWhereSql = "";
 if ($departmentId !== '' && $departmentId !== 'all') {
   $templateWhereSql = " AND dep.department_id = ?";
-  $templateParams[] = (int)$departmentId;
+  $templateParams[] = (int) $departmentId;
 }
 
 $templateSql = "
@@ -236,34 +237,38 @@ $templateRows = $templateStmt->fetchAll(PDO::FETCH_ASSOC);
 
 $departmentList = $pdo->query("SELECT department_id, department_name FROM departments ORDER BY department_id ASC")->fetchAll(PDO::FETCH_ASSOC);
 
-$totalDocs = array_sum(array_map(fn($r) => (int)$r['total_docs'], $departmentRows));
-$totalUsers = array_sum(array_map(fn($r) => (int)$r['total_users'], $departmentRows));
-$totalApproved = array_sum(array_map(fn($r) => (int)$r['approved_docs'], $departmentRows));
-$totalPending = array_sum(array_map(fn($r) => (int)$r['pending_docs'], $departmentRows));
-$totalRejected = array_sum(array_map(fn($r) => (int)$r['rejected_docs'], $departmentRows));
-$activeDepartments = count(array_filter($departmentRows, fn($r) => (int)$r['total_docs'] > 0));
+$totalDocs = array_sum(array_map(fn($r) => (int) $r['total_docs'], $departmentRows));
+$totalUsers = array_sum(array_map(fn($r) => (int) $r['total_users'], $departmentRows));
+$totalApproved = array_sum(array_map(fn($r) => (int) $r['approved_docs'], $departmentRows));
+$totalPending = array_sum(array_map(fn($r) => (int) $r['pending_docs'], $departmentRows));
+$totalRejected = array_sum(array_map(fn($r) => (int) $r['rejected_docs'], $departmentRows));
+$activeDepartments = count(array_filter($departmentRows, fn($r) => (int) $r['total_docs'] > 0));
 $topDepartment = '-';
 foreach ($departmentRows as $r) {
-  if ((int)$r['total_docs'] > 0) {
+  if ((int) $r['total_docs'] > 0) {
     $topDepartment = $r['department_name'];
     break;
   }
 }
 
 $chartLabels = array_map(fn($r) => $r['department_name'], $departmentRows);
-$chartTotalDocs = array_map(fn($r) => (int)$r['total_docs'], $departmentRows);
-$chartApproved = array_map(fn($r) => (int)$r['approved_docs'], $departmentRows);
-$chartPending = array_map(fn($r) => (int)$r['pending_docs'], $departmentRows);
-$chartRejected = array_map(fn($r) => (int)$r['rejected_docs'], $departmentRows);
+$chartTotalDocs = array_map(fn($r) => (int) $r['total_docs'], $departmentRows);
+$chartApproved = array_map(fn($r) => (int) $r['approved_docs'], $departmentRows);
+$chartPending = array_map(fn($r) => (int) $r['pending_docs'], $departmentRows);
+$chartRejected = array_map(fn($r) => (int) $r['rejected_docs'], $departmentRows);
 
-function statusPercent($part, $total) {
-  $total = (int)$total;
-  if ($total <= 0) return 0;
-  return round(((int)$part / $total) * 100, 1);
+function statusPercent($part, $total)
+{
+  $total = (int) $total;
+  if ($total <= 0)
+    return 0;
+  return round(((int) $part / $total) * 100, 1);
 }
 
-function thaiDateTime($date) {
-  if (empty($date)) return '-';
+function thaiDateTime($date)
+{
+  if (empty($date))
+    return '-';
   return date('d/m/Y H:i', strtotime($date));
 }
 
@@ -298,10 +303,9 @@ function thaiDateTime($date) {
             <select name="department_id" class="border rounded-lg px-3 py-2 text-sm min-w-[240px]">
               <option value="all">ทุกภาควิชา</option>
               <?php foreach ($departmentList as $dep): ?>
-              <option value="<?= (int)$dep['department_id'] ?>"
-                <?= (string)$departmentId === (string)$dep['department_id'] ? 'selected' : '' ?>>
-                <?= h($dep['department_name']) ?>
-              </option>
+                <option value="<?= (int) $dep['department_id'] ?>" <?= (string) $departmentId === (string) $dep['department_id'] ? 'selected' : '' ?>>
+                  <?= h($dep['department_name']) ?>
+                </option>
               <?php endforeach; ?>
             </select>
           </div>
@@ -390,23 +394,23 @@ function thaiDateTime($date) {
             </thead>
             <tbody class="bg-white divide-y divide-gray-100 text-sm">
               <?php if (empty($departmentRows)): ?>
-              <tr>
-                <td colspan="9" class="px-4 py-6 text-center text-gray-500">ไม่พบข้อมูล</td>
-              </tr>
+                <tr>
+                  <td colspan="9" class="px-4 py-6 text-center text-gray-500">ไม่พบข้อมูล</td>
+                </tr>
               <?php endif; ?>
 
               <?php foreach ($departmentRows as $row): ?>
-              <tr class="hover:bg-gray-50">
-                <td class="px-4 py-3 font-semibold text-gray-800 min-w-[260px]"><?= h($row['department_name']) ?></td>
-                <td class="px-4 py-3 text-center"><?= number_format((int)$row['total_users']) ?></td>
-                <td class="px-4 py-3 text-center"><?= number_format((int)$row['submitter_count']) ?></td>
-                <td class="px-4 py-3 text-center font-semibold"><?= number_format((int)$row['total_docs']) ?></td>
-                <td class="px-4 py-3 text-center text-yellow-700"><?= number_format((int)$row['pending_docs']) ?></td>
-                <td class="px-4 py-3 text-center text-green-700"><?= number_format((int)$row['approved_docs']) ?></td>
-                <td class="px-4 py-3 text-center text-red-700"><?= number_format((int)$row['rejected_docs']) ?></td>
-                <td class="px-4 py-3 text-center"><?= statusPercent($row['approved_docs'], $row['total_docs']) ?>%</td>
-                <td class="px-4 py-3 text-gray-600 min-w-[130px]"><?= h(thaiDateTime($row['last_used_at'])) ?></td>
-              </tr>
+                <tr class="hover:bg-gray-50">
+                  <td class="px-4 py-3 font-semibold text-gray-800 min-w-[260px]"><?= h($row['department_name']) ?></td>
+                  <td class="px-4 py-3 text-center"><?= number_format((int) $row['total_users']) ?></td>
+                  <td class="px-4 py-3 text-center"><?= number_format((int) $row['submitter_count']) ?></td>
+                  <td class="px-4 py-3 text-center font-semibold"><?= number_format((int) $row['total_docs']) ?></td>
+                  <td class="px-4 py-3 text-center text-yellow-700"><?= number_format((int) $row['pending_docs']) ?></td>
+                  <td class="px-4 py-3 text-center text-green-700"><?= number_format((int) $row['approved_docs']) ?></td>
+                  <td class="px-4 py-3 text-center text-red-700"><?= number_format((int) $row['rejected_docs']) ?></td>
+                  <td class="px-4 py-3 text-center"><?= statusPercent($row['approved_docs'], $row['total_docs']) ?>%</td>
+                  <td class="px-4 py-3 text-gray-600 min-w-[130px]"><?= h(thaiDateTime($row['last_used_at'])) ?></td>
+                </tr>
               <?php endforeach; ?>
             </tbody>
           </table>
@@ -417,19 +421,20 @@ function thaiDateTime($date) {
         <h2 class="text-lg font-bold text-gray-800 mb-4">ประเภทเอกสารที่ถูกใช้มากสุด</h2>
         <div class="space-y-3">
           <?php if (empty($templateRows)): ?>
-          <div class="text-sm text-gray-500">ไม่พบข้อมูลประเภทเอกสาร</div>
+            <div class="text-sm text-gray-500">ไม่พบข้อมูลประเภทเอกสาร</div>
           <?php endif; ?>
 
           <?php foreach ($templateRows as $item): ?>
-          <div class="border rounded-lg p-3">
-            <div class="text-sm font-semibold text-gray-800"><?= h($item['template_name']) ?></div>
-            <div class="text-xs text-gray-500 mt-1">
-              <?= ($departmentId !== '' && $departmentId !== 'all') ? 'เฉพาะภาควิชาที่เลือก' : 'รวมทุกภาควิชา' ?></div>
-            <div class="mt-2 flex items-center justify-between text-sm">
-              <span class="text-gray-500">จำนวนเอกสาร</span>
-              <span class="font-bold text-teal-600"><?= number_format((int)$item['total_docs']) ?></span>
+            <div class="border rounded-lg p-3">
+              <div class="text-sm font-semibold text-gray-800"><?= h($item['template_name']) ?></div>
+              <div class="text-xs text-gray-500 mt-1">
+                <?= ($departmentId !== '' && $departmentId !== 'all') ? 'เฉพาะภาควิชาที่เลือก' : 'รวมทุกภาควิชา' ?>
+              </div>
+              <div class="mt-2 flex items-center justify-between text-sm">
+                <span class="text-gray-500">จำนวนเอกสาร</span>
+                <span class="font-bold text-teal-600"><?= number_format((int) $item['total_docs']) ?></span>
+              </div>
             </div>
-          </div>
           <?php endforeach; ?>
         </div>
       </div>
@@ -437,19 +442,19 @@ function thaiDateTime($date) {
   </main>
 
   <script>
-  const chartLabels = <?= json_encode($chartLabels, JSON_UNESCAPED_UNICODE) ?>;
-  const chartTotalDocs = <?= json_encode($chartTotalDocs) ?>;
-  const chartApproved = <?= json_encode($chartApproved) ?>;
-  const chartPending = <?= json_encode($chartPending) ?>;
-  const chartRejected = <?= json_encode($chartRejected) ?>;
+    const chartLabels = <?= json_encode($chartLabels, JSON_UNESCAPED_UNICODE) ?>;
+    const chartTotalDocs = <?= json_encode($chartTotalDocs) ?>;
+    const chartApproved = <?= json_encode($chartApproved) ?>;
+    const chartPending = <?= json_encode($chartPending) ?>;
+    const chartRejected = <?= json_encode($chartRejected) ?>;
 
-  const departmentBarChart = document.getElementById("departmentBarChart");
-  if (departmentBarChart) {
-    new Chart(departmentBarChart, {
-      type: "bar",
-      data: {
-        labels: chartLabels,
-        datasets: [{
+    const departmentBarChart = document.getElementById("departmentBarChart");
+    if (departmentBarChart) {
+      new Chart(departmentBarChart, {
+        type: "bar",
+        data: {
+          labels: chartLabels,
+          datasets: [{
             label: "เอกสารทั้งหมด",
             data: chartTotalDocs,
             backgroundColor: "#14b8a6"
@@ -469,48 +474,48 @@ function thaiDateTime($date) {
             data: chartRejected,
             backgroundColor: "#ef4444"
           }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: {
-            position: "bottom"
-          }
+          ]
         },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: {
-              precision: 0
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: "bottom"
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                precision: 0
+              }
             }
           }
         }
-      }
-    });
-  }
+      });
+    }
 
-  const statusDoughnutChart = document.getElementById("statusDoughnutChart");
-  if (statusDoughnutChart) {
-    new Chart(statusDoughnutChart, {
-      type: "doughnut",
-      data: {
-        labels: ["รอตรวจสอบ", "ผ่านการตรวจสอบ", "ไม่ผ่าน"],
-        datasets: [{
-          data: [<?= (int)$totalPending ?>, <?= (int)$totalApproved ?>, <?= (int)$totalRejected ?>],
-          backgroundColor: ["#f59e0b", "#22c55e", "#ef4444"]
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: {
-            position: "bottom"
+    const statusDoughnutChart = document.getElementById("statusDoughnutChart");
+    if (statusDoughnutChart) {
+      new Chart(statusDoughnutChart, {
+        type: "doughnut",
+        data: {
+          labels: ["รอตรวจสอบ", "ผ่านการตรวจสอบ", "ไม่ผ่าน"],
+          datasets: [{
+            data: [<?= (int) $totalPending ?>, <?= (int) $totalApproved ?>, <?= (int) $totalRejected ?>],
+            backgroundColor: ["#f59e0b", "#22c55e", "#ef4444"]
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: "bottom"
+            }
           }
         }
-      }
-    });
-  }
+      });
+    }
   </script>
 </body>
 
