@@ -659,12 +659,7 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
     if ($coopEvaluationEmail !== '' && !filter_var($coopEvaluationEmail, FILTER_VALIDATE_EMAIL)) {
       $errors['evaluation_email'] = 'invalid';
     }
-    if ($coopReceiverName === '') {
-      $errors['receiver_name'] = 'required';
-    }
-    if ($coopReceiverPosition === '') {
-      $errors['receiver_position'] = 'required';
-    }
+ 
   } elseif ($isProjectActivity) {
     if ($docDate === '') {
       $errors['doc_date'] = 'required';
@@ -1024,8 +1019,6 @@ if ($isFreeDocument) {
         78 => $coopEndDate,
         79 => $coopAdvisorName,
         80 => $coopEvaluationEmail,
-        82 => $coopReceiverName,
-        83 => $coopReceiverPosition,
     ];
 
     $valuesByKey = [
@@ -1040,8 +1033,6 @@ if ($isFreeDocument) {
         'coop_end_date'           => $coopEndDate,
         'coop_advisor_name'       => $coopAdvisorName,
         'coop_evaluation_email'   => $coopEvaluationEmail,
-        'coop_receiver_name'      => $coopReceiverName,
-        'coop_receiver_position'  => $coopReceiverPosition,
     ];
 
 } elseif ($isProjectActivity) {
@@ -1065,8 +1056,6 @@ if ($isFreeDocument) {
         'project_participant_count' => $projectParticipantCount,
         'project_activity_period'   => $projectActivityPeriod,
         'project_lecturer_names'    => $projectLecturerNames,
-        'project_receiver_name'     => $projectReceiverName,
-        'project_receiver_position' => $projectReceiverPosition,
     ];
 
 } elseif ($isResearchData) {

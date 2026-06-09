@@ -992,11 +992,13 @@ $formAction = $isEdit ? '/Pro_letter/documents/update_memo.php' : '/Pro_letter/d
             เวลา :
           </label>
 
-          <input type="text" id="timeStart" class="border rounded-md p-2 w-40" value="<?= h($timeStartValue) ?>" placeholder="เลือกเวลา">
+          <input type="text" id="timeStart" class="border rounded-md p-2 w-40" value="<?= h($timeStartValue) ?>"
+            placeholder="เลือกเวลา">
 
           <span>ถึง</span>
 
-          <input type="text" id="timeEnd" class="border rounded-md p-2 w-40" value="<?= h($timeEndValue) ?>" placeholder="เลือกเวลา">
+          <input type="text" id="timeEnd" class="border rounded-md p-2 w-40" value="<?= h($timeEndValue) ?>"
+            placeholder="เลือกเวลา">
 
           <input type="hidden" name="event_time" id="eventTime" value="<?= h($eventTimeValue) ?>">
         </div>
@@ -1035,29 +1037,6 @@ $formAction = $isEdit ? '/Pro_letter/documents/update_memo.php' : '/Pro_letter/d
       </div>
     </div>
   </form>
-  <script>
-  const profileBtn = document.getElementById("profileBtn");
-  const profileMenu = document.getElementById("profileMenu");
-
-  if (profileBtn && profileMenu) {
-    profileBtn.addEventListener("click", function(event) {
-      event.stopPropagation();
-      profileMenu.classList.toggle("hidden");
-    });
-
-    document.addEventListener("click", function(event) {
-      if (!profileBtn.contains(event.target) && !profileMenu.contains(event.target)) {
-        profileMenu.classList.add("hidden");
-      }
-    });
-  }
-
-  function closeMenu() {
-    if (profileMenu) {
-      profileMenu.classList.add("hidden");
-    }
-  }
-  </script>
   <script>
   const byId = (id) => document.getElementById(id);
   const form = byId("memoForm");
@@ -2198,7 +2177,9 @@ $formAction = $isEdit ? '/Pro_letter/documents/update_memo.php' : '/Pro_letter/d
       if (window.CATEGORY_LOCKED_BY_STATUS) return;
       sub.dataset.current = "";
       syncUI(false);
-      sub.dispatchEvent(new Event("change", { bubbles: true }));
+      sub.dispatchEvent(new Event("change", {
+        bubbles: true
+      }));
     });
 
     sub.addEventListener("focus", () => {

@@ -1008,42 +1008,6 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
         </div>
       </div>
 
-      <!-- 8. ชื่อผู้ลงนามท้ายเอกสาร -->
-      <div class="mb-4 flex items-start gap-1">
-        <label class="lbl text-gray-800 whitespace-nowrap w-48 pt-2" for="receiverNameInput">
-          8. ชื่อผู้ลงนาม :
-        </label>
-
-        <div class="flex-1">
-          <input type="text" name="receiver_name" id="receiverNameInput" class="w-full border rounded-md p-2"
-            value="<?= h($projectReceiverName) ?>" placeholder="เช่น ผู้ช่วยศาสตราจารย์พีระศักดิ์ เสรีกุล">
-          <p class="text-sm text-gray-500 mt-1">
-            ชื่อนี้จะใช้แสดงบริเวณลายเซ็นท้ายเอกสาร เช่น (ผู้ช่วยศาสตราจารย์พีระศักดิ์ เสรีกุล)
-          </p>
-        </div>
-      </div>
-
-      <!-- 9. ตำแหน่งผู้ลงนามท้ายเอกสาร -->
-      <div class="mb-4 flex items-start gap-1">
-        <label class="lbl text-gray-800 whitespace-nowrap w-48 pt-2" for="receiverPositionInput">
-          9. ตำแหน่งผู้ลงนาม :
-        </label>
-
-        <div class="flex-1">
-          <input type="text" name="receiver_position" id="receiverPositionInput" data-spell-field="receiver_position"
-            class="w-full border rounded-md p-2" value="<?= h($projectReceiverPosition) ?>"
-            placeholder="เช่น คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม">
-
-          <div id="receiverPositionInputSpellBox" class="spell-box hidden"></div>
-          <div id="receiverPositionInputSpellLoading" class="spell-loading hidden">
-            <div class="spell-loading-row">
-              <div class="spell-spinner"></div>
-              <span>กำลังตรวจคำผิด...</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- ปุ่ม -->
       <div class="relative mt-20">
         <div class="absolute right-0 bottom-0">
@@ -1077,8 +1041,6 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
   const coopEndDate = byId("coopEndDate");
   const coopPeriod = byId("coopPeriod");
   const advisorName = byId("advisorName");
-  const receiverNameInput = byId("receiverNameInput");
-  const receiverPositionInput = byId("receiverPositionInput");
   const departmentPhone = byId("departmentPhone");
 
   const spellState = {
@@ -1111,13 +1073,6 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
       errors: [],
       lastText: ""
     },
-    receiver_position: {
-      checked: false,
-      hasError: false,
-      ignored: false,
-      errors: [],
-      lastText: ""
-    }
   };
 
   const spellCache = {};
@@ -1136,8 +1091,6 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
       coopStartDate: "กรุณาเลือกวันที่เริ่มต้น",
       coopEndDate: "กรุณาเลือกวันที่สิ้นสุด",
       advisorName: "กรุณากรอกผู้รับแบบประเมิน",
-      receiverNameInput: "กรุณากรอกชื่อผู้ลงนาม",
-      receiverPositionInput: "กรุณากรอกตำแหน่งผู้ลงนาม",
       departmentPhone: "กรุณากรอกเบอร์โทรภาควิชา"
     };
 
@@ -1390,7 +1343,6 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
     if (el.id === "organizationName") return byId("organizationNameSpellBox");
     if (el.id === "studentName") return byId("studentNameSpellBox");
     if (el.id === "advisorName") return byId("advisorNameSpellBox");
-    if (el.id === "receiverPositionInput") return byId("receiverPositionInputSpellBox");
     return null;
   }
 
@@ -1401,7 +1353,6 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
     if (el.id === "organizationName") return byId("organizationNameSpellLoading");
     if (el.id === "studentName") return byId("studentNameSpellLoading");
     if (el.id === "advisorName") return byId("advisorNameSpellLoading");
-    if (el.id === "receiverPositionInput") return byId("receiverPositionInputSpellLoading");
     return null;
   }
 
@@ -1860,7 +1811,6 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
       toPerson,
       organizationName,
       advisorName,
-      receiverPositionInput
     ];
 
     for (const el of fields) {
@@ -1923,8 +1873,6 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
       coopStartDate,
       coopEndDate,
       advisorName,
-      receiverNameInput,
-      receiverPositionInput,
       departmentPhone,
       ...studentRows.flatMap(row => [
         row.querySelector(".student-name-input"),
@@ -1940,8 +1888,6 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
       coopStartDate,
       coopEndDate,
       advisorName,
-      receiverNameInput,
-      receiverPositionInput,
       departmentPhone
     ];
 

@@ -1082,42 +1082,6 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
         </div>
       </div>
 
-      <!-- 12. ชื่อผู้ลงนามท้ายเอกสาร -->
-      <div class="mb-4 flex items-start gap-4">
-        <label class="lbl text-gray-800 whitespace-nowrap w-56 pt-2" for="receiverNameInput">
-          12. ชื่อผู้ลงนามท้ายเอกสาร :
-        </label>
-
-        <div class="flex-1">
-          <input type="text" name="receiver_name" id="receiverNameInput" class="w-full border rounded-md p-2"
-            value="<?= h($projectReceiverName) ?>" placeholder="เช่น ผู้ช่วยศาสตราจารย์พีระศักดิ์ เสรีกุล">
-          <p class="text-sm text-gray-500 mt-1">
-            ชื่อนี้จะใช้แสดงบริเวณลายเซ็นท้ายเอกสาร เช่น (ผู้ช่วยศาสตราจารย์พีระศักดิ์ เสรีกุล)
-          </p>
-        </div>
-      </div>
-
-      <!-- 13. ตำแหน่งผู้ลงนามท้ายเอกสาร -->
-      <div class="mb-4 flex items-start gap-4">
-        <label class="lbl text-gray-800 whitespace-nowrap w-56 pt-2" for="receiverPositionInput">
-          13. ตำแหน่งผู้ลงนามท้ายเอกสาร :
-        </label>
-
-        <div class="flex-1">
-          <input type="text" name="receiver_position" id="receiverPositionInput" data-spell-field="receiver_position"
-            class="w-full border rounded-md p-2" value="<?= h($projectReceiverPosition) ?>"
-            placeholder="เช่น คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม">
-
-          <div id="receiverPositionInputSpellBox" class="spell-box hidden"></div>
-          <div id="receiverPositionInputSpellLoading" class="spell-loading hidden">
-            <div class="spell-loading-row">
-              <div class="spell-spinner"></div>
-              <span>กำลังตรวจคำผิด...</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- ปุ่ม -->
       <div class="relative mt-20">
         <div class="absolute right-0 bottom-0">
@@ -1155,8 +1119,6 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
   const docDateNone = byId("docDateNone");
 
   const lecturerNames = byId("lecturerNames");
-  const receiverNameInput = byId("receiverNameInput");
-  const receiverPositionInput = byId("receiverPositionInput");
   const initialActivityPeriod = <?= json_encode($projectActivityPeriod, JSON_UNESCAPED_UNICODE) ?>;
 
   const spellState = {
@@ -1210,13 +1172,6 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
       lastText: ""
     },
     lecturer_names: {
-      checked: false,
-      hasError: false,
-      ignored: false,
-      errors: [],
-      lastText: ""
-    },
-    receiver_position: {
       checked: false,
       hasError: false,
       ignored: false,
@@ -1416,7 +1371,6 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
     if (el.id === "toPerson") return byId("toPersonSpellBox");
     if (el.id === "schoolName") return byId("schoolNameSpellBox");
     if (el.id === "lecturerNames") return byId("lecturerNamesSpellBox");
-    if (el.id === "receiverPositionInput") return byId("receiverPositionInputSpellBox");
     return null;
   }
 
@@ -1430,7 +1384,6 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
     if (el.id === "toPerson") return byId("toPersonSpellLoading");
     if (el.id === "schoolName") return byId("schoolNameSpellLoading");
     if (el.id === "lecturerNames") return byId("lecturerNamesSpellLoading");
-    if (el.id === "receiverPositionInput") return byId("receiverPositionInputSpellLoading");
     return null;
   }
 
@@ -1851,7 +1804,6 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
       objectiveDetail,
       targetGroup,
       lecturerNames,
-      receiverPositionInput
     ];
 
     for (const el of fields) {
@@ -1886,8 +1838,6 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
       endDate,
       lecturerNames,
       docDateDisplay,
-      receiverNameInput,
-      receiverPositionInput
     ].forEach(el => setErr(el, false));
 
     const requiredFields = [
@@ -1900,8 +1850,6 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
       targetGroup,
       participantCount,
       lecturerNames,
-      receiverNameInput,
-      receiverPositionInput
     ];
 
     if (!docDateNone?.checked && !docDate?.value.trim()) {

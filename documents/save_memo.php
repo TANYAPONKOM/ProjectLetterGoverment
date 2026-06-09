@@ -13,19 +13,28 @@ if ($DEV_AUTO_LOGIN && empty($_SESSION['user_id'])) {
 require_once __DIR__ . '/../functions.php';
 require_once __DIR__ . '/../includes/require_profile_completed.php';
 
-function speaker_save_arabic_digits($value) {
-    return strtr((string)$value, [
-        '๐' => '0', '๑' => '1', '๒' => '2', '๓' => '3', '๔' => '4',
-        '๕' => '5', '๖' => '6', '๗' => '7', '๘' => '8', '๙' => '9',
+function speaker_save_arabic_digits($value)
+{
+    return strtr((string) $value, [
+        '๐' => '0',
+        '๑' => '1',
+        '๒' => '2',
+        '๓' => '3',
+        '๔' => '4',
+        '๕' => '5',
+        '๖' => '6',
+        '๗' => '7',
+        '๘' => '8',
+        '๙' => '9',
     ]);
 }
 
 try {
     // ต้องมี user_id ใน session (ถ้า DEV_AUTO_LOGIN=false ต้องล็อกอินจริง)
-  if (empty($_SESSION['user_id'])) {
-    header('Location: /Pro_letter/documents/form_Memo.php?err=unauthorized');
-    exit;
-}
+    if (empty($_SESSION['user_id'])) {
+        header('Location: /Pro_letter/documents/form_Memo.php?err=unauthorized');
+        exit;
+    }
 
     $userId = (int) $_SESSION['user_id'];
 
@@ -33,362 +42,362 @@ try {
     $templateId = (int) ($_POST['template_id'] ?? 1);
     $documentTypeName = trim($_POST['document_type_name'] ?? '');
     $departmentId = (int) ($_POST['department_id'] ?? 0);
-    
-   $docDate = trim($_POST['doc_date'] ?? '');
-   // ใช้เฉพาะกรณี form_Memo.php เลือกไม่แสดงวันที่บนหน้าเอกสาร
-   // documents.doc_date ยังต้องมีค่า เพราะฐานข้อมูลเป็น NOT NULL
-   $docDateOption = trim($_POST['doc_date_option'] ?? 'use_date');
-   $hideDocDateOnDocument = ($docDateOption === 'no_date');
-   $docDateForDocumentTable = $hideDocDateOnDocument ? date('Y-m-d') : $docDate;
-   $docDateForDisplay = $hideDocDateOnDocument ? '' : $docDate;
 
-$purpose = trim($_POST['purpose'] ?? '');
-$redirectTo = trim($_POST['redirect_to'] ?? '');
-$targetForm = trim($_POST['target_form'] ?? '');
+    $docDate = trim($_POST['doc_date'] ?? '');
+    // ใช้เฉพาะกรณี form_Memo.php เลือกไม่แสดงวันที่บนหน้าเอกสาร
+    // documents.doc_date ยังต้องมีค่า เพราะฐานข้อมูลเป็น NOT NULL
+    $docDateOption = trim($_POST['doc_date_option'] ?? 'use_date');
+    $hideDocDateOnDocument = ($docDateOption === 'no_date');
+    $docDateForDocumentTable = $hideDocDateOnDocument ? date('Y-m-d') : $docDate;
+    $docDateForDisplay = $hideDocDateOnDocument ? '' : $docDate;
 
-$isSpeakerMemo = (
-    $purpose === 'speaker_workshop'
-    || $redirectTo === 'form_memo_speaker.php'
-    || $targetForm === 'form_memo_speaker.php'
-);
-$isRoomRequest = (
-    $purpose === 'room_request'
-    || $redirectTo === 'infor_room_request.php'
-    || $targetForm === 'infor_room_request.php'
-    || isset($_POST['room_request'])
-);
-$isInviteMemo = (
-    $purpose === 'invite_speaker_student'
-    || $purpose === 'invite'
-    || $redirectTo === 'infor_invite.php'
-    || $targetForm === 'infor_invite.php'
-    || ($_POST['form_type'] ?? '') === 'invite'
-    || ($_POST['document_type'] ?? '') === 'infor_invite'
-);
+    $purpose = trim($_POST['purpose'] ?? '');
+    $redirectTo = trim($_POST['redirect_to'] ?? '');
+    $targetForm = trim($_POST['target_form'] ?? '');
 
-$isResearchData = (
-    $purpose === 'research_data'
-    || $redirectTo === 'form_memo_request_research_data.php'
-    || $targetForm === 'infor_research_data.php'
-    || ($_POST['form_type'] ?? '') === 'research_data'
-    || ($_POST['document_type'] ?? '') === 'infor_research_data'
-);
+    $isSpeakerMemo = (
+        $purpose === 'speaker_workshop'
+        || $redirectTo === 'form_memo_speaker.php'
+        || $targetForm === 'form_memo_speaker.php'
+    );
+    $isRoomRequest = (
+        $purpose === 'room_request'
+        || $redirectTo === 'infor_room_request.php'
+        || $targetForm === 'infor_room_request.php'
+        || isset($_POST['room_request'])
+    );
+    $isInviteMemo = (
+        $purpose === 'invite_speaker_student'
+        || $purpose === 'invite'
+        || $redirectTo === 'infor_invite.php'
+        || $targetForm === 'infor_invite.php'
+        || ($_POST['form_type'] ?? '') === 'invite'
+        || ($_POST['document_type'] ?? '') === 'infor_invite'
+    );
 
-
-
-$isProjectActivity = (
-    $purpose === 'project_activity'
-    || $redirectTo === 'form_memo_project_activity.php'
-    || $targetForm === 'form_memo_project_activity.php'
-    || ($_POST['form_type'] ?? '') === 'project_activity'
-    || ($_POST['document_type'] ?? '') === 'infor_project_activity'
-    || isset($_POST['main_project'])
-    || isset($_POST['sub_activity'])
-);
-
-// รองรับทั้งชื่อ field ของ form_Memo.php เดิม และ infor_speaker_workshop.php
+    $isResearchData = (
+        $purpose === 'research_data'
+        || $redirectTo === 'form_memo_request_research_data.php'
+        || $targetForm === 'infor_research_data.php'
+        || ($_POST['form_type'] ?? '') === 'research_data'
+        || ($_POST['document_type'] ?? '') === 'infor_research_data'
+    );
 
 
-$isStudyVisit = (
-    $redirectTo === 'form_memo_sut_wellness.php'
-    || $targetForm === 'form_memo_sut_wellness.php'
-    || ($_POST['form_type'] ?? '') === 'study_visit'
-    || ($_POST['document_type'] ?? '') === 'infor_study_visit'
-    || isset($_POST['visit_place'])
-    || isset($_POST['visit_period'])
-    || isset($_POST['visit_time'])
-    || isset($_POST['teacher_count'])
-);
-$isCoopEvaluation = (
-    $purpose === 'coop_evaluation'
-    || $redirectTo === 'form_memo_coop_evaluation.php'
-    || $targetForm === 'infor_coop_evaluation.php'
-    || ($_POST['form_type'] ?? '') === 'coop_evaluation'
-    || ($_POST['document_type'] ?? '') === 'infor_coop_evaluation'
-    || isset($_POST['organization_name'])
-    || isset($_POST['coop_period'])
-);
 
-$isConsentResearchPresentation = (
-    $purpose === 'consent_research_presentation'
-    || $redirectTo === 'form_consent_research_presentation.php'
-    || $targetForm === 'form_consent_research_presentation.php'
-    || $redirectTo === 'infor_present.php'
-    || $targetForm === 'infor_present.php'
-    || ($_POST['form_type'] ?? '') === 'consent_research_presentation'
-    || ($_POST['document_type'] ?? '') === 'infor_present'
-    || ($_POST['document_type'] ?? '') === 'consent_research_presentation'
-    || isset($_POST['signature_affiliation'])
-);
+    $isProjectActivity = (
+        $purpose === 'project_activity'
+        || $redirectTo === 'form_memo_project_activity.php'
+        || $targetForm === 'form_memo_project_activity.php'
+        || ($_POST['form_type'] ?? '') === 'project_activity'
+        || ($_POST['document_type'] ?? '') === 'infor_project_activity'
+        || isset($_POST['main_project'])
+        || isset($_POST['sub_activity'])
+    );
 
-if ($isConsentResearchPresentation) {
-    // บังคับไม่ให้ flow นี้ถูกมองเป็น "อื่นๆ"
-    $purpose = 'consent_research_presentation';
-}
-
-$isFreeDocument = (
-    $purpose === 'free_document'
-    || $redirectTo === 'form_memo_free_document.php'
-    || $targetForm === 'form_memo_free_document.php'
-    || ($_POST['form_type'] ?? '') === 'free_document'
-    || ($_POST['document_type'] ?? '') === 'infor_free_document'
-);
-
-if ($isFreeDocument) {
-    $purpose = 'free_document';
-}
-$fullname = trim($_POST['fullname'] ?? $_POST['teacher_name'] ?? '');
-$position = trim($_POST['position'] ?? '');
-
-$memoSubject = trim($_POST['memo_subject'] ?? $_POST['subject'] ?? '');
-$eventTitle = trim($_POST['event_title'] ?? $_POST['project_title'] ?? $_POST['thesis_title'] ?? '');
-
-$academicTopic = trim($_POST['academic_topic'] ?? '');
-$academicLevel = trim($_POST['academic_level'] ?? '');
-$eventDate = trim($_POST['event_date'] ?? '');
-$presenterName = trim($_POST['presenter_name_hidden'] ?? '');
-$signatureAffiliation = trim($_POST['signature_affiliation'] ?? '');
-
-$joinDates = trim($_POST['join_date'] ?? $_POST['intern_period'] ?? '');
-$place = trim($_POST['place'] ?? $_POST['location'] ?? $_POST['location_input'] ?? '');
-
-$courseName = trim($_POST['course_name'] ?? '');
-$referenceOrg = trim($_POST['reference_org'] ?? '');
-$referenceNo = trim($_POST['reference_no'] ?? '');
-$travelPeriod = trim($_POST['travel_period'] ?? '');
-$intentionText = trim($_POST['intention_text'] ?? '');
-$referenceDate = trim($_POST['reference_date'] ?? '');
-$toPerson         = trim($_POST['to_person'] ?? '');
-$receiverName     = trim($_POST['receiver_name'] ?? '');
-$receiverPosition = trim($_POST['receiver_position'] ?? '');
-$inviteStatement  = trim($_POST['invite_statement'] ?? '');
-$objectiveText     = trim($_POST['objective'] ?? '');
-$eventTime         = trim($_POST['event_time'] ?? '');
-$invitePhone       = trim($_POST['invite_phone'] ?? '');
-$invitePhoneExt    = trim($_POST['invite_phone_ext'] ?? '');
-
-$projectSubject          = trim($_POST['subject'] ?? '');
-$projectToPerson         = trim($_POST['to_person'] ?? '');
-$projectActivityPlace    = trim($_POST['school_name'] ?? $_POST['activity_place'] ?? '');
-$projectMainProject      = trim($_POST['main_project'] ?? '');
-$projectSubActivity      = trim($_POST['sub_activity'] ?? '');
-$projectObjectiveDetail  = trim($_POST['objective_detail'] ?? '');
-$projectTargetGroup      = trim($_POST['target_group'] ?? '');
-$projectParticipantCount = trim($_POST['participant_count'] ?? '');
-$projectActivityPeriod   = trim($_POST['activity_period'] ?? '');
-$projectLecturerNames    = trim($_POST['lecturer_names'] ?? '');
-$projectReceiverName     = trim($_POST['receiver_name'] ?? '');
-$projectReceiverPosition = trim($_POST['receiver_position'] ?? '');
-$projectPhone            = trim($_POST['project_phone'] ?? '');
-$projectPhoneExt         = trim($_POST['project_phone_ext'] ?? '');
+    // รองรับทั้งชื่อ field ของ form_Memo.php เดิม และ infor_speaker_workshop.php
 
 
-$coopSubject          = trim($_POST['subject'] ?? '');
-$coopToPerson         = trim($_POST['to_person'] ?? '');
-$coopOrganizationName = trim($_POST['organization_name'] ?? '');
-$coopStudentCount     = trim($_POST['student_count'] ?? '');
-$coopPeriod           = trim($_POST['coop_period'] ?? '');
-$coopStartDate        = trim($_POST['coop_start_date'] ?? '');
-$coopEndDate          = trim($_POST['coop_end_date'] ?? '');
-$coopAdvisorName      = trim($_POST['advisor_name'] ?? '');
-$coopEvaluationEmail  = trim($_POST['evaluation_email'] ?? '');
-$coopReceiverName     = trim($_POST['receiver_name'] ?? '');
-$coopReceiverPosition = trim($_POST['receiver_position'] ?? '');
-$coopPhone            = trim($_POST['coop_phone'] ?? '');
-$coopPhoneExt         = trim($_POST['coop_phone_ext'] ?? '');
-$coopStudentListText  = trim($_POST['student_list_text'] ?? '');
-$coopStudentsJsonRaw  = trim($_POST['student_list_json'] ?? '');
+    $isStudyVisit = (
+        $redirectTo === 'form_memo_sut_wellness.php'
+        || $targetForm === 'form_memo_sut_wellness.php'
+        || ($_POST['form_type'] ?? '') === 'study_visit'
+        || ($_POST['document_type'] ?? '') === 'infor_study_visit'
+        || isset($_POST['visit_place'])
+        || isset($_POST['visit_period'])
+        || isset($_POST['visit_time'])
+        || isset($_POST['teacher_count'])
+    );
+    $isCoopEvaluation = (
+        $purpose === 'coop_evaluation'
+        || $redirectTo === 'form_memo_coop_evaluation.php'
+        || $targetForm === 'infor_coop_evaluation.php'
+        || ($_POST['form_type'] ?? '') === 'coop_evaluation'
+        || ($_POST['document_type'] ?? '') === 'infor_coop_evaluation'
+        || isset($_POST['organization_name'])
+        || isset($_POST['coop_period'])
+    );
 
-$freeSubject = trim($_POST['subject'] ?? $_POST['free_subject'] ?? '');
-$freeToPerson = trim($_POST['to_person'] ?? $_POST['free_to_person'] ?? '');
-$freeDepartmentPhone = trim($_POST['department_phone'] ?? $_POST['free_department_phone'] ?? '');
-$freeDepartmentPhone = speaker_save_arabic_digits($freeDepartmentPhone);
-$freeDepartmentPhone = preg_replace('/^โทร\.?\s*/u', '', $freeDepartmentPhone);
-$freeDepartmentPhone = preg_replace('/\s+/u', ' ', $freeDepartmentPhone);
-$freeParagraph1 = trim($_POST['free_paragraph_1'] ?? $_POST['paragraph_1'] ?? '');
-$freeParagraph2 = trim($_POST['free_paragraph_2'] ?? $_POST['paragraph_2'] ?? '');
-$freeParagraph3 = trim($_POST['free_paragraph_3'] ?? $_POST['paragraph_3'] ?? '');
-$freeSignerName = trim($_POST['free_signer_name'] ?? $_POST['signer_name'] ?? '');
-$freeSignerPosition = trim($_POST['free_signer_position'] ?? $_POST['signer_position'] ?? '');
+    $isConsentResearchPresentation = (
+        $purpose === 'consent_research_presentation'
+        || $redirectTo === 'form_consent_research_presentation.php'
+        || $targetForm === 'form_consent_research_presentation.php'
+        || $redirectTo === 'infor_present.php'
+        || $targetForm === 'infor_present.php'
+        || ($_POST['form_type'] ?? '') === 'consent_research_presentation'
+        || ($_POST['document_type'] ?? '') === 'infor_present'
+        || ($_POST['document_type'] ?? '') === 'consent_research_presentation'
+        || isset($_POST['signature_affiliation'])
+    );
 
-$coopStudentNamesRaw = $_POST['student_names'] ?? [];
-$coopStudentIdsRaw   = $_POST['student_ids'] ?? [];
-
-if (!is_array($coopStudentNamesRaw)) {
-    $coopStudentNamesRaw = [$coopStudentNamesRaw];
-}
-if (!is_array($coopStudentIdsRaw)) {
-    $coopStudentIdsRaw = [$coopStudentIdsRaw];
-}
-
-$coopStudents = [];
-$coopStudentMax = max(count($coopStudentNamesRaw), count($coopStudentIdsRaw));
-for ($i = 0; $i < $coopStudentMax; $i++) {
-    $studentName = trim((string)($coopStudentNamesRaw[$i] ?? ''));
-    $studentId   = trim((string)($coopStudentIdsRaw[$i] ?? ''));
-
-    if ($studentName === '' && $studentId === '') {
-        continue;
+    if ($isConsentResearchPresentation) {
+        // บังคับไม่ให้ flow นี้ถูกมองเป็น "อื่นๆ"
+        $purpose = 'consent_research_presentation';
     }
 
-    $coopStudents[] = [
-        'name' => $studentName,
-        'student_id' => $studentId,
-    ];
-}
+    $isFreeDocument = (
+        $purpose === 'free_document'
+        || $redirectTo === 'form_memo_free_document.php'
+        || $targetForm === 'form_memo_free_document.php'
+        || ($_POST['form_type'] ?? '') === 'free_document'
+        || ($_POST['document_type'] ?? '') === 'infor_free_document'
+    );
 
-if (!$coopStudents && $coopStudentsJsonRaw !== '') {
-    $decodedCoopStudents = json_decode($coopStudentsJsonRaw, true);
-    if (is_array($decodedCoopStudents)) {
-        foreach ($decodedCoopStudents as $row) {
-            $studentName = trim((string)($row['name'] ?? ''));
-            $studentId   = trim((string)($row['student_id'] ?? ($row['id'] ?? '')));
+    if ($isFreeDocument) {
+        $purpose = 'free_document';
+    }
+    $fullname = trim($_POST['fullname'] ?? $_POST['teacher_name'] ?? '');
+    $position = trim($_POST['position'] ?? '');
 
-            if ($studentName === '' && $studentId === '') {
-                continue;
+    $memoSubject = trim($_POST['memo_subject'] ?? $_POST['subject'] ?? '');
+    $eventTitle = trim($_POST['event_title'] ?? $_POST['project_title'] ?? $_POST['thesis_title'] ?? '');
+
+    $academicTopic = trim($_POST['academic_topic'] ?? '');
+    $academicLevel = trim($_POST['academic_level'] ?? '');
+    $eventDate = trim($_POST['event_date'] ?? '');
+    $presenterName = trim($_POST['presenter_name_hidden'] ?? '');
+    $signatureAffiliation = trim($_POST['signature_affiliation'] ?? '');
+
+    $joinDates = trim($_POST['join_date'] ?? $_POST['intern_period'] ?? '');
+    $place = trim($_POST['place'] ?? $_POST['location'] ?? $_POST['location_input'] ?? '');
+
+    $courseName = trim($_POST['course_name'] ?? '');
+    $referenceOrg = trim($_POST['reference_org'] ?? '');
+    $referenceNo = trim($_POST['reference_no'] ?? '');
+    $travelPeriod = trim($_POST['travel_period'] ?? '');
+    $intentionText = trim($_POST['intention_text'] ?? '');
+    $referenceDate = trim($_POST['reference_date'] ?? '');
+    $toPerson = trim($_POST['to_person'] ?? '');
+    $receiverName = trim($_POST['receiver_name'] ?? '');
+    $receiverPosition = trim($_POST['receiver_position'] ?? '');
+    $inviteStatement = trim($_POST['invite_statement'] ?? '');
+    $objectiveText = trim($_POST['objective'] ?? '');
+    $eventTime = trim($_POST['event_time'] ?? '');
+    $invitePhone = trim($_POST['invite_phone'] ?? '');
+    $invitePhoneExt = trim($_POST['invite_phone_ext'] ?? '');
+
+    $projectSubject = trim($_POST['subject'] ?? '');
+    $projectToPerson = trim($_POST['to_person'] ?? '');
+    $projectActivityPlace = trim($_POST['school_name'] ?? $_POST['activity_place'] ?? '');
+    $projectMainProject = trim($_POST['main_project'] ?? '');
+    $projectSubActivity = trim($_POST['sub_activity'] ?? '');
+    $projectObjectiveDetail = trim($_POST['objective_detail'] ?? '');
+    $projectTargetGroup = trim($_POST['target_group'] ?? '');
+    $projectParticipantCount = trim($_POST['participant_count'] ?? '');
+    $projectActivityPeriod = trim($_POST['activity_period'] ?? '');
+    $projectLecturerNames = trim($_POST['lecturer_names'] ?? '');
+    $projectReceiverName = trim($_POST['receiver_name'] ?? '');
+    $projectReceiverPosition = trim($_POST['receiver_position'] ?? '');
+    $projectPhone = trim($_POST['project_phone'] ?? '');
+    $projectPhoneExt = trim($_POST['project_phone_ext'] ?? '');
+
+
+    $coopSubject = trim($_POST['subject'] ?? '');
+    $coopToPerson = trim($_POST['to_person'] ?? '');
+    $coopOrganizationName = trim($_POST['organization_name'] ?? '');
+    $coopStudentCount = trim($_POST['student_count'] ?? '');
+    $coopPeriod = trim($_POST['coop_period'] ?? '');
+    $coopStartDate = trim($_POST['coop_start_date'] ?? '');
+    $coopEndDate = trim($_POST['coop_end_date'] ?? '');
+    $coopAdvisorName = trim($_POST['advisor_name'] ?? '');
+    $coopEvaluationEmail = trim($_POST['evaluation_email'] ?? '');
+    $coopReceiverName = trim($_POST['receiver_name'] ?? '');
+    $coopReceiverPosition = trim($_POST['receiver_position'] ?? '');
+    $coopPhone = trim($_POST['coop_phone'] ?? '');
+    $coopPhoneExt = trim($_POST['coop_phone_ext'] ?? '');
+    $coopStudentListText = trim($_POST['student_list_text'] ?? '');
+    $coopStudentsJsonRaw = trim($_POST['student_list_json'] ?? '');
+
+    $freeSubject = trim($_POST['subject'] ?? $_POST['free_subject'] ?? '');
+    $freeToPerson = trim($_POST['to_person'] ?? $_POST['free_to_person'] ?? '');
+    $freeDepartmentPhone = trim($_POST['department_phone'] ?? $_POST['free_department_phone'] ?? '');
+    $freeDepartmentPhone = speaker_save_arabic_digits($freeDepartmentPhone);
+    $freeDepartmentPhone = preg_replace('/^โทร\.?\s*/u', '', $freeDepartmentPhone);
+    $freeDepartmentPhone = preg_replace('/\s+/u', ' ', $freeDepartmentPhone);
+    $freeParagraph1 = trim($_POST['free_paragraph_1'] ?? $_POST['paragraph_1'] ?? '');
+    $freeParagraph2 = trim($_POST['free_paragraph_2'] ?? $_POST['paragraph_2'] ?? '');
+    $freeParagraph3 = trim($_POST['free_paragraph_3'] ?? $_POST['paragraph_3'] ?? '');
+    $freeSignerName = trim($_POST['free_signer_name'] ?? $_POST['signer_name'] ?? '');
+    $freeSignerPosition = trim($_POST['free_signer_position'] ?? $_POST['signer_position'] ?? '');
+
+    $coopStudentNamesRaw = $_POST['student_names'] ?? [];
+    $coopStudentIdsRaw = $_POST['student_ids'] ?? [];
+
+    if (!is_array($coopStudentNamesRaw)) {
+        $coopStudentNamesRaw = [$coopStudentNamesRaw];
+    }
+    if (!is_array($coopStudentIdsRaw)) {
+        $coopStudentIdsRaw = [$coopStudentIdsRaw];
+    }
+
+    $coopStudents = [];
+    $coopStudentMax = max(count($coopStudentNamesRaw), count($coopStudentIdsRaw));
+    for ($i = 0; $i < $coopStudentMax; $i++) {
+        $studentName = trim((string) ($coopStudentNamesRaw[$i] ?? ''));
+        $studentId = trim((string) ($coopStudentIdsRaw[$i] ?? ''));
+
+        if ($studentName === '' && $studentId === '') {
+            continue;
+        }
+
+        $coopStudents[] = [
+            'name' => $studentName,
+            'student_id' => $studentId,
+        ];
+    }
+
+    if (!$coopStudents && $coopStudentsJsonRaw !== '') {
+        $decodedCoopStudents = json_decode($coopStudentsJsonRaw, true);
+        if (is_array($decodedCoopStudents)) {
+            foreach ($decodedCoopStudents as $row) {
+                $studentName = trim((string) ($row['name'] ?? ''));
+                $studentId = trim((string) ($row['student_id'] ?? ($row['id'] ?? '')));
+
+                if ($studentName === '' && $studentId === '') {
+                    continue;
+                }
+
+                $coopStudents[] = [
+                    'name' => $studentName,
+                    'student_id' => $studentId,
+                ];
             }
-
-            $coopStudents[] = [
-                'name' => $studentName,
-                'student_id' => $studentId,
-            ];
         }
     }
-}
 
-if ($coopStudentListText === '') {
-    $lines = [];
-    foreach ($coopStudents as $row) {
-        $lines[] = trim(($row['name'] ?? '') . ' รหัสนักศึกษา ' . ($row['student_id'] ?? ''));
-    }
-    $coopStudentListText = implode("\n", array_filter($lines));
-}
-
-$roomRequest      = trim($_POST['room_request'] ?? '');
-$roomRequestOther = trim($_POST['room_request_other'] ?? '');
-$guestFullname    = trim($_POST['guest_fullname'] ?? '');
-$personType       = trim($_POST['person_type'] ?? '');
-$personTypeOther  = trim($_POST['person_type_other'] ?? '');
-$reason           = trim($_POST['reason'] ?? '');
-$reasonOther      = trim($_POST['reason_other'] ?? '');
-$dateOption       = trim($_POST['date_option'] ?? 'single');
-$singleDate       = trim($_POST['single_date'] ?? '');
-$rangeDate        = trim($_POST['range_date'] ?? '');
-$roomType         = trim($_POST['room_type'] ?? '');
-$studyVisitPlace  = trim($_POST['visit_place'] ?? '');
-$studyPlaceDetail = trim($_POST['place_detail'] ?? '');
-$studyObjectiveText = trim($_POST['objective'] ?? '');
-$studyPurposeText = trim($_POST['study_purpose'] ?? $_POST['purpose'] ?? '');
-$studyVisitPeriod = trim($_POST['visit_period'] ?? '');
-$studyVisitTime   = trim($_POST['visit_time'] ?? '');
-$studyPhone       = trim($_POST['study_phone'] ?? '');
-$studyPhoneExt    = trim($_POST['study_phone_ext'] ?? '');
-$studyTeacherCount = isset($_POST['teacher_count']) ? (int) $_POST['teacher_count'] : 0;
-
-$studyTeacherNamesRaw = $_POST['teacher_names'] ?? [];
-$studyTeacherAffiliationsRaw = $_POST['teacher_affiliations'] ?? [];
-if (!is_array($studyTeacherNamesRaw)) {
-    $studyTeacherNamesRaw = [$studyTeacherNamesRaw];
-}
-if (!is_array($studyTeacherAffiliationsRaw)) {
-    $studyTeacherAffiliationsRaw = [$studyTeacherAffiliationsRaw];
-}
-
-$studyTeacherRows = [];
-$studyMaxTeachers = max(count($studyTeacherNamesRaw), count($studyTeacherAffiliationsRaw), $studyTeacherCount);
-for ($i = 0; $i < $studyMaxTeachers; $i++) {
-    $teacherName = trim((string)($studyTeacherNamesRaw[$i] ?? ''));
-    $teacherAffiliation = trim((string)($studyTeacherAffiliationsRaw[$i] ?? ''));
-
-    if ($teacherName === '' && $teacherAffiliation === '') {
-        continue;
+    if ($coopStudentListText === '') {
+        $lines = [];
+        foreach ($coopStudents as $row) {
+            $lines[] = trim(($row['name'] ?? '') . ' รหัสนักศึกษา ' . ($row['student_id'] ?? ''));
+        }
+        $coopStudentListText = implode("\n", array_filter($lines));
     }
 
-    $studyTeacherRows[] = [
-        'name' => $teacherName,
-        'affiliation' => $teacherAffiliation,
-    ];
-}
+    $roomRequest = trim($_POST['room_request'] ?? '');
+    $roomRequestOther = trim($_POST['room_request_other'] ?? '');
+    $guestFullname = trim($_POST['guest_fullname'] ?? '');
+    $personType = trim($_POST['person_type'] ?? '');
+    $personTypeOther = trim($_POST['person_type_other'] ?? '');
+    $reason = trim($_POST['reason'] ?? '');
+    $reasonOther = trim($_POST['reason_other'] ?? '');
+    $dateOption = trim($_POST['date_option'] ?? 'single');
+    $singleDate = trim($_POST['single_date'] ?? '');
+    $rangeDate = trim($_POST['range_date'] ?? '');
+    $roomType = trim($_POST['room_type'] ?? '');
+    $studyVisitPlace = trim($_POST['visit_place'] ?? '');
+    $studyPlaceDetail = trim($_POST['place_detail'] ?? '');
+    $studyObjectiveText = trim($_POST['objective'] ?? '');
+    $studyPurposeText = trim($_POST['study_purpose'] ?? $_POST['purpose'] ?? '');
+    $studyVisitPeriod = trim($_POST['visit_period'] ?? '');
+    $studyVisitTime = trim($_POST['visit_time'] ?? '');
+    $studyPhone = trim($_POST['study_phone'] ?? '');
+    $studyPhoneExt = trim($_POST['study_phone_ext'] ?? '');
+    $studyTeacherCount = isset($_POST['teacher_count']) ? (int) $_POST['teacher_count'] : 0;
 
-$studyTeacherNamesText = trim($_POST['teacher_names_text'] ?? '');
-$studyTeacherAffiliationsText = trim($_POST['teacher_affiliations_text'] ?? '');
-$studyTeacherListText = trim($_POST['teacher_list_text'] ?? '');
-
-if ($studyTeacherNamesText === '') {
-    $studyTeacherNamesText = implode("\n", array_column($studyTeacherRows, 'name'));
-}
-if ($studyTeacherAffiliationsText === '') {
-    $studyTeacherAffiliationsText = implode("\n", array_column($studyTeacherRows, 'affiliation'));
-}
-if ($studyTeacherListText === '') {
-    $pairs = [];
-    foreach ($studyTeacherRows as $row) {
-        $pairs[] = ($row['name'] ?? '') . '|' . ($row['affiliation'] ?? '');
+    $studyTeacherNamesRaw = $_POST['teacher_names'] ?? [];
+    $studyTeacherAffiliationsRaw = $_POST['teacher_affiliations'] ?? [];
+    if (!is_array($studyTeacherNamesRaw)) {
+        $studyTeacherNamesRaw = [$studyTeacherNamesRaw];
     }
-    $studyTeacherListText = implode("\n", $pairs);
-}
-
-$researchSubject        = trim($_POST['subject'] ?? '');
-$researchToPerson       = trim($_POST['to_person'] ?? '');
-$researchSemester       = trim($_POST['semester'] ?? '');
-$researchAcademicYear   = trim($_POST['academic_year'] ?? '');
-$researchCourseCode     = trim($_POST['course_code'] ?? '');
-$researchCourseName     = trim($_POST['course_name'] ?? '');
-$researchCurriculumName = trim($_POST['curriculum_name'] ?? '');
-$researchMajorName      = trim($_POST['major_name'] ?? '');
-$researchStudentYear    = trim($_POST['student_year'] ?? '');
-$researchThesisTitle    = trim($_POST['thesis_title'] ?? '');
-$researchAdvisorName    = trim($_POST['advisor_name'] ?? '');
-$researchProjectDetail  = trim($_POST['project_detail'] ?? '');
-$researchSupportType    = trim($_POST['support_type'] ?? '');
-$researchDataDetail     = trim($_POST['data_detail'] ?? '');
-$researchDataAmount     = trim($_POST['data_amount'] ?? '');
-$researchPhone          = trim($_POST['research_phone'] ?? '');
-$researchPhoneExt       = trim($_POST['research_phone_ext'] ?? '');
-$researchContactIndex   = isset($_POST['student_contact_index']) ? (int)$_POST['student_contact_index'] : 0;
-
-$studentNamesRaw  = $_POST['student_name'] ?? [];
-$studentIdsRaw    = $_POST['student_id'] ?? [];
-$studentPhonesRaw = $_POST['student_phone'] ?? [];
-
-if (!is_array($studentNamesRaw)) {
-    $studentNamesRaw = [$studentNamesRaw];
-}
-if (!is_array($studentIdsRaw)) {
-    $studentIdsRaw = [$studentIdsRaw];
-}
-if (!is_array($studentPhonesRaw)) {
-    $studentPhonesRaw = [$studentPhonesRaw];
-}
-
-$researchStudents = [];
-$studentCount = max(count($studentNamesRaw), count($studentIdsRaw));
-
-for ($i = 0; $i < $studentCount; $i++) {
-    $name  = trim((string)($studentNamesRaw[$i] ?? ''));
-    $sid   = preg_replace('/\D+/', '', (string)($studentIdsRaw[$i] ?? ''));
-    $phone = preg_replace('/\D+/', '', (string)($studentPhonesRaw[$i] ?? ''));
-
-    if ($name === '' && $sid === '' && $phone === '') {
-        continue;
+    if (!is_array($studyTeacherAffiliationsRaw)) {
+        $studyTeacherAffiliationsRaw = [$studyTeacherAffiliationsRaw];
     }
 
-    $researchStudents[] = [
-        'name' => $name,
-        'student_id' => $sid,
-        'phone' => $phone,
-        'is_contact' => ($i === $researchContactIndex),
-    ];
-}
+    $studyTeacherRows = [];
+    $studyMaxTeachers = max(count($studyTeacherNamesRaw), count($studyTeacherAffiliationsRaw), $studyTeacherCount);
+    for ($i = 0; $i < $studyMaxTeachers; $i++) {
+        $teacherName = trim((string) ($studyTeacherNamesRaw[$i] ?? ''));
+        $teacherAffiliation = trim((string) ($studyTeacherAffiliationsRaw[$i] ?? ''));
 
-$researchContactStudent = $researchStudents[$researchContactIndex] ?? ($researchStudents[0] ?? null);
+        if ($teacherName === '' && $teacherAffiliation === '') {
+            continue;
+        }
 
-$isOnline = ($_POST['is_online'] ?? '1') === '1' ? 1 : 0;
+        $studyTeacherRows[] = [
+            'name' => $teacherName,
+            'affiliation' => $teacherAffiliation,
+        ];
+    }
 
-   $noCost = (($_POST['no_cost'] ?? '0') === '1') ? 1 : 0;
+    $studyTeacherNamesText = trim($_POST['teacher_names_text'] ?? '');
+    $studyTeacherAffiliationsText = trim($_POST['teacher_affiliations_text'] ?? '');
+    $studyTeacherListText = trim($_POST['teacher_list_text'] ?? '');
 
-$amountRaw = str_replace(',', '', trim($_POST['amount'] ?? '0'));
-$amount = $noCost ? 0.00 : (is_numeric($amountRaw) ? (float) $amountRaw : 0.00);
+    if ($studyTeacherNamesText === '') {
+        $studyTeacherNamesText = implode("\n", array_column($studyTeacherRows, 'name'));
+    }
+    if ($studyTeacherAffiliationsText === '') {
+        $studyTeacherAffiliationsText = implode("\n", array_column($studyTeacherRows, 'affiliation'));
+    }
+    if ($studyTeacherListText === '') {
+        $pairs = [];
+        foreach ($studyTeacherRows as $row) {
+            $pairs[] = ($row['name'] ?? '') . '|' . ($row['affiliation'] ?? '');
+        }
+        $studyTeacherListText = implode("\n", $pairs);
+    }
+
+    $researchSubject = trim($_POST['subject'] ?? '');
+    $researchToPerson = trim($_POST['to_person'] ?? '');
+    $researchSemester = trim($_POST['semester'] ?? '');
+    $researchAcademicYear = trim($_POST['academic_year'] ?? '');
+    $researchCourseCode = trim($_POST['course_code'] ?? '');
+    $researchCourseName = trim($_POST['course_name'] ?? '');
+    $researchCurriculumName = trim($_POST['curriculum_name'] ?? '');
+    $researchMajorName = trim($_POST['major_name'] ?? '');
+    $researchStudentYear = trim($_POST['student_year'] ?? '');
+    $researchThesisTitle = trim($_POST['thesis_title'] ?? '');
+    $researchAdvisorName = trim($_POST['advisor_name'] ?? '');
+    $researchProjectDetail = trim($_POST['project_detail'] ?? '');
+    $researchSupportType = trim($_POST['support_type'] ?? '');
+    $researchDataDetail = trim($_POST['data_detail'] ?? '');
+    $researchDataAmount = trim($_POST['data_amount'] ?? '');
+    $researchPhone = trim($_POST['research_phone'] ?? '');
+    $researchPhoneExt = trim($_POST['research_phone_ext'] ?? '');
+    $researchContactIndex = isset($_POST['student_contact_index']) ? (int) $_POST['student_contact_index'] : 0;
+
+    $studentNamesRaw = $_POST['student_name'] ?? [];
+    $studentIdsRaw = $_POST['student_id'] ?? [];
+    $studentPhonesRaw = $_POST['student_phone'] ?? [];
+
+    if (!is_array($studentNamesRaw)) {
+        $studentNamesRaw = [$studentNamesRaw];
+    }
+    if (!is_array($studentIdsRaw)) {
+        $studentIdsRaw = [$studentIdsRaw];
+    }
+    if (!is_array($studentPhonesRaw)) {
+        $studentPhonesRaw = [$studentPhonesRaw];
+    }
+
+    $researchStudents = [];
+    $studentCount = max(count($studentNamesRaw), count($studentIdsRaw));
+
+    for ($i = 0; $i < $studentCount; $i++) {
+        $name = trim((string) ($studentNamesRaw[$i] ?? ''));
+        $sid = preg_replace('/\D+/', '', (string) ($studentIdsRaw[$i] ?? ''));
+        $phone = preg_replace('/\D+/', '', (string) ($studentPhonesRaw[$i] ?? ''));
+
+        if ($name === '' && $sid === '' && $phone === '') {
+            continue;
+        }
+
+        $researchStudents[] = [
+            'name' => $name,
+            'student_id' => $sid,
+            'phone' => $phone,
+            'is_contact' => ($i === $researchContactIndex),
+        ];
+    }
+
+    $researchContactStudent = $researchStudents[$researchContactIndex] ?? ($researchStudents[0] ?? null);
+
+    $isOnline = ($_POST['is_online'] ?? '1') === '1' ? 1 : 0;
+
+    $noCost = (($_POST['no_cost'] ?? '0') === '1') ? 1 : 0;
+
+    $amountRaw = str_replace(',', '', trim($_POST['amount'] ?? '0'));
+    $amount = $noCost ? 0.00 : (is_numeric($amountRaw) ? (float) $amountRaw : 0.00);
 
     $carUsed = isset($_POST['car_used']) ? 1 : 0;
     $carPlate = trim($_POST['car_plate'] ?? '');
@@ -428,7 +437,7 @@ $amount = $noCost ? 0.00 : (is_numeric($amountRaw) ? (float) $amountRaw : 0.00);
             $foundDept = $findDeptStmt->fetch(PDO::FETCH_ASSOC);
 
             if ($foundDept) {
-                $departmentId = (int)$foundDept['department_id'];
+                $departmentId = (int) $foundDept['department_id'];
             }
         }
 
@@ -440,7 +449,7 @@ $amount = $noCost ? 0.00 : (is_numeric($amountRaw) ? (float) $amountRaw : 0.00);
                 LIMIT 1
             ");
             $userDeptStmt->execute([':user_id' => $userId]);
-            $departmentId = (int)$userDeptStmt->fetchColumn();
+            $departmentId = (int) $userDeptStmt->fetchColumn();
         }
 
         if ($departmentId > 0) {
@@ -458,9 +467,9 @@ $amount = $noCost ? 0.00 : (is_numeric($amountRaw) ? (float) $amountRaw : 0.00);
             $orgRow = $orgStmt->fetch(PDO::FETCH_ASSOC);
 
             if ($orgRow) {
-                $departmentId = (int)$orgRow['department_id'];
-                $faculty = trim((string)$orgRow['faculty_name']);
-                $department = trim((string)$orgRow['department_name']);
+                $departmentId = (int) $orgRow['department_id'];
+                $faculty = trim((string) $orgRow['faculty_name']);
+                $department = trim((string) $orgRow['department_name']);
             }
         }
 
@@ -474,506 +483,509 @@ $amount = $noCost ? 0.00 : (is_numeric($amountRaw) ? (float) $amountRaw : 0.00);
     }
 
     $mode = $_POST['mode'] ?? 'create';   // create | update
-$documentId = isset($_POST['document_id']) ? (int)$_POST['document_id'] : 0;
+    $documentId = isset($_POST['document_id']) ? (int) $_POST['document_id'] : 0;
 
-   /** ===== ตรวจฝั่งเซิร์ฟเวอร์ ===== */
-$errors = [];
+    /** ===== ตรวจฝั่งเซิร์ฟเวอร์ ===== */
+    $errors = [];
 
-if ($isFreeDocument) {
-    if (!$hideDocDateOnDocument && $docDate === '') {
-        $errors['doc_date'] = 'required';
-    }
-    if ($freeSubject === '') {
-        $errors['subject'] = 'required';
-    }
-    if ($freeToPerson === '') {
-        $errors['to_person'] = 'required';
-    }
-    if ($freeDepartmentPhone === '') {
-        $errors['department_phone'] = 'required';
-    }
-    if ($freeParagraph1 === '') {
-        $errors['free_paragraph_1'] = 'required';
-    }
-} elseif ($isCoopEvaluation) {
-    if (!$hideDocDateOnDocument && $docDate === '') {
-        $errors['doc_date'] = 'required';
-    }
-    if ($coopSubject === '') {
-        $errors['subject'] = 'required';
-    }
-    if ($coopToPerson === '') {
-        $errors['to_person'] = 'required';
-    }
-    if ($coopOrganizationName === '') {
-        $errors['organization_name'] = 'required';
-    }
-    if ($coopStudentCount === '' || (int)$coopStudentCount < 1) {
-        $errors['student_count'] = 'required';
-    }
-    if (count($coopStudents) < 1) {
-        $errors['student_list'] = 'required';
-    }
-    foreach ($coopStudents as $idx => $student) {
-        if (($student['name'] ?? '') === '') {
-            $errors['student_name_' . $idx] = 'required';
+    if ($isFreeDocument) {
+        if (!$hideDocDateOnDocument && $docDate === '') {
+            $errors['doc_date'] = 'required';
         }
-        if (($student['student_id'] ?? '') === '') {
-            $errors['student_id_' . $idx] = 'required';
+        if ($freeSubject === '') {
+            $errors['subject'] = 'required';
         }
-    }
-    if ($coopPeriod === '') {
-        $errors['coop_period'] = 'required';
-    }
-    if ($coopAdvisorName === '') {
-        $errors['advisor_name'] = 'required';
-    }
-    // ฟอร์ม infor_coop_evaluation.php ปัจจุบันไม่มีช่อง evaluation_email
-    // จึงตรวจรูปแบบเฉพาะกรณีที่มีการส่งค่ามาเท่านั้น
-    if ($coopEvaluationEmail !== '' && !filter_var($coopEvaluationEmail, FILTER_VALIDATE_EMAIL)) {
-        $errors['evaluation_email'] = 'invalid';
-    }
-    if ($coopReceiverName === '') {
-        $errors['receiver_name'] = 'required';
-    }
-    if ($coopReceiverPosition === '') {
-        $errors['receiver_position'] = 'required';
-    }
-} elseif ($isProjectActivity) {
-    if (!$hideDocDateOnDocument && $docDate === '') {
-        $errors['doc_date'] = 'required';
-    }
-    if ($projectSubject === '') {
-        $errors['subject'] = 'required';
-    }
-    if ($projectToPerson === '') {
-        $errors['to_person'] = 'required';
-    }
-    if ($projectActivityPlace === '') {
-        $errors['activity_place'] = 'required';
-    }
-    if ($projectMainProject === '') {
-        $errors['main_project'] = 'required';
-    }
-    if ($projectSubActivity === '') {
-        $errors['sub_activity'] = 'required';
-    }
-    if ($projectObjectiveDetail === '') {
-        $errors['objective_detail'] = 'required';
-    }
-    if ($projectTargetGroup === '') {
-        $errors['target_group'] = 'required';
-    }
-    if ($projectParticipantCount === '') {
-        $errors['participant_count'] = 'required';
-    }
-    if ($projectActivityPeriod === '') {
-        $errors['activity_period'] = 'required';
-    }
-    if ($projectLecturerNames === '') {
-        $errors['lecturer_names'] = 'required';
-    }
-    if ($projectReceiverName === '') {
-        $errors['receiver_name'] = 'required';
-    }
-    if ($projectReceiverPosition === '') {
-        $errors['receiver_position'] = 'required';
-    }
-} elseif ($isResearchData) {
-
-    if (!$hideDocDateOnDocument && $docDate === '') {
-        $errors['doc_date'] = 'required';
-    }
-    if ($researchSubject === '') {
-        $errors['subject'] = 'required';
-    }
-    if ($researchToPerson === '') {
-        $errors['to_person'] = 'required';
-    }
-    if ($researchSemester === '') {
-        $errors['semester'] = 'required';
-    }
-    if ($researchAcademicYear === '' || !preg_match('/^\d{4}$/', $researchAcademicYear)) {
-        $errors['academic_year'] = 'required';
-    }
-    if ($researchCourseCode === '') {
-        $errors['course_code'] = 'required';
-    }
-    if ($researchCourseName === '') {
-        $errors['course_name'] = 'required';
-    }
-    if ($researchCurriculumName === '') {
-        $errors['curriculum_name'] = 'required';
-    }
-    if ($researchMajorName === '') {
-        $errors['major_name'] = 'required';
-    }
-    if ($researchStudentYear === '' || !preg_match('/^\d+$/', $researchStudentYear)) {
-        $errors['student_year'] = 'required';
-    }
-    if ($researchThesisTitle === '') {
-        $errors['thesis_title'] = 'required';
-    }
-    if ($researchAdvisorName === '') {
-        $errors['advisor_name'] = 'required';
-    }
-    if ($researchProjectDetail === '') {
-        $errors['project_detail'] = 'required';
-    }
-    if ($researchSupportType === '') {
-        $errors['support_type'] = 'required';
-    }
-    if ($researchDataDetail === '') {
-        $errors['data_detail'] = 'required';
-    }
-    if ($researchDataAmount === '') {
-        $errors['data_amount'] = 'required';
-    }
-    if (count($researchStudents) < 1) {
-        $errors['student_name'] = 'required';
-    }
-
-    foreach ($researchStudents as $idx => $student) {
-        if ($student['name'] === '') {
-            $errors['student_name_' . $idx] = 'required';
+        if ($freeToPerson === '') {
+            $errors['to_person'] = 'required';
         }
-        if (!preg_match('/^\d{13}$/', $student['student_id'])) {
-            $errors['student_id_' . $idx] = 'required';
+        if ($freeDepartmentPhone === '') {
+            $errors['department_phone'] = 'required';
         }
-    }
-
-    if (!$researchContactStudent) {
-        $errors['student_contact_index'] = 'required';
-    } elseif (!preg_match('/^\d{10}$/', $researchContactStudent['phone'] ?? '')) {
-        $errors['student_phone'] = 'required';
-    }
-
-} elseif ($isInviteMemo) {
-    if (!$hideDocDateOnDocument && $docDate === '') {
-        $errors['doc_date'] = 'required';
-    }
-    if ($memoSubject === '') {
-        $errors['subject'] = 'required';
-    }
-    if ($toPerson === '') {
-        $errors['to_person'] = 'required';
-    }
-    if ($eventTitle === '') {
-        $errors['thesis_title'] = 'required';
-    }
-    if ($inviteStatement === '') {
-        $errors['invite_statement'] = 'required';
-    }
-    if ($objectiveText === '') {
-        $errors['objective'] = 'required';
-    }
-    if ($joinDates === '') {
-        $errors['intern_period'] = 'required';
-    }
-    if ($place === '') {
-        $errors['location_input'] = 'required';
-    }
-
-} elseif ($isRoomRequest) {
-    if (!$hideDocDateOnDocument && $docDate === '') {
-        $errors['doc_date'] = 'required';
-    }
-
-    if ($toPerson === '') {
-        $errors['to_person'] = 'required';
-    }
-
-    if ($fullname === '') {
-        $errors['fullname'] = 'required';
-    }
-
-    if ($position === '') {
-        $errors['position'] = 'required';
-    }
-
-    if ($roomRequest === '') {
-        $errors['room_request'] = 'required';
-    }
-
-    if ($roomRequest === 'อื่น ๆ' && $roomRequestOther === '') {
-        $errors['room_request_other'] = 'required';
-    }
-
-    if ($guestFullname === '') {
-        $errors['guest_fullname'] = 'required';
-    }
-
-    if ($personType === '') {
-        $errors['person_type'] = 'required';
-    }
-
-    if ($personType === 'อื่น ๆ' && $personTypeOther === '') {
-        $errors['person_type_other'] = 'required';
-    }
-
-    if ($reason === '') {
-        $errors['reason'] = 'required';
-    }
-
-    if ($reason === 'อื่น ๆ' && $reasonOther === '') {
-        $errors['reason_other'] = 'required';
-    }
-
-    if ($dateOption === 'single' && $singleDate === '') {
-        $errors['single_date'] = 'required';
-    }
-
-    if ($dateOption === 'range' && $rangeDate === '') {
-        $errors['range_date'] = 'required';
-    }
-
-    if ($roomType === '') {
-        $errors['room_type'] = 'required';
-    }
-
-} elseif ($isSpeakerMemo) {
-    if ($memoSubject === '') {
-        $errors['memo_subject'] = 'required';
-    }
-
-    if ($fullname === '') {
-        $errors['fullname'] = 'required';
-    }
-
-    if ($position === '') {
-        $errors['position'] = 'required';
-    }
-
-    if ($referenceOrg === '') {
-        $errors['reference_org'] = 'required';
-    }
-
-    if ($referenceNo === '') {
-        $errors['reference_no'] = 'required';
-    }
-
-    if (!$hideDocDateOnDocument && $docDate === '') {
-        $errors['doc_date'] = 'required';
-    }
-    if ($referenceDate === '') {
-        $errors['reference_date'] = 'required';
-    }
-    if ($eventTitle === '') {
-        $errors['project_title'] = 'required';
-    }
-
-    if ($courseName === '') {
-        $errors['course_name'] = 'required';
-    }
-
-    if ($place === '') {
-        $errors['location'] = 'required';
-    }
-
-    if ($joinDates === '') {
-        $errors['intern_period'] = 'required';
-    }
-
-    if ($travelPeriod === '') {
-        $errors['travel_period'] = 'required';
-    }
-    if ($intentionText === '') {
-    $errors['intention_text'] = 'required';
-    }
-} elseif ($isStudyVisit) {
-    if (!$hideDocDateOnDocument && $docDate === '') {
-        $errors['doc_date'] = 'required';
-    }
-    if ($memoSubject === '') {
-        $errors['subject'] = 'required';
-    }
-    if ($toPerson === '') {
-        $errors['to_person'] = 'required';
-    }
-    if ($receiverName === '') {
-        $errors['receiver_name'] = 'required';
-    }
-    if ($receiverPosition === '') {
-        $errors['receiver_position'] = 'required';
-    }
-    if ($fullname === '') {
-        $errors['fullname'] = 'required';
-    }
-    if ($position === '') {
-        $errors['position'] = 'required';
-    }
-    if ($studyVisitPlace === '') {
-        $errors['visit_place'] = 'required';
-    }
-    if ($studyPlaceDetail === '') {
-        $errors['place_detail'] = 'required';
-    }
-    if ($studyObjectiveText === '') {
-        $errors['objective'] = 'required';
-    }
-    if ($studyPurposeText === '') {
-        $errors['purpose'] = 'required';
-    }
-    if ($studyVisitPeriod === '') {
-        $errors['visit_period'] = 'required';
-    }
-    if ($studyVisitTime === '') {
-        $errors['visit_time'] = 'required';
-    }
-    if ($studyTeacherCount < 1 || count($studyTeacherRows) < 1) {
-        $errors['teacher_count'] = 'required';
-    }
-
-    foreach ($studyTeacherRows as $idx => $teacher) {
-        if (trim($teacher['name'] ?? '') === '') {
-            $errors['teacher_name_' . $idx] = 'required';
+        if ($freeParagraph1 === '') {
+            $errors['free_paragraph_1'] = 'required';
         }
-        if (trim($teacher['affiliation'] ?? '') === '') {
-            $errors['teacher_affiliation_' . $idx] = 'required';
+    } elseif ($isCoopEvaluation) {
+        if (!$hideDocDateOnDocument && $docDate === '') {
+            $errors['doc_date'] = 'required';
         }
-    }
-} else {
-    if (!$hideDocDateOnDocument && $docDate === '') {
-        $errors['doc_date'] = 'required';
-    }
-
-    if ($purpose === 'other') {
-        $other = trim($_POST['purpose_other_detail'] ?? '');
-        if ($other === '') {
-            $errors['purpose_other_detail'] = 'required';
+        if ($coopSubject === '') {
+            $errors['subject'] = 'required';
         }
-    }
+        if ($coopToPerson === '') {
+            $errors['to_person'] = 'required';
+        }
+        if ($coopOrganizationName === '') {
+            $errors['organization_name'] = 'required';
+        }
+        if ($coopStudentCount === '' || (int) $coopStudentCount < 1) {
+            $errors['student_count'] = 'required';
+        }
+        if (count($coopStudents) < 1) {
+            $errors['student_list'] = 'required';
+        }
+        foreach ($coopStudents as $idx => $student) {
+            if (($student['name'] ?? '') === '') {
+                $errors['student_name_' . $idx] = 'required';
+            }
+            if (($student['student_id'] ?? '') === '') {
+                $errors['student_id_' . $idx] = 'required';
+            }
+        }
+        if ($coopPeriod === '') {
+            $errors['coop_period'] = 'required';
+        }
+        if ($coopAdvisorName === '') {
+            $errors['advisor_name'] = 'required';
+        }
+        // ฟอร์ม infor_coop_evaluation.php ปัจจุบันไม่มีช่อง evaluation_email
+        // จึงตรวจรูปแบบเฉพาะกรณีที่มีการส่งค่ามาเท่านั้น
+        if ($coopEvaluationEmail !== '' && !filter_var($coopEvaluationEmail, FILTER_VALIDATE_EMAIL)) {
+            $errors['evaluation_email'] = 'invalid';
+        }
 
-    if ($purpose === 'academic') {
+    } elseif ($isProjectActivity) {
+        if (!$hideDocDateOnDocument && $docDate === '') {
+            $errors['doc_date'] = 'required';
+        }
+        if ($projectSubject === '') {
+            $errors['subject'] = 'required';
+        }
+        if ($projectToPerson === '') {
+            $errors['to_person'] = 'required';
+        }
+        if ($projectActivityPlace === '') {
+            $errors['activity_place'] = 'required';
+        }
+        if ($projectMainProject === '') {
+            $errors['main_project'] = 'required';
+        }
+        if ($projectSubActivity === '') {
+            $errors['sub_activity'] = 'required';
+        }
+        if ($projectObjectiveDetail === '') {
+            $errors['objective_detail'] = 'required';
+        }
+        if ($projectTargetGroup === '') {
+            $errors['target_group'] = 'required';
+        }
+        if ($projectParticipantCount === '') {
+            $errors['participant_count'] = 'required';
+        }
+        if ($projectActivityPeriod === '') {
+            $errors['activity_period'] = 'required';
+        }
+        if ($projectLecturerNames === '') {
+            $errors['lecturer_names'] = 'required';
+        }
+        if ($projectReceiverName === '') {
+            $errors['receiver_name'] = 'required';
+        }
+        if ($projectReceiverPosition === '') {
+            $errors['receiver_position'] = 'required';
+        }
+    } elseif ($isResearchData) {
+
+        if (!$hideDocDateOnDocument && $docDate === '') {
+            $errors['doc_date'] = 'required';
+        }
+        if ($researchSubject === '') {
+            $errors['subject'] = 'required';
+        }
+        if ($researchToPerson === '') {
+            $errors['to_person'] = 'required';
+        }
+        if ($researchSemester === '') {
+            $errors['semester'] = 'required';
+        }
+        if ($researchAcademicYear === '' || !preg_match('/^\d{4}$/', $researchAcademicYear)) {
+            $errors['academic_year'] = 'required';
+        }
+        if ($researchCourseCode === '') {
+            $errors['course_code'] = 'required';
+        }
+        if ($researchCourseName === '') {
+            $errors['course_name'] = 'required';
+        }
+        if ($researchCurriculumName === '') {
+            $errors['curriculum_name'] = 'required';
+        }
+        if ($researchMajorName === '') {
+            $errors['major_name'] = 'required';
+        }
+        if ($researchStudentYear === '' || !preg_match('/^\d+$/', $researchStudentYear)) {
+            $errors['student_year'] = 'required';
+        }
+        if ($researchThesisTitle === '') {
+            $errors['thesis_title'] = 'required';
+        }
+        if ($researchAdvisorName === '') {
+            $errors['advisor_name'] = 'required';
+        }
+        if ($researchProjectDetail === '') {
+            $errors['project_detail'] = 'required';
+        }
+        if ($researchSupportType === '') {
+            $errors['support_type'] = 'required';
+        }
+        if ($researchDataDetail === '') {
+            $errors['data_detail'] = 'required';
+        }
+        if ($researchDataAmount === '') {
+            $errors['data_amount'] = 'required';
+        }
+        if (count($researchStudents) < 1) {
+            $errors['student_name'] = 'required';
+        }
+
+        foreach ($researchStudents as $idx => $student) {
+            if ($student['name'] === '') {
+                $errors['student_name_' . $idx] = 'required';
+            }
+            if (!preg_match('/^\d{13}$/', $student['student_id'])) {
+                $errors['student_id_' . $idx] = 'required';
+            }
+        }
+
+        if (!$researchContactStudent) {
+            $errors['student_contact_index'] = 'required';
+        } elseif (!preg_match('/^\d{10}$/', $researchContactStudent['phone'] ?? '')) {
+            $errors['student_phone'] = 'required';
+        }
+
+    } elseif ($isInviteMemo) {
+        if (!$hideDocDateOnDocument && $docDate === '') {
+            $errors['doc_date'] = 'required';
+        }
+        if ($memoSubject === '') {
+            $errors['subject'] = 'required';
+        }
+        if ($toPerson === '') {
+            $errors['to_person'] = 'required';
+        }
+        if ($eventTitle === '') {
+            $errors['thesis_title'] = 'required';
+        }
+        if ($inviteStatement === '') {
+            $errors['invite_statement'] = 'required';
+        }
+        if ($objectiveText === '') {
+            $errors['objective'] = 'required';
+        }
+        if ($joinDates === '') {
+            $errors['intern_period'] = 'required';
+        }
+        if ($place === '') {
+            $errors['location_input'] = 'required';
+        }
+
+    } elseif ($isRoomRequest) {
+        if (!$hideDocDateOnDocument && $docDate === '') {
+            $errors['doc_date'] = 'required';
+        }
+
+        if ($toPerson === '') {
+            $errors['to_person'] = 'required';
+        }
+
+        if ($fullname === '') {
+            $errors['fullname'] = 'required';
+        }
+
+        if ($position === '') {
+            $errors['position'] = 'required';
+        }
+
+        if ($roomRequest === '') {
+            $errors['room_request'] = 'required';
+        }
+
+        if ($roomRequest === 'อื่น ๆ' && $roomRequestOther === '') {
+            $errors['room_request_other'] = 'required';
+        }
+
+        if ($guestFullname === '') {
+            $errors['guest_fullname'] = 'required';
+        }
+
+        if ($personType === '') {
+            $errors['person_type'] = 'required';
+        }
+
+        if ($personType === 'อื่น ๆ' && $personTypeOther === '') {
+            $errors['person_type_other'] = 'required';
+        }
+
+        if ($reason === '') {
+            $errors['reason'] = 'required';
+        }
+
+        if ($reason === 'อื่น ๆ' && $reasonOther === '') {
+            $errors['reason_other'] = 'required';
+        }
+
+        if ($dateOption === 'single' && $singleDate === '') {
+            $errors['single_date'] = 'required';
+        }
+
+        if ($dateOption === 'range' && $rangeDate === '') {
+            $errors['range_date'] = 'required';
+        }
+
+        if ($roomType === '') {
+            $errors['room_type'] = 'required';
+        }
+
+    } elseif ($isSpeakerMemo) {
         if ($memoSubject === '') {
             $errors['memo_subject'] = 'required';
         }
 
-        if ($academicTopic === '') {
-            $errors['academic_topic'] = 'required';
+        if ($fullname === '') {
+            $errors['fullname'] = 'required';
         }
 
-        if ($academicLevel === '') {
-            $errors['academic_level'] = 'required';
+        if ($position === '') {
+            $errors['position'] = 'required';
         }
 
-        if ($eventDate === '') {
-            $errors['event_date'] = 'required';
+        if ($referenceOrg === '') {
+            $errors['reference_org'] = 'required';
         }
-    }
 
-    if ($eventTitle === '') {
-        $errors['event_title'] = 'required';
-    }
+        if ($referenceNo === '') {
+            $errors['reference_no'] = 'required';
+        }
 
-    if ($joinDates === '') {
-        $errors['join_date'] = 'required';
-    }
+        if (!$hideDocDateOnDocument && $docDate === '') {
+            $errors['doc_date'] = 'required';
+        }
+        if ($referenceDate === '') {
+            $errors['reference_date'] = 'required';
+        }
+        if ($eventTitle === '') {
+            $errors['project_title'] = 'required';
+        }
 
-    if (!$isOnline && $place === '') {
-        $errors['place'] = 'required';
-    }
+        if ($courseName === '') {
+            $errors['course_name'] = 'required';
+        }
 
-    if (!$noCost && !is_numeric($amountRaw)) {
-        $errors['amount'] = 'number';
-    }
+        if ($place === '') {
+            $errors['location'] = 'required';
+        }
 
-    if ($carUsed && $carPlate === '') {
-        $errors['car_plate'] = 'required';
-    }
-}
-    
+        if ($joinDates === '') {
+            $errors['intern_period'] = 'required';
+        }
 
-if (!empty($errors)) {
-    if ($isFreeDocument) {
-        header('Location: /Pro_letter/documents/infor_free_document.php' . ($documentId > 0 ? '?id=' . $documentId . '&edit=1&err=validate' : '?err=validate'));
-    } elseif ($isCoopEvaluation) {
-        header('Location: /Pro_letter/documents/infor_coop_evaluation.php' . ($documentId > 0 ? '?id=' . $documentId . '&edit=1&err=validate' : '?err=validate'));
-    } elseif ($isProjectActivity) {
-        header('Location: /Pro_letter/documents/infor_project_activity.php?err=validate');
-    } elseif ($isResearchData) {
-        header('Location: /Pro_letter/documents/infor_research_data.php?err=validate');
-    } elseif ($isInviteMemo) {
-        header('Location: /Pro_letter/documents/infor_invite.php?err=validate');
-    } elseif ($isRoomRequest) {
-        header('Location: /Pro_letter/documents/infor_room_request.php?err=validate');
-    } elseif ($isSpeakerMemo) {
-        header('Location: /Pro_letter/documents/infor_speaker_workshop.php?err=validate');
+        if ($travelPeriod === '') {
+            $errors['travel_period'] = 'required';
+        }
+        if ($intentionText === '') {
+            $errors['intention_text'] = 'required';
+        }
     } elseif ($isStudyVisit) {
-        header('Location: /Pro_letter/documents/infor_study_visit.php?err=validate');
-    } elseif (!empty($isConsentResearchPresentation) || $purpose === 'consent_research_presentation') {
-        header('Location: /Pro_letter/documents/infor_present.php?err=validate');
+        if (!$hideDocDateOnDocument && $docDate === '') {
+            $errors['doc_date'] = 'required';
+        }
+        if ($memoSubject === '') {
+            $errors['subject'] = 'required';
+        }
+        if ($toPerson === '') {
+            $errors['to_person'] = 'required';
+        }
+        if ($receiverName === '') {
+            $errors['receiver_name'] = 'required';
+        }
+        if ($receiverPosition === '') {
+            $errors['receiver_position'] = 'required';
+        }
+        if ($fullname === '') {
+            $errors['fullname'] = 'required';
+        }
+        if ($position === '') {
+            $errors['position'] = 'required';
+        }
+        if ($studyVisitPlace === '') {
+            $errors['visit_place'] = 'required';
+        }
+        if ($studyPlaceDetail === '') {
+            $errors['place_detail'] = 'required';
+        }
+        if ($studyObjectiveText === '') {
+            $errors['objective'] = 'required';
+        }
+        if ($studyPurposeText === '') {
+            $errors['purpose'] = 'required';
+        }
+        if ($studyVisitPeriod === '') {
+            $errors['visit_period'] = 'required';
+        }
+        if ($studyVisitTime === '') {
+            $errors['visit_time'] = 'required';
+        }
+        if ($studyTeacherCount < 1 || count($studyTeacherRows) < 1) {
+            $errors['teacher_count'] = 'required';
+        }
+
+        foreach ($studyTeacherRows as $idx => $teacher) {
+            if (trim($teacher['name'] ?? '') === '') {
+                $errors['teacher_name_' . $idx] = 'required';
+            }
+            if (trim($teacher['affiliation'] ?? '') === '') {
+                $errors['teacher_affiliation_' . $idx] = 'required';
+            }
+        }
     } else {
-        header('Location: /Pro_letter/documents/form_Memo.php?err=validate');
+        if (!$hideDocDateOnDocument && $docDate === '') {
+            $errors['doc_date'] = 'required';
+        }
+
+        if ($purpose === 'other') {
+            $other = trim($_POST['purpose_other_detail'] ?? '');
+            if ($other === '') {
+                $errors['purpose_other_detail'] = 'required';
+            }
+        }
+
+        if ($purpose === 'academic') {
+            if ($memoSubject === '') {
+                $errors['memo_subject'] = 'required';
+            }
+
+            if ($academicTopic === '') {
+                $errors['academic_topic'] = 'required';
+            }
+
+            if ($academicLevel === '') {
+                $errors['academic_level'] = 'required';
+            }
+
+            if ($eventDate === '') {
+                $errors['event_date'] = 'required';
+            }
+        }
+
+        if ($eventTitle === '') {
+            $errors['event_title'] = 'required';
+        }
+
+        if ($joinDates === '') {
+            $errors['join_date'] = 'required';
+        }
+
+        if (!$isOnline && $place === '') {
+            $errors['place'] = 'required';
+        }
+
+        if (!$noCost && !is_numeric($amountRaw)) {
+            $errors['amount'] = 'number';
+        }
+
+        if ($carUsed && $carPlate === '') {
+            $errors['car_plate'] = 'required';
+        }
     }
-    exit;
-}
+
+
+    if (!empty($errors)) {
+        if ($isFreeDocument) {
+            header('Location: /Pro_letter/documents/infor_free_document.php' . ($documentId > 0 ? '?id=' . $documentId . '&edit=1&err=validate' : '?err=validate'));
+        } elseif ($isCoopEvaluation) {
+            header('Location: /Pro_letter/documents/infor_coop_evaluation.php' . ($documentId > 0 ? '?id=' . $documentId . '&edit=1&err=validate' : '?err=validate'));
+        } elseif ($isProjectActivity) {
+            header('Location: /Pro_letter/documents/infor_project_activity.php?err=validate');
+        } elseif ($isResearchData) {
+            header('Location: /Pro_letter/documents/infor_research_data.php?err=validate');
+        } elseif ($isInviteMemo) {
+            header('Location: /Pro_letter/documents/infor_invite.php?err=validate');
+        } elseif ($isRoomRequest) {
+            header('Location: /Pro_letter/documents/infor_room_request.php?err=validate');
+        } elseif ($isSpeakerMemo) {
+            header('Location: /Pro_letter/documents/infor_speaker_workshop.php?err=validate');
+        } elseif ($isStudyVisit) {
+            header('Location: /Pro_letter/documents/infor_study_visit.php?err=validate');
+        } elseif (!empty($isConsentResearchPresentation) || $purpose === 'consent_research_presentation') {
+            header('Location: /Pro_letter/documents/infor_present.php?err=validate');
+        } else {
+            header('Location: /Pro_letter/documents/form_Memo.php?err=validate');
+        }
+        exit;
+    }
 
 
     /** ===== เขียนฐานข้อมูล ===== */
     $pdo = db();
     $pdo->beginTransaction();
 
-    
+
     // 1) map ฟิลด์
-if ($isFreeDocument) {
-    $joinType = 'บันทึกข้อความทั่วไป';
-    $subject = $freeSubject !== '' ? $freeSubject : 'บันทึกข้อความทั่วไป';
-} elseif ($isCoopEvaluation) {
-    $joinType = 'ขอประเมินสถานประกอบการสหกิจศึกษา';
-    $subject = $coopSubject !== '' ? $coopSubject : 'ขอความอนุเคราะห์ประเมินผลนักศึกษาสหกิจศึกษา';
-} elseif ($isProjectActivity) {
-    $joinType = 'ขอเข้าไปจัดกิจกรรมโครงการ';
-    $subject = $projectSubject !== '' ? $projectSubject : 'ขออนุญาตดำเนินการจัดกิจกรรมโครงการ';
-} elseif ($isResearchData) {
-    $joinType = 'หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์';
-    $subject = $researchSubject !== '' ? $researchSubject : 'ขอความอนุเคราะห์ข้อมูลเพื่อจัดทำปริญญานิพนธ์';
-} elseif ($isInviteMemo) {
-    $joinType = 'หนังสือเรียนเชิญวิทยากร';
-    $subject = $memoSubject !== '' ? $memoSubject : 'ขอเรียนเชิญเป็นวิทยากรบรรยาย';
-} elseif ($isRoomRequest) {
-    $joinType = 'ขออนุมัติใช้ห้องพักรับรอง';
-    $subject = 'ขออนุมัติใช้ห้องพักรับรอง';
-} elseif ($isSpeakerMemo) {
-    $joinType = 'ขออนุมัติตัวบุคคลเป็นวิทยากร';
-    $subject = $memoSubject !== '' ? $memoSubject : 'ขออนุมัติตัวบุคคลเป็นวิทยากร';
-} elseif ($isStudyVisit) {
-    $joinType = 'ขออนุญาตเข้าเยี่ยมชมศึกษาดูงาน';
-    $subject = $memoSubject !== ''
-        ? $memoSubject
-        : trim('ขออนุญาตเข้าเยี่ยมชมศึกษาดูงาน ' . $studyVisitPlace);
-} elseif ($isConsentResearchPresentation || $purpose === 'consent_research_presentation') {
-    $purpose = 'consent_research_presentation';
-    $joinType = 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ';
-    $subject = 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ';
-} elseif ($purpose === 'other') {
-    $joinType = trim($_POST['purpose_other_detail'] ?? '');
-    if ($joinType === '') {
-        $joinType = 'อื่นๆ';
-    }
-
-    $subject = trim($joinType . $eventTitle);
-} else {
-    $joinType = match ($purpose) {
-        'academic' => 'นำเสนอผลงานวิจัย',
-        'consent_research_presentation' => 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ',
-        'training' => 'เข้ารับการฝึกอบรมหลักสูตร',
-        'meeting'  => 'เข้าร่วมประชุมวิชาการในงาน',
-        default    => 'อื่นๆ',
-    };
-
-    if ($purpose === 'academic' && $memoSubject !== '') {
-        $subject = $memoSubject;
-    } elseif ($purpose === 'consent_research_presentation') {
+    if ($isFreeDocument) {
+        $joinType = 'บันทึกข้อความทั่วไป';
+        $subject = $freeSubject !== '' ? $freeSubject : 'บันทึกข้อความทั่วไป';
+    } elseif ($isCoopEvaluation) {
+        $joinType = 'ขอประเมินสถานประกอบการสหกิจศึกษา';
+        $subject = $coopSubject !== '' ? $coopSubject : 'ขอความอนุเคราะห์ประเมินผลนักศึกษาสหกิจศึกษา';
+    } elseif ($isProjectActivity) {
+        $joinType = 'ขอเข้าไปจัดกิจกรรมโครงการ';
+        $subject = $projectSubject !== '' ? $projectSubject : 'ขออนุญาตดำเนินการจัดกิจกรรมโครงการ';
+    } elseif ($isResearchData) {
+        $joinType = 'หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์';
+        $subject = $researchSubject !== '' ? $researchSubject : 'ขอความอนุเคราะห์ข้อมูลเพื่อจัดทำปริญญานิพนธ์';
+    } elseif ($isInviteMemo) {
+        $joinType = 'หนังสือเรียนเชิญวิทยากร';
+        $subject = $memoSubject !== '' ? $memoSubject : 'ขอเรียนเชิญเป็นวิทยากรบรรยาย';
+    } elseif ($isRoomRequest) {
+        $joinType = 'ขออนุมัติใช้ห้องพักรับรอง';
+        $subject = 'ขออนุมัติใช้ห้องพักรับรอง';
+    } elseif ($isSpeakerMemo) {
+        $joinType = 'ขออนุมัติตัวบุคคลเป็นวิทยากร';
+        $subject = $memoSubject !== '' ? $memoSubject : 'ขออนุมัติตัวบุคคลเป็นวิทยากร';
+    } elseif ($isStudyVisit) {
+        $joinType = 'ขออนุญาตเข้าเยี่ยมชมศึกษาดูงาน';
+        $subject = $memoSubject !== ''
+            ? $memoSubject
+            : trim('ขออนุญาตเข้าเยี่ยมชมศึกษาดูงาน ' . $studyVisitPlace);
+    } elseif ($isConsentResearchPresentation || $purpose === 'consent_research_presentation') {
+        $purpose = 'consent_research_presentation';
+        $joinType = 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ';
         $subject = 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ';
-    } else {
+    } elseif ($purpose === 'other') {
+        $joinType = trim($_POST['purpose_other_detail'] ?? '');
+        if ($joinType === '') {
+            $joinType = 'อื่นๆ';
+        }
+
         $subject = trim($joinType . $eventTitle);
+    } else {
+        $joinType = match ($purpose) {
+            'academic' => 'นำเสนอผลงานวิจัย',
+            'consent_research_presentation' => 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ',
+            'training' => 'เข้ารับการฝึกอบรมหลักสูตร',
+            'meeting' => 'เข้าร่วมประชุมวิชาการในงาน',
+            default => 'อื่นๆ',
+        };
+
+        if ($purpose === 'academic' && $memoSubject !== '') {
+            $subject = $memoSubject;
+        } elseif ($purpose === 'consent_research_presentation') {
+            $subject = 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ';
+        } else {
+            $subject = trim($joinType . $eventTitle);
+        }
     }
-}
-    $departmentPhone = trim((string)($_POST['department_phone'] ?? ''));
+    $departmentPhone = trim((string) ($_POST['department_phone'] ?? ''));
     $departmentPhone = strtr($departmentPhone, [
-        '๐' => '0', '๑' => '1', '๒' => '2', '๓' => '3', '๔' => '4',
-        '๕' => '5', '๖' => '6', '๗' => '7', '๘' => '8', '๙' => '9',
+        '๐' => '0',
+        '๑' => '1',
+        '๒' => '2',
+        '๓' => '3',
+        '๔' => '4',
+        '๕' => '5',
+        '๖' => '6',
+        '๗' => '7',
+        '๘' => '8',
+        '๙' => '9',
     ]);
     $departmentPhone = preg_replace('/^โทร\.?\s*/u', '', $departmentPhone);
     $departmentPhone = preg_replace('/\s+/u', ' ', $departmentPhone);
@@ -992,50 +1004,50 @@ if ($isFreeDocument) {
 
 
     if ($mode === 'update' && $documentId <= 0) {
-    throw new Exception("Invalid document id for update");
-}
+        throw new Exception("Invalid document id for update");
+    }
 
-   if ($mode === 'update') {
+    if ($mode === 'update') {
 
-    // ตรวจว่าเป็นเจ้าของ + สถานะแก้ได้
-    $chk = $pdo->prepare("
+        // ตรวจว่าเป็นเจ้าของ + สถานะแก้ได้
+        $chk = $pdo->prepare("
         SELECT owner_id, status
         FROM documents
         WHERE document_id = :id
         LIMIT 1
     ");
-    $chk->execute([':id' => $documentId]);
-    $doc = $chk->fetch(PDO::FETCH_ASSOC);
+        $chk->execute([':id' => $documentId]);
+        $doc = $chk->fetch(PDO::FETCH_ASSOC);
 
-    if (!$doc) {
-        throw new Exception("Document not found");
-    }
-    $roleId = (int)($_SESSION['role_id'] ?? 0);
-    $isAdmin   = ($roleId === 1);
-    $isOfficer = ($roleId === 2);
-
-    // 🔒 ถ้าเอกสารถูกตรวจแล้วหรืออนุมัติแล้ว → ใครก็แก้ไม่ได้
-    if (in_array($doc['status'], ['checked', 'approved'])) {
-        throw new Exception("Document locked");
-    }
-
-        // 👤 User ธรรมดา (ไม่ใช่ Admin / Officer)
-    if (!$isAdmin && !$isOfficer) {
-
-        // ต้องเป็นเจ้าของเอกสาร
-        if ($doc['owner_id'] != $userId) {
-            throw new Exception("No permission");
+        if (!$doc) {
+            throw new Exception("Document not found");
         }
+        $roleId = (int) ($_SESSION['role_id'] ?? 0);
+        $isAdmin = ($roleId === 1);
+        $isOfficer = ($roleId === 2);
 
-        // User แก้ได้เฉพาะ draft / rejected / รอแก้เอกสาร
-        if (!in_array($doc['status'], ['draft', 'rejected', 'รอแก้เอกสาร', 'รอแก้ไข'], true)) {
+        // 🔒 ถ้าเอกสารถูกตรวจแล้วหรืออนุมัติแล้ว → ใครก็แก้ไม่ได้
+        if (in_array($doc['status'], ['checked', 'approved'])) {
             throw new Exception("Document locked");
         }
-    }
+
+        // 👤 User ธรรมดา (ไม่ใช่ Admin / Officer)
+        if (!$isAdmin && !$isOfficer) {
+
+            // ต้องเป็นเจ้าของเอกสาร
+            if ($doc['owner_id'] != $userId) {
+                throw new Exception("No permission");
+            }
+
+            // User แก้ได้เฉพาะ draft / rejected / รอแก้เอกสาร
+            if (!in_array($doc['status'], ['draft', 'rejected', 'รอแก้เอกสาร', 'รอแก้ไข'], true)) {
+                throw new Exception("Document locked");
+            }
+        }
 
 
-    // 🔄 UPDATE documents
-    $stmt = $pdo->prepare("
+        // 🔄 UPDATE documents
+        $stmt = $pdo->prepare("
         UPDATE documents
         SET
             template_id = :template_id,
@@ -1051,350 +1063,344 @@ if ($isFreeDocument) {
             updated_at = NOW()
         WHERE document_id = :id
     ");
-    $stmt->execute([
-        ':template_id' => $templateId,
-        ':document_type_name' => $documentTypeName,
-        ':department_id' => $departmentId,
-        ':doc_date' => $docDateForDocumentTable,
-        ':subject' => $subject,
-        ':header_text' => $hdrAgency,
-        ':id' => $documentId
-    ]);
+        $stmt->execute([
+            ':template_id' => $templateId,
+            ':document_type_name' => $documentTypeName,
+            ':department_id' => $departmentId,
+            ':doc_date' => $docDateForDocumentTable,
+            ':subject' => $subject,
+            ':header_text' => $hdrAgency,
+            ':id' => $documentId
+        ]);
 
-} else {
-    // 🆕 CREATE
-    $roleIdForCreate = (int)($_SESSION['role_id'] ?? 0);
-    if ($roleIdForCreate <= 0) {
-        $roleStmt = $pdo->prepare("SELECT role_id FROM users WHERE user_id = :user_id LIMIT 1");
-        $roleStmt->execute([':user_id' => $userId]);
-        $roleIdForCreate = (int)($roleStmt->fetchColumn() ?: 0);
-    }
-    $createStatus = ($roleIdForCreate === 2) ? 'submitted' : 'draft';
+    } else {
+        // 🆕 CREATE
+        $roleIdForCreate = (int) ($_SESSION['role_id'] ?? 0);
+        if ($roleIdForCreate <= 0) {
+            $roleStmt = $pdo->prepare("SELECT role_id FROM users WHERE user_id = :user_id LIMIT 1");
+            $roleStmt->execute([':user_id' => $userId]);
+            $roleIdForCreate = (int) ($roleStmt->fetchColumn() ?: 0);
+        }
+        $createStatus = ($roleIdForCreate === 2) ? 'submitted' : 'draft';
 
-    $stmt = $pdo->prepare("
+        $stmt = $pdo->prepare("
         INSERT INTO documents
 (template_id, document_type_name, owner_id, department_id, doc_no, doc_date, subject, header_text, status, remark)
 VALUES
 (:template_id, :document_type_name, :owner_id, :department_id, NULL, :doc_date, :subject, :header_text, :status, NULL)
     ");
-    $stmt->execute([
-        ':template_id' => $templateId,
-        ':document_type_name' => $documentTypeName,
-        ':owner_id' => $userId,
-        ':department_id' => $departmentId,
-        ':doc_date' => $docDateForDocumentTable,
-        ':subject' => $subject,
-        ':header_text' => $hdrAgency,
-        ':status' => $createStatus
-    ]);
-    $documentId = (int) $pdo->lastInsertId();
-}
-$totalAmount = isset($_POST['total_amount']) ? (float)$_POST['total_amount'] : null;
+        $stmt->execute([
+            ':template_id' => $templateId,
+            ':document_type_name' => $documentTypeName,
+            ':owner_id' => $userId,
+            ':department_id' => $departmentId,
+            ':doc_date' => $docDateForDocumentTable,
+            ':subject' => $subject,
+            ':header_text' => $hdrAgency,
+            ':status' => $createStatus
+        ]);
+        $documentId = (int) $pdo->lastInsertId();
+    }
+    $totalAmount = isset($_POST['total_amount']) ? (float) $_POST['total_amount'] : null;
 
-// ถ้ามี step2 และไม่ติ๊ก no_cost -> ให้ใช้ total เป็น amount หลักของเอกสาร
-if (!$noCost && $totalAmount !== null && $totalAmount >= 0) {
-    $amount = $totalAmount;
-}
+    // ถ้ามี step2 และไม่ติ๊ก no_cost -> ให้ใช้ total เป็น amount หลักของเอกสาร
+    if (!$noCost && $totalAmount !== null && $totalAmount >= 0) {
+        $amount = $totalAmount;
+    }
 
-$valuesByKey = [];
+    $valuesByKey = [];
 
-$expenseJson = trim((string)($_POST['expense_json'] ?? ''));
-if ($noCost) {
-    $expenseJson = '';
-}
-if ($expenseJson !== '') {
-    json_decode($expenseJson, true);
-    if (json_last_error() !== JSON_ERROR_NONE) {
+    $expenseJson = trim((string) ($_POST['expense_json'] ?? ''));
+    if ($noCost) {
         $expenseJson = '';
     }
-}
+    if ($expenseJson !== '') {
+        json_decode($expenseJson, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            $expenseJson = '';
+        }
+    }
 
-if ($isFreeDocument) {
-    $values = [
-        1  => $docDateForDisplay,
-        4  => $joinType,
-        10 => $faculty,
-        11 => $department,
-        14 => $freeSubject,
-        26 => $freeToPerson,
-    ];
+    if ($isFreeDocument) {
+        $values = [
+            1 => $docDateForDisplay,
+            4 => $joinType,
+            10 => $faculty,
+            11 => $department,
+            14 => $freeSubject,
+            26 => $freeToPerson,
+        ];
 
-    $valuesByKey = [
-        'free_doc_date'          => $docDateForDisplay,
-        'free_subject'           => $freeSubject,
-        'free_to_person'         => $freeToPerson,
-        'free_faculty'           => $faculty,
-        'free_department'        => $department,
-        'free_department_phone'  => $freeDepartmentPhone,
-        'free_paragraph_1'       => $freeParagraph1,
-        'free_paragraph_2'       => $freeParagraph2,
-        'free_paragraph_3'       => $freeParagraph3,
-        'free_signer_name'       => $freeSignerName,
-        'free_signer_position'   => $freeSignerPosition,
-        'doc_date'               => $docDateForDisplay,
-        'subject'                => $freeSubject,
-        'to_person'              => $freeToPerson,
-        'faculty'                => $faculty,
-        'department'             => $department,
-        'department_phone'       => $freeDepartmentPhone,
-        'paragraph_1'            => $freeParagraph1,
-        'paragraph_2'            => $freeParagraph2,
-        'paragraph_3'            => $freeParagraph3,
-        'signer_name'            => $freeSignerName,
-        'signer_position'        => $freeSignerPosition,
-    ];
+        $valuesByKey = [
+            'free_doc_date' => $docDateForDisplay,
+            'free_subject' => $freeSubject,
+            'free_to_person' => $freeToPerson,
+            'free_faculty' => $faculty,
+            'free_department' => $department,
+            'free_department_phone' => $freeDepartmentPhone,
+            'free_paragraph_1' => $freeParagraph1,
+            'free_paragraph_2' => $freeParagraph2,
+            'free_paragraph_3' => $freeParagraph3,
+            'free_signer_name' => $freeSignerName,
+            'free_signer_position' => $freeSignerPosition,
+            'doc_date' => $docDateForDisplay,
+            'subject' => $freeSubject,
+            'to_person' => $freeToPerson,
+            'faculty' => $faculty,
+            'department' => $department,
+            'department_phone' => $freeDepartmentPhone,
+            'paragraph_1' => $freeParagraph1,
+            'paragraph_2' => $freeParagraph2,
+            'paragraph_3' => $freeParagraph3,
+            'signer_name' => $freeSignerName,
+            'signer_position' => $freeSignerPosition,
+        ];
 
-} elseif ($isCoopEvaluation) {
-    $coopStudentsJson = json_encode($coopStudents, JSON_UNESCAPED_UNICODE);
+    } elseif ($isCoopEvaluation) {
+        $coopStudentsJson = json_encode($coopStudents, JSON_UNESCAPED_UNICODE);
 
-    $values = [
-        1  => $docDateForDisplay,
-        4  => $joinType,
-        10 => $faculty,
-        11 => $department,
-        14 => $coopSubject,
-        26 => $coopToPerson,
+        $values = [
+            1 => $docDateForDisplay,
+            4 => $joinType,
+            10 => $faculty,
+            11 => $department,
+            14 => $coopSubject,
+            26 => $coopToPerson,
 
-        // legacy field_id ของฟอร์มประเมินสหกิจ เผื่อ template_fields ไม่มี field_key
-        70 => $coopSubject,
-        71 => $coopToPerson,
-        72 => $coopOrganizationName,
-        73 => (string)$coopStudentCount,
-        74 => $coopStudentsJson,
-        75 => $coopStudentListText,
-        76 => $coopPeriod,
-        77 => $coopStartDate,
-        78 => $coopEndDate,
-        79 => $coopAdvisorName,
-        80 => $coopEvaluationEmail,
-        82 => $coopReceiverName,
-        83 => $coopReceiverPosition,
-    ];
+            // legacy field_id ของฟอร์มประเมินสหกิจ เผื่อ template_fields ไม่มี field_key
+            70 => $coopSubject,
+            71 => $coopToPerson,
+            72 => $coopOrganizationName,
+            73 => (string) $coopStudentCount,
+            74 => $coopStudentsJson,
+            75 => $coopStudentListText,
+            76 => $coopPeriod,
+            77 => $coopStartDate,
+            78 => $coopEndDate,
+            79 => $coopAdvisorName,
+            80 => $coopEvaluationEmail,
+        ];
 
-    $valuesByKey = [
-        'coop_subject'            => $coopSubject,
-        'coop_to_person'          => $coopToPerson,
-        'coop_organization_name'  => $coopOrganizationName,
-        'coop_student_count'      => (string)$coopStudentCount,
-        'coop_students_json'      => $coopStudentsJson,
-        'coop_student_list_text'  => $coopStudentListText,
-        'coop_period'             => $coopPeriod,
-        'coop_start_date'         => $coopStartDate,
-        'coop_end_date'           => $coopEndDate,
-        'coop_advisor_name'       => $coopAdvisorName,
-        'coop_evaluation_email'   => $coopEvaluationEmail,
-        'coop_receiver_name'      => $coopReceiverName,
-        'coop_receiver_position'  => $coopReceiverPosition,
-        'coop_phone'              => $coopPhone,
-        'coop_phone_ext'          => $coopPhoneExt,
-    ];
+        $valuesByKey = [
+            'coop_subject' => $coopSubject,
+            'coop_to_person' => $coopToPerson,
+            'coop_organization_name' => $coopOrganizationName,
+            'coop_student_count' => (string) $coopStudentCount,
+            'coop_students_json' => $coopStudentsJson,
+            'coop_student_list_text' => $coopStudentListText,
+            'coop_period' => $coopPeriod,
+            'coop_start_date' => $coopStartDate,
+            'coop_end_date' => $coopEndDate,
+            'coop_advisor_name' => $coopAdvisorName,
+            'coop_evaluation_email' => $coopEvaluationEmail,
+            'coop_phone' => $coopPhone,
+            'coop_phone_ext' => $coopPhoneExt,
+        ];
 
-} elseif ($isProjectActivity) {
-    $values = [
-        1  => $docDateForDisplay,
-        4  => $joinType,
-        10 => $faculty,
-        11 => $department,
-        14 => $projectSubject,
-        26 => $projectToPerson,
-    ];
+    } elseif ($isProjectActivity) {
+        $values = [
+            1 => $docDateForDisplay,
+            4 => $joinType,
+            10 => $faculty,
+            11 => $department,
+            14 => $projectSubject,
+            26 => $projectToPerson,
+        ];
 
-    $valuesByKey = [
-        'project_subject'           => $projectSubject,
-        'project_to_person'         => $projectToPerson,
-        'project_activity_place'    => $projectActivityPlace,
-        'project_main_project'      => $projectMainProject,
-        'project_sub_activity'      => $projectSubActivity,
-        'project_objective_detail'  => $projectObjectiveDetail,
-        'project_target_group'      => $projectTargetGroup,
-        'project_participant_count' => $projectParticipantCount,
-        'project_activity_period'   => $projectActivityPeriod,
-        'project_lecturer_names'    => $projectLecturerNames,
-        'project_receiver_name'     => $projectReceiverName,
-        'project_receiver_position' => $projectReceiverPosition,
-        'project_phone'             => $projectPhone,
-        'project_phone_ext'         => $projectPhoneExt,
-    ];
+        $valuesByKey = [
+            'project_subject' => $projectSubject,
+            'project_to_person' => $projectToPerson,
+            'project_activity_place' => $projectActivityPlace,
+            'project_main_project' => $projectMainProject,
+            'project_sub_activity' => $projectSubActivity,
+            'project_objective_detail' => $projectObjectiveDetail,
+            'project_target_group' => $projectTargetGroup,
+            'project_participant_count' => $projectParticipantCount,
+            'project_activity_period' => $projectActivityPeriod,
+            'project_lecturer_names' => $projectLecturerNames,
+            'project_phone' => $projectPhone,
+            'project_phone_ext' => $projectPhoneExt,
+        ];
 
-} elseif ($isResearchData) {
-    $researchStudentsJson = json_encode($researchStudents, JSON_UNESCAPED_UNICODE);
+    } elseif ($isResearchData) {
+        $researchStudentsJson = json_encode($researchStudents, JSON_UNESCAPED_UNICODE);
 
-    $values = [
-        1  => $docDateForDisplay,
-        4  => $joinType,
-        10 => $faculty,
-        11 => $department,
-        14 => $researchSubject,
-        26 => $researchToPerson,
-    ];
+        $values = [
+            1 => $docDateForDisplay,
+            4 => $joinType,
+            10 => $faculty,
+            11 => $department,
+            14 => $researchSubject,
+            26 => $researchToPerson,
+        ];
 
-    $valuesByKey = [
-        'research_subject'         => $researchSubject,
-        'research_to_person'       => $researchToPerson,
-        'research_semester'        => $researchSemester,
-        'research_academic_year'   => $researchAcademicYear,
-        'research_course_code'     => $researchCourseCode,
-        'research_course_name'     => $researchCourseName,
-        'research_curriculum_name' => $researchCurriculumName,
-        'research_major_name'      => $researchMajorName,
-        'research_student_year'    => $researchStudentYear,
-        'research_thesis_title'    => $researchThesisTitle,
-        'research_advisor_name'    => $researchAdvisorName,
-        'research_project_detail'  => $researchProjectDetail,
-        'research_support_type'    => $researchSupportType,
-        'research_data_detail'     => $researchDataDetail,
-        'research_data_amount'     => $researchDataAmount,
-        'research_students_json'   => $researchStudentsJson,
-        'research_phone'           => $researchPhone,
-        'research_phone_ext'       => $researchPhoneExt,
-    ];
+        $valuesByKey = [
+            'research_subject' => $researchSubject,
+            'research_to_person' => $researchToPerson,
+            'research_semester' => $researchSemester,
+            'research_academic_year' => $researchAcademicYear,
+            'research_course_code' => $researchCourseCode,
+            'research_course_name' => $researchCourseName,
+            'research_curriculum_name' => $researchCurriculumName,
+            'research_major_name' => $researchMajorName,
+            'research_student_year' => $researchStudentYear,
+            'research_thesis_title' => $researchThesisTitle,
+            'research_advisor_name' => $researchAdvisorName,
+            'research_project_detail' => $researchProjectDetail,
+            'research_support_type' => $researchSupportType,
+            'research_data_detail' => $researchDataDetail,
+            'research_data_amount' => $researchDataAmount,
+            'research_students_json' => $researchStudentsJson,
+            'research_phone' => $researchPhone,
+            'research_phone_ext' => $researchPhoneExt,
+        ];
 
-} elseif ($isInviteMemo) {
-    $values = [
-        1  => $docDateForDisplay,
-        4  => $joinType,
-        5  => $eventTitle,
-        6  => $joinDates,
-        7  => $place,
-        10 => $faculty,
-        11 => $department,
-        14 => $memoSubject,
-        16 => $joinDates,
-        25 => $objectiveText,
-        26 => $toPerson,
-    ];
+    } elseif ($isInviteMemo) {
+        $values = [
+            1 => $docDateForDisplay,
+            4 => $joinType,
+            5 => $eventTitle,
+            6 => $joinDates,
+            7 => $place,
+            10 => $faculty,
+            11 => $department,
+            14 => $memoSubject,
+            16 => $joinDates,
+            25 => $objectiveText,
+            26 => $toPerson,
+        ];
 
-    $valuesByKey = [
-        'invite_statement'  => $inviteStatement,
-        'event_time'        => $eventTime,
-        'invite_phone'      => $invitePhone,
-        'invite_phone_ext'  => $invitePhoneExt,
-    ];
+        $valuesByKey = [
+            'invite_statement' => $inviteStatement,
+            'event_time' => $eventTime,
+            'invite_phone' => $invitePhone,
+            'invite_phone_ext' => $invitePhoneExt,
+        ];
 
-} elseif ($isRoomRequest) {
-    $values = [
-        1  => $docDateForDisplay,
-        2  => $fullname,
-        3  => $position,
-        4  => $joinType,
-        10 => $faculty,
-        11 => $department,
+    } elseif ($isRoomRequest) {
+        $values = [
+            1 => $docDateForDisplay,
+            2 => $fullname,
+            3 => $position,
+            4 => $joinType,
+            10 => $faculty,
+            11 => $department,
 
-        26 => $toPerson,
-        27 => $roomRequest,
-        28 => $roomRequestOther,
-        29 => $guestFullname,
-        30 => $personType,
-        31 => $personTypeOther,
-        32 => $reason,
-        33 => $reasonOther,
-        34 => $dateOption,
-        35 => $singleDate,
-        36 => $rangeDate,
-        37 => $roomType,
-    ];
-} elseif ($isStudyVisit) {
-    $values = [
-        1  => $docDateForDisplay,
-        2  => $fullname,
-        3  => $position,
-        4  => $joinType,
-        5  => $studyVisitPlace,
-        6  => $studyVisitPeriod,
-        7  => $studyPlaceDetail,
-        8  => (string)$studyTeacherCount,
-        9  => $studyVisitTime,
-        10 => $faculty,
-        11 => $department,
-        14 => $subject,
-        25 => $studyObjectiveText,
-        26 => $toPerson,
-        27 => $studyPurposeText,
-        28 => $studyTeacherNamesText,
-        29 => $studyTeacherAffiliationsText,
-        30 => $studyTeacherListText,
-        31 => $receiverName,
-        32 => $receiverPosition,
-    ];
+            26 => $toPerson,
+            27 => $roomRequest,
+            28 => $roomRequestOther,
+            29 => $guestFullname,
+            30 => $personType,
+            31 => $personTypeOther,
+            32 => $reason,
+            33 => $reasonOther,
+            34 => $dateOption,
+            35 => $singleDate,
+            36 => $rangeDate,
+            37 => $roomType,
+        ];
+    } elseif ($isStudyVisit) {
+        $values = [
+            1 => $docDateForDisplay,
+            2 => $fullname,
+            3 => $position,
+            4 => $joinType,
+            5 => $studyVisitPlace,
+            6 => $studyVisitPeriod,
+            7 => $studyPlaceDetail,
+            8 => (string) $studyTeacherCount,
+            9 => $studyVisitTime,
+            10 => $faculty,
+            11 => $department,
+            14 => $subject,
+            25 => $studyObjectiveText,
+            26 => $toPerson,
+            27 => $studyPurposeText,
+            28 => $studyTeacherNamesText,
+            29 => $studyTeacherAffiliationsText,
+            30 => $studyTeacherListText,
+            31 => $receiverName,
+            32 => $receiverPosition,
+        ];
 
-    $valuesByKey = [
-        'study_subject'                   => $subject,
-        'study_to_person'                 => $toPerson,
-        'study_receiver_name'             => $receiverName,
-        'study_receiver_position'         => $receiverPosition,
-        'study_fullname'                  => $fullname,
-        'study_position'                  => $position,
-        'study_visit_place'               => $studyVisitPlace,
-        'study_place_detail'              => $studyPlaceDetail,
-        'study_objective'                 => $studyObjectiveText,
-        'study_purpose_text'              => $studyPurposeText,
-        'study_visit_period'              => $studyVisitPeriod,
-        'study_visit_time'                => $studyVisitTime,
-        'study_teacher_count'             => (string)$studyTeacherCount,
-        'study_teacher_names_text'        => $studyTeacherNamesText,
-        'study_teacher_affiliations_text' => $studyTeacherAffiliationsText,
-        'study_teacher_list_text'         => $studyTeacherListText,
-        'study_phone'                     => $studyPhone,
-        'study_phone_ext'                 => $studyPhoneExt,
-    ];
-} elseif ($isSpeakerMemo) {
-    $values = [
-        1  => $docDateForDisplay,
-        2  => $fullname,
-        3  => $position,
-        4  => $joinType,
+        $valuesByKey = [
+            'study_subject' => $subject,
+            'study_to_person' => $toPerson,
+            'study_receiver_name' => $receiverName,
+            'study_receiver_position' => $receiverPosition,
+            'study_fullname' => $fullname,
+            'study_position' => $position,
+            'study_visit_place' => $studyVisitPlace,
+            'study_place_detail' => $studyPlaceDetail,
+            'study_objective' => $studyObjectiveText,
+            'study_purpose_text' => $studyPurposeText,
+            'study_visit_period' => $studyVisitPeriod,
+            'study_visit_time' => $studyVisitTime,
+            'study_teacher_count' => (string) $studyTeacherCount,
+            'study_teacher_names_text' => $studyTeacherNamesText,
+            'study_teacher_affiliations_text' => $studyTeacherAffiliationsText,
+            'study_teacher_list_text' => $studyTeacherListText,
+            'study_phone' => $studyPhone,
+            'study_phone_ext' => $studyPhoneExt,
+        ];
+    } elseif ($isSpeakerMemo) {
+        $values = [
+            1 => $docDateForDisplay,
+            2 => $fullname,
+            3 => $position,
+            4 => $joinType,
 
-        // ชื่อโครงการอบรม
-        5  => $eventTitle,
+            // ชื่อโครงการอบรม
+            5 => $eventTitle,
 
-        // วันที่จัดโครงการ / สถานที่ / วันที่เดินทาง
-        6  => $joinDates,
-        7  => $place,
-        8  => number_format($amount, 2, '.', ''),
-        9  => $travelPeriod,
-        10 => $faculty,
-        11 => $department,
-        12 => (string)$noCost,
+            // วันที่จัดโครงการ / สถานที่ / วันที่เดินทาง
+            6 => $joinDates,
+            7 => $place,
+            8 => number_format($amount, 2, '.', ''),
+            9 => $travelPeriod,
+            10 => $faculty,
+            11 => $department,
+            12 => (string) $noCost,
 
-        // field เฉพาะฟอร์มวิทยากร
-        18 => $referenceOrg,
-        19 => $referenceNo,
+            // field เฉพาะฟอร์มวิทยากร
+            18 => $referenceOrg,
+            19 => $referenceNo,
 
-        // ห้ามใช้ 20 เพราะ 20 คือ expense_json
-       21 => $referenceDate,
+            // ห้ามใช้ 20 เพราะ 20 คือ expense_json
+            21 => $referenceDate,
 
-        // ชื่อหลักสูตร
-        23 => $courseName,
+            // ชื่อหลักสูตร
+            23 => $courseName,
 
-        // วันที่เดินทาง เผื่อ form_memo_speaker.php อ่านจาก 24
-        24 => $travelPeriod,
+            // วันที่เดินทาง เผื่อ form_memo_speaker.php อ่านจาก 24
+            24 => $travelPeriod,
 
-        // ความประสงค์
-        25 => $intentionText,
-    ];
-} else {
-    $values = [
-        1 => $docDateForDisplay,
-        2 => $fullname,
-        3 => $position,
-        4 => $joinType,
-        5 => $eventTitle,
-        6 => $joinDates,
-        7 => $isOnline ? 'เข้าร่วมรูปแบบออนไลน์' : $place,
-        8 => number_format($amount, 2, '.', ''),
-        9 => $carUsed ? $carPlate : '',
-        10 => $faculty,
-        11 => $department,
-        12 => (string)$noCost,
+            // ความประสงค์
+            25 => $intentionText,
+        ];
+    } else {
+        $values = [
+            1 => $docDateForDisplay,
+            2 => $fullname,
+            3 => $position,
+            4 => $joinType,
+            5 => $eventTitle,
+            6 => $joinDates,
+            7 => $isOnline ? 'เข้าร่วมรูปแบบออนไลน์' : $place,
+            8 => number_format($amount, 2, '.', ''),
+            9 => $carUsed ? $carPlate : '',
+            10 => $faculty,
+            11 => $department,
+            12 => (string) $noCost,
 
-        // เฉพาะกรณีเลือก "นำเสนอผลงานวิจัย"
-        13 => in_array($purpose, ['academic', 'consent_research_presentation']) ? $academicTopic : '',
-        14 => in_array($purpose, ['academic', 'consent_research_presentation']) ? $presenterName : '',
-        15 => in_array($purpose, ['academic', 'consent_research_presentation']) ? $academicLevel : '',
-        16 => in_array($purpose, ['academic', 'consent_research_presentation']) ? $joinDates : '',
-        17 => ($purpose === 'consent_research_presentation') ? $signatureAffiliation : '',
-    ];
-}
+            // เฉพาะกรณีเลือก "นำเสนอผลงานวิจัย"
+            13 => in_array($purpose, ['academic', 'consent_research_presentation']) ? $academicTopic : '',
+            14 => in_array($purpose, ['academic', 'consent_research_presentation']) ? $presenterName : '',
+            15 => in_array($purpose, ['academic', 'consent_research_presentation']) ? $academicLevel : '',
+            16 => in_array($purpose, ['academic', 'consent_research_presentation']) ? $joinDates : '',
+            17 => ($purpose === 'consent_research_presentation') ? $signatureAffiliation : '',
+        ];
+    }
 
     // เก็บรายละเอียดค่าใช้จ่ายแบบ JSON สำหรับใช้โหลดกลับตอนแก้ไข
     // โดยเฉพาะค่าพาหนะ 2.4 เช่น ต้นทาง/ปลายทาง/สายการบิน/เส้นทางบิน
@@ -1410,7 +1416,7 @@ if ($isFreeDocument) {
     $qKey->execute([':tid' => $templateId]);
     $fieldIdByKey = [];
     foreach ($qKey->fetchAll(PDO::FETCH_ASSOC) as $fieldRow) {
-        $fieldIdByKey[$fieldRow['field_key']] = (int)$fieldRow['field_id'];
+        $fieldIdByKey[$fieldRow['field_key']] = (int) $fieldRow['field_id'];
     }
 
     if ($isInviteMemo || $isStudyVisit || $isProjectActivity || $isCoopEvaluation || $isResearchData || $isFreeDocument) {
@@ -1476,7 +1482,7 @@ if ($isFreeDocument) {
                 ':field_key' => $fieldKey,
             ]);
 
-            $existingFieldId = (int)($findField->fetchColumn() ?: 0);
+            $existingFieldId = (int) ($findField->fetchColumn() ?: 0);
 
             if ($existingFieldId <= 0) {
                 $createField = $pdo->prepare("
@@ -1492,7 +1498,7 @@ if ($isFreeDocument) {
                     ':sort_order' => $meta['sort_order'],
                 ]);
 
-                $existingFieldId = (int)$pdo->lastInsertId();
+                $existingFieldId = (int) $pdo->lastInsertId();
             }
 
             if ($existingFieldId > 0) {
@@ -1541,7 +1547,7 @@ if ($isFreeDocument) {
         ];
 
         foreach ($freeSignatureFields as $fieldKey => $meta) {
-            $fieldId = (int)($fieldIdByKey[$fieldKey] ?? 0);
+            $fieldId = (int) ($fieldIdByKey[$fieldKey] ?? 0);
 
             if ($fieldId <= 0) {
                 $findField = $pdo->prepare("
@@ -1555,7 +1561,7 @@ if ($isFreeDocument) {
                     ':template_id' => $templateId,
                     ':field_key' => $fieldKey,
                 ]);
-                $fieldId = (int)($findField->fetchColumn() ?: 0);
+                $fieldId = (int) ($findField->fetchColumn() ?: 0);
             }
 
             if ($fieldId <= 0) {
@@ -1571,7 +1577,7 @@ if ($isFreeDocument) {
                     ':field_label' => $meta['label'],
                     ':sort_order' => $meta['sort_order'],
                 ]);
-                $fieldId = (int)$pdo->lastInsertId();
+                $fieldId = (int) $pdo->lastInsertId();
             }
 
             if ($fieldId > 0) {
@@ -1605,7 +1611,7 @@ if ($isFreeDocument) {
                 ':field_key' => $fieldKey,
             ]);
 
-            $fieldId = (int)($findField->fetchColumn() ?: 0);
+            $fieldId = (int) ($findField->fetchColumn() ?: 0);
 
             if ($fieldId <= 0) {
                 $createField = $pdo->prepare("
@@ -1621,7 +1627,7 @@ if ($isFreeDocument) {
                     ':sort_order' => $meta['sort_order'],
                 ]);
 
-                $fieldId = (int)$pdo->lastInsertId();
+                $fieldId = (int) $pdo->lastInsertId();
             }
 
             if ($fieldId > 0) {
@@ -1637,18 +1643,18 @@ if ($isFreeDocument) {
     // =====================
     // SAVE STEP2 -> budget_items
     // =====================
-    $types   = $_POST['budget_type'] ?? [];
-    $descs   = $_POST['budget_desc'] ?? [];
+    $types = $_POST['budget_type'] ?? [];
+    $descs = $_POST['budget_desc'] ?? [];
     $amounts = $_POST['budget_amount'] ?? [];
 
-    
+
 
     // ลบรายการเก่าก่อน (กรณี update)
     $pdo->prepare("DELETE FROM budget_items WHERE document_id = :id")
         ->execute([':id' => $documentId]);
 
     // insert ใหม่ เฉพาะกรณีมีค่าใช้จ่ายเท่านั้น
-if (!$noCost && is_array($types) && is_array($descs) && is_array($amounts)) {
+    if (!$noCost && is_array($types) && is_array($descs) && is_array($amounts)) {
         $insB = $pdo->prepare("
             INSERT INTO budget_items (document_id, item_type, description, amount)
             VALUES (:doc, :type, :desc, :amt)
@@ -1657,56 +1663,57 @@ if (!$noCost && is_array($types) && is_array($descs) && is_array($amounts)) {
         $count = min(count($types), count($descs), count($amounts));
         for ($i = 0; $i < $count; $i++) {
             $t = $types[$i] ?? 'other';
-            $d = trim((string)($descs[$i] ?? ''));
-            $aRaw = str_replace(',', '', (string)($amounts[$i] ?? '0'));
-            $a = is_numeric($aRaw) ? (float)$aRaw : 0.0;
+            $d = trim((string) ($descs[$i] ?? ''));
+            $aRaw = str_replace(',', '', (string) ($amounts[$i] ?? '0'));
+            $a = is_numeric($aRaw) ? (float) $aRaw : 0.0;
 
             // กัน type หลุด enum
-            if (!in_array($t, ['registration','transport','accommodation','per_diem','other'], true)) {
+            if (!in_array($t, ['registration', 'transport', 'accommodation', 'per_diem', 'other'], true)) {
                 $t = 'other';
             }
             // กันแถวว่าง
-            if ($d === '' && $a == 0.0) continue;
+            if ($d === '' && $a == 0.0)
+                continue;
 
             $insB->execute([
-                ':doc'  => $documentId,
+                ':doc' => $documentId,
                 ':type' => $t,
                 ':desc' => $d,
-                ':amt'  => number_format($a, 2, '.', '')
+                ':amt' => number_format($a, 2, '.', '')
             ]);
         }
     }
-    
+
 
     $pdo->commit();
 
-if ($isFreeDocument) {
-    $redirectUrl = '/Pro_letter/form_Memo/form_memo_free_document.php?id=' . $documentId;
-} elseif ($isCoopEvaluation) {
-    $redirectUrl = '/Pro_letter/form_Memo/form_memo_coop_evaluation.php?id=' . $documentId;
-} elseif ($isProjectActivity) {
-    $redirectUrl = '/Pro_letter/form_Memo/form_memo_project_activity.php?id=' . $documentId;
-} elseif ($isResearchData) {
-    $redirectUrl = '/Pro_letter/form_Memo/form_memo_request_research_data.php?id=' . $documentId;
-} elseif ($isInviteMemo) {
-    $redirectUrl = '/Pro_letter/form_Memo/form_memo_invite_speaker.php?id=' . $documentId;
-} elseif ($isRoomRequest) {
-    $redirectUrl = '/Pro_letter/form_Memo/form_memo_room_request_1.php?id=' . $documentId;
-} elseif ($isSpeakerMemo) {
-    $redirectUrl = '/Pro_letter/form_Memo/form_memo_speaker.php?id=' . $documentId;
-} elseif ($isStudyVisit) {
-    $redirectUrl = '/Pro_letter/form_Memo/form_memo_sut_wellness.php?id=' . $documentId;
-} elseif (!empty($isConsentResearchPresentation) || $purpose === 'consent_research_presentation') {
-    $redirectUrl = '/Pro_letter/form_Memo/form_consent_research_presentation.php?id=' . $documentId;
-} elseif ($purpose === 'academic') {
-    $redirectUrl = '/Pro_letter/form_Memo/form_memo_academic_1.php?id=' . $documentId;
-} else {
-    $redirectUrl = '/Pro_letter/documents/view_memo.php?id=' . $documentId;
-}
+    if ($isFreeDocument) {
+        $redirectUrl = '/Pro_letter/form_Memo/form_memo_free_document.php?id=' . $documentId;
+    } elseif ($isCoopEvaluation) {
+        $redirectUrl = '/Pro_letter/form_Memo/form_memo_coop_evaluation.php?id=' . $documentId;
+    } elseif ($isProjectActivity) {
+        $redirectUrl = '/Pro_letter/form_Memo/form_memo_project_activity.php?id=' . $documentId;
+    } elseif ($isResearchData) {
+        $redirectUrl = '/Pro_letter/form_Memo/form_memo_request_research_data.php?id=' . $documentId;
+    } elseif ($isInviteMemo) {
+        $redirectUrl = '/Pro_letter/form_Memo/form_memo_invite_speaker.php?id=' . $documentId;
+    } elseif ($isRoomRequest) {
+        $redirectUrl = '/Pro_letter/form_Memo/form_memo_room_request_1.php?id=' . $documentId;
+    } elseif ($isSpeakerMemo) {
+        $redirectUrl = '/Pro_letter/form_Memo/form_memo_speaker.php?id=' . $documentId;
+    } elseif ($isStudyVisit) {
+        $redirectUrl = '/Pro_letter/form_Memo/form_memo_sut_wellness.php?id=' . $documentId;
+    } elseif (!empty($isConsentResearchPresentation) || $purpose === 'consent_research_presentation') {
+        $redirectUrl = '/Pro_letter/form_Memo/form_consent_research_presentation.php?id=' . $documentId;
+    } elseif ($purpose === 'academic') {
+        $redirectUrl = '/Pro_letter/form_Memo/form_memo_academic_1.php?id=' . $documentId;
+    } else {
+        $redirectUrl = '/Pro_letter/documents/view_memo.php?id=' . $documentId;
+    }
 
-header('Location: ' . $redirectUrl . '&saved=1&from=' . $mode);
+    header('Location: ' . $redirectUrl . '&saved=1&from=' . $mode);
 
-exit;
+    exit;
 
 
 
@@ -1723,22 +1730,22 @@ exit;
         exit;
     }
 
-  if (!empty($isCoopEvaluation)) {
-    header('Location: /Pro_letter/documents/infor_coop_evaluation.php?err=server');
-} elseif (!empty($isProjectActivity)) {
-    header('Location: /Pro_letter/documents/infor_project_activity.php?err=server');
-} elseif (!empty($isResearchData)) {
-    header('Location: /Pro_letter/documents/infor_research_data.php?err=server');
-} elseif (!empty($isInviteMemo)) {
-    header('Location: /Pro_letter/documents/infor_invite.php?err=server');
-} elseif (!empty($isSpeakerMemo)) {
-    header('Location: /Pro_letter/documents/infor_speaker_workshop.php?err=server');
-} elseif (!empty($isStudyVisit)) {
-    header('Location: /Pro_letter/documents/infor_study_visit.php?err=server');
-} elseif (!empty($isConsentResearchPresentation) || $purpose === 'consent_research_presentation') {
-    header('Location: /Pro_letter/documents/infor_present.php?err=server');
-} else {
-    header('Location: /Pro_letter/documents/form_Memo.php?err=server');
-}
-exit;
+    if (!empty($isCoopEvaluation)) {
+        header('Location: /Pro_letter/documents/infor_coop_evaluation.php?err=server');
+    } elseif (!empty($isProjectActivity)) {
+        header('Location: /Pro_letter/documents/infor_project_activity.php?err=server');
+    } elseif (!empty($isResearchData)) {
+        header('Location: /Pro_letter/documents/infor_research_data.php?err=server');
+    } elseif (!empty($isInviteMemo)) {
+        header('Location: /Pro_letter/documents/infor_invite.php?err=server');
+    } elseif (!empty($isSpeakerMemo)) {
+        header('Location: /Pro_letter/documents/infor_speaker_workshop.php?err=server');
+    } elseif (!empty($isStudyVisit)) {
+        header('Location: /Pro_letter/documents/infor_study_visit.php?err=server');
+    } elseif (!empty($isConsentResearchPresentation) || $purpose === 'consent_research_presentation') {
+        header('Location: /Pro_letter/documents/infor_present.php?err=server');
+    } else {
+        header('Location: /Pro_letter/documents/form_Memo.php?err=server');
+    }
+    exit;
 }
