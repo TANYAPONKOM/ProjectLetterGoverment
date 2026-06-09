@@ -1046,6 +1046,14 @@ try {
         }
 
 
+        // กำหนดสถานะหลังแก้เฉพาะเอกสารที่อยู่สถานะรอแก้ไข
+        // - Admin / Officer แก้แล้วให้กลับไปรอตรวจ
+        // - User แก้เองแล้วให้กลับไปเป็นแบบร่าง
+        $revisionStatuses = ['rejected', 'รอแก้เอกสาร', 'รอแก้ไข'];
+        $newStatusAfterEdit = in_array($doc['status'], $revisionStatuses, true)
+            ? (($isAdmin || $isOfficer) ? 'submitted' : 'draft')
+            : $doc['status'];
+
         // 🔄 UPDATE documents
         $stmt = $pdo->prepare("
         UPDATE documents
@@ -1056,10 +1064,7 @@ try {
             doc_date = :doc_date,
             subject = :subject,
             header_text = :header_text,
-            status = CASE
-                WHEN status IN ('rejected', 'รอแก้เอกสาร', 'รอแก้ไข') THEN 'draft'
-                ELSE status
-            END,
+            status = :new_status,
             updated_at = NOW()
         WHERE document_id = :id
     ");
@@ -1070,6 +1075,7 @@ try {
             ':doc_date' => $docDateForDocumentTable,
             ':subject' => $subject,
             ':header_text' => $hdrAgency,
+            ':new_status' => $newStatusAfterEdit,
             ':id' => $documentId
         ]);
 
