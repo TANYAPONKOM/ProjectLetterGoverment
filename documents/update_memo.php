@@ -146,7 +146,21 @@ try {
     || $targetForm === 'infor_research_data.php'
     || ($_POST['form_type'] ?? '') === 'research_data'
     || ($_POST['document_type'] ?? '') === 'infor_research_data'
+    // กันกรณี officer ใช้ฟอร์มเดียวกับ user แต่ hidden field บางตัวไม่ถูกส่งมา
+    // ให้ตรวจจาก field เฉพาะของ infor_research_data.php เพื่อไม่ให้ไปชน project_activity
+    || isset($_POST['data_detail'])
+    || isset($_POST['data_amount'])
+    || isset($_POST['support_type'])
+    || isset($_POST['curriculum_name'])
+    || isset($_POST['student_contact_index'])
   );
+
+  // ถ้าเป็นฟอร์มขอความอนุเคราะห์ข้อมูลวิจัยจริง ห้ามให้เงื่อนไข project_activity แทรก
+  // เพราะจะทำให้หลังบันทึก/หลังแก้ไขเปิดไปหน้า form_memo_project_activity.php
+  if ($isResearchData) {
+    $isProjectActivity = false;
+    $purpose = ($purpose !== '') ? $purpose : 'research_data';
+  }
 
   $isStudyVisit = (
     $redirectTo === 'form_memo_sut_wellness.php'
@@ -881,6 +895,55 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
   $pdo->beginTransaction();
 
 
+  // บังคับให้เอกสารขอความอนุเคราะห์ข้อมูลวิจัยใช้ template_id ที่ถูกต้อง
+  // แก้เฉพาะฟอร์ม infor_research_data.php เพื่อให้หน้ารายการรอตรวจสอบเปิดกลับไป
+  // form_memo_request_research_data.php ไม่ใช่หน้าเอกสารประเภทอื่น
+  if ($isResearchData) {
+    $findResearchTemplate = $pdo->prepare("
+      SELECT template_id
+      FROM templates
+      WHERE template_code = 'RESEARCH_DATA'
+         OR question_path LIKE '%infor_research_data.php%'
+         OR document_path LIKE '%form_memo_request_research_data.php%'
+      ORDER BY
+        CASE WHEN template_code = 'RESEARCH_DATA' THEN 0 ELSE 1 END,
+        template_id ASC
+      LIMIT 1
+    " );
+    $findResearchTemplate->execute();
+    $researchTemplateId = (int) ($findResearchTemplate->fetchColumn() ?: 0);
+
+    if ($researchTemplateId > 0) {
+      $templateId = $researchTemplateId;
+    }
+
+    $documentTypeName = 'หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์';
+  }
+
+  // บังคับให้เอกสารประเมินสหกิจใช้ template_id ที่ถูกต้อง
+  // แก้เฉพาะฟอร์ม infor_coop_evaluation.php เพื่อให้ตอนแก้ไขบันทึกค่ากลับเข้าฟิลด์ของ template สหกิจจริง
+  if ($isCoopEvaluation) {
+    $findCoopTemplate = $pdo->prepare("
+      SELECT template_id
+      FROM templates
+      WHERE template_code = 'COOP_EVALUATION'
+         OR question_path LIKE '%infor_coop_evaluation.php%'
+         OR document_path LIKE '%form_memo_coop_evaluation.php%'
+      ORDER BY
+        CASE WHEN template_code = 'COOP_EVALUATION' THEN 0 ELSE 1 END,
+        template_id ASC
+      LIMIT 1
+    ");
+    $findCoopTemplate->execute();
+    $coopTemplateId = (int) ($findCoopTemplate->fetchColumn() ?: 0);
+
+    if ($coopTemplateId > 0) {
+      $templateId = $coopTemplateId;
+    }
+
+    $documentTypeName = 'ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)';
+  }
+
   if ($isFreeDocument) {
     $joinType = 'บันทึกข้อความทั่วไป';
     $subject = $freeSubject !== '' ? $freeSubject : 'บันทึกข้อความทั่วไป';
@@ -924,6 +987,7 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
  $up = $pdo->prepare("
     UPDATE documents 
     SET doc_no = :doc_no,
+        template_id = :template_id,
         department_id = :department_id,
         doc_date = :doc_date,
         subject = :subject,
@@ -935,6 +999,7 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
 ");
 $up->execute([
     ':doc_no' => $docNo,
+    ':template_id' => $templateId,
     ':department_id' => $departmentId,
     ':doc_date' => $docDateForDocumentTable,
     ':subject' => $subject,
@@ -1272,6 +1337,48 @@ if ($isFreeDocument) {
         ':template_id' => $templateId,
         ':field_key' => $fieldKey,
         ':field_label' => $fieldMeta[0],
+        ':sort_order' => $fieldMeta[1],
+      ]);
+
+      $fieldIdByKey[$fieldKey] = (int)$pdo->lastInsertId();
+      $allowIds[$fieldIdByKey[$fieldKey]] = $fieldIdByKey[$fieldKey];
+    }
+  }
+
+  // เพิ่มเฉพาะ field ของแบบฟอร์มสหกิจ กรณี template_fields ของ template_id สหกิจยังไม่มี
+  // ปัญหาเดิมคือ documents.template_id เป็นของ COOP_EVALUATION แล้ว แต่ template_fields ไม่มี field_key ของสหกิจ
+  // ทำให้ valuesByKey ไม่ถูกบันทึกตอนแก้ไข ข้อมูลที่หน้าเจนเอกสารจึงไม่อัปเดต
+  if ($isCoopEvaluation) {
+    $ensureCoopFields = [
+      'coop_subject'            => ['เรื่องประเมินสหกิจศึกษา', 170, 'textarea', 1],
+      'coop_to_person'          => ['เรียน', 171, 'text', 1],
+      'coop_organization_name'  => ['หน่วยงาน / สถานประกอบการ', 172, 'text', 1],
+      'coop_student_count'      => ['จำนวนนักศึกษาสหกิจศึกษา', 173, 'text', 1],
+      'coop_students_json'      => ['รายชื่อนักศึกษาสหกิจศึกษา (JSON)', 174, 'textarea', 1],
+      'coop_student_list_text'  => ['รายชื่อนักศึกษาสหกิจศึกษา', 175, 'textarea', 1],
+      'coop_period'             => ['วันที่ปฏิบัติงานสหกิจศึกษา', 176, 'text', 1],
+      'coop_start_date'         => ['วันที่เริ่มปฏิบัติงานสหกิจศึกษา', 177, 'text', 0],
+      'coop_end_date'           => ['วันที่สิ้นสุดปฏิบัติงานสหกิจศึกษา', 178, 'text', 0],
+      'coop_advisor_name'       => ['พนักงานที่ปรึกษา', 179, 'text', 1],
+      'coop_evaluation_email'   => ['อีเมลสำหรับส่งแบบประเมิน', 180, 'text', 0],
+    ];
+
+    $insertCoopFieldStmt = $pdo->prepare("
+      INSERT INTO template_fields (template_id, field_key, field_label, field_type, is_required, sort_order)
+      VALUES (:template_id, :field_key, :field_label, :field_type, :is_required, :sort_order)
+    ");
+
+    foreach ($ensureCoopFields as $fieldKey => $fieldMeta) {
+      if (isset($fieldIdByKey[$fieldKey])) {
+        continue;
+      }
+
+      $insertCoopFieldStmt->execute([
+        ':template_id' => $templateId,
+        ':field_key' => $fieldKey,
+        ':field_label' => $fieldMeta[0],
+        ':field_type' => $fieldMeta[2],
+        ':is_required' => $fieldMeta[3],
         ':sort_order' => $fieldMeta[1],
       ]);
 

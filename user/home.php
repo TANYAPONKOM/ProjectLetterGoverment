@@ -14,16 +14,11 @@ try {
     $pdo = getPDO();
 
     $detailStmt = $pdo->prepare("
-        SELECT d.document_id, dv.field_id, dv.value_text
+        SELECT d.document_id, dv.field_id, tf.field_key, dv.value_text
         FROM documents d
         INNER JOIN document_values dv ON dv.document_id = d.document_id
+        LEFT JOIN template_fields tf ON tf.field_id = dv.field_id
         WHERE d.owner_id = ?
-          AND dv.field_id IN (
-            27,28,29,32,35,36,37,
-            49,52,54,
-            60,61,62,66,
-            72,75,76,79
-          )
     ");
     $detailStmt->execute([$_SESSION['user_id']]);
 
@@ -35,7 +30,14 @@ try {
             $homeDocDetailMap[$docId] = [];
         }
 
-        $homeDocDetailMap[$docId][$fieldId] = trim((string)$row['value_text']);
+        $valueText = trim((string)$row['value_text']);
+        $fieldKey = trim((string)($row['field_key'] ?? ''));
+
+        $homeDocDetailMap[$docId][$fieldId] = $valueText;
+
+        if ($fieldKey !== '') {
+            $homeDocDetailMap[$docId][$fieldKey] = $valueText;
+        }
     }
 } catch (Throwable $e) {
     $homeDocDetailMap = [];
@@ -228,22 +230,22 @@ try {
     let detailParts = [];
 
     if (textForType.includes("ขออนุมัติใช้ห้องพักรับรอง") || textForType.includes("room_request")) {
-      const roomFor = firstHomeDetailValue(detailMap, [28, 27]);
-      const roomDate = formatHomeThaiDateText(firstHomeDetailValue(detailMap, [36, 35]));
-      const roomType = firstHomeDetailValue(detailMap, [37]);
+      const roomFor = firstHomeDetailValue(detailMap, ["room_for", "room_request_for", "request_for", "purpose", 28, 27]);
+      const roomDate = formatHomeThaiDateText(firstHomeDetailValue(detailMap, ["room_date", "stay_date", "checkin_date", "request_date", 36, 35]));
+      const roomType = firstHomeDetailValue(detailMap, ["room_type", "room_name", 37]);
 
       if (roomFor) detailParts.push(`ขอใช้สำหรับ: ${roomFor}`);
       if (roomDate) detailParts.push(`วันที่เข้าพัก: ${roomDate}`);
       if (!roomDate && roomType) detailParts.push(`ห้องพัก: ${roomType}`);
     } else if (textForType.includes("ขอประเมินสถานประกอบการสหกิจศึกษา") || textForType.includes("coop")) {
-      const orgName = firstHomeDetailValue(detailMap, [72]);
+      const orgName = firstHomeDetailValue(detailMap, ["coop_organization_name", "organization_name", "company_name", "agency_name", 72]);
 
       if (orgName) detailParts.push(`หน่วยงาน: ${orgName}`);
     } else if (textForType.includes("ขอเข้าไปจัดกิจกรรมโครงการ") || textForType.includes("project_activity")) {
-      const mainProject = firstHomeDetailValue(detailMap, [61]);
-      const subActivity = firstHomeDetailValue(detailMap, [62]);
-      const roomFor = firstHomeDetailValue(detailMap, [28, 27]);
-      const roomType = firstHomeDetailValue(detailMap, [37]);
+      const mainProject = firstHomeDetailValue(detailMap, ["project_name", "main_project", "project_activity_name", 61]);
+      const subActivity = firstHomeDetailValue(detailMap, ["activity_name", "sub_activity", "project_activity_detail", 62]);
+      const roomFor = firstHomeDetailValue(detailMap, ["room_for", "room_request_for", "request_for", "purpose", 28, 27]);
+      const roomType = firstHomeDetailValue(detailMap, ["room_type", "room_name", 37]);
 
       if (mainProject || subActivity) {
         if (mainProject) detailParts.push(`โครงการ: ${mainProject}`);
@@ -254,8 +256,8 @@ try {
       }
     } else if (textForType.includes("หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์") || textForType.includes(
         "research_data")) {
-      const thesisTitle = firstHomeDetailValue(detailMap, [49]);
-      const supportType = firstHomeDetailValue(detailMap, [52]);
+      const thesisTitle = firstHomeDetailValue(detailMap, ["research_thesis_title", "thesis_title", "research_title", 49]);
+      const supportType = firstHomeDetailValue(detailMap, ["research_data_detail", "data_detail", "support_type", "research_support_type", 52]);
 
       if (thesisTitle) detailParts.push(`หัวข้อปริญญานิพนธ์: ${thesisTitle}`);
       if (supportType) detailParts.push(`ข้อมูลที่ขอ: ${supportType}`);
@@ -263,6 +265,9 @@ try {
 
     const detail = cleanHomeDetailValue(detailParts.join(", "));
     if (detail) return detail;
+
+    const courseNameFromValues = firstHomeDetailValue(detailMap, ["course_name", "training_course_name", "seminar_name", 5]);
+    if (courseNameFromValues) return `ชื่อหลักสูตร: ${courseNameFromValues}`;
 
     const courseName = cleanHomeDetailValue(d.course_name);
     if (courseName) return `ชื่อหลักสูตร: ${courseName}`;

@@ -15,26 +15,40 @@ try {
     $pdo = getPDO();
 
     $detailStmt = $pdo->query("
-        SELECT d.document_id, dv.field_id, dv.value_text
+        SELECT 
+            d.document_id,
+            dv.field_id,
+            dv.value_text,
+            COALESCE(tf.field_key, '') AS field_key,
+            COALESCE(tf.field_label, '') AS field_label
         FROM documents d
         INNER JOIN document_values dv ON dv.document_id = d.document_id
-        WHERE dv.field_id IN (
-            27,28,29,32,35,36,37,
-            49,52,54,
-            60,61,62,66,
-            72,75,76,79
-        )
+        LEFT JOIN template_fields tf ON tf.field_id = dv.field_id
+        WHERE dv.value_text IS NOT NULL
+          AND TRIM(dv.value_text) <> ''
     ");
 
     while ($row = $detailStmt->fetch(PDO::FETCH_ASSOC)) {
         $docId = (int)$row['document_id'];
         $fieldId = (int)$row['field_id'];
+        $fieldKey = trim((string)($row['field_key'] ?? ''));
+        $fieldLabel = trim((string)($row['field_label'] ?? ''));
+        $valueText = trim((string)$row['value_text']);
 
         if (!isset($homeDocDetailMap[$docId])) {
             $homeDocDetailMap[$docId] = [];
         }
 
-        $homeDocDetailMap[$docId][$fieldId] = trim((string)$row['value_text']);
+        $homeDocDetailMap[$docId][$fieldId] = $valueText;
+
+        if ($fieldKey !== '') {
+            $homeDocDetailMap[$docId][$fieldKey] = $valueText;
+            $homeDocDetailMap[$docId][strtolower($fieldKey)] = $valueText;
+        }
+
+        if ($fieldLabel !== '') {
+            $homeDocDetailMap[$docId][$fieldLabel] = $valueText;
+        }
     }
 
     /* ดึงชื่อเจ้าของเอกสารสำหรับแสดงในรายการ: แตะเฉพาะส่วนรายละเอียดเจ้าของเอกสาร */
@@ -276,6 +290,16 @@ try {
         statusClass,
         word: d.word_file,
         pdf: d.pdf_file,
+        documentPath:
+          d.document_path ||
+          d.documentPath ||
+          d.document_url ||
+          d.documentUrl ||
+          d.view_path ||
+          d.viewPath ||
+          d.form_path ||
+          d.formPath ||
+          "",
         routeHint
       };
     });
@@ -442,6 +466,7 @@ try {
 
   function formatDocumentDetail(d) {
     const detailMap = homeDocDetailMap[String(d.document_id)] || {};
+    const detailSource = { ...d, ...detailMap };
     const hint = [
       d.join_type,
       d.template_name,
@@ -465,7 +490,7 @@ try {
       hint
     ].filter(Boolean).join(" | ");
 
-    const company = firstDetailValue(d, [
+    const company = firstDetailValue(detailSource, [
       "company_name",
       "company",
       "establishment_name",
@@ -474,14 +499,21 @@ try {
       "coop_company_name",
       "workplace",
       "organization_name",
-      "organization"
+      "organization",
+      "coop_organization_name",
+      "coop_establishment_name",
+      "agency_name",
+      "department_name",
+      "หน่วยงาน",
+      "ชื่อหน่วยงาน",
+      "สถานประกอบการ"
     ]) || cleanDetailText(detailMap[72] || "") || extractDetailByLabel(searchableText, ["สถานประกอบการ", "บริษัท", "หน่วยงาน"]);
 
     if (hint.includes("สหกิจ") || hint.includes("ประเมินสถานประกอบการ") || hint.includes("coop_evaluation")) {
-      return company ? `หน่วยงาน : ${company}` : cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
+      return company ? `หน่วยงาน : ${company}` : cleanDetailText(firstDetailValue(detailSource, ["course_name", "ชื่อหลักสูตร"]) || d.course_name || "(ไม่มีรายละเอียด)");
     }
 
-    const requestFor = firstDetailValue(d, [
+    const requestFor = firstDetailValue(detailSource, [
       "request_for",
       "room_request_for",
       "use_for",
@@ -494,7 +526,7 @@ try {
       "room_request_text"
     ]) || extractDetailByLabel(searchableText, ["ขอใช้สำหรับ", "ใช้สำหรับ", "สำหรับ"]);
 
-    const roomName = firstDetailValue(d, [
+    const roomName = firstDetailValue(detailSource, [
       "room_name",
       "room",
       "room_place",
@@ -507,7 +539,7 @@ try {
       "house_name"
     ]) || extractDetailByLabel(searchableText, ["ห้องพัก", "อาคาร", "สถานที่พัก"]);
 
-    const checkInDateRaw = firstDetailValue(d, [
+    const checkInDateRaw = firstDetailValue(detailSource, [
       "checkin_date",
       "check_in_date",
       "stay_date",
@@ -542,23 +574,31 @@ try {
           }
         ]);
 
-      return roomDetail || cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
+      return roomDetail || cleanDetailText(firstDetailValue(detailSource, ["course_name", "ชื่อหลักสูตร"]) || d.course_name || "(ไม่มีรายละเอียด)");
     }
 
-    const projectName = firstDetailValue(d, [
+    const projectName = firstDetailValue(detailSource, [
       "project_name",
       "projectTitle",
       "project_title",
       "project",
-      "activity_project"
+      "activity_project",
+      "project_activity_name",
+      "project_activity_title",
+      "ชื่อโครงการ",
+      "โครงการ"
     ]) || extractDetailByLabel(searchableText, ["โครงการ"]);
 
-    const activityName = firstDetailValue(d, [
+    const activityName = firstDetailValue(detailSource, [
       "activity_name",
       "activityTitle",
       "activity_title",
       "activity",
-      "training_name"
+      "training_name",
+      "activity_detail",
+      "activity_topic",
+      "ชื่อกิจกรรม",
+      "กิจกรรม"
     ]) || extractDetailByLabel(searchableText, ["กิจกรรม"]);
 
     if (hint.includes("จัดกิจกรรมโครงการ") || hint.includes("กิจกรรมโครงการ") || hint.includes("project_activity")) {
@@ -572,26 +612,35 @@ try {
         }
       ]);
 
-      return projectDetail || cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
+      return projectDetail || cleanDetailText(firstDetailValue(detailSource, ["course_name", "project_name", "activity_name", "ชื่อโครงการ", "ชื่อกิจกรรม"]) || d.course_name || "(ไม่มีรายละเอียด)");
     }
 
-    const thesisTitle = firstDetailValue(d, [
+    const thesisTitle = firstDetailValue(detailSource, [
       "thesis_title",
       "research_title",
       "project_title",
       "projectTitle",
       "topic",
       "topic_name",
-      "researchTopic"
+      "researchTopic",
+      "research_thesis_title",
+      "thesis_topic",
+      "หัวข้อปริญญานิพนธ์",
+      "ชื่อเรื่องปริญญานิพนธ์"
     ]) || extractDetailByLabel(searchableText, ["หัวข้อปริญญานิพนธ์", "หัวข้อ"]);
 
-    const requestData = firstDetailValue(d, [
+    const requestData = firstDetailValue(detailSource, [
       "request_data",
       "requested_data",
       "data_request",
       "data_detail",
       "data_needed",
-      "information_request"
+      "information_request",
+      "research_data_detail",
+      "research_data_amount",
+      "data_amount",
+      "ข้อมูลที่ขอ",
+      "รายละเอียดข้อมูล"
     ]) || extractDetailByLabel(searchableText, ["ข้อมูลที่ขอ", "ข้อมูล"]);
 
     if (hint.includes("ปริญญานิพนธ์") || hint.includes("ขอความอนุเคราะห์ข้อมูล") || hint.includes("research_data")) {
@@ -605,10 +654,26 @@ try {
         }
       ]);
 
-      return researchDetail || cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
+      return researchDetail || cleanDetailText(firstDetailValue(detailSource, ["research_thesis_title", "thesis_title", "หัวข้อปริญญานิพนธ์"]) || d.course_name || "(ไม่มีรายละเอียด)");
     }
 
-    const defaultCourseName = cleanDetailText(d.course_name || "");
+    const defaultCourseName = cleanDetailText(
+      firstDetailValue(detailSource, [
+        "course_name",
+        "training_course_name",
+        "training_course",
+        "course_title",
+        "course",
+        "courseName",
+        "join_course_name",
+        "training_title",
+        "training_subject",
+        "course_detail",
+        "หลักสูตร",
+        "ชื่อหลักสูตร",
+        "ชื่อหลักสูตรอบรม"
+      ]) || d.course_name || ""
+    );
     if (defaultCourseName && defaultCourseName !== "(ไม่มีรายละเอียด)") {
       const courseName = defaultCourseName.replace(/^ชื่อหลักสูตร\s*[:：]\s*/u, "").trim();
       return `ชื่อหลักสูตร: ${courseName}`;
@@ -702,7 +767,7 @@ try {
      <!-- ซ้าย -->
 <div class="flex-1 min-w-0 pr-4">
 
-  <a href="#" onclick="openDocument(${req.document_id}, '${String(req.routeHint || req.title).replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, " ")}')"
+  <a href="#" onclick="openDocument(${req.document_id}, '${String(req.routeHint || req.title).replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, " ")}', '${String(req.documentPath || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, " ")}')"
    class="font-semibold text-teal-600 hover:underline text-lg">
   ${req.title}
 </a>
@@ -808,66 +873,174 @@ tabEdit.onclick = () => {
   loadRequests();
 
 
-  function getDocumentUrl(docId, joinType = "") {
-    const title = String(joinType || "").trim();
+  function getDocumentUrl(docId, joinType = "", documentPath = "") {
+    const normalizePathToUrl = (path) => {
+      const cleanPath = String(path || "").trim();
+      if (cleanPath === "") return "";
 
-    const routes = [{
-        keywords: ["สหกิจ", "ประเมินสถานประกอบการ", "สถานประกอบการสหกิจ"],
-        url: "../form_Memo/form_memo_coop_evaluation.php?id="
-      },
+      if (/^https?:\/\//i.test(cleanPath)) {
+        return cleanPath + (cleanPath.includes("?") ? "&" : "?") + "id=" + encodeURIComponent(docId);
+      }
+
+      const normalized = cleanPath
+        .replace(/^\/Pro_letter\/?/i, "")
+        .replace(/^\.\.\//, "")
+        .replace(/^\.\//, "")
+        .replace(/^\//, "");
+
+      return "../" + normalized + "?id=" + encodeURIComponent(docId);
+    };
+
+    const text = String(joinType || "").trim();
+    const directPath = String(documentPath || "").trim();
+    const directUrl = normalizePathToUrl(directPath);
+    const isMemoPath = /(^|\/)view_memo\.php(\?|$)/i.test(directPath);
+
+    const routes = [
       {
-        keywords: ["จัดกิจกรรมโครงการ", "กิจกรรมโครงการ", "โครงการ"],
-        url: "../form_Memo/form_memo_project_activity.php?id="
-      },
-      {
-        keywords: ["ปริญญานิพนธ์", "ขอความอนุเคราะห์ข้อมูล"],
+        keywords: [
+          "RESEARCH_DATA",
+          "infor_research_data.php",
+          "form_memo_request_research_data.php",
+          "หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์",
+          "ขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์",
+          "ปริญญานิพนธ์"
+        ],
         url: "../form_Memo/form_memo_request_research_data.php?id="
       },
       {
-        keywords: ["หนังสือเรียนเชิญวิทยากร", "เรียนเชิญวิทยากร"],
+        keywords: [
+          "COOP_EVALUATION",
+          "infor_coop_evaluation.php",
+          "form_memo_coop_evaluation.php",
+          "ขอประเมินสถานประกอบการสหกิจ",
+          "ประเมินสถานประกอบการ",
+          "สถานประกอบการสหกิจ",
+          "สหกิจ"
+        ],
+        url: "../form_Memo/form_memo_coop_evaluation.php?id="
+      },
+      {
+        keywords: [
+          "PROJECT_ACTIVITY",
+          "infor_project_activity.php",
+          "form_memo_project_activity.php",
+          "ขอเข้าไปจัดกิจกรรมโครงการ",
+          "จัดกิจกรรมโครงการ",
+          "กิจกรรมโครงการ"
+        ],
+        url: "../form_Memo/form_memo_project_activity.php?id="
+      },
+      {
+        keywords: [
+          "INVITE_SPEAKER",
+          "infor_invite.php",
+          "form_memo_invite_speaker.php",
+          "หนังสือเรียนเชิญวิทยากร",
+          "เรียนเชิญวิทยากร"
+        ],
         url: "../form_Memo/form_memo_invite_speaker.php?id="
       },
       {
-        keywords: ["ห้องพักรับรอง", "ขออนุมัติใช้ห้องพัก"],
+        keywords: [
+          "ROOM_REQUEST",
+          "infor_room_request.php",
+          "form_memo_room_request_1.php",
+          "ขอห้องพักรับรอง",
+          "ห้องพักรับรอง",
+          "ขออนุมัติใช้ห้องพัก"
+        ],
         url: "../form_Memo/form_memo_room_request_1.php?id="
       },
       {
-        keywords: ["ตัวบุคคลเป็นวิทยากร", "เป็นวิทยากร"],
+        keywords: [
+          "SPEAKER_WORKSHOP",
+          "SPEAKER",
+          "infor_speaker_workshop.php",
+          "form_memo_speaker.php",
+          "ขออนุมัติตัวบุคคลเป็นวิทยากร",
+          "ตัวบุคคลเป็นวิทยากร"
+        ],
         url: "../form_Memo/form_memo_speaker.php?id="
       },
       {
-        keywords: ["ศึกษาดูงาน", "เข้าเยี่ยมชม", "เยี่ยมชมศึกษาดูงาน", "SUT Wellness"],
+        keywords: [
+          "STUDY_VISIT",
+          "infor_study_visit.php",
+          "form_memo_sut_wellness.php",
+          "ขอเข้าเยี่ยมศึกษาดูงาน",
+          "ศึกษาดูงาน",
+          "เข้าเยี่ยมชม",
+          "เยี่ยมชมศึกษาดูงาน",
+          "SUT Wellness"
+        ],
         url: "../form_Memo/form_memo_sut_wellness.php?id="
       },
       {
         keywords: [
-          "consent_research_presentation",
-          "infor_present",
-          "form_consent_research_presentation",
+          "CONSENT_RESEARCH_PRESENTATION",
+          "PRESENT",
+          "infor_present.php",
+          "form_consent_research_presentation.php",
           "หนังสือยินยอมให้นำเสนอผลงานวิจัย",
           "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ",
           "ยินยอมให้นำเสนอผลงานวิจัย",
-          "ยินยอมให้นำเสนอผลงานทางวิชาการ",
-          "หนังสือยินยอม",
-          "consent"
+          "ยินยอมให้นำเสนอผลงานทางวิชาการ"
         ],
         url: "../form_Memo/form_consent_research_presentation.php?id="
       },
       {
-        keywords: ["FREE_DOCUMENT", "free_document", "form_memo_free_document", "บันทึกข้อความทั่วไป"],
+        keywords: [
+          "ACADEMIC_PRESENTATION",
+          "infor_academic_presentation.php",
+          "form_memo_academic_1.php",
+          "ขออนุมัติตัวบุคคลเพื่อไปนำเสนอผลงานวิจัย",
+          "นำเสนอผลงานวิจัย"
+        ],
+        url: "../form_Memo/form_memo_academic_1.php?id="
+      },
+      {
+        keywords: [
+          "FREE_DOCUMENT",
+          "free_document",
+          "form_memo_free_document.php",
+          "บันทึกข้อความทั่วไป"
+        ],
         url: "../form_Memo/form_memo_free_document.php?id="
       },
       {
-        keywords: ["นำเสนอผลงานวิจัย"],
-        url: "../form_Memo/form_memo_academic_1.php?id="
+        keywords: [
+          "MEMO",
+          "form_Memo.php",
+          "view_memo.php",
+          "ขออนุมัติไปเข้ารับการฝึกอบรมหลักสูตร"
+        ],
+        url: "../documents/view_memo.php?id="
       }
     ];
 
+
     const matched = routes.find(route =>
-      route.keywords.some(keyword => title.includes(keyword))
+      route.keywords.some(keyword => text.includes(keyword))
     );
 
-    return (matched ? matched.url : "../documents/view_memo.php?id=") + docId;
+    // ใช้ path จากฐานข้อมูลก่อน เฉพาะกรณีที่ไม่ใช่ view_memo.php
+    // เพราะบางรายการส่ง view_memo.php มาเป็น fallback ทั้งที่จริงเป็น template อื่น
+    if (directUrl !== "" && !isMemoPath) {
+      return directUrl;
+    }
+
+    // ถ้ามี route ของ template เฉพาะ ให้ใช้ route นั้นก่อน ไม่ให้หล่นไป view_memo.php
+    if (matched) {
+      return matched.url + encodeURIComponent(docId);
+    }
+
+    // อนุญาตให้เปิด view_memo.php เฉพาะกรณีที่ path จากฐานข้อมูลเป็น view_memo จริงและหา template เฉพาะไม่เจอ
+    if (directUrl !== "") {
+      return directUrl;
+    }
+
+    return "../documents/view_memo.php?id=" + encodeURIComponent(docId);
   }
 
   function getDocumentPdfDownloadUrl(docId, routeHint = "") {
@@ -1054,7 +1227,7 @@ tabEdit.onclick = () => {
   }
 
 
-  function openDocument(docId, joinType = "") {
+  function openDocument(docId, joinType = "", documentPath = "") {
     fetch("../check_view_permission.php?id=" + docId)
       .then(r => r.json())
       .then(res => {
@@ -1066,7 +1239,8 @@ tabEdit.onclick = () => {
         }
 
         if (res.allowed === true) {
-          window.location.href = getDocumentUrl(docId, joinType);
+          const currentDoc = dataAll.find(item => Number(item.document_id) === Number(docId));
+          window.location.href = getDocumentUrl(docId, joinType, documentPath || (currentDoc ? currentDoc.documentPath : ""));
           return;
         }
 

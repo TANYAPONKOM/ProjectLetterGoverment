@@ -58,7 +58,8 @@ if ($docId <= 0) {
 -------------------------------------------------- */
 $stmt = $pdo->prepare("
     SELECT document_id, template_id, owner_id, department_id, 
-           doc_no, doc_date, subject, header_text, status
+           doc_no, doc_date, subject, header_text, status,
+           created_at, updated_at
     FROM documents 
     WHERE document_id = :id
     LIMIT 1
@@ -189,13 +190,11 @@ $q = $pdo->prepare("
     FROM document_values dv
     JOIN template_fields tf ON tf.field_id = dv.field_id
     WHERE dv.document_id = :id
-      AND tf.template_id = :template_id
       AND tf.field_key IS NOT NULL
       AND tf.field_key <> ''
 ");
 $q->execute([
-  ':id' => $docId,
-  ':template_id' => (int)($document['template_id'] ?? 1)
+  ':id' => $docId
 ]);
 
 $valueKeyMap = [];
@@ -311,6 +310,24 @@ function decode_research_students($json)
    Mapping ตัวแปรหลักจาก document_values
 -------------------------------------------------- */
 $docDate = array_key_exists(1, $valueMap) ? trim((string)$valueMap[1]) : trim((string)($document['doc_date'] ?? ''));
+
+/* --------------------------------------------------
+   วันที่เอกสารปริญญานิพนธ์
+   ฟอร์มนี้ไม่มีช่องกรอกวันที่ จึงให้หน้าเจนเอกสารใช้วันที่อัปเดตล่าสุดอัตโนมัติ
+-------------------------------------------------- */
+$autoResearchDocDate = '';
+if (!empty($document['updated_at'])) {
+  $autoResearchDocDate = substr((string)$document['updated_at'], 0, 10);
+}
+if ($autoResearchDocDate === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $autoResearchDocDate)) {
+  if (!empty($document['created_at'])) {
+    $autoResearchDocDate = substr((string)$document['created_at'], 0, 10);
+  }
+}
+if ($autoResearchDocDate === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $autoResearchDocDate)) {
+  $autoResearchDocDate = date('Y-m-d');
+}
+$docDate = $autoResearchDocDate;
 $ownerName = $valueMap[2] ?? "";
 $position = $valueMap[3] ?? "";
 $joinType = $valueMap[4] ?? "";
@@ -1010,6 +1027,10 @@ $len = max(20, $len);
       <input type="hidden" name="redirect_back" value="<?= htmlspecialchars($referer) ?>">
 
       <input type="hidden" name="document_id" value="<?= h($document['document_id']) ?>">
+      <input type="hidden" name="template_id" value="<?= h($document['template_id']) ?>">
+      <input type="hidden" name="target_form" value="infor_research_data.php">
+      <input type="hidden" name="redirect_to" value="form_memo_request_research_data.php">
+      <input type="hidden" name="document_type_name" value="หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์">
 
       <!-- สำคัญ: ให้ doc_date เป็นรูปแบบเดิม (YYYY-MM-DD) ที่ดึงมาจาก DB -->
       <input type="hidden" name="doc_date" id="hidden_doc_date" value="<?= h($docDate) ?>">
@@ -1017,8 +1038,8 @@ $len = max(20, $len);
       <input type="hidden" name="fullname" id="hidden_ownerName" value="<?= h($ownerName) ?>">
       <input type="hidden" name="position" id="hidden_position" value="<?= h($position) ?>">
 
-      <!-- ส่ง purpose เป็นรหัส ไม่ใช่ข้อความไทย -->
-      <input type="hidden" name="purpose" id="hidden_joinType" value="<?= h($purposeCode) ?>">
+      <!-- ส่ง purpose ของฟอร์มขอความอนุเคราะห์ข้อมูลวิจัยให้ชัดเจน เพื่อไม่ให้ update ไปผูก template ผิด -->
+      <input type="hidden" name="purpose" id="hidden_joinType" value="research_data">
 
       <input type="hidden" name="event_title" id="hidden_courseName" value="<?= h($courseName) ?>">
 

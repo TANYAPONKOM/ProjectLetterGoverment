@@ -81,6 +81,15 @@ try {
         || $targetForm === 'infor_research_data.php'
         || ($_POST['form_type'] ?? '') === 'research_data'
         || ($_POST['document_type'] ?? '') === 'infor_research_data'
+        // field เฉพาะของ infor_research_data.php
+        || isset($_POST['curriculum_name'])
+        || isset($_POST['major_name'])
+        || isset($_POST['thesis_title'])
+        || isset($_POST['advisor_name'])
+        || isset($_POST['support_type'])
+        || isset($_POST['data_detail'])
+        || isset($_POST['data_amount'])
+        || isset($_POST['student_contact_index'])
     );
 
 
@@ -94,6 +103,24 @@ try {
         || isset($_POST['main_project'])
         || isset($_POST['sub_activity'])
     );
+
+    // แก้เฉพาะกรณีฟอร์ม infor_research_data.php:
+    // ถ้าถูกระบุว่าเป็นเอกสารขอความอนุเคราะห์ข้อมูลวิจัยแล้ว ห้ามให้เงื่อนไข project_activity แทรก
+    // เพื่อให้บันทึกและ redirect ไป form_memo_request_research_data.php ตามฟอร์มจริง
+    if ($isResearchData) {
+        $isProjectActivity = false;
+        $purpose = 'research_data';
+        $redirectTo = 'form_memo_request_research_data.php';
+        $targetForm = 'infor_research_data.php';
+    }
+
+    // แก้เฉพาะกรณีฟอร์ม infor_invite.php:
+    // ถ้าถูกระบุว่าเป็นเอกสารเชิญวิทยากรแล้ว ห้ามให้เงื่อนไข project_activity แทรก
+    // เพื่อให้บันทึกและ redirect ไป form_memo_invite_speaker.php ตามฟอร์มจริง
+    if ($isInviteMemo) {
+        $isProjectActivity = false;
+        $purpose = ($purpose !== '') ? $purpose : 'invite';
+    }
 
     // รองรับทั้งชื่อ field ของ form_Memo.php เดิม และ infor_speaker_workshop.php
 
@@ -918,6 +945,57 @@ try {
     $pdo = db();
     $pdo->beginTransaction();
 
+    // บังคับให้ฟอร์มบันทึกข้อความทั่วไปใช้ template_id ของ FREE_DOCUMENT จริง
+    // แก้เฉพาะกรณี infor_free_document.php เพื่อกันกรณี officer ส่ง template_id เดิม/ผิดมา
+    if ($isFreeDocument) {
+        $findFreeTemplate = $pdo->prepare("
+            SELECT template_id
+            FROM templates
+            WHERE template_code = 'FREE_DOCUMENT'
+               OR question_path LIKE '%infor_free_document.php%'
+               OR document_path LIKE '%form_memo_free_document.php%'
+            ORDER BY
+                CASE WHEN template_code = 'FREE_DOCUMENT' THEN 0 ELSE 1 END,
+                template_id ASC
+            LIMIT 1
+        ");
+        $findFreeTemplate->execute();
+        $freeTemplateId = (int) ($findFreeTemplate->fetchColumn() ?: 0);
+
+        if ($freeTemplateId > 0) {
+            $templateId = $freeTemplateId;
+        }
+
+        $documentTypeName = 'บันทึกข้อความทั่วไป';
+    }
+
+
+    // บังคับให้ฟอร์มขอความอนุเคราะห์ข้อมูลวิจัยใช้ template_id ของ RESEARCH_DATA จริง
+    // แก้เฉพาะกรณี infor_research_data.php เพื่อกันกรณี officer ส่ง template_id เดิม/ผิดมา
+    if ($isResearchData) {
+        $isProjectActivity = false;
+
+        $findResearchTemplate = $pdo->prepare("
+            SELECT template_id
+            FROM templates
+            WHERE template_code = 'RESEARCH_DATA'
+               OR question_path LIKE '%infor_research_data.php%'
+               OR document_path LIKE '%form_memo_request_research_data.php%'
+            ORDER BY
+                CASE WHEN template_code = 'RESEARCH_DATA' THEN 0 ELSE 1 END,
+                template_id ASC
+            LIMIT 1
+        ");
+        $findResearchTemplate->execute();
+        $researchTemplateId = (int) ($findResearchTemplate->fetchColumn() ?: 0);
+
+        if ($researchTemplateId > 0) {
+            $templateId = $researchTemplateId;
+        }
+
+        $documentTypeName = 'หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์';
+    }
+
 
     // 1) map ฟิลด์
     if ($isFreeDocument) {
@@ -1465,8 +1543,26 @@ VALUES
 
         if ($isFreeDocument) {
             $extraFieldsByKey += [
+                'free_doc_date' => ['label' => 'วันที่', 'sort_order' => 101],
+                'free_subject' => ['label' => 'เรื่อง', 'sort_order' => 102],
+                'free_to_person' => ['label' => 'เรียน', 'sort_order' => 103],
+                'free_faculty' => ['label' => 'คณะ', 'sort_order' => 104],
+                'free_department' => ['label' => 'ภาควิชา', 'sort_order' => 105],
+                'free_department_phone' => ['label' => 'เบอร์โทรภาควิชา', 'sort_order' => 106],
+                'free_paragraph_1' => ['label' => 'เนื้อหาย่อหน้าแรก', 'sort_order' => 107],
+                'free_paragraph_2' => ['label' => 'เนื้อหาย่อหน้าที่ 2', 'sort_order' => 108],
+                'free_paragraph_3' => ['label' => 'เนื้อหาย่อหน้าที่ 3', 'sort_order' => 109],
                 'free_signer_name' => ['label' => 'ชื่อผู้ลงนาม', 'sort_order' => 111],
                 'free_signer_position' => ['label' => 'ตำแหน่งผู้ลงนาม', 'sort_order' => 112],
+                'doc_date' => ['label' => 'วันที่', 'sort_order' => 901],
+                'subject' => ['label' => 'เรื่อง', 'sort_order' => 902],
+                'to_person' => ['label' => 'เรียน', 'sort_order' => 903],
+                'faculty' => ['label' => 'คณะ', 'sort_order' => 904],
+                'department' => ['label' => 'ภาควิชา', 'sort_order' => 905],
+                'department_phone' => ['label' => 'เบอร์โทรภาควิชา', 'sort_order' => 906],
+                'paragraph_1' => ['label' => 'เนื้อหาย่อหน้าแรก', 'sort_order' => 907],
+                'paragraph_2' => ['label' => 'เนื้อหาย่อหน้าที่ 2', 'sort_order' => 908],
+                'paragraph_3' => ['label' => 'เนื้อหาย่อหน้าที่ 3', 'sort_order' => 909],
                 'signer_name' => ['label' => 'ชื่อผู้ลงนาม', 'sort_order' => 911],
                 'signer_position' => ['label' => 'ตำแหน่งผู้ลงนาม', 'sort_order' => 912],
             ];
@@ -1697,10 +1793,10 @@ VALUES
         $redirectUrl = '/Pro_letter/form_Memo/form_memo_free_document.php?id=' . $documentId;
     } elseif ($isCoopEvaluation) {
         $redirectUrl = '/Pro_letter/form_Memo/form_memo_coop_evaluation.php?id=' . $documentId;
-    } elseif ($isProjectActivity) {
-        $redirectUrl = '/Pro_letter/form_Memo/form_memo_project_activity.php?id=' . $documentId;
     } elseif ($isResearchData) {
         $redirectUrl = '/Pro_letter/form_Memo/form_memo_request_research_data.php?id=' . $documentId;
+    } elseif ($isProjectActivity) {
+        $redirectUrl = '/Pro_letter/form_Memo/form_memo_project_activity.php?id=' . $documentId;
     } elseif ($isInviteMemo) {
         $redirectUrl = '/Pro_letter/form_Memo/form_memo_invite_speaker.php?id=' . $documentId;
     } elseif ($isRoomRequest) {

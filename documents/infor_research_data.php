@@ -209,6 +209,10 @@ $templateDropdownOptions = [
     'external' => []
 ];
 
+// template_id ของฟอร์มนี้ ต้องใช้ร่วมกันทั้ง User / Officer
+// ห้าม hardcode เป็น 1 เพราะในฐานข้อมูล template_id=1 เป็นเทมเพลตอื่น
+$researchTemplateId = 0;
+
 try {
     $templatePdo = db();
     $templateStmt = $templatePdo->query("
@@ -259,7 +263,8 @@ try {
             'is_active' => 1
         ];
 
-        if ($url === '/documents/infor_research_data.php') {
+        if (basename(parse_url($url, PHP_URL_PATH) ?: $url) === 'infor_research_data.php') {
+            $researchTemplateId = (int)($tpl['template_id'] ?? 0);
             $CURRENT_MAIN = $group;
             $CURRENT_SUB = $name;
         }
@@ -271,6 +276,28 @@ try {
     ];
     $CURRENT_SUB = "";
 }
+
+// กันพลาดกรณี dropdown query ไม่พบ แต่ตาราง templates มี RESEARCH_DATA อยู่
+if ($researchTemplateId <= 0) {
+    try {
+        $researchTplStmt = db()->prepare("
+            SELECT template_id
+            FROM templates
+            WHERE template_code = 'RESEARCH_DATA'
+               OR question_path LIKE '%infor_research_data.php%'
+               OR document_path LIKE '%form_memo_request_research_data.php%'
+            ORDER BY
+                CASE WHEN template_code = 'RESEARCH_DATA' THEN 0 ELSE 1 END,
+                template_id ASC
+            LIMIT 1
+        ");
+        $researchTplStmt->execute();
+        $researchTemplateId = (int)($researchTplStmt->fetchColumn() ?: 0);
+    } catch (Throwable $e) {
+        $researchTemplateId = 0;
+    }
+}
+
 
 // ✅ โหมดแก้ไขเอกสาร: รับ id จาก URL แล้วดึงข้อมูลเดิมมาแสดงในฟอร์ม
 $editDocId  = (int)($_GET['id'] ?? $_POST['document_id'] ?? 0);
@@ -658,9 +685,11 @@ $editStudentsJsonForJs = json_encode($editStudents, JSON_UNESCAPED_UNICODE | JSO
     <input type="hidden" name="edit" value="1">
     <?php endif; ?>
     <input type="hidden" name="purpose" value="research_data">
+    <input type="hidden" name="form_type" value="research_data">
+    <input type="hidden" name="document_type" value="infor_research_data">
     <input type="hidden" name="target_form" value="infor_research_data.php">
     <input type="hidden" name="redirect_to" value="form_memo_request_research_data.php">
-    <input type="hidden" name="template_id" value="1">
+    <input type="hidden" name="template_id" value="<?= (int)$researchTemplateId ?>">
     <input type="hidden" name="document_type_name" value="หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์">
     <input type="hidden" name="department_id" id="selectedDepartmentId" value="<?= (int)$currentUserDepartmentId ?>">
     <input type="hidden" name="doc_date" value="<?= h($editDocDate) ?>">
