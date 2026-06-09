@@ -259,6 +259,41 @@ $displayFaculty = trim($faculty) !== '' ? trim($faculty) : "คณะเทค�
 $displayDepartment = trim($department) !== '' ? trim($department) : "เทคโนโลยีสารสนเทศ";
 $displayDepartmentFull = "ภาควิชา" . $displayDepartment;
 $displayFacultyDean = "คณบดี" . $displayFaculty;
+$deanName = "";
+$deanPosition = "";
+$deanFacultyName = $displayFaculty;
+
+/* --------------------------------------------------
+   ข้อมูลคณบดีตามคณะในบรรทัดส่วนราชการ
+-------------------------------------------------- */
+try {
+  if (trim((string)$displayFaculty) !== "") {
+    $deanStmt = $pdo->prepare("
+      SELECT dean_name, dean_position, faculty_name
+      FROM faculties
+      WHERE faculty_name = :faculty
+         OR faculty_name = CONCAT('คณะ', :faculty)
+      LIMIT 1
+    ");
+    $deanStmt->execute([':faculty' => trim((string)$displayFaculty)]);
+    $deanRow = $deanStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $deanName = trim((string)($deanRow['dean_name'] ?? ""));
+    $deanPosition = trim((string)($deanRow['dean_position'] ?? ""));
+    $deanFacultyName = trim((string)($deanRow['faculty_name'] ?? $deanFacultyName));
+  }
+} catch (Throwable $e) {
+  $deanName = "";
+  $deanPosition = "";
+}
+
+if ($deanName === "") {
+  $deanName = "................................";
+}
+if ($deanPosition === "") {
+  $deanPosition = "คณบดี" . ($deanFacultyName !== "" ? $deanFacultyName : $displayFaculty);
+}
+$displayFacultyDean = $deanPosition;
 $eventDate  = $valueMap[12] ?? "";
 $eventPlace = $valueMap[13] ?? "";
 
@@ -674,30 +709,30 @@ $len = max(20, $len);
     font-style: normal;
   }
 
-@font-face {
-  font-family: 'TH SarabunPSK';
-  src: url('../fonts/THSarabun.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
+  @font-face {
+    font-family: 'TH SarabunPSK';
+    src: url('../fonts/THSarabun.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
 
-@font-face {
-  font-family: 'TH SarabunPSK';
-  src: url('../fonts/THSarabun-Bold.ttf') format('truetype');
-  font-weight: bold;
-  font-style: normal;
-}
+  @font-face {
+    font-family: 'TH SarabunPSK';
+    src: url('../fonts/THSarabun-Bold.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+  }
 
-html,
-body,
-.page,
-.content-block,
-.chip,
-.dot-input,
-.subject-line,
-.signature-block {
-  font-family: 'TH SarabunPSK', sans-serif !important;
-}
+  html,
+  body,
+  .page,
+  .content-block,
+  .chip,
+  .dot-input,
+  .subject-line,
+  .signature-block {
+    font-family: 'TH SarabunPSK', sans-serif !important;
+  }
 
   /* ⭐⭐⭐ อันที่คุณย้ำว่าห้ามหาย — ใส่ให้อยู่ท้ายเหมือนเดิม ⭐⭐⭐ */
   .doc-header .doc-row {
@@ -1138,11 +1173,11 @@ body,
           <div>ขอแสดงความนับถือ</div>
 
           <div style="margin-top:38px;">
-            (<?= h(thai_digits($projectReceiverName)) ?>)
+            (<?= h(thai_digits($deanName)) ?>)
           </div>
 
           <div>
-            <?= h(thai_digits($projectReceiverPosition)) ?>
+            <?= h(thai_digits($deanPosition)) ?>
           </div>
         </div>
 

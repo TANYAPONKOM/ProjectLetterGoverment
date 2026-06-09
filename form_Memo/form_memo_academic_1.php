@@ -396,6 +396,38 @@ $displayFaculty = trim($faculty) !== '' ? trim($faculty) : "คณะเทค�
 $displayDepartment = trim($department) !== '' ? trim($department) : "เทคโนโลยีสารสนเทศ";
 $displayDepartmentFull = "ภาควิชา" . $displayDepartment;
 $displayFacultyDean = "คณบดี" . $displayFaculty;
+
+$deanName = "";
+$deanFacultyName = $displayFaculty;
+
+/* --------------------------------------------------
+   ข้อมูลคณบดีตามคณะในบรรทัดส่วนราชการ
+-------------------------------------------------- */
+try {
+  if (trim((string)$displayFaculty) !== "") {
+    $deanStmt = $pdo->prepare("
+      SELECT faculty_name, dean_name
+      FROM faculties
+      WHERE faculty_name = :faculty
+      LIMIT 1
+    ");
+    $deanStmt->execute([':faculty' => trim((string)$displayFaculty)]);
+    $deanRow = $deanStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $deanFacultyName = trim((string)($deanRow['faculty_name'] ?? $deanFacultyName));
+    $deanName = trim((string)($deanRow['dean_name'] ?? ""));
+  }
+} catch (Throwable $e) {
+  $deanName = "";
+}
+
+$deanToText = "คณบดี" . ($deanFacultyName ?: ($displayFaculty ?: "คณะ.................................."));
+if ($deanName === "") {
+  $deanName = "................................";
+}
+
+$deanPosition = $deanToText;
+$displayFacultyDean = $deanToText;
 $academicTopic = $valueMap[13] ?? "";
 $subject = $document["subject"] ?? "";
 $memoSubject = $valueMap[14] ?? $subject;
@@ -727,6 +759,88 @@ $len = max(20, $len);
     white-space: nowrap;
   }
 
+
+  /* ===== บล็อกเสนอคณบดี: ต้องชิดขอบซ้ายเนื้อหา ไม่ใช้ย่อหน้า/ไม่กระจายคำ ===== */
+  .dean-approval-block {
+    display: flex;
+    align-items: flex-start;
+    font-family: "TH SarabunPSK";
+    font-size: 16pt;
+    font-weight: 400;
+    line-height: 1.34 !important;
+    margin-top: -0.20cm !important;
+    margin-bottom: 6px !important;
+    text-indent: 0 !important;
+    text-align: left !important;
+    text-align-last: left !important;
+    word-spacing: normal !important;
+    letter-spacing: normal !important;
+    white-space: normal;
+  }
+
+  .dean-approval-label {
+    width: 1.15cm;
+    flex: 0 0 1.15cm;
+  }
+
+  .dean-approval-text {
+    padding-left: 14px;
+  }
+
+  .dean-signature-wrapper {
+    margin-top: 1.45cm;
+    margin-bottom: 1em;
+    margin-left: calc(1.15cm + 14px);
+    text-align: left !important;
+    font-family: "TH SarabunPSK", sans-serif !important;
+    font-size: 16pt !important;
+    font-weight: 400 !important;
+    line-height: 1.15 !important;
+  }
+
+  .dean-signature-block {
+    display: inline-block;
+    width: fit-content;
+    text-align: left !important;
+    margin: 0 !important;
+    padding: 0 0 1.15em 0 !important;
+    transform: none !important;
+    position: relative;
+    font-family: "TH SarabunPSK", sans-serif !important;
+    font-size: 16pt !important;
+    font-weight: 400 !important;
+    line-height: 1.15 !important;
+  }
+
+  .dean-sig-name {
+    display: block;
+    text-align: left !important;
+    white-space: nowrap;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: "TH SarabunPSK", sans-serif !important;
+    font-size: 16pt !important;
+    font-weight: 400 !important;
+    line-height: 1.15 !important;
+  }
+
+  .dean-sig-position {
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: 1.15em;
+    transform: translateX(-50%);
+    width: max-content;
+    text-align: center !important;
+    white-space: nowrap;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: "TH SarabunPSK", sans-serif !important;
+    font-size: 16pt !important;
+    font-weight: 400 !important;
+    line-height: 1.15 !important;
+  }
+
   .footer-actions {
     margin-top: 24px;
     padding-top: 16px;
@@ -887,31 +1001,31 @@ $len = max(20, $len);
   }
 
 
-/* ฟอนต์ TH SarabunPSK */
-@font-face {
-  font-family: 'TH SarabunPSK';
-  src: url('../fonts/THSarabun.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
+  /* ฟอนต์ TH SarabunPSK */
+  @font-face {
+    font-family: 'TH SarabunPSK';
+    src: url('../fonts/THSarabun.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
 
-@font-face {
-  font-family: 'TH SarabunPSK';
-  src: url('../fonts/THSarabun-Bold.ttf') format('truetype');
-  font-weight: bold;
-  font-style: normal;
-}
+  @font-face {
+    font-family: 'TH SarabunPSK';
+    src: url('../fonts/THSarabun-Bold.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+  }
 
-html,
-body,
-.page,
-.content-block,
-.chip,
-.dot-input,
-.subject-line,
-.signature-block {
-  font-family: 'TH SarabunPSK', sans-serif !important;
-}
+  html,
+  body,
+  .page,
+  .content-block,
+  .chip,
+  .dot-input,
+  .subject-line,
+  .signature-block {
+    font-family: 'TH SarabunPSK', sans-serif !important;
+  }
 
   /* ⭐⭐⭐ อันที่คุณย้ำว่าห้ามหาย — ใส่ให้อยู่ท้ายเหมือนเดิม ⭐⭐⭐ */
   .doc-header .doc-row {
@@ -1335,10 +1449,26 @@ body,
 
       <div class="signature-wrapper">
         <div class="signature-block" id="signatureBlock">
-          <div class="sig-name">(ผู้ช่วยศาสตราจารย์ ดร.ขนิษฐา นามี)</div>
-          <div class="sig-position">หัวหน้า<?= h_thai_digits($displayDepartmentFull) ?></div>
+          <div class="sig-name">(<?= h_thai_digits($ownerName ?: '') ?>)</div>
+          <div class="sig-position"><?= h_thai_digits($position ?: '') ?></div>
         </div>
       </div>
+
+      <div class="dean-approval-block">
+        <div class="dean-approval-label">เรียน</div>
+        <div class="dean-approval-text">
+          <div><?= h_thai_digits($deanToText) ?></div>
+          <div>เพื่อโปรดพิจารณาอนุมัติ</div>
+        </div>
+      </div>
+
+      <div class="dean-signature-wrapper">
+        <div class="dean-signature-block">
+          <div class="dean-sig-name">(<?= h_thai_digits($deanName) ?>)</div>
+          <div class="dean-sig-position"><?= h_thai_digits($deanPosition) ?></div>
+        </div>
+      </div>
+
 
 
       <?php if (!$hasExpense): ?>
@@ -1441,9 +1571,9 @@ body,
       วงเงินทั้งสิ้น <span class="chip"><?= h_thai_digits($displayAmountNumber) ?></span> บาท
       (<span class="chip"><?= h_thai_digits($displayAmountThai) ?></span>)
       โดยขอใช้แหล่งเงินจัดสรรให้หน่วยงาน ประจำปีงบประมาณ พ.ศ.
-        <span class="chip" contenteditable="true" data-target="fiscal_year_display">
-          <?= h_thai_digits($thaiYear ?: date('Y') + 543) ?>
-        </span>
+      <span class="chip" contenteditable="true" data-target="fiscal_year_display">
+        <?= h_thai_digits($thaiYear ?: date('Y') + 543) ?>
+      </span>
       ในส่วนของ<?= h_thai_digits($displayDepartmentFull) ?> แผนงานจัดการศึกษาระดับอุดมศึกษา
       กองทุนพัฒนาบุคลากร หมวดค่าใช้สอย
       <span class="keep">(รายละเอียดตามเอกสารแนบ)</span>
@@ -1459,6 +1589,22 @@ body,
         <div class="sig-position"><?= h_thai_digits($position ?: '') ?></div>
       </div>
     </div>
+
+    <div class="dean-approval-block">
+      <div class="dean-approval-label">เรียน</div>
+      <div class="dean-approval-text">
+        <div><?= h_thai_digits($deanToText) ?></div>
+        <div>เพื่อโปรดพิจารณาอนุมัติ</div>
+      </div>
+    </div>
+
+    <div class="dean-signature-wrapper">
+      <div class="dean-signature-block">
+        <div class="dean-sig-name">(<?= h_thai_digits($deanName) ?>)</div>
+        <div class="dean-sig-position"><?= h_thai_digits($deanPosition) ?></div>
+      </div>
+    </div>
+
   </section>
   <?php endif; ?>
 
@@ -1537,6 +1683,22 @@ body,
         <div class="sig-position"><?= h_thai_digits($position ?: '') ?></div>
       </div>
     </div>
+
+    <div class="dean-approval-block">
+      <div class="dean-approval-label">เรียน</div>
+      <div class="dean-approval-text">
+        <div><?= h_thai_digits($deanToText) ?></div>
+        <div>เพื่อโปรดพิจารณาอนุมัติ</div>
+      </div>
+    </div>
+
+    <div class="dean-signature-wrapper">
+      <div class="dean-signature-block">
+        <div class="dean-sig-name">(<?= h_thai_digits($deanName) ?>)</div>
+        <div class="dean-sig-position"><?= h_thai_digits($deanPosition) ?></div>
+      </div>
+    </div>
+
   </section>
   <?php endif; ?>
 
@@ -2212,6 +2374,5 @@ body,
   })();
   </script>
 </body>
-
 
 </html>

@@ -113,16 +113,121 @@ if ($departmentId !== '' && $departmentId !== 'all') {
 
 $templateSql = "
   SELECT
-    dep.department_name,
-    COALESCE(t.template_name, 'ไม่ระบุประเภทเอกสาร') AS template_name,
-    COUNT(DISTINCT d.document_id) AS total_docs
-  FROM documents d
-  LEFT JOIN users owner ON owner.user_id = d.owner_id
-  LEFT JOIN departments dep ON dep.department_id = COALESCE(d.department_id, owner.department_id)
-  LEFT JOIN templates t ON d.template_id = t.template_id
-  WHERE 1=1 {$templateDateSql} {$templateWhereSql}
-  GROUP BY dep.department_id, dep.department_name, t.template_id, t.template_name
-  ORDER BY total_docs DESC
+    doc_type.template_name,
+    COUNT(DISTINCT doc_type.document_id) AS total_docs
+  FROM (
+    SELECT
+      d.document_id,
+      COALESCE(d.department_id, owner.department_id) AS department_id,
+      CASE
+        WHEN d.document_type_name IS NOT NULL AND TRIM(d.document_type_name) <> ''
+          THEN d.document_type_name
+
+        WHEN vf.has_free_doc = 1
+          THEN 'เอกสารอิสระ'
+
+        WHEN vf.has_consent_research_presentation = 1
+          THEN 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ'
+
+        WHEN vf.has_coop_evaluation = 1
+          THEN 'ขอประเมินสถานประกอบการสหกิจ'
+
+        WHEN vf.has_project_activity = 1
+          THEN 'ขอเข้าไปจัดกิจกรรมโครงการ'
+
+        WHEN vf.has_research_data = 1
+          THEN 'หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์'
+
+        WHEN vf.has_room_request = 1
+          THEN 'ขอห้องพักรับรอง'
+
+        WHEN vf.has_invite_speaker = 1
+          THEN 'หนังสือเรียนเชิญวิทยากร'
+
+        WHEN vf.has_speaker_workshop = 1
+          THEN 'ขออนุมัติตัวบุคคลเป็นวิทยากร'
+
+        WHEN vf.has_study_visit = 1
+          THEN 'ขอเข้าเยี่ยมศึกษาดูงาน'
+
+        WHEN vf.has_academic_presentation = 1
+          OR d.subject LIKE '%นำเสนอ%'
+          THEN 'ขออนุมัติตัวบุคคลเพื่อไปนำเสนอผลงานวิจัย'
+
+        WHEN d.subject LIKE '%ยินยอม%' AND d.subject LIKE '%นำเสนอ%'
+          THEN 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ'
+
+        WHEN d.subject LIKE '%ห้องพัก%'
+          THEN 'ขอห้องพักรับรอง'
+
+        WHEN d.subject LIKE '%สหกิจ%'
+          THEN 'ขอประเมินสถานประกอบการสหกิจ'
+
+        WHEN d.subject LIKE '%เข้าเยี่ยม%' OR d.subject LIKE '%ศึกษาดูงาน%'
+          THEN 'ขอเข้าเยี่ยมศึกษาดูงาน'
+
+        WHEN d.subject LIKE '%เชิญ%' AND d.subject LIKE '%วิทยากร%'
+          THEN 'หนังสือเรียนเชิญวิทยากร'
+
+        WHEN d.subject LIKE '%เป็นวิทยากร%'
+          THEN 'ขออนุมัติตัวบุคคลเป็นวิทยากร'
+
+        WHEN d.subject LIKE '%ขอความอนุเคราะห์%' AND d.subject LIKE '%วิจัย%'
+          THEN 'หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์'
+
+        WHEN d.subject LIKE '%โครงการ%' OR d.subject LIKE '%กิจกรรม%'
+          THEN 'ขอเข้าไปจัดกิจกรรมโครงการ'
+
+        ELSE COALESCE(t.template_name, 'ขออนุมัติไปเข้ารับการฝึกอบรมหลักสูตร')
+      END AS template_name
+    FROM documents d
+    LEFT JOIN users owner ON owner.user_id = d.owner_id
+    LEFT JOIN templates t ON d.template_id = t.template_id
+    LEFT JOIN (
+      SELECT
+        document_id,
+
+        MAX(CASE WHEN field_id IN (94,95,96,97,98,99,100,101,102)
+                  AND TRIM(COALESCE(value_text, '')) <> '' THEN 1 ELSE 0 END) AS has_free_doc,
+
+        MAX(CASE WHEN field_id = 17
+                  AND TRIM(COALESCE(value_text, '')) <> '' THEN 1 ELSE 0 END) AS has_consent_research_presentation,
+
+        MAX(CASE WHEN field_id IN (70,71,72,73,74,75,76,77,78,79,80,81,82,83,90,91)
+                  AND TRIM(COALESCE(value_text, '')) <> '' THEN 1 ELSE 0 END) AS has_coop_evaluation,
+
+        MAX(CASE WHEN field_id IN (58,59,60,61,62,63,64,65,66,67,68,69,88,89)
+                  AND TRIM(COALESCE(value_text, '')) <> '' THEN 1 ELSE 0 END) AS has_project_activity,
+
+        MAX(CASE WHEN field_id IN (40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,92,93)
+                  AND TRIM(COALESCE(value_text, '')) <> '' THEN 1 ELSE 0 END) AS has_research_data,
+
+        MAX(CASE WHEN field_id IN (26,27,28,29,30,31,32,33,34,35,36,37)
+                  AND TRIM(COALESCE(value_text, '')) <> '' THEN 1 ELSE 0 END) AS has_room_request,
+
+        MAX(CASE WHEN field_id IN (38,39,84,85)
+                  AND TRIM(COALESCE(value_text, '')) <> '' THEN 1 ELSE 0 END) AS has_invite_speaker,
+
+        MAX(CASE WHEN field_id IN (18,19,21,23,24,25)
+                  AND TRIM(COALESCE(value_text, '')) <> '' THEN 1 ELSE 0 END) AS has_speaker_workshop,
+
+        MAX(CASE WHEN field_id IN (56,57,86,87)
+                  AND TRIM(COALESCE(value_text, '')) <> '' THEN 1 ELSE 0 END) AS has_study_visit,
+
+        MAX(CASE WHEN (
+                    field_id IN (13,14,15,16)
+                    OR (field_id = 4 AND value_text LIKE '%นำเสนอ%')
+                  )
+                  AND TRIM(COALESCE(value_text, '')) <> '' THEN 1 ELSE 0 END) AS has_academic_presentation
+      FROM document_values
+      GROUP BY document_id
+    ) vf ON vf.document_id = d.document_id
+    WHERE 1=1 {$templateDateSql}
+  ) doc_type
+  LEFT JOIN departments dep ON dep.department_id = doc_type.department_id
+  WHERE 1=1 {$templateWhereSql}
+  GROUP BY doc_type.template_name
+  ORDER BY total_docs DESC, doc_type.template_name ASC
   LIMIT 10
 ";
 $templateStmt = $pdo->prepare($templateSql);
@@ -255,7 +360,6 @@ function thaiDateTime($date) {
       <div class="xl:col-span-2 bg-white rounded-xl shadow p-6">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-bold text-gray-800">จำนวนเอกสารต่อภาควิชา</h2>
-          <span class="text-xs text-gray-500">อ้างอิงจาก documents.department_id</span>
         </div>
         <canvas id="departmentBarChart" height="110"></canvas>
       </div>
@@ -319,7 +423,8 @@ function thaiDateTime($date) {
           <?php foreach ($templateRows as $item): ?>
           <div class="border rounded-lg p-3">
             <div class="text-sm font-semibold text-gray-800"><?= h($item['template_name']) ?></div>
-            <div class="text-xs text-gray-500 mt-1"><?= h($item['department_name'] ?? 'ไม่ระบุภาควิชา') ?></div>
+            <div class="text-xs text-gray-500 mt-1">
+              <?= ($departmentId !== '' && $departmentId !== 'all') ? 'เฉพาะภาควิชาที่เลือก' : 'รวมทุกภาควิชา' ?></div>
             <div class="mt-2 flex items-center justify-between text-sm">
               <span class="text-gray-500">จำนวนเอกสาร</span>
               <span class="font-bold text-teal-600"><?= number_format((int)$item['total_docs']) ?></span>

@@ -415,7 +415,7 @@ function addResearchHeader($section, $docNo, $displayFaculty, $thaiDocDate) {
     ]);
 }
 
-function addResearchSignature($section, $displayFacultyDean) {
+function addResearchSignature($section, $deanName, $displayFacultyDean) {
     $section->addText('ขอแสดงความนับถือ', 'normalFont', [
         'alignment' => Jc::CENTER,
         'spaceBefore' => 20,
@@ -423,7 +423,7 @@ function addResearchSignature($section, $displayFacultyDean) {
         'lineHeight' => 1.0,
     ]);
 
-    $section->addText('(ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์)', 'normalFont', [
+    $section->addText('(' . researchClean($deanName) . ')', 'normalFont', [
         'alignment' => Jc::CENTER,
         'spaceAfter' => 0,
         'lineHeight' => 1.0,
@@ -503,7 +503,7 @@ function addResearchDataRequestPage($phpWord, array $data) {
         ' และขอขอบคุณมา ณ โอกาสนี้',
     ], 28);
 
-    addResearchSignature($section, $data['displayFacultyDean']);
+    addResearchSignature($section, $data['deanName'], $data['displayFacultyDean']);
     addResearchFooter($section, $data['displayDepartmentFull']);
 }
 
@@ -553,7 +553,40 @@ $displayFaculty = $displayFacultyNoPrefix;
 
 $displayDepartment = trim($department) !== '' ? trim($department) : 'เทคโนโลยีสารสนเทศ';
 $displayDepartmentFull = 'ภาควิชา' . $displayDepartment;
-$displayFacultyDean = 'คณบดีคณะ' . $displayFaculty;
+$deanLookupFaculty = trim((string)$faculty);
+if ($deanLookupFaculty === '') {
+    $deanLookupFaculty = trim((string)$displayFaculty);
+}
+$deanLookupFaculty = preg_replace('/^คณะ/u', '', $deanLookupFaculty);
+$deanLookupFaculty = trim((string)$deanLookupFaculty);
+$displayFacultyDean = 'คณบดีคณะ' . $deanLookupFaculty;
+
+$deanName = '';
+try {
+    $deanStmt = $pdo->prepare("
+        SELECT dean_name
+        FROM faculties
+        WHERE faculty_name = :faculty
+           OR faculty_name = CONCAT('คณะ', :faculty)
+           OR REPLACE(faculty_name, 'คณะ', '') = :faculty
+        LIMIT 1
+    ");
+    $deanStmt->execute([':faculty' => $deanLookupFaculty]);
+    $deanName = trim((string)($deanStmt->fetchColumn() ?: ''));
+} catch (Throwable $e) {
+    $deanName = '';
+}
+if ($deanName === '') {
+    if (mb_strpos($deanLookupFaculty, 'เทคโนโลยีและการจัดการอุตสาหกรรม') !== false) {
+        $deanName = 'ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์';
+    } elseif (mb_strpos($deanLookupFaculty, 'บริหารธุรกิจและอุตสาหกรรมบริการ') !== false) {
+        $deanName = 'ผู้ช่วยศาสตราจารย์พีระศักดิ์ เสรีกุล';
+    } elseif (mb_strpos($deanLookupFaculty, 'อุตสาหกรรมเกษตรดิจิทัล') !== false) {
+        $deanName = 'รองศาสตราจารย์ ดร.รัชนี เจริญ';
+    } else {
+        $deanName = '................................';
+    }
+}
 
 $researchCourseText = trim($researchCourseCode . ' ' . $researchCourseName);
 $researchDataRequestText = trim(($researchSupportType !== '' ? $researchSupportType . ' ' : '') . $researchDataDetail);
@@ -595,6 +628,7 @@ addResearchDataRequestPage($phpWord, [
     'researchStudents' => $researchStudents,
     'contactText' => $contactText,
     'displayFacultyDean' => $displayFacultyDean,
+    'deanName' => $deanName,
 ]);
 
 $filename = 'request_research_data_' . $docId . '.docx';

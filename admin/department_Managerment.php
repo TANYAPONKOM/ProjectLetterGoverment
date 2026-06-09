@@ -9,6 +9,10 @@ require_once __DIR__ . '/../functions.php';
 $pdo = getPDO();
 $current = basename($_SERVER['PHP_SELF']);
 
+// ดึงข้อมูลคณะทั้งหมด
+$facultyStmt = $pdo->query("SELECT faculty_id, faculty_name, dean_name, dean_position FROM faculties ORDER BY faculty_id ASC");
+$faculties = $facultyStmt->fetchAll(PDO::FETCH_ASSOC);
+
 // ดึงข้อมูลภาควิชาทั้งหมด
 $sql = "SELECT d.department_id, d.faculty_id, d.department_name,
         f.faculty_name
@@ -36,6 +40,59 @@ $departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
   <main class="max-w-6xl w-full px-8 mx-auto bg-white mt-6 mb-12 p-6 rounded shadow min-h-[85vh]">
     <div class="flex justify-between items-center mb-4 border-b pb-2">
       <div>
+        <h2 class="text-2xl font-bold text-teal-700">การจัดการคณะ</h2>
+        <p class="text-sm text-gray-500 mt-1">จัดการชื่อคณบดีและตำแหน่งคณบดีสำหรับใช้แสดงท้ายเอกสาร</p>
+      </div>
+      <button onclick="confirmUserAction('add')"
+        class="inline-flex items-center gap-2 px-5 py-2.5 border border-teal-500 text-teal-600 bg-white rounded-lg font-semibold hover:bg-teal-50 transition shadow-sm">+
+        เพิ่มคณะ/ภาควิชา</button>
+    </div>
+
+    <table class="w-full text-sm text-left border-separate border-spacing-y-2 mb-10">
+      <thead class="bg-teal-500 text-white">
+        <tr>
+          <th class="px-4 py-2 rounded-tl-lg">ชื่อคณะ</th>
+          <th class="px-4 py-2">ชื่อคณบดี</th>
+          <th class="px-4 py-2">ตำแหน่งคณบดี</th>
+          <th class="px-4 py-2 text-center rounded-tr-lg">การจัดการ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php if ($faculties): ?>
+        <?php foreach ($faculties as $faculty): ?>
+        <tr class="bg-teal-50 shadow-sm rounded-lg hover:bg-teal-100 transition">
+          <td class="px-4 py-3 font-medium text-gray-800">
+            <?= htmlspecialchars($faculty['faculty_name']) ?>
+          </td>
+          <td class="px-4 py-3 text-gray-700">
+            <?= htmlspecialchars($faculty['dean_name'] ?: '-') ?>
+          </td>
+          <td class="px-4 py-3 text-gray-700">
+            <?= htmlspecialchars($faculty['dean_position'] ?: '-') ?>
+          </td>
+          <td class="px-4 py-3 text-center">
+            <button onclick="confirmUserAction('faculty_edit', <?= $faculty['faculty_id'] ?>)"
+              class="w-10 h-10 inline-flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-200 transition"
+              title="แก้ไขคณะ">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M12 20h9M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z" />
+              </svg>
+            </button>
+          </td>
+        </tr>
+        <?php endforeach; ?>
+        <?php else: ?>
+        <tr>
+          <td colspan="4" class="text-center py-4 text-gray-500 bg-teal-50">ไม่พบข้อมูลคณะ</td>
+        </tr>
+        <?php endif; ?>
+      </tbody>
+    </table>
+
+    <div class="flex justify-between items-center mb-4 border-b pb-2">
+      <div>
         <h2 class="text-2xl font-bold text-teal-700">การจัดการภาควิชา</h2>
         <!-- <p class="text-sm text-gray-500 mt-1">เปิด/ปิดการใช้งานแบบฟอร์มคำถามที่จะแสดงในหน้าเลือกเอกสาร</p> -->
       </div>
@@ -56,12 +113,9 @@ $departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <?php if ($departments): ?>
         <?php foreach ($departments as $row): ?>
         <tr class="bg-teal-50 shadow-sm rounded-lg hover:bg-teal-100 transition">
-          <!-- Avatar + ชื่อภาควิชา -->
-          <td class="px-4 py-3 flex items-center space-x-3">
-            <div class="w-8 h-8 rounded-full bg-teal-500 text-white flex items-center justify-center font-bold">
-              <?= strtoupper(mb_substr($row['department_name'],0,1)) ?>
-            </div>
-            <span class="font-medium text-gray-800"><?= htmlspecialchars($row['department_name']) ?></span>
+          <!-- ชื่อภาควิชา -->
+          <td class="px-4 py-3 font-medium text-gray-800">
+            <?= htmlspecialchars($row['department_name']) ?>
           </td>
 
           <!-- คณะ -->
@@ -252,6 +306,8 @@ $departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
   async function confirmUserAction(action, id = null) {
     if (action === "add") {
       window.location.href = "department_Add.php";
+    } else if (action === "faculty_edit") {
+      window.location.href = "faculty_Edit.php?id=" + encodeURIComponent(id);
     } else if (action === "edit") {
       window.location.href = "department_Edit.php?id=" + encodeURIComponent(id);
     } else if (action === "delete") {
@@ -276,7 +332,9 @@ $departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
     const departmentSuccessMessages = {
       add: "เพิ่มภาควิชาสำเร็จ",
       edit: "แก้ไขภาควิชาสำเร็จ",
-      delete: "ลบภาควิชาสำเร็จ"
+      delete: "ลบภาควิชาสำเร็จ",
+      faculty_add: "เพิ่มคณะสำเร็จ",
+      faculty_edit: "แก้ไขข้อมูลคณะสำเร็จ"
     };
 
     if (departmentSuccessMessages[departmentSuccessAction]) {

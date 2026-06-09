@@ -48,16 +48,45 @@ if (!$res['ok']) {
     exit;
 }
 
+// ✅ ดึงข้อมูลผู้ใช้ล่าสุด เพื่อรองรับ Google Login / profile_completed
+$pdo = getPDO(); // หรือ db()
+$userStmt = $pdo->prepare("
+    SELECT email, auth_provider, profile_completed, is_active
+    FROM users
+    WHERE user_id = ?
+    LIMIT 1
+");
+$userStmt->execute([$res['user_id']]);
+$currentUser = $userStmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$currentUser) {
+    header('Location: login.html?error=user');
+    exit;
+}
+
+if (isset($currentUser['is_active']) && (int)$currentUser['is_active'] !== 1) {
+    header('Location: login.html?error=inactive');
+    exit;
+}
+
 // ✅ เก็บ session
 $_SESSION['user_id']   = $res['user_id'];
 $_SESSION['username']  = $res['username'];
+$_SESSION['email']     = $currentUser['email'] ?? '';
 $_SESSION['role_id']   = $res['role_id'];
 $_SESSION['fullname']  = $res['fullname'];
 $_SESSION['position']  = $res['position'];
 $_SESSION['role_name'] = $res['role_name'];
+$_SESSION['auth_provider'] = $currentUser['auth_provider'] ?? 'local';
+$_SESSION['profile_completed'] = (int)($currentUser['profile_completed'] ?? 1);
+
+// ✅ ถ้าข้อมูลผู้ใช้ยังไม่ครบ ให้ไปหน้ารอผู้ดูแลระบบ
+if ((int)$_SESSION['profile_completed'] !== 1) {
+    header('Location: pending_profile.php');
+    exit;
+}
 
 // ✅ ดึง permissions หลัง login ผ่านเท่านั้น
-$pdo = getPDO(); // หรือ db()
 $stmt = $pdo->prepare("SELECT perm_id FROM user_permissions WHERE user_id = ?");
 $stmt->execute([$res['user_id']]);
 $_SESSION['permissions'] = $stmt->fetchAll(PDO::FETCH_COLUMN);

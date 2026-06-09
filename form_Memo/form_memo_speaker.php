@@ -334,6 +334,42 @@ $displayDepartment = trim($department) !== '' ? trim($department) : "เทค�
 $displayDepartmentFull = "ภาควิชา" . $displayDepartment;
 $displayFacultyDean = "คณบดี" . $displayFaculty;
 
+/* --------------------------------------------------
+   ข้อมูลคณบดีตามคณะในบรรทัดส่วนราชการ
+-------------------------------------------------- */
+$deanName = '';
+$deanFacultyName = $displayFaculty;
+$deanToText = "คณบดี" . ($deanFacultyName ?: "คณะ..................................");
+
+try {
+  if (trim((string)$displayFaculty) !== "") {
+    $deanStmt = $pdo->prepare("
+      SELECT faculty_name, dean_name
+      FROM faculties
+      WHERE faculty_name = :faculty
+      LIMIT 1
+    ");
+    $deanStmt->execute([':faculty' => trim((string)$displayFaculty)]);
+    $deanRow = $deanStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    if (!empty($deanRow['faculty_name'])) {
+      $deanFacultyName = trim((string)$deanRow['faculty_name']);
+    }
+    if (!empty($deanRow['dean_name'])) {
+      $deanName = trim((string)$deanRow['dean_name']);
+    }
+  }
+
+  $deanToText = "คณบดี" . ($deanFacultyName ?: ($displayFaculty ?: "คณะ.................................."));
+} catch (Throwable $e) {
+  $deanFacultyName = $displayFaculty;
+  $deanToText = "คณบดี" . ($deanFacultyName ?: "คณะ..................................");
+}
+
+if ($deanName === '') {
+  $deanName = '................................................';
+}
+
 $referenceOrg  = $valueMap[18] ?? "";    // 3. หน่วยงานผู้ออกหนังสืออ้างอิง
 $referenceNo   = $valueMap[19] ?? "";    // เลขที่หนังสืออ้างอิง
 $refDate       = $valueMap[21] ?? $docDate; // วันที่หนังสืออ้างอิง
@@ -661,6 +697,70 @@ $len = max(20, $len);
     white-space: nowrap;
   }
 
+  /* ===== บล็อกเสนอคณบดี ===== */
+  .dean-approval-block {
+    display: flex;
+    align-items: flex-start;
+    font-family: 'TH SarabunPSK';
+    font-size: 16pt;
+    font-weight: 400;
+    line-height: 1.34 !important;
+    margin-top: -0.20cm !important;
+    margin-bottom: 6px !important;
+    text-indent: 0 !important;
+    text-align: left !important;
+    text-align-last: left !important;
+    word-spacing: normal !important;
+    letter-spacing: normal !important;
+    white-space: normal;
+  }
+
+  .dean-approval-label {
+    width: 1.15cm;
+    flex: 0 0 1.15cm;
+  }
+
+  .dean-approval-text {
+    padding-left: 14px;
+  }
+
+  .dean-signature-wrapper {
+    margin-top: 1.45cm;
+    margin-bottom: 1em;
+    margin-left: calc(1.15cm + 14px);
+    text-align: left !important;
+    font-family: 'TH SarabunPSK', sans-serif !important;
+    font-size: 16pt !important;
+    font-weight: 400 !important;
+    line-height: 1.15 !important;
+  }
+
+  .dean-signature-block {
+    display: inline-block;
+    width: max-content;
+    text-align: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+    font-family: 'TH SarabunPSK', sans-serif !important;
+    font-size: 16pt !important;
+    font-weight: 400 !important;
+    line-height: 1.15 !important;
+  }
+
+  .dean-sig-name,
+  .dean-sig-position {
+    display: block;
+    text-align: center !important;
+    white-space: nowrap;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: 'TH SarabunPSK', sans-serif !important;
+    font-size: 16pt !important;
+    font-weight: 400 !important;
+    line-height: 1.15 !important;
+  }
+
   .footer-actions {
     margin-top: 24px;
     padding-top: 16px;
@@ -776,30 +876,30 @@ $len = max(20, $len);
     font-style: normal;
   }
 
- @font-face {
-  font-family: 'TH SarabunPSK';
-  src: url('../fonts/THSarabun.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
+  @font-face {
+    font-family: 'TH SarabunPSK';
+    src: url('../fonts/THSarabun.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
 
-@font-face {
-  font-family: 'TH SarabunPSK';
-  src: url('../fonts/THSarabun-Bold.ttf') format('truetype');
-  font-weight: bold;
-  font-style: normal;
-}
+  @font-face {
+    font-family: 'TH SarabunPSK';
+    src: url('../fonts/THSarabun-Bold.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+  }
 
-html,
-body,
-.page,
-.content-block,
-.chip,
-.dot-input,
-.subject-line,
-.signature-block {
-  font-family: 'TH SarabunPSK', sans-serif !important;
-}
+  html,
+  body,
+  .page,
+  .content-block,
+  .chip,
+  .dot-input,
+  .subject-line,
+  .signature-block {
+    font-family: 'TH SarabunPSK', sans-serif !important;
+  }
 
   /* ⭐⭐⭐ อันที่คุณย้ำว่าห้ามหาย — ใส่ให้อยู่ท้ายเหมือนเดิม ⭐⭐⭐ */
   .doc-header .doc-row {
@@ -1260,6 +1360,21 @@ body,
         <div class="signature-block" id="signatureBlock">
           <div class="sig-name">(<?= h(thai_digits($ownerName ?: '')) ?>)</div>
           <div class="sig-position"><?= h(thai_digits($position ?: '')) ?></div>
+        </div>
+      </div>
+
+      <div class="dean-approval-block">
+        <div class="dean-approval-label">เรียน</div>
+        <div class="dean-approval-text">
+          <div><?= h(thai_digits($deanToText)) ?></div>
+          <div>เพื่อโปรดพิจารณาอนุมัติ</div>
+        </div>
+      </div>
+
+      <div class="dean-signature-wrapper">
+        <div class="dean-signature-block">
+          <div class="dean-sig-name">(<?= h(thai_digits($deanName)) ?>)</div>
+          <div class="dean-sig-position"><?= h(thai_digits($deanToText)) ?></div>
         </div>
       </div>
 

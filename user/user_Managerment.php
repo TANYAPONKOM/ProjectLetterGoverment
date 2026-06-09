@@ -265,14 +265,8 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
             <?php foreach ($users as $index => $row): ?>
             <tr class="<?= $index % 2 === 0 ? 'bg-teal-10' : 'bg-teal-50' ?> hover:bg-teal-200/30 transition-colors">
               <!-- ชื่อ -->
-              <td class="px-4 py-3 flex items-center space-x-3">
-                <div
-                  class="w-9 h-9 flex items-center justify-center rounded-full bg-teal-400 text-white font-semibold shadow">
-                  <?= mb_substr($row['fullname'],0,1) ?>
-                </div>
-                <div>
-                  <p class="font-medium text-gray-800"><?= htmlspecialchars($row['fullname']) ?></p>
-                </div>
+              <td class="px-4 py-3 text-gray-800 font-medium">
+                <?= htmlspecialchars($row['fullname']) ?>
               </td>
 
               <!-- Email -->
@@ -306,13 +300,25 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
 
               <!-- Status -->
               <td class="px-4 py-3 text-center">
-                <?php if ($row['is_active'] == 1): ?>
-                <span
-                  class="px-3 py-1 text-xs rounded-full bg-green-100 text-green-700 font-medium shadow-inner">Active</span>
-                <?php else: ?>
-                <span
-                  class="px-3 py-1 text-xs rounded-full bg-red-100 text-red-600 font-medium shadow-inner">Inactive</span>
-                <?php endif; ?>
+                <div class="flex flex-col items-center gap-1">
+                  <?php if ($row['is_active'] == 1): ?>
+                  <span
+                    class="px-3 py-1 text-xs rounded-full bg-green-100 text-green-700 font-medium shadow-inner">Active</span>
+                  <?php else: ?>
+                  <span
+                    class="px-3 py-1 text-xs rounded-full bg-red-100 text-red-600 font-medium shadow-inner">Inactive</span>
+                  <?php endif; ?>
+
+                  <?php if (($row['auth_provider'] ?? '') === 'google' && (int)($row['profile_completed'] ?? 1) === 0): ?>
+                  <span class="px-3 py-1 text-xs rounded-full bg-red-100 text-red-600 font-medium shadow-inner">
+                    รอเพิ่มข้อมูล
+                  </span>
+                  <?php elseif ((int)($row['profile_completed'] ?? 1) === 1): ?>
+                  <span class="px-3 py-1 text-xs rounded-full bg-teal-100 text-teal-700 font-medium shadow-inner">
+                    ข้อมูลครบแล้ว
+                  </span>
+                  <?php endif; ?>
+                </div>
               </td>
 
               <!-- Actions -->

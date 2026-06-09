@@ -436,6 +436,41 @@ $displayFaculty = trim($faculty) !== '' ? trim($faculty) : "คณะเทค�
 $displayDepartment = trim($department) !== '' ? trim($department) : "เทคโนโลยีสารสนเทศ";
 $displayDepartmentFull = "ภาควิชา" . $displayDepartment;
 $displayFacultyDean = "คณบดี" . $displayFaculty;
+$deanName = "";
+$deanPosition = "";
+$deanFacultyName = $displayFaculty;
+
+/* --------------------------------------------------
+   ข้อมูลคณบดีตามคณะในบรรทัดส่วนราชการ
+-------------------------------------------------- */
+try {
+  if (trim((string)$displayFaculty) !== "") {
+    $deanStmt = $pdo->prepare("
+      SELECT dean_name, dean_position, faculty_name
+      FROM faculties
+      WHERE faculty_name = :faculty
+         OR faculty_name = CONCAT('คณะ', :faculty)
+      LIMIT 1
+    ");
+    $deanStmt->execute([':faculty' => trim((string)$displayFaculty)]);
+    $deanRow = $deanStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $deanName = trim((string)($deanRow['dean_name'] ?? ""));
+    $deanPosition = trim((string)($deanRow['dean_position'] ?? ""));
+    $deanFacultyName = trim((string)($deanRow['faculty_name'] ?? $deanFacultyName));
+  }
+} catch (Throwable $e) {
+  $deanName = "";
+  $deanPosition = "";
+}
+
+if ($deanName === "") {
+  $deanName = "................................";
+}
+if ($deanPosition === "") {
+  $deanPosition = "คณบดี" . ($deanFacultyName !== "" ? $deanFacultyName : $displayFaculty);
+}
+$displayFacultyDean = $deanPosition;
 $displaySubject = $subject ?: "ขอเรียนเชิญเป็นวิทยากรบรรยาย";
 $displayToPerson = $toPerson ?: "คุณ................................................";
 $displayProjectTitle = $projectTitle ?: "................................................";
@@ -805,29 +840,29 @@ $len = max(20, $len);
 
   /* ฟอนต์ Sarabun */
   @font-face {
-  font-family: 'TH SarabunPSK';
-  src: url('../fonts/THSarabun.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
+    font-family: 'TH SarabunPSK';
+    src: url('../fonts/THSarabun.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
 
-@font-face {
-  font-family: 'TH SarabunPSK';
-  src: url('../fonts/THSarabun-Bold.ttf') format('truetype');
-  font-weight: bold;
-  font-style: normal;
-}
+  @font-face {
+    font-family: 'TH SarabunPSK';
+    src: url('../fonts/THSarabun-Bold.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+  }
 
-html,
-body,
-.page,
-.content-block,
-.chip,
-.dot-input,
-.subject-line,
-.signature-block {
-  font-family: 'TH SarabunPSK', sans-serif !important;
-}
+  html,
+  body,
+  .page,
+  .content-block,
+  .chip,
+  .dot-input,
+  .subject-line,
+  .signature-block {
+    font-family: 'TH SarabunPSK', sans-serif !important;
+  }
 
   /* ⭐⭐⭐ อันที่คุณย้ำว่าห้ามหาย — ใส่ให้อยู่ท้ายเหมือนเดิม ⭐⭐⭐ */
   .doc-header .doc-row {
@@ -1282,11 +1317,11 @@ body,
 ">
 
           <div>
-            (ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์)
+            (<?= h_thai($deanName) ?>)
           </div>
 
           <div>
-            <?= h_thai($displayFacultyDean) ?>
+            <?= h_thai($deanPosition) ?>
           </div>
 
         </div>
@@ -1336,9 +1371,7 @@ body,
 
         <!-- ปุ่มดาวน์โหลด Word -->
         <a href="/Pro_letter/documents/download_word_invite_speaker.php?id=<?= (int)$docId ?>"
-          download="<?= h($wordDownloadName) ?>"
-          data-word-download="1"
-          data-word-filename="<?= h($wordDownloadName) ?>"
+          download="<?= h($wordDownloadName) ?>" data-word-download="1" data-word-filename="<?= h($wordDownloadName) ?>"
           onclick="return downloadWord(this);"
           class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           ดาวน์โหลด Word

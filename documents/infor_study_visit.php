@@ -11,6 +11,7 @@ if (!in_array($CURRENT_MAIN, $ALLOWED_MAIN, true)) {
 <?php
 session_start();
 require_once __DIR__ . '/../functions.php';
+require_once __DIR__ . '/../includes/require_profile_completed.php';
 $formData = $formData ?? [];
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.html");

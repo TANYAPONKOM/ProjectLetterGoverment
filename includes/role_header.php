@@ -44,6 +44,22 @@ $logoutPath = '/Pro_letter/logout.php';
 $settingsVerifyUrl = '/Pro_letter/admin/form_Templates.php';
 $userPermissionVerifyUrl = '/Pro_letter/admin/verify_user.php';
 $isSettingsPage = in_array($current, ['form_Templates.php', 'department_Managerment.php', 'user_Managerment.php'], true);
+$pendingGoogleUserCount = 0;
+if (function_exists('getPDO')) {
+    try {
+        $navPdo = getPDO();
+        $pendingStmt = $navPdo->query("
+            SELECT COUNT(*)
+            FROM users
+            WHERE auth_provider = 'google'
+              AND profile_completed = 0
+              AND is_active = 1
+        ");
+        $pendingGoogleUserCount = (int)$pendingStmt->fetchColumn();
+    } catch (Throwable $e) {
+        $pendingGoogleUserCount = 0;
+    }
+}
 ?>
 <header class="bg-teal-500 text-white p-4 flex justify-between items-center shadow-md"
   style="font-family: Arial, Helvetica, sans-serif;">
@@ -80,19 +96,33 @@ $isSettingsPage = in_array($current, ['form_Templates.php', 'department_Managerm
     </a>
 
     <div class="relative">
-      <button type="button" id="templateBtn" class="px-4 py-2 rounded-[11px] font-bold transition
+      <button type="button" id="templateBtn" class="relative px-4 py-2 rounded-[11px] font-bold transition
           text-white hover:bg-white hover:text-teal-500 flex items-center space-x-1">
         <span>ตั้งค่าระบบเริ่มต้น</span>
+        <?php if ($pendingGoogleUserCount > 0): ?>
+        <span
+          class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center shadow">
+          !
+        </span>
+        <?php endif; ?>
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
-      <div id="templateMenu" class="hidden absolute bg-white text-gray-700 mt-1 rounded-lg shadow-lg w-48 z-50">
+      <div id="templateMenu" class="hidden absolute bg-white text-gray-700 mt-1 rounded-lg shadow-lg w-56 z-50">
         <a href="/Pro_letter/admin/form_Templates.php" class="block px-4 py-2 hover:bg-teal-100">การจัดการเทมเพลต</a>
         <a href="/Pro_letter/admin/department_Managerment.php"
           class="block px-4 py-2 hover:bg-teal-100">การจัดการภาควิชา</a>
-        <a href="/Pro_letter/admin/user_Managerment.php"
-          class="block px-4 py-2 hover:bg-teal-100">กำหนดสิทธิ์ผู้ใช้งาน</a>
+        <a href="/Pro_letter/admin/user_Managerment.php<?= $pendingGoogleUserCount > 0 ? '?profile_status=pending' : '' ?>"
+          class="flex items-center justify-between gap-3 px-4 py-2 hover:bg-teal-100">
+          <span>กำหนดสิทธิ์ผู้ใช้งาน</span>
+          <?php if ($pendingGoogleUserCount > 0): ?>
+          <span
+            class="min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
+            <?= $pendingGoogleUserCount ?>
+          </span>
+          <?php endif; ?>
+        </a>
       </div>
     </div>
 

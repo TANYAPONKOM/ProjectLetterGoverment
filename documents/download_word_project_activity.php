@@ -478,6 +478,34 @@ $displayDepartmentFull = (mb_strpos($displayDepartment, 'ภาควิชา')
     : 'ภาควิชา' . $displayDepartment;
 
 $displayFacultyDean = 'คณบดี' . $displayFaculty;
+$deanName = '';
+$deanPosition = '';
+$deanFacultyName = $displayFaculty;
+try {
+    $deanStmt = $pdo->prepare("
+        SELECT dean_name, dean_position, faculty_name
+        FROM faculties
+        WHERE faculty_name = :faculty
+           OR faculty_name = CONCAT('คณะ', :faculty)
+           OR REPLACE(faculty_name, 'คณะ', '') = :faculty
+        LIMIT 1
+    ");
+    $deanStmt->execute([':faculty' => trim((string)$displayFaculty)]);
+    $deanRow = $deanStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $deanName = trim((string)($deanRow['dean_name'] ?? ''));
+    $deanPosition = trim((string)($deanRow['dean_position'] ?? ''));
+    $deanFacultyName = trim((string)($deanRow['faculty_name'] ?? $deanFacultyName));
+} catch (Throwable $e) {
+    $deanName = '';
+    $deanPosition = '';
+}
+if ($deanName === '') {
+    $deanName = '................................';
+}
+if ($deanPosition === '') {
+    $deanPosition = 'คณบดี' . ($deanFacultyName !== '' ? $deanFacultyName : $displayFaculty);
+}
+$displayFacultyDean = $deanPosition;
 
 $projectSubject = projectField($valueMapByKey, $valueMap, 'project_subject', 0, $document['subject'] ?? 'ขออนุญาตเข้าไปจัดกิจกรรมโครงการ');
 $projectToPerson = projectField($valueMapByKey, $valueMap, 'project_to_person', 0, '');
@@ -489,8 +517,8 @@ $projectTargetGroup = projectField($valueMapByKey, $valueMap, 'project_target_gr
 $projectParticipantCount = projectField($valueMapByKey, $valueMap, 'project_participant_count', 0, '');
 $projectActivityPeriod = projectField($valueMapByKey, $valueMap, 'project_activity_period', 0, '');
 $projectLecturerNames = projectField($valueMapByKey, $valueMap, 'project_lecturer_names', 0, '');
-$projectReceiverName = projectField($valueMapByKey, $valueMap, 'project_receiver_name', 0, 'ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์');
-$projectReceiverPosition = projectField($valueMapByKey, $valueMap, 'project_receiver_position', 0, $displayFacultyDean);
+$projectReceiverName = $deanName;
+$projectReceiverPosition = $deanPosition;
 
 $projectParticipantText = projectClean($projectParticipantCount);
 if ($projectParticipantText !== '' && mb_strpos($projectParticipantText, 'คน') === false) {

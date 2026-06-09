@@ -292,6 +292,32 @@ $displayFaculty = trim($faculty) !== '' ? trim($faculty) : "คณะเทค�
 $displayDepartment = trim($department) !== '' ? trim($department) : "เทคโนโลยีสารสนเทศ";
 $displayDepartmentFull = "ภาควิชา" . $displayDepartment;
 $displayFacultyDean = "คณบดี" . $displayFaculty;
+
+$selectedDeanName = "";
+$selectedDeanPosition = "";
+try {
+  $deanStmt = $pdo->prepare("
+    SELECT dean_name, dean_position, faculty_name
+    FROM faculties
+    WHERE faculty_name = :faculty
+       OR faculty_name = CONCAT('คณะ', :faculty)
+       OR REPLACE(faculty_name, 'คณะ', '') = :faculty
+    LIMIT 1
+  ");
+  $deanStmt->execute([':faculty' => $displayFaculty]);
+  $deanRow = $deanStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+  $selectedDeanName = trim((string)($deanRow['dean_name'] ?? ''));
+  $selectedDeanPosition = trim((string)($deanRow['dean_position'] ?? ''));
+  $selectedFacultyName = trim((string)($deanRow['faculty_name'] ?? ''));
+
+  if ($selectedDeanPosition === '') {
+    $selectedDeanPosition = 'คณบดี' . ($selectedFacultyName !== '' ? $selectedFacultyName : $displayFaculty);
+  }
+} catch (Throwable $e) {
+  $selectedDeanName = "";
+  $selectedDeanPosition = $displayFacultyDean;
+}
+
 $eventDate  = $valueMap[12] ?? "";
 $eventPlace = $valueMap[13] ?? "";
 
@@ -309,8 +335,8 @@ $coopStartDate = $valueKeyMap['coop_start_date'] ?? ($valueMap[77] ?? '');
 $coopEndDate = $valueKeyMap['coop_end_date'] ?? ($valueMap[78] ?? '');
 $coopAdvisorName = $valueKeyMap['coop_advisor_name'] ?? ($valueMap[79] ?? 'พนักงานที่ปรึกษา');
 $coopAdditionalDetail = $valueKeyMap['coop_additional_detail'] ?? ($valueMap[81] ?? '');
-$coopReceiverName = $valueKeyMap['coop_receiver_name'] ?? ($valueMap[82] ?? 'ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์');
-$coopReceiverPosition = $valueKeyMap['coop_receiver_position'] ?? ($valueMap[83] ?? $displayFacultyDean);
+$coopReceiverName = $selectedDeanName !== '' ? $selectedDeanName : '................................';
+$coopReceiverPosition = $selectedDeanPosition !== '' ? $selectedDeanPosition : $displayFacultyDean;
 $coopPhone = trim((string)($valueKeyMap['coop_phone'] ?? ''));
 $coopPhoneExt = trim((string)($valueKeyMap['coop_phone_ext'] ?? ''));
 $coopPhoneLine = $coopPhone !== '' ? 'โทร. ' . thai_digits($coopPhone) . ($coopPhoneExt !== '' ? ' ต่อ ' . thai_digits($coopPhoneExt) : '') : 'โทร. ๐ ๓๗๒๑ ๗๓๔๐ ต่อ ๗๐๖๕-๖';
@@ -796,29 +822,29 @@ $len = max(20, $len);
 
   /* ฟอนต์ Sarabun */
   @font-face {
-  font-family: 'TH SarabunPSK';
-  src: url('../fonts/THSarabun.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-}
+    font-family: 'TH SarabunPSK';
+    src: url('../fonts/THSarabun.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
 
-@font-face {
-  font-family: 'TH SarabunPSK';
-  src: url('../fonts/THSarabun-Bold.ttf') format('truetype');
-  font-weight: bold;
-  font-style: normal;
-}
+  @font-face {
+    font-family: 'TH SarabunPSK';
+    src: url('../fonts/THSarabun-Bold.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+  }
 
-html,
-body,
-.page,
-.content-block,
-.chip,
-.dot-input,
-.subject-line,
-.signature-block {
-  font-family: 'TH SarabunPSK', sans-serif !important;
-}
+  html,
+  body,
+  .page,
+  .content-block,
+  .chip,
+  .dot-input,
+  .subject-line,
+  .signature-block {
+    font-family: 'TH SarabunPSK', sans-serif !important;
+  }
 
   /* ⭐⭐⭐ อันที่คุณย้ำว่าห้ามหาย — ใส่ให้อยู่ท้ายเหมือนเดิม ⭐⭐⭐ */
   .doc-header .doc-row {
@@ -1498,13 +1524,14 @@ body,
   </script>
 
   <script>
-
   function applyThaiDistributeWordBreaks(root) {
     const targetRoot = root || document;
     const targets = targetRoot.querySelectorAll ? targetRoot.querySelectorAll('.thai-distribute') : [];
-    const segmenter = (typeof Intl !== 'undefined' && Intl.Segmenter)
-      ? new Intl.Segmenter('th', { granularity: 'word' })
-      : null;
+    const segmenter = (typeof Intl !== 'undefined' && Intl.Segmenter) ?
+      new Intl.Segmenter('th', {
+        granularity: 'word'
+      }) :
+      null;
 
     const addBreaks = (text) => {
       if (!text || text.indexOf('\u200B') !== -1) return text;
@@ -1515,7 +1542,9 @@ body,
         }).join('');
       }
       return text
-        .replace(/(ภาควิชา|เทคโนโลยีสารสนเทศ|คณะ|มหาวิทยาลัย|วิทยาเขต|ปราจีนบุรี|สหกิจศึกษา|ปฏิบัติงาน|นักศึกษา|หน่วยงาน|ของท่าน|แบบประเมิน|แบบสำรวจ|คุณลักษณะ|สถานประกอบการ|ความต้องการ|พนักงานที่ปรึกษา|ข้อมูล|รวบรวม|วิเคราะห์|สรุปผล|ความอนุเคราะห์|ดำเนินการครั้งต่อไป|พิจารณา|แจ้งผู้เกี่ยวข้อง|ขอขอบคุณ|โอกาสต่อไป|ตั้งแต่วันที่|ทั้งนี้|ในการนี้|สุดท้ายนี้|จึงเรียนมา)/gu, '$1\u200B');
+        .replace(
+          /(ภาควิชา|เทคโนโลยีสารสนเทศ|คณะ|มหาวิทยาลัย|วิทยาเขต|ปราจีนบุรี|สหกิจศึกษา|ปฏิบัติงาน|นักศึกษา|หน่วยงาน|ของท่าน|แบบประเมิน|แบบสำรวจ|คุณลักษณะ|สถานประกอบการ|ความต้องการ|พนักงานที่ปรึกษา|ข้อมูล|รวบรวม|วิเคราะห์|สรุปผล|ความอนุเคราะห์|ดำเนินการครั้งต่อไป|พิจารณา|แจ้งผู้เกี่ยวข้อง|ขอขอบคุณ|โอกาสต่อไป|ตั้งแต่วันที่|ทั้งนี้|ในการนี้|สุดท้ายนี้|จึงเรียนมา)/gu,
+          '$1\u200B');
     };
 
     targets.forEach(el => {
@@ -1530,7 +1559,9 @@ body,
       });
       const nodes = [];
       while (walker.nextNode()) nodes.push(walker.currentNode);
-      nodes.forEach(node => { node.nodeValue = addBreaks(node.nodeValue); });
+      nodes.forEach(node => {
+        node.nodeValue = addBreaks(node.nodeValue);
+      });
     });
   }
 

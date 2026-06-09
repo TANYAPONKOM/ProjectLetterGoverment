@@ -150,10 +150,10 @@ function speakerRemoveGovSpaces($text) {
 
 function speakerGovHeaderFontSize($text) {
     $len = mb_strlen(speakerClean($text), 'UTF-8');
-    if ($len > 76) {
+    if ($len > 82) {
         return 14;
     }
-    if ($len > 64) {
+    if ($len > 72) {
         return 15;
     }
     return 16;
@@ -384,13 +384,10 @@ function addSpeakerMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, 
     $garuda = __DIR__ . '/../assets/img/garuda.jpg';
 
     $govFontSize = speakerGovHeaderFontSize($headerText);
-    $useTightWordLayout = ($govFontSize <= 14);
-    $headerTextForDisplay = ($govFontSize < 16) ? speakerRemoveGovSpaces($headerText) : speakerClean($headerText);
-    if ($useTightWordLayout) {
-        $section->getStyle()->setMarginLeft(Converter::cmToTwip(2.80));
-        $section->getStyle()->setMarginRight(Converter::cmToTwip(1.80));
-    }
-    $contentWidthCm = $useTightWordLayout ? 16.40 : 16.0;
+    $cleanHeaderText = speakerClean($headerText);
+    $headerLen = mb_strlen($cleanHeaderText, 'UTF-8');
+    $headerTextForDisplay = ($headerLen > 72) ? speakerRemoveGovSpaces($cleanHeaderText) : $cleanHeaderText;
+    $contentWidthCm = 16.0;
 
     // คัดรูปแบบส่วนหัวจาก download_word_academic_1.php เพื่อให้ครุฑและเส้นปะตรงกัน
     $titleTable = $section->addTable([
@@ -476,6 +473,71 @@ function addSpeakerMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, 
     ]);
 }
 
+
+function addSpeakerDeanApprovalFixed($section, $toText, $deanName, $deanPosition) {
+    $safeToText = speakerClean($toText);
+    $safeDeanName = speakerClean($deanName !== '' ? $deanName : '................................');
+    $safeDeanPosition = speakerClean($deanPosition !== '' ? $deanPosition : $toText);
+
+    $section->addText('', 'normalFont', [
+        'spaceBefore' => 120,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+
+    $approvalTable = $section->addTable([
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'cellMargin' => 0,
+        'cellSpacing' => 0,
+        'layout' => 'fixed',
+        'width' => Converter::cmToTwip(16.0),
+    ]);
+
+    $approvalTable->addRow(null, ['exactHeight' => false]);
+    $approvalTable->addCell(Converter::cmToTwip(1.35), speakerNoBorderCell('top'))
+        ->addText('เรียน', 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
+
+    $contentCell = $approvalTable->addCell(Converter::cmToTwip(14.65), speakerNoBorderCell('top'));
+    $contentCell->addText($safeToText, 'normalFont', [
+        'alignment' => Jc::LEFT,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+    $contentCell->addText('เพื่อโปรดพิจารณาอนุมัติ', 'normalFont', [
+        'alignment' => Jc::LEFT,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+
+    $contentCell->addText('', 'normalFont', [
+        'spaceBefore' => 520,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+
+    $contentCell->addText('(' . $safeDeanName . ')', 'normalFont', [
+        'alignment' => Jc::LEFT,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+    $deanPositionTable = $contentCell->addTable([
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'cellMargin' => 0,
+        'cellSpacing' => 0,
+        'layout' => 'fixed',
+        'width' => Converter::cmToTwip(5.5),
+    ]);
+    $deanPositionTable->addRow(null, ['exactHeight' => false]);
+    $deanPositionTable->addCell(Converter::cmToTwip(5.5), speakerNoBorderCell('top'))
+        ->addText($safeDeanPosition, 'normalFont', [
+            'alignment' => Jc::CENTER,
+            'spaceAfter' => 0,
+            'lineHeight' => 1.0,
+        ]);
+}
+
 function buildSpeakerDownloadWord($phpWord, array $data) {
     $section = addSectionPage($phpWord);
 
@@ -515,6 +577,13 @@ function buildSpeakerDownloadWord($phpWord, array $data) {
         $data['ownerName'],
         $data['position']
     );
+
+    addSpeakerDeanApprovalFixed(
+        $section,
+        $data['toText'],
+        $data['deanName'],
+        $data['deanPosition']
+    );
 }
 
 $hasSavedDocDateField = array_key_exists(1, $valueMap) || array_key_exists('doc_date', $valueMapByKey);
@@ -549,6 +618,29 @@ $displayDepartmentFull = (mb_strpos($displayDepartment, 'ภาควิชา')
 
 $displayFacultyDean = 'คณบดี' . $displayFaculty;
 
+$deanName = '';
+$deanPosition = $displayFacultyDean;
+try {
+    $deanStmt = $pdo->prepare("
+        SELECT dean_name, dean_position
+        FROM faculties
+        WHERE faculty_name = :faculty_name
+        LIMIT 1
+    ");
+    $deanStmt->execute([':faculty_name' => $displayFaculty]);
+    $deanRow = $deanStmt->fetch(PDO::FETCH_ASSOC);
+    if ($deanRow) {
+        $deanName = trim((string)($deanRow['dean_name'] ?? ''));
+        $dbDeanPosition = trim((string)($deanRow['dean_position'] ?? ''));
+        if ($dbDeanPosition !== '') {
+            $deanPosition = $dbDeanPosition;
+        }
+    }
+} catch (Throwable $e) {
+    $deanName = '';
+    $deanPosition = $displayFacultyDean;
+}
+
 $headerText = trim((string)($document['header_text'] ?? ''));
 if ($headerText === '') {
     $headerText = trim($displayFaculty . ' ' . $displayDepartmentFull);
@@ -582,6 +674,8 @@ buildSpeakerDownloadWord($phpWord, [
     'headerText' => speakerClean($headerText ?: 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม ภาควิชาเทคโนโลยีสารสนเทศ โทร. 7064.'),
     'subjectText' => $subjectText,
     'toText' => $displayFacultyDean,
+    'deanName' => $deanName,
+    'deanPosition' => $deanPosition,
     'referenceOrg' => $referenceOrg !== '' ? $referenceOrg : '................................',
     'referenceNo' => $referenceNo !== '' ? $referenceNo : '................................',
     'referenceDateText' => $referenceDateText !== '' ? $referenceDateText : '................................',

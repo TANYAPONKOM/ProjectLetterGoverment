@@ -10,6 +10,7 @@ if (!in_array($CURRENT_MAIN, $ALLOWED_MAIN, true)) {
     $CURRENT_MAIN = 'external';
 }
 require_once __DIR__ . '/../functions.php';
+require_once __DIR__ . '/../includes/require_profile_completed.php';
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.html");
     exit;

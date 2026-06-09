@@ -342,7 +342,7 @@ function addCoopHeader($section, $docNo, $displayFaculty, $thaiDocDate, $display
 
     $right = $table->addCell(Converter::cmToTwip(8.60), coopNoBorderCell('top'));
     $right->addText('', 'normalFont', ['spaceAfter' => 720, 'lineHeight' => 0.95]);
-    $right->addText(coopClean($displayHeaderAgency !== '' ? $displayHeaderAgency : $displayFaculty), 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
+    $right->addText(coopClean($displayFaculty), 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
     $right->addText('มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ', 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
     $right->addText('๑๒๙ หมู่ ๒๑ ต.เนินหอม อ.เมือง จ.ปราจีนบุรี ๒๕๒๓๐', 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
 
@@ -457,6 +457,31 @@ if (mb_strpos($displayFaculty, 'คณะ') !== 0) {
 $displayDepartment = trim($department) !== '' ? trim($department) : 'เทคโนโลยีสารสนเทศ';
 $displayDepartmentFull = 'ภาควิชา' . $displayDepartment;
 $displayFacultyDean = 'คณบดี' . $displayFaculty;
+
+$selectedDeanName = '';
+$selectedDeanPosition = '';
+try {
+    $deanStmt = $pdo->prepare("
+        SELECT dean_name, dean_position, faculty_name
+        FROM faculties
+        WHERE faculty_name = :faculty
+           OR faculty_name = CONCAT('คณะ', :faculty)
+           OR REPLACE(faculty_name, 'คณะ', '') = :faculty
+        LIMIT 1
+    ");
+    $deanStmt->execute([':faculty' => $displayFaculty]);
+    $deanRow = $deanStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $selectedDeanName = trim((string)($deanRow['dean_name'] ?? ''));
+    $selectedDeanPosition = trim((string)($deanRow['dean_position'] ?? ''));
+    $selectedFacultyName = trim((string)($deanRow['faculty_name'] ?? ''));
+
+    if ($selectedDeanPosition === '') {
+        $selectedDeanPosition = 'คณบดี' . ($selectedFacultyName !== '' ? $selectedFacultyName : $displayFaculty);
+    }
+} catch (Throwable $e) {
+    $selectedDeanName = '';
+    $selectedDeanPosition = $displayFacultyDean;
+}
 $displayHeaderAgency = trim((string)($document['header_text'] ?? ''));
 if ($displayHeaderAgency === '') {
     $displayHeaderAgency = trim($displayFaculty . ' ' . $displayDepartmentFull);
@@ -472,8 +497,8 @@ $coopPeriod = coopField($valueMapByKey, $valueMap, 'coop_period', 76, '');
 $coopStartDate = coopField($valueMapByKey, $valueMap, 'coop_start_date', 77, '');
 $coopEndDate = coopField($valueMapByKey, $valueMap, 'coop_end_date', 78, '');
 $coopAdvisorName = coopField($valueMapByKey, $valueMap, 'coop_advisor_name', 79, 'พนักงานที่ปรึกษา');
-$coopReceiverName = coopField($valueMapByKey, $valueMap, 'coop_receiver_name', 82, 'ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์');
-$coopReceiverPosition = coopField($valueMapByKey, $valueMap, 'coop_receiver_position', 83, $displayFacultyDean);
+$coopReceiverName = $selectedDeanName !== '' ? $selectedDeanName : '................................';
+$coopReceiverPosition = $selectedDeanPosition !== '' ? $selectedDeanPosition : $displayFacultyDean;
 
 if ($coopPeriod === '' && ($coopStartDate !== '' || $coopEndDate !== '')) {
     $startText = coopThaiDateAny($coopStartDate);

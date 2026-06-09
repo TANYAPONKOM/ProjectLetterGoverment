@@ -151,10 +151,10 @@ function roomRemoveGovSpaces($text) {
 
 function roomGovHeaderFontSize($text) {
     $len = mb_strlen(roomClean($text), 'UTF-8');
-    if ($len > 76) {
+    if ($len > 82) {
         return 14;
     }
-    if ($len > 64) {
+    if ($len > 72) {
         return 15;
     }
     return 16;
@@ -211,6 +211,100 @@ function addRoomRequestClosePara($section) {
         ],
     ]);
     $runClose->addText(roomClean('จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ'), 'normalFont');
+}
+
+
+function addRoomOwnerSignature($section, string $signatureName, string $signaturePosition) {
+    $leftWidth = 9.00;
+    $signWidth = 7.20;
+
+    $table = $section->addTable([
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'cellMargin' => 0,
+        'cellSpacing' => 0,
+        'layout' => 'fixed',
+        'width' => Converter::cmToTwip($leftWidth + $signWidth),
+    ]);
+    $table->addRow(null, ['exactHeight' => false]);
+    $table->addCell(Converter::cmToTwip($leftWidth), roomNoBorderCell('top'))->addText('', 'normalFont', [
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+    $cell = $table->addCell(Converter::cmToTwip($signWidth), roomNoBorderCell('top'));
+    $cell->addText('(' . roomClean($signatureName) . ')', 'normalFont', [
+        'alignment' => Jc::CENTER,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+    $cell->addText(roomClean($signaturePosition), 'normalFont', [
+        'alignment' => Jc::CENTER,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+}
+
+function addRoomDeanApprovalSignature($section, string $deanToText, string $deanName, string $deanPosition) {
+    $labelWidth = 1.15;
+    $textWidth = 8.40;
+
+    $approvalTable = $section->addTable([
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'cellMargin' => 0,
+        'cellSpacing' => 0,
+        'layout' => 'fixed',
+        'width' => Converter::cmToTwip($labelWidth + $textWidth),
+    ]);
+    $approvalTable->addRow(null, ['exactHeight' => false]);
+    $approvalTable->addCell(Converter::cmToTwip($labelWidth), roomNoBorderCell('top'))
+        ->addText('เรียน', 'normalFont', [
+            'alignment' => Jc::LEFT,
+            'spaceBefore' => 0,
+            'spaceAfter' => 0,
+            'lineHeight' => 1.0,
+        ]);
+    $approvalCell = $approvalTable->addCell(Converter::cmToTwip($textWidth), roomNoBorderCell('top'));
+    $approvalCell->addText(roomClean($deanToText), 'normalFont', [
+        'alignment' => Jc::LEFT,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+    $approvalCell->addText(roomClean('เพื่อโปรดพิจารณาอนุมัติ'), 'normalFont', [
+        'alignment' => Jc::LEFT,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+
+    $signTable = $section->addTable([
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'cellMargin' => 0,
+        'cellSpacing' => 0,
+        'layout' => 'fixed',
+        'width' => Converter::cmToTwip($labelWidth + $textWidth),
+    ]);
+    $signTable->addRow(null, ['exactHeight' => false]);
+    $signTable->addCell(Converter::cmToTwip($labelWidth), roomNoBorderCell('top'))->addText('', 'normalFont', roomHeaderPara());
+    $signCell = $signTable->addCell(Converter::cmToTwip($textWidth), roomNoBorderCell('top'));
+    $signCell->addText('', 'normalFont', ['spaceBefore' => 0, 'spaceAfter' => 900, 'lineHeight' => 1.0]);
+    $signCell->addText('(' . roomClean($deanName) . ')', 'normalFont', [
+        'alignment' => Jc::LEFT,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+    $signCell->addText(roomClean($deanPosition), 'normalFont', [
+        'alignment' => Jc::LEFT,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
 }
 
 
@@ -278,14 +372,11 @@ function roomSplitHeaderLines($text, $limit = 86) {
 function addRoomMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText) {
     $garuda = __DIR__ . '/../assets/img/garuda.jpg';
 
-    $govFontSize = roomGovHeaderFontSize($headerText);
-    $useTightWordLayout = ($govFontSize <= 14);
-    $headerTextForDisplay = ($govFontSize < 16) ? roomRemoveGovSpaces($headerText) : roomClean($headerText);
-    if ($useTightWordLayout) {
-        $section->getStyle()->setMarginLeft(Converter::cmToTwip(2.80));
-        $section->getStyle()->setMarginRight(Converter::cmToTwip(1.80));
-    }
-    $contentWidthCm = $useTightWordLayout ? 16.40 : 16.0;
+    $cleanHeaderText = roomClean($headerText);
+    $govFontSize = roomGovHeaderFontSize($cleanHeaderText);
+    $headerLen = mb_strlen($cleanHeaderText, 'UTF-8');
+    $headerTextForDisplay = ($headerLen > 72) ? roomRemoveGovSpaces($cleanHeaderText) : $cleanHeaderText;
+    $contentWidthCm = 16.0;
 
     // คัดรูปแบบหัวข้อจาก download_word_academic_1.php:
     // ครุฑเล็ก, หัว "บันทึกข้อความ", เส้นปะชัด และช่องวันที่ไม่ตกบรรทัด
@@ -330,7 +421,9 @@ function addRoomMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $su
     ]);
     $agencyTable->addRow(null, ['exactHeight' => false]);
     $agencyTable->addCell(Converter::cmToTwip(2.05), roomNoBorderCell())->addText('ส่วนราชการ', 'boldFont', roomHeaderPara());
-    $agencyTable->addCell(Converter::cmToTwip($contentWidthCm - 2.05), roomDottedBottomCell())->addText($headerTextForDisplay, [
+    $agencyTextCellStyle = roomDottedBottomCell();
+    $agencyTextCellStyle['noWrap'] = true;
+    $agencyTable->addCell(Converter::cmToTwip($contentWidthCm - 2.05), $agencyTextCellStyle)->addText($headerTextForDisplay, [
         'name' => 'TH SarabunPSK',
         'size' => $govFontSize,
     ], roomHeaderPara());
@@ -406,10 +499,17 @@ function addRoomRequestWordPage($phpWord, array $data) {
 
     addRoomRequestClosePara($section);
 
-    addSignature(
+    addRoomOwnerSignature(
         $section,
         $data['signatureName'],
         $data['signaturePosition']
+    );
+
+    addRoomDeanApprovalSignature(
+        $section,
+        $data['deanToText'],
+        $data['deanName'],
+        $data['deanPosition']
     );
 }
 
@@ -458,6 +558,32 @@ $displayDepartmentFull = (mb_strpos($displayDepartment, 'ภาควิชา')
     ? $displayDepartment
     : 'ภาควิชา' . $displayDepartment;
 
+$deanName = '';
+$deanFacultyName = $displayFaculty;
+$deanPosition = 'คณบดี' . $displayFaculty;
+try {
+    if ($displayFaculty !== '') {
+        $deanStmt = $pdo->prepare("
+            SELECT faculty_name, dean_name, dean_position
+            FROM faculties
+            WHERE faculty_name = :faculty
+            LIMIT 1
+        ");
+        $deanStmt->execute([':faculty' => $displayFaculty]);
+        $deanRow = $deanStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+        $deanFacultyName = roomClean($deanRow['faculty_name'] ?? $deanFacultyName);
+        $deanName = roomClean($deanRow['dean_name'] ?? '');
+        $dbDeanPosition = roomClean($deanRow['dean_position'] ?? '');
+        $deanPosition = $dbDeanPosition !== '' ? $dbDeanPosition : ('คณบดี' . $deanFacultyName);
+    }
+} catch (Throwable $e) {
+    $deanName = '';
+}
+if ($deanName === '') {
+    $deanName = '................................';
+}
+$deanToText = 'คณบดี' . ($deanFacultyName !== '' ? $deanFacultyName : $displayFaculty);
+
 $roomRequestText = (trim($roomRequest) === 'อื่น ๆ' && trim($roomRequestOther) !== '') ? $roomRequestOther : $roomRequest;
 $personTypeText = (trim($personType) === 'อื่น ๆ' && trim($personTypeOther) !== '') ? $personTypeOther : $personType;
 $reasonText = (trim($reason) === 'อื่น ๆ' && trim($reasonOther) !== '') ? $reasonOther : $reason;
@@ -498,6 +624,9 @@ addRoomRequestWordPage($phpWord, [
     'reasonText' => roomClean($reasonText),
     'signatureName' => $signatureName,
     'signaturePosition' => $signaturePosition,
+    'deanToText' => $deanToText,
+    'deanName' => $deanName,
+    'deanPosition' => $deanPosition,
 ]);
 
 $filename = 'room_request_' . $docId . '.docx';

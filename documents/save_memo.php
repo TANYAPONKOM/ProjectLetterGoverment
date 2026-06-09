@@ -11,6 +11,7 @@ if ($DEV_AUTO_LOGIN && empty($_SESSION['user_id'])) {
 }
 
 require_once __DIR__ . '/../functions.php';
+require_once __DIR__ . '/../includes/require_profile_completed.php';
 
 function speaker_save_arabic_digits($value) {
     return strtr((string)$value, [

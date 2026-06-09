@@ -410,10 +410,38 @@ function academicKeepSignaturePositionTogether($text) {
     return $text;
 }
 
+
+function academicKeepSignatureLineTogether($text) {
+    $text = trim(str_replace(["\r", "\n", "\t", "\u{200B}", "\u{2060}"], ' ', (string)$text));
+    $text = preg_replace('/[ ]{2,}/u', ' ', $text);
+    if ($text === '') {
+        return '';
+    }
+    $parts = preg_split('/(\s+)/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+    $out = '';
+    $joiner = "\u{2060}";
+    foreach ($parts as $part) {
+        if ($part === '') {
+            continue;
+        }
+        if (preg_match('/^\s+$/u', $part)) {
+            $out .= $part;
+            continue;
+        }
+        $chars = preg_split('//u', $part, -1, PREG_SPLIT_NO_EMPTY);
+        $out .= $chars ? implode($joiner, $chars) : $part;
+    }
+    return $out;
+}
+
 function addAcademicSignatureFixed($section, $name, $position) {
-    // แก้เฉพาะลายเซ็น: ให้ช่องตำแหน่งกว้างพอ และกันคำว่า "สารสนเทศ" ไม่ให้ตัว ศ ตกบรรทัด
-    $safeName = academicCleanNoDigit($name ?: '................................');
-    $safePosition = academicKeepSignaturePositionTogether($position ?: '');
+    // เฉพาะลายเซ็นเจ้าของเอกสาร: ใช้ชื่อ/ตำแหน่งเจ้าของจริง ถ้ามีข้อมูลจากตาราง users
+    global $displayOwnerName, $displayOwnerPosition;
+    $signatureName = trim((string)($displayOwnerName ?? '')) !== '' ? $displayOwnerName : $name;
+    $signaturePosition = trim((string)($displayOwnerPosition ?? '')) !== '' ? $displayOwnerPosition : $position;
+
+    $safeName = academicCleanNoDigit($signatureName ?: '................................');
+    $safePosition = academicKeepSignatureLineTogether($signaturePosition ?: '');
 
     $section->addText('', 'normalFont', [
         'spaceBefore' => 520,
@@ -452,10 +480,7 @@ function addAcademicSignatureFixed($section, $name, $position) {
         'lineHeight' => 1.0,
     ]);
 
-    $sigCell->addText($safePosition, [
-        'name' => 'TH SarabunPSK',
-        'size' => 15,
-    ], [
+    $sigCell->addText($safePosition, 'normalFont', [
         'alignment' => Jc::CENTER,
         'spaceBefore' => 0,
         'spaceAfter' => 0,
@@ -464,6 +489,90 @@ function addAcademicSignatureFixed($section, $name, $position) {
 }
 
 
+function addAcademicDeanSignatureFixed($section, $deanName, $deanPosition, $deanIndentCm = 1.20) {
+    $safeDeanName = academicCleanNoDigit($deanName ?: '................................');
+    $safeDeanPosition = academicKeepSignatureLineTogether(academicCleanNoDigit($deanPosition ?: ''));
+
+    // เว้นพื้นที่เซ็น และให้ (ชื่อคณบดี) เริ่มแนวเดียวกับข้อความหลังคำว่า "เรียน"
+    $section->addTextBreak(3, ['size' => 16]);
+
+    $noBorder = academicNoBorderCell('top');
+    $sigTable = $section->addTable([
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'cellMargin' => 0,
+        'cellSpacing' => 0,
+        'layout' => 'fixed',
+        'width' => Converter::cmToTwip(16.0),
+    ]);
+
+    $sigTable->addRow(null, ['exactHeight' => false]);
+    $sigTable->addCell(Converter::cmToTwip($deanIndentCm), $noBorder)->addText('', 'normalFont', ['spaceAfter' => 0]);
+    $nameCell = $sigTable->addCell(Converter::cmToTwip(16.0 - $deanIndentCm), $noBorder);
+    $nameCell->addText('(' . $safeDeanName . ')', 'normalFont', [
+        'alignment' => Jc::LEFT,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+
+    $sigTable->addRow(null, ['exactHeight' => false]);
+    $sigTable->addCell(Converter::cmToTwip($deanIndentCm), $noBorder)->addText('', 'normalFont', ['spaceAfter' => 0]);
+    $positionCell = $sigTable->addCell(Converter::cmToTwip(16.0 - $deanIndentCm), $noBorder);
+    $positionCell->addText($safeDeanPosition, 'normalFont', [
+        'alignment' => Jc::LEFT,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+}
+
+function addAcademicDeanApprovalFixed($section, $deanToText, $deanName, $deanPosition) {
+    $safeDeanToText = academicCleanNoDigit($deanToText ?: '');
+    $safeDeanName = academicCleanNoDigit($deanName ?: '................................');
+    $safeDeanPosition = academicCleanNoDigit($deanPosition ?: $safeDeanToText);
+
+    // ใช้ตาราง 2 คอลัมน์ เพื่อให้ข้อความหลังคำว่า "เรียน", บรรทัด "เพื่อ...", และ (ชื่อคณบดี)
+    // เริ่มจากแนวเดียวกันจริงใน Word
+    $deanIndentCm = 1.20;
+    $noBorder = academicNoBorderCell('top');
+    $approvalTable = $section->addTable([
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'cellMargin' => 0,
+        'cellSpacing' => 0,
+        'layout' => 'fixed',
+        'width' => Converter::cmToTwip(16.0),
+    ]);
+
+    $approvalTable->addRow(null, ['exactHeight' => false]);
+    $labelCell = $approvalTable->addCell(Converter::cmToTwip($deanIndentCm), $noBorder);
+    $labelCell->addText('เรียน', 'normalFont', [
+        'alignment' => Jc::LEFT,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+    $toCell = $approvalTable->addCell(Converter::cmToTwip(16.0 - $deanIndentCm), $noBorder);
+    $toCell->addText($safeDeanToText, 'normalFont', [
+        'alignment' => Jc::LEFT,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+
+    $approvalTable->addRow(null, ['exactHeight' => false]);
+    $approvalTable->addCell(Converter::cmToTwip($deanIndentCm), $noBorder)->addText('', 'normalFont', ['spaceAfter' => 0]);
+    $purposeCell = $approvalTable->addCell(Converter::cmToTwip(16.0 - $deanIndentCm), $noBorder);
+    $purposeCell->addText('เพื่อโปรดพิจารณาอนุมัติ', 'normalFont', [
+        'alignment' => Jc::LEFT,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+
+    addAcademicDeanSignatureFixed($section, $safeDeanName, $safeDeanPosition, $deanIndentCm);
+}
 
 function academicNoBorderCell($valign = 'bottom') {
     return [
@@ -562,12 +671,23 @@ function academicSplitHeaderLines($text, $limit = 78) {
     return $lines;
 }
 
+function academicNormalizeGovAgencyText($text) {
+    $text = academicCleanNoDigit($text ?: 'คณะ... ภาควิชา... โทร...');
+    return trim(preg_replace('/\s+/u', ' ', $text));
+}
+
+function academicCompactGovAgencyText($text) {
+    return preg_replace('/\s+/u', '', academicNormalizeGovAgencyText($text));
+}
+
 function academicGovAgencyFontSize($text) {
-    $len = mb_strlen(trim((string)$text), 'UTF-8');
-    if ($len > 78) {
+    // ให้ตรงกับ Preview/PDF: ใช้ข้อความเดิมและฟอนต์ 16 ก่อน
+    // ลดเป็น 15/14 เฉพาะกรณีที่ยาวมากจริง ๆ เท่านั้น
+    $len = mb_strlen(academicNormalizeGovAgencyText($text), 'UTF-8');
+    if ($len > 120) {
         return 14;
     }
-    if ($len > 66) {
+    if ($len > 105) {
         return 15;
     }
     return 16;
@@ -585,10 +705,13 @@ function academicGovAgencyNeedsTightWordLayout($text) {
     return academicGovAgencyFontSize($text) <= 14;
 }
 
+function academicGovAgencyNeedsCompactText($text) {
+    return mb_strlen(academicNormalizeGovAgencyText($text), 'UTF-8') > 132;
+}
+
 function academicApplyGovAgencyTightRightMargin($section, $headerText) {
     // แก้เฉพาะ Word: ถ้าบรรทัด "ส่วนราชการ" ยาวจนต้องใช้ฟอนต์ 14 เท่านั้น ค่อยปรับขอบกระดาษ
-    $safeHeaderText = academicCleanNoDigit($headerText ?: 'คณะ...ภาควิชา...โทร...');
-    $safeHeaderText = preg_replace('/\s+/u', '', $safeHeaderText);
+    $safeHeaderText = academicNormalizeGovAgencyText($headerText);
     if (academicGovAgencyNeedsTightWordLayout($safeHeaderText) && method_exists($section, 'getStyle')) {
         $style = $section->getStyle();
         if ($style) {
@@ -603,9 +726,12 @@ function academicApplyGovAgencyTightRightMargin($section, $headerText) {
 }
 
 function addAcademicGovAgencyDottedRowFixed($section, $headerText) {
-    // แก้เฉพาะแถว "ส่วนราชการ": ใช้ความกว้างเดิมก่อน ถ้ายาวจนต้องใช้ฟอนต์ 14 ค่อยเพิ่มความกว้างเฉพาะแถวนี้เล็กน้อย
-    $safeHeaderText = academicCleanNoDigit($headerText ?: 'คณะ...ภาควิชา...โทร...');
-    $safeHeaderText = preg_replace('/\s+/u', '', $safeHeaderText);
+    // แก้เฉพาะแถว "ส่วนราชการ": ใช้ข้อความเดิมก่อนเหมือน Preview/PDF
+    // ถ้ายาวมากจริง ๆ เท่านั้นจึงค่อยลดฟอนต์/ลบช่องว่าง/ขยับขอบ
+    $safeHeaderText = academicNormalizeGovAgencyText($headerText);
+    $textForDisplay = academicGovAgencyNeedsCompactText($safeHeaderText)
+        ? academicCompactGovAgencyText($safeHeaderText)
+        : $safeHeaderText;
     $useTightWordLayout = academicGovAgencyNeedsTightWordLayout($safeHeaderText);
     // ถ้ายาวเกินเส้นจริง ค่อยใช้ความกว้างตามขอบใหม่: A4 21cm - ซ้าย 2.80cm - ขวา 1.80cm = 16.40cm
     $contentWidth = Converter::cmToTwip($useTightWordLayout ? 16.40 : 16.0);
@@ -656,7 +782,7 @@ function addAcademicGovAgencyDottedRowFixed($section, $headerText) {
     ]);
 
     $textCell->addText(
-        $safeHeaderText,
+        $textForDisplay,
         academicGovAgencyFontStyle($safeHeaderText),
         [
             'alignment' => Jc::LEFT,
@@ -750,7 +876,7 @@ function addAcademicMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText,
 }
 
 // หน้าเอกสารหลัก: เนื้อหาฝึกอบรมให้ตรงกับ view_memo.php
-function addAcademicMainMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $subjectText, $toText, $ownerName, $position, $departmentFull, $faculty, $courseName, $location, $joinDates, $thaiYear, $hasExpense, $displayAmountNumber, $displayAmountThai) {
+function addAcademicMainMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $subjectText, $toText, $ownerName, $position, $departmentFull, $faculty, $courseName, $location, $joinDates, $thaiYear, $hasExpense, $displayAmountNumber, $displayAmountThai, $deanName, $deanPosition) {
     $section = addSectionPage($phpWord);
     addAcademicMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText);
 
@@ -784,9 +910,10 @@ function addAcademicMainMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $s
     addAcademicMemoManualPara($section, $secondPara);
     addAcademicClosePara($section);
     addAcademicSignatureFixed($section, $ownerName, $position);
+    addAcademicDeanApprovalFixed($section, $toText, $deanName, $deanPosition);
 }
 
-function addAcademicExpenseMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $subjectText, $toText, $ownerName, $position, $department, $departmentFull, $faculty, $subject, $joinDates, $location, $displayAmountNumber, $displayAmountThai, $thaiYear) {
+function addAcademicExpenseMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $subjectText, $toText, $ownerName, $position, $department, $departmentFull, $faculty, $subject, $joinDates, $location, $displayAmountNumber, $displayAmountThai, $thaiYear, $deanName, $deanPosition) {
     $section = addSectionPage($phpWord);
     addAcademicMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText);
 
@@ -802,9 +929,10 @@ function addAcademicExpenseMemoPage($phpWord, $docNo, $thaiDocDate, $headerText,
 
     addAcademicClosePara($section);
     addAcademicSignatureFixed($section, $ownerName, $position);
+    addAcademicDeanApprovalFixed($section, $toText, $deanName, $deanPosition);
 }
 
-function addAcademicCarMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $subjectText, $toText, $ownerName, $position, $departmentFull, $faculty, $subject, $joinDates, $location, $vehicle) {
+function addAcademicCarMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $subjectText, $toText, $ownerName, $position, $departmentFull, $faculty, $subject, $joinDates, $location, $vehicle, $deanName, $deanPosition) {
     $section = addSectionPage($phpWord);
     addAcademicMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText);
 
@@ -823,6 +951,7 @@ function addAcademicCarMemoPage($phpWord, $docNo, $thaiDocDate, $headerText, $su
 
     addAcademicClosePara($section);
     addAcademicSignatureFixed($section, $ownerName, $position);
+    addAcademicDeanApprovalFixed($section, $toText, $deanName, $deanPosition);
 }
 
 // หน้าประมาณการค่าใช้จ่าย: จัด layout ให้เหมือนหน้าฟอร์มตัวอย่าง รูปที่ 3
@@ -920,6 +1049,20 @@ function addAcademicExpenseTablePage($phpWord, $budgetItems, $budgetTotal, $join
 $docDate = $valueMap[1] ?? ($document['doc_date'] ?? '');
 $ownerName = academicField($valueMapByKey, $valueMap, 'owner_name', 2, '');
 $position = academicField($valueMapByKey, $valueMap, 'position', 3, '');
+$ownerProfileName = '';
+$ownerProfilePosition = '';
+try {
+    $ownerStmt = $pdo->prepare("SELECT fullname, position FROM users WHERE user_id = :owner_id LIMIT 1");
+    $ownerStmt->execute([':owner_id' => (int)($document['owner_id'] ?? 0)]);
+    $ownerProfile = $ownerStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $ownerProfileName = trim((string)($ownerProfile['fullname'] ?? ''));
+    $ownerProfilePosition = trim((string)($ownerProfile['position'] ?? ''));
+} catch (Throwable $e) {
+    $ownerProfileName = '';
+    $ownerProfilePosition = '';
+}
+$displayOwnerName = $ownerProfileName !== '' ? $ownerProfileName : $ownerName;
+$displayOwnerPosition = $ownerProfilePosition !== '' ? $ownerProfilePosition : $position;
 $joinType = academicField($valueMapByKey, $valueMap, 'join_type', 4, '');
 $courseName = academicField($valueMapByKey, $valueMap, 'course_name', 5, '');
 $joinDates = academicField($valueMapByKey, $valueMap, 'join_date_range', 6, '');
@@ -956,6 +1099,39 @@ if ($headerText === '') {
 }
 $headerText = preg_replace('/\s+/u', '', $headerText);
 $displayFacultyDean = 'คณบดี' . $displayFaculty;
+
+$deanName = '................................';
+$deanPosition = $displayFacultyDean;
+$facultyForDean = trim($displayFaculty);
+$facultyForDeanNoPrefix = preg_replace('/^คณะ/u', '', $facultyForDean);
+try {
+    $deanStmt = $pdo->prepare("
+        SELECT dean_name, dean_position
+        FROM faculties
+        WHERE faculty_name = :faculty_full
+           OR faculty_name = :faculty_no_prefix
+        LIMIT 1
+    ");
+    $deanStmt->execute([
+        ':faculty_full' => $facultyForDean,
+        ':faculty_no_prefix' => $facultyForDeanNoPrefix,
+    ]);
+    $deanRow = $deanStmt->fetch(PDO::FETCH_ASSOC);
+    if ($deanRow) {
+        $dbDeanName = trim((string)($deanRow['dean_name'] ?? ''));
+        $dbDeanPosition = trim((string)($deanRow['dean_position'] ?? ''));
+        if ($dbDeanName !== '') {
+            $deanName = $dbDeanName;
+        }
+        if ($dbDeanPosition !== '') {
+            $deanPosition = $dbDeanPosition;
+        }
+    }
+} catch (Throwable $e) {
+    $deanName = '................................';
+    $deanPosition = $displayFacultyDean;
+}
+
 $thaiDocDate = academicThaiDateAnyArabicNumber($docDate);
 
 $thaiYear = '';
@@ -1017,7 +1193,9 @@ addAcademicMainMemoPage(
     $thaiYear,
     $hasExpense,
     $displayAmountNumber,
-    $displayAmountThai
+    $displayAmountThai,
+    $deanName,
+    $deanPosition
 );
 
 if ($hasExpense) {
@@ -1038,7 +1216,9 @@ if ($hasExpense) {
         $location,
         $displayAmountNumber,
         $displayAmountThai,
-        $thaiYear
+        $thaiYear,
+        $deanName,
+        $deanPosition
     );
 }
 
@@ -1057,7 +1237,9 @@ if ($hasCar) {
         $subject,
         $joinDates,
         $location,
-        $vehicle
+        $vehicle,
+        $deanName,
+        $deanPosition
     );
 }
 

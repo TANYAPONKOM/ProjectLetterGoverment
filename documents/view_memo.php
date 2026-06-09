@@ -358,6 +358,65 @@ $faculty = $valueMap[10] ?? "";
 $department = $valueMap[11] ?? "";
 $researchTitle = $valueMap[13] ?? "";
 
+$ownerProfileName = "";
+$ownerProfilePosition = "";
+try {
+  $ownerStmt = $pdo->prepare("
+    SELECT fullname, position
+    FROM users
+    WHERE user_id = :owner_id
+    LIMIT 1
+  ");
+  $ownerStmt->execute([':owner_id' => (int)($document['owner_id'] ?? 0)]);
+  $ownerProfile = $ownerStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+  $ownerProfileName = trim((string)($ownerProfile['fullname'] ?? ""));
+  $ownerProfilePosition = trim((string)($ownerProfile['position'] ?? ""));
+} catch (Throwable $e) {
+  $ownerProfileName = "";
+  $ownerProfilePosition = "";
+}
+
+$displayOwnerName = $ownerProfileName !== "" ? $ownerProfileName : $ownerName;
+$displayOwnerPosition = $ownerProfilePosition !== "" ? $ownerProfilePosition : $position;
+
+$deanName = "";
+$deanPosition = "";
+$deanFacultyName = $faculty;
+
+/* --------------------------------------------------
+   ข้อมูลคณบดีตามคณะในบรรทัดส่วนราชการ
+-------------------------------------------------- */
+try {
+  if (trim((string)$faculty) !== "") {
+    $deanStmt = $pdo->prepare("
+      SELECT faculty_name, dean_name, dean_position
+      FROM faculties
+      WHERE faculty_name = :faculty
+      LIMIT 1
+    ");
+    $deanStmt->execute([':faculty' => trim((string)$faculty)]);
+    $deanRow = $deanStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $deanFacultyName = trim((string)($deanRow['faculty_name'] ?? $deanFacultyName));
+    $deanName = trim((string)($deanRow['dean_name'] ?? ""));
+    $deanPosition = trim((string)($deanRow['dean_position'] ?? ""));
+  }
+} catch (Throwable $e) {
+  $deanName = "";
+  $deanPosition = "";
+}
+
+$deanToText = "คณบดี" . ($deanFacultyName ?: ($faculty ?: "คณะ.................................."));
+if ($deanName === "") {
+  $deanName = "................................";
+}
+
+/*
+  ตำแหน่งใต้ลายเซ็นคณบดีต้องตรงกับบรรทัด "เรียน คณบดี..."
+  โดยอิงคณะจากบรรทัดส่วนราชการ
+*/
+$deanPosition = $deanToText;
+
 
 $noCost = (($valueMap[12] ?? '0') === '1');
 $faculty = $valueMap[10] ?? "";
@@ -481,7 +540,12 @@ $len = max(20, $len);
   .chip,
   .dot-input,
   .subject-line,
-  .signature-block {
+  .signature-block,
+  .dean-approval-block,
+  .dean-signature-wrapper,
+  .dean-signature-block,
+  .dean-sig-name,
+  .dean-sig-position {
     font-family: 'TH SarabunPSK', sans-serif !important;
   }
 
@@ -673,6 +737,87 @@ $len = max(20, $len);
   /* บล็อก "จึงเรียนมา..." ไม่ต้องห่างจากย่อหน้าก่อนหน้าเกินไป */
   .content-block.paragraph+.content-block.paragraph {
     margin-top: 0 !important;
+  }
+
+  /* ===== บล็อกเสนอคณบดี: ต้องชิดขอบซ้ายเนื้อหา ไม่ใช้ย่อหน้า/ไม่กระจายคำ ===== */
+  .dean-approval-block {
+    display: flex;
+    align-items: flex-start;
+    font-family: "TH SarabunPSK";
+    font-size: 16pt;
+    font-weight: 400;
+    line-height: 1.34 !important;
+    margin-top: -0.36cm !important;
+    margin-bottom: 6px !important;
+    text-indent: 0 !important;
+    text-align: left !important;
+    text-align-last: left !important;
+    word-spacing: normal !important;
+    letter-spacing: normal !important;
+    white-space: normal;
+  }
+
+  .dean-approval-label {
+    width: 1.15cm;
+    flex: 0 0 1.15cm;
+  }
+
+  .dean-approval-text {
+    padding-left: 14px;
+  }
+
+  .dean-signature-wrapper {
+    margin-top: 1.45cm;
+    margin-bottom: 1em;
+    margin-left: calc(1.15cm + 14px);
+    text-align: left !important;
+    font-family: "TH SarabunPSK", sans-serif !important;
+    font-size: 16pt !important;
+    font-weight: 400 !important;
+    line-height: 1.15 !important;
+  }
+
+  .dean-signature-block {
+    display: inline-block;
+    width: fit-content;
+    text-align: left !important;
+    margin: 0 !important;
+    padding: 0 0 1.15em 0 !important;
+    transform: none !important;
+    position: relative;
+    font-family: "TH SarabunPSK", sans-serif !important;
+    font-size: 16pt !important;
+    font-weight: 400 !important;
+    line-height: 1.15 !important;
+  }
+
+  .dean-sig-name {
+    display: block;
+    text-align: left !important;
+    white-space: nowrap;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: "TH SarabunPSK", sans-serif !important;
+    font-size: 16pt !important;
+    font-weight: 400 !important;
+    line-height: 1.15 !important;
+  }
+
+  .dean-sig-position {
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: 1.15em;
+    transform: translateX(-50%);
+    width: max-content;
+    text-align: center !important;
+    white-space: nowrap;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: "TH SarabunPSK", sans-serif !important;
+    font-size: 16pt !important;
+    font-weight: 400 !important;
+    line-height: 1.15 !important;
   }
 
   /* ===== PDF Loading Overlay ===== */
@@ -870,7 +1015,7 @@ $len = max(20, $len);
     </div>
     <div class="memo-to-row">
       <div class="memo-to-label">เรียน</div>
-      <div class="memo-to-text">คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม</div>
+      <div class="memo-to-text"><?= ht($deanToText) ?></div>
     </div>
     <div class="content-block paragraph">
       ตามที่ กำหนดจัดอบรมหลักสูตร
@@ -909,8 +1054,22 @@ $len = max(20, $len);
     </div>
     <div class="signature-wrapper">
       <div class="signature-block" id="signatureBlock">
-        <div class="sig-name">(<?= ht($ownerName ?: '') ?>)</div>
-        <div class="sig-position"><?= ht($position ?: '') ?></div>
+        <div class="sig-name">(<?= ht($displayOwnerName ?: '') ?>)</div>
+        <div class="sig-position"><?= ht($displayOwnerPosition ?: '') ?></div>
+      </div>
+    </div>
+
+    <div class="dean-approval-block">
+      <div class="dean-approval-label">เรียน</div>
+      <div class="dean-approval-text">
+        <div><?= ht($deanToText) ?></div>
+        <div>เพื่อโปรดพิจารณาอนุมัติ</div>
+      </div>
+    </div>
+    <div class="dean-signature-wrapper">
+      <div class="dean-signature-block">
+        <div class="dean-sig-name">(<?= ht($deanName) ?>)</div>
+        <div class="dean-sig-position"><?= ht($deanToText) ?></div>
       </div>
     </div>
 
@@ -993,7 +1152,7 @@ $len = max(20, $len);
     </div>
     <div class="memo-to-row">
       <div class="memo-to-label">เรียน</div>
-      <div class="memo-to-text">คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม</div>
+      <div class="memo-to-text"><?= ht($deanToText) ?></div>
     </div>
 
     <div class="content-block paragraph">
@@ -1026,8 +1185,22 @@ $len = max(20, $len);
     </div>
     <div class="signature-wrapper">
       <div class="signature-block" id="signatureBlock">
-        <div class="sig-name">(<?= ht($ownerName ?: '') ?>)</div>
-        <div class="sig-position"><?= ht($position ?: '') ?></div>
+        <div class="sig-name">(<?= ht($displayOwnerName ?: '') ?>)</div>
+        <div class="sig-position"><?= ht($displayOwnerPosition ?: '') ?></div>
+      </div>
+    </div>
+
+    <div class="dean-approval-block">
+      <div class="dean-approval-label">เรียน</div>
+      <div class="dean-approval-text">
+        <div><?= ht($deanToText) ?></div>
+        <div>เพื่อโปรดพิจารณาอนุมัติ</div>
+      </div>
+    </div>
+    <div class="dean-signature-wrapper">
+      <div class="dean-signature-block">
+        <div class="dean-sig-name">(<?= ht($deanName) ?>)</div>
+        <div class="dean-sig-position"><?= ht($deanToText) ?></div>
       </div>
     </div>
 
@@ -1112,7 +1285,7 @@ $len = max(20, $len);
     </div>
     <div class="memo-to-row">
       <div class="memo-to-label">เรียน</div>
-      <div class="memo-to-text">คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม</div>
+      <div class="memo-to-text"><?= ht($deanToText) ?></div>
     </div>
 
     <div class="content-block paragraph">
@@ -1142,8 +1315,22 @@ $len = max(20, $len);
     </div>
     <div class="signature-wrapper">
       <div class="signature-block" id="signatureBlock">
-        <div class="sig-name">(<?= ht($ownerName ?: '') ?>)</div>
-        <div class="sig-position"><?= ht($position ?: '') ?></div>
+        <div class="sig-name">(<?= ht($displayOwnerName ?: '') ?>)</div>
+        <div class="sig-position"><?= ht($displayOwnerPosition ?: '') ?></div>
+      </div>
+    </div>
+
+    <div class="dean-approval-block">
+      <div class="dean-approval-label">เรียน</div>
+      <div class="dean-approval-text">
+        <div><?= ht($deanToText) ?></div>
+        <div>เพื่อโปรดพิจารณาอนุมัติ</div>
+      </div>
+    </div>
+    <div class="dean-signature-wrapper">
+      <div class="dean-signature-block">
+        <div class="dean-sig-name">(<?= ht($deanName) ?>)</div>
+        <div class="dean-sig-position"><?= ht($deanToText) ?></div>
       </div>
     </div>
 

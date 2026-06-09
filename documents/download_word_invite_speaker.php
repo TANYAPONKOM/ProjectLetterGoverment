@@ -443,6 +443,34 @@ $displayFaculty = trim($faculty) !== '' ? trim($faculty) : 'คณะเทค�
 $displayDepartment = trim($department) !== '' ? trim($department) : 'เทคโนโลยีสารสนเทศ';
 $displayDepartmentFull = 'ภาควิชา' . $displayDepartment;
 $displayFacultyDean = 'คณบดี' . $displayFaculty;
+$deanName = '';
+$deanPosition = '';
+$deanFacultyName = $displayFaculty;
+try {
+    $deanStmt = $pdo->prepare("
+        SELECT dean_name, dean_position, faculty_name
+        FROM faculties
+        WHERE faculty_name = :faculty
+           OR faculty_name = CONCAT('คณะ', :faculty)
+           OR REPLACE(faculty_name, 'คณะ', '') = :faculty
+        LIMIT 1
+    ");
+    $deanStmt->execute([':faculty' => trim((string)$displayFaculty)]);
+    $deanRow = $deanStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $deanName = trim((string)($deanRow['dean_name'] ?? ''));
+    $deanPosition = trim((string)($deanRow['dean_position'] ?? ''));
+    $deanFacultyName = trim((string)($deanRow['faculty_name'] ?? $deanFacultyName));
+} catch (Throwable $e) {
+    $deanName = '';
+    $deanPosition = '';
+}
+if ($deanName === '') {
+    $deanName = '................................';
+}
+if ($deanPosition === '') {
+    $deanPosition = 'คณบดี' . ($deanFacultyName !== '' ? $deanFacultyName : $displayFaculty);
+}
+$displayFacultyDean = $deanPosition;
 $displaySubject = trim($docSubject) !== '' ? $docSubject : 'ขอเรียนเชิญเป็นวิทยากรบรรยาย';
 $displayToPerson = trim($toPerson) !== '' ? $toPerson : 'คุณ................................................';
 $displayProjectTitle = trim($projectTitle) !== '' ? $projectTitle : '................................................';
@@ -466,8 +494,8 @@ $body .= invite_word_p('ด้วย' . $displayDepartmentFull . ' ' . $displayF
 $body .= invite_word_p($displayDepartmentFull . ' ' . $displayInviteStatement . ' จึงขอเรียนเชิญท่านเป็นวิทยากรบรรยายเรื่องดังกล่าว ตามวัน เวลา และสถานที่ข้างต้น', 'thaiDistribute', 1417, 120, 32, false, 0, 220);
 $body .= invite_word_p('จึงเรียนมาเพื่อโปรดพิจารณาให้ความอนุเคราะห์ จะขอบคุณยิ่ง', 'thaiDistribute', 1417, 220, 32, false, 0, 276);
 $body .= invite_word_p('ขอแสดงความนับถือ', 'center', 0, 500, 32, false, 0, 240);
-$body .= invite_word_p('(ผู้ช่วยศาสตราจารย์ ดร.กฤษฎากร บุดดาจันทร์)', 'center', 0, 0, 32, false, 0, 240);
-$body .= invite_word_p($displayFacultyDean, 'center', 0, 0, 32, false, 0, 240);
+$body .= invite_word_p('(' . $deanName . ')', 'center', 0, 0, 32, false, 0, 240);
+$body .= invite_word_p($deanPosition, 'center', 0, 0, 32, false, 0, 240);
 
 $sectPr = '<w:sectPr><w:footerReference w:type="default" r:id="rIdFooter1"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="652" w:left="1701" w:header="720" w:footer="482" w:gutter="0"/><w:cols w:space="720"/><w:docGrid w:linePitch="360"/></w:sectPr>';
 

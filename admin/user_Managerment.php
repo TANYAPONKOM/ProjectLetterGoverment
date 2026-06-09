@@ -38,6 +38,12 @@ $current = basename($_SERVER['PHP_SELF']);
 // ค่าค้นหา
 $search = trim($_GET['search'] ?? '');
 
+// ตัวกรองสถานะข้อมูลผู้ใช้จาก Google Login
+$profileStatus = $_GET['profile_status'] ?? 'all';
+if (!in_array($profileStatus, ['all', 'pending', 'completed'], true)) {
+    $profileStatus = 'all';
+}
+
 // Pagination setup
 $limit = 20; // จำนวนแถวต่อหน้า
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
@@ -52,6 +58,13 @@ if ($activeTab === 'active') {
     $where[] = "u.is_active = 1";
 } elseif ($activeTab === 'inactive') {
     $where[] = "u.is_active = 0";
+}
+
+// เพิ่มเงื่อนไขสถานะข้อมูลผู้ใช้ Google Login
+if ($profileStatus === 'pending') {
+    $where[] = "u.auth_provider = 'google' AND u.profile_completed = 0";
+} elseif ($profileStatus === 'completed') {
+    $where[] = "u.profile_completed = 1";
 }
 
 // เพิ่มเงื่อนไขค้นหา
@@ -119,6 +132,21 @@ $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
 $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// จำนวนผู้ใช้ Google ที่ยังรอผู้ดูแลระบบเพิ่มข้อมูล
+$pendingGoogleUserCount = 0;
+try {
+    $pendingStmt = $pdo->query("
+        SELECT COUNT(*)
+        FROM users
+        WHERE auth_provider = 'google'
+          AND profile_completed = 0
+          AND is_active = 1
+    ");
+    $pendingGoogleUserCount = (int)$pendingStmt->fetchColumn();
+} catch (Throwable $e) {
+    $pendingGoogleUserCount = 0;
+}
 
 $permMap = [];
 $permStmt = $pdo->query("SELECT * FROM user_permissions");
@@ -211,6 +239,17 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
         <input type="hidden" name="tab" value="<?= htmlspecialchars($activeTab) ?>">
         <input type="hidden" name="page" value="1">
 
+        <div class="w-full md:w-64">
+          <select name="profile_status"
+            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400">
+            <option value="all" <?= $profileStatus === 'all' ? 'selected' : '' ?>>สถานะข้อมูลทั้งหมด</option>
+            <option value="pending" <?= $profileStatus === 'pending' ? 'selected' : '' ?>>
+              รอผู้ดูแลระบบเพิ่มข้อมูล (<?= (int)$pendingGoogleUserCount ?>)
+            </option>
+            <option value="completed" <?= $profileStatus === 'completed' ? 'selected' : '' ?>>ข้อมูลครบแล้ว</option>
+          </select>
+        </div>
+
         <div class="relative w-full md:w-96">
           <input type="text" name="search" value="<?= htmlspecialchars($search) ?>"
             placeholder="ค้นหาชื่อผู้ใช้ อีเมล สิทธิ์ ตำแหน่ง หรือสถานะ"
@@ -227,13 +266,26 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
           ค้นหา
         </button>
 
-        <?php if ($search !== ''): ?>
+        <?php if ($search !== '' || $profileStatus !== 'all'): ?>
         <a href="?tab=<?= urlencode($activeTab) ?>"
           class="px-6 py-2 rounded-lg border border-gray-300 text-gray-600 font-semibold hover:bg-gray-100 transition text-center">
           ล้างค่า
         </a>
         <?php endif; ?>
       </form>
+
+      <?php if ($pendingGoogleUserCount > 0): ?>
+      <div
+        class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 flex items-center justify-between gap-3">
+        <div class="font-semibold">
+          มีผู้ใช้ Google Login รอผู้ดูแลระบบเพิ่มข้อมูล จำนวน <?= $pendingGoogleUserCount ?> รายการ
+        </div>
+        <a href="?tab=<?= urlencode($activeTab) ?>&profile_status=pending"
+          class="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition">
+          ดูรายการ
+        </a>
+      </div>
+      <?php endif; ?>
 
       <!-- Modern Alternating Row Table -->
       <div class="mt-6 overflow-x-auto rounded-lg shadow">
@@ -265,14 +317,8 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
             <?php foreach ($users as $index => $row): ?>
             <tr class="<?= $index % 2 === 0 ? 'bg-teal-10' : 'bg-teal-50' ?> hover:bg-teal-200/30 transition-colors">
               <!-- ชื่อ -->
-              <td class="px-4 py-3 flex items-center space-x-3">
-                <div
-                  class="w-9 h-9 flex items-center justify-center rounded-full bg-teal-400 text-white font-semibold shadow">
-                  <?= mb_substr($row['fullname'],0,1) ?>
-                </div>
-                <div>
-                  <p class="font-medium text-gray-800"><?= htmlspecialchars($row['fullname']) ?></p>
-                </div>
+              <td class="px-4 py-3 text-gray-800 font-medium">
+                <?= htmlspecialchars($row['fullname']) ?>
               </td>
 
               <!-- Email -->
@@ -306,13 +352,25 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
 
               <!-- Status -->
               <td class="px-4 py-3 text-center">
-                <?php if ($row['is_active'] == 1): ?>
-                <span
-                  class="px-3 py-1 text-xs rounded-full bg-green-100 text-green-700 font-medium shadow-inner">Active</span>
-                <?php else: ?>
-                <span
-                  class="px-3 py-1 text-xs rounded-full bg-red-100 text-red-600 font-medium shadow-inner">Inactive</span>
-                <?php endif; ?>
+                <div class="flex flex-col items-center gap-1">
+                  <?php if ($row['is_active'] == 1): ?>
+                  <span
+                    class="px-3 py-1 text-xs rounded-full bg-green-100 text-green-700 font-medium shadow-inner">Active</span>
+                  <?php else: ?>
+                  <span
+                    class="px-3 py-1 text-xs rounded-full bg-red-100 text-red-600 font-medium shadow-inner">Inactive</span>
+                  <?php endif; ?>
+
+                  <?php if (($row['auth_provider'] ?? '') === 'google' && (int)($row['profile_completed'] ?? 1) === 0): ?>
+                  <span class="px-3 py-1 text-xs rounded-full bg-red-100 text-red-600 font-medium shadow-inner">
+                    รอเพิ่มข้อมูล
+                  </span>
+                  <?php elseif ((int)($row['profile_completed'] ?? 1) === 1): ?>
+                  <span class="px-3 py-1 text-xs rounded-full bg-teal-100 text-teal-700 font-medium shadow-inner">
+                    ข้อมูลครบแล้ว
+                  </span>
+                  <?php endif; ?>
+                </div>
               </td>
 
               <!-- Actions -->
@@ -353,7 +411,7 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
         <div class="flex items-center space-x-2">
           <!-- ปุ่ม Prev -->
           <?php if ($page > 1): ?>
-          <a href="?page=<?= $page - 1 ?>&tab=<?= urlencode($activeTab) ?>&search=<?= urlencode($search) ?>"
+          <a href="?page=<?= $page - 1 ?>&tab=<?= urlencode($activeTab) ?>&search=<?= urlencode($search) ?>&profile_status=<?= urlencode($profileStatus) ?>"
             class="px-3 py-1 rounded-md text-teal-600 border border-teal-400 hover:bg-teal-100 transition shadow-sm">
             Prev
           </a>
@@ -361,7 +419,7 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
 
           <!-- ปุ่มตัวเลข -->
           <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-          <a href="?page=<?= $i ?>&tab=<?= urlencode($activeTab) ?>&search=<?= urlencode($search) ?>"
+          <a href="?page=<?= $i ?>&tab=<?= urlencode($activeTab) ?>&search=<?= urlencode($search) ?>&profile_status=<?= urlencode($profileStatus) ?>"
             class="px-3 py-1 rounded-md font-medium <?= $i == $page ? 'bg-teal-500 text-white shadow-md hover:bg-teal-600' : 'text-teal-600 border border-teal-400 hover:bg-teal-100' ?> transition">
             <?= $i ?>
           </a>
@@ -369,7 +427,7 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
 
           <!-- ปุ่ม Next -->
           <?php if ($page < $totalPages): ?>
-          <a href="?page=<?= $page + 1 ?>&tab=<?= urlencode($activeTab) ?>&search=<?= urlencode($search) ?>"
+          <a href="?page=<?= $page + 1 ?>&tab=<?= urlencode($activeTab) ?>&search=<?= urlencode($search) ?>&profile_status=<?= urlencode($profileStatus) ?>"
             class="px-3 py-1 rounded-md text-teal-600 border border-teal-400 hover:bg-teal-100 transition shadow-sm">
             Next
           </a>

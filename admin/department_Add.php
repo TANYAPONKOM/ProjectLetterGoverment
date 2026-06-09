@@ -8,7 +8,7 @@ require_once __DIR__ . '/../functions.php';
 $pdo = getPDO();
 
 // ✅ ดึงข้อมูลคณะ
-$faculties = $pdo->query("SELECT faculty_id, faculty_name FROM faculties")->fetchAll(PDO::FETCH_ASSOC);
+$faculties = $pdo->query("SELECT faculty_id, faculty_name, dean_name, dean_position FROM faculties ORDER BY faculty_id ASC")->fetchAll(PDO::FETCH_ASSOC);
 
 // ✅ ฟอร์มเพิ่มภาควิชา
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_department'])) {
@@ -25,10 +25,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_department'])) {
 // ✅ ฟอร์มเพิ่มคณะ
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_faculty'])) {
     $faculty_name = trim($_POST['faculty_name'] ?? '');
+    $dean_name = trim($_POST['dean_name'] ?? '');
+    $dean_position = trim($_POST['dean_position'] ?? '');
     if ($faculty_name) {
-        $stmt = $pdo->prepare("INSERT INTO faculties (faculty_name) VALUES (?)");
-        $stmt->execute([$faculty_name]);
-        header("Location: department_Add.php");
+        $stmt = $pdo->prepare("INSERT INTO faculties (faculty_name, dean_name, dean_position) VALUES (?, ?, ?)");
+        $stmt->execute([$faculty_name, $dean_name, $dean_position]);
+        header("Location: department_Managerment.php?success=faculty_add");
         exit;
     }
 }
@@ -92,12 +94,24 @@ if (isset($_GET['delete_faculty'])) {
     <!-- Form เพิ่มคณะ -->
     <form method="POST" class="p-8 space-y-6 border-b">
       <input type="hidden" name="add_faculty" value="1">
-      <h2 class="text-xl font-bold text-purple-600">เพิ่มคณะ</h2>
+      <h2 class="text-xl font-bold text-teal-600">เพิ่มคณะ</h2>
       <div>
         <label class="block font-semibold text-gray-700 mb-1">ชื่อคณะ</label>
         <input type="text" name="faculty_name"
-          class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
+          class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
           placeholder="Faculty Name" required>
+      </div>
+      <div>
+        <label class="block font-semibold text-gray-700 mb-1">ชื่อคณบดี</label>
+        <input type="text" name="dean_name"
+          class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
+          placeholder="Dean Name">
+      </div>
+      <div>
+        <label class="block font-semibold text-gray-700 mb-1">ตำแหน่งคณบดี</label>
+        <input type="text" name="dean_position"
+          class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
+          placeholder="เช่น คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม">
       </div>
       <div class="flex justify-end space-x-3">
         <!-- <a href="department_Add.php"
@@ -105,7 +119,7 @@ if (isset($_GET['delete_faculty'])) {
                     ยกเลิก
                 </a> -->
         <button type="submit"
-          class="px-6 py-2 rounded-lg bg-purple-500 text-white font-semibold hover:bg-purple-600 shadow">
+          class="px-6 py-2 rounded-lg bg-teal-500 text-white font-semibold hover:bg-teal-600 shadow">
           บันทึก
         </button>
       </div>
@@ -146,36 +160,6 @@ if (isset($_GET['delete_faculty'])) {
       </div>
     </form>
 
-    <!-- ตารางแสดงคณะ -->
-    <div class="p-8">
-      <h2 class="text-lg font-bold mb-4">📋 รายการคณะ</h2>
-      <table class="w-full border-collapse border border-gray-200 text-sm rounded-lg overflow-hidden shadow-sm">
-        <thead class="bg-gray-100">
-          <tr>
-            <th class="border px-3 py-2">ชื่อคณะ</th>
-            <th class="border px-3 py-2 text-center">จัดการ</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php foreach ($faculties as $f): ?>
-          <tr class="hover:bg-gray-50">
-            <td class="border px-3 py-2"><?= htmlspecialchars($f['faculty_name']) ?></td>
-            <td class="border px-3 py-2 text-center">
-              <a href="?delete_faculty=<?= $f['faculty_id'] ?>" onclick="return confirm('คุณแน่ใจว่าต้องการลบคณะนี้?')"
-                class="px-3 py-1 bg-red-500 text-white rounded-lg text-xs hover:bg-red-600">
-                ลบ
-              </a>
-            </td>
-          </tr>
-          <?php endforeach; ?>
-          <?php if (empty($faculties)): ?>
-          <tr>
-            <td colspan="2" class="text-center py-3 text-gray-500">ไม่มีข้อมูลคณะ</td>
-          </tr>
-          <?php endif; ?>
-        </tbody>
-      </table>
-    </div>
   </div>
 </body>
 
