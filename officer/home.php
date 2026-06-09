@@ -6,6 +6,96 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: login.html");
     exit;
 }
+
+/* รายละเอียดรายการเอกสารในหน้า Home ของเจ้าหน้าที่: ใช้สำหรับแสดงรายละเอียดใต้ชื่อเอกสาร */
+$homeDocDetailMap = [];
+$homeDocOwnerMap = [];
+
+try {
+    $pdo = getPDO();
+
+    $detailStmt = $pdo->query("
+        SELECT d.document_id, dv.field_id, dv.value_text
+        FROM documents d
+        INNER JOIN document_values dv ON dv.document_id = d.document_id
+        WHERE dv.field_id IN (
+            27,28,29,32,35,36,37,
+            49,52,54,
+            60,61,62,66,
+            72,75,76,79
+        )
+    ");
+
+    while ($row = $detailStmt->fetch(PDO::FETCH_ASSOC)) {
+        $docId = (int)$row['document_id'];
+        $fieldId = (int)$row['field_id'];
+
+        if (!isset($homeDocDetailMap[$docId])) {
+            $homeDocDetailMap[$docId] = [];
+        }
+
+        $homeDocDetailMap[$docId][$fieldId] = trim((string)$row['value_text']);
+    }
+
+    /* ดึงชื่อเจ้าของเอกสารสำหรับแสดงในรายการ: แตะเฉพาะส่วนรายละเอียดเจ้าของเอกสาร */
+    $docColumns = [];
+    $userColumns = [];
+
+    foreach ($pdo->query("SHOW COLUMNS FROM documents") as $col) {
+        $docColumns[$col['Field']] = true;
+    }
+    foreach ($pdo->query("SHOW COLUMNS FROM users") as $col) {
+        $userColumns[$col['Field']] = true;
+    }
+
+    $ownerColumn = null;
+    foreach (['owner_id', 'user_id', 'created_by', 'created_by_id', 'created_user_id', 'document_owner_id'] as $candidate) {
+        if (isset($docColumns[$candidate])) {
+            $ownerColumn = $candidate;
+            break;
+        }
+    }
+
+    if ($ownerColumn !== null) {
+        $nameParts = [];
+
+        if (isset($userColumns['first_name']) || isset($userColumns['last_name'])) {
+            $firstNameSql = isset($userColumns['first_name']) ? "COALESCE(u.first_name, '')" : "''";
+            $lastNameSql  = isset($userColumns['last_name']) ? "COALESCE(u.last_name, '')" : "''";
+            $nameParts[] = "NULLIF(TRIM(CONCAT($firstNameSql, ' ', $lastNameSql)), '')";
+        }
+        foreach (['fullname', 'full_name', 'name', 'username', 'email'] as $candidate) {
+            if (isset($userColumns[$candidate])) {
+                $nameParts[] = "NULLIF(TRIM(u.`$candidate`), '')";
+            }
+        }
+
+        $ownerNameSql = $nameParts
+            ? 'COALESCE(' . implode(', ', $nameParts) . ", '')"
+            : "''";
+
+        $ownerStmt = $pdo->query("
+            SELECT 
+                d.document_id,
+                $ownerNameSql AS owner_name
+            FROM documents d
+            LEFT JOIN users u ON u.user_id = d.`$ownerColumn`
+        ");
+
+        while ($row = $ownerStmt->fetch(PDO::FETCH_ASSOC)) {
+            $docId = (int)$row['document_id'];
+            $ownerName = trim((string)($row['owner_name'] ?? ''));
+
+            if ($ownerName !== '') {
+                $homeDocOwnerMap[$docId] = $ownerName;
+            }
+        }
+    }
+} catch (Throwable $e) {
+    $homeDocDetailMap = [];
+    $homeDocOwnerMap = [];
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -98,6 +188,8 @@ if (!isset($_SESSION['user_id'])) {
   let dataAll = [];
   const currentUserId = <?= (int)($_SESSION['user_id'] ?? 0) ?>;
   const currentRoleId = <?= (int)($_SESSION['role_id'] ?? 0) ?>;
+  const homeDocDetailMap = <?= json_encode($homeDocDetailMap, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+  const homeDocOwnerMap = <?= json_encode($homeDocOwnerMap, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 
   async function loadRequests() {
     const res = await fetch("get_requests.php?_=" + Date.now(), { cache: "no-store" });
@@ -168,6 +260,16 @@ if (!isset($_SESSION['user_id'])) {
           ),
         title: d.join_type || d.template_name || d.subject || "(ไม่มีชื่อเรื่อง)",
         detail: formatDocumentDetail(d),
+        ownerName: cleanDetailText(
+          d.owner_name ||
+          d.owner_fullname ||
+          d.created_by_name ||
+          d.user_fullname ||
+          d.fullname ||
+          [d.first_name, d.last_name].filter(Boolean).join(" ") ||
+          homeDocOwnerMap[String(d.document_id || d.id || d.doc_id)] ||
+          ""
+        ),
         date: d.doc_date,
         status: s, // 🟢 ใช้สถานะที่แปลงแล้ว
         statusText,
@@ -339,6 +441,7 @@ if (!isset($_SESSION['user_id'])) {
   }
 
   function formatDocumentDetail(d) {
+    const detailMap = homeDocDetailMap[String(d.document_id)] || {};
     const hint = [
       d.join_type,
       d.template_name,
@@ -372,10 +475,10 @@ if (!isset($_SESSION['user_id'])) {
       "workplace",
       "organization_name",
       "organization"
-    ]) || extractDetailByLabel(searchableText, ["สถานประกอบการ", "บริษัท", "หน่วยงาน"]);
+    ]) || cleanDetailText(detailMap[72] || "") || extractDetailByLabel(searchableText, ["สถานประกอบการ", "บริษัท", "หน่วยงาน"]);
 
     if (hint.includes("สหกิจ") || hint.includes("ประเมินสถานประกอบการ") || hint.includes("coop_evaluation")) {
-      return company ? `สถานประกอบการ: ${company}` : cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
+      return company ? `หน่วยงาน : ${company}` : cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
     }
 
     const requestFor = firstDetailValue(d, [
@@ -505,7 +608,13 @@ if (!isset($_SESSION['user_id'])) {
       return researchDetail || cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
     }
 
-    return cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
+    const defaultCourseName = cleanDetailText(d.course_name || "");
+    if (defaultCourseName && defaultCourseName !== "(ไม่มีรายละเอียด)") {
+      const courseName = defaultCourseName.replace(/^ชื่อหลักสูตร\s*[:：]\s*/u, "").trim();
+      return `ชื่อหลักสูตร: ${courseName}`;
+    }
+
+    return cleanDetailText(d.subject || "(ไม่มีรายละเอียด)");
   }
 
 
@@ -552,22 +661,7 @@ if (!isset($_SESSION['user_id'])) {
       let actionHtml = "";
 
       if (req.status === "pending") {
-        const shouldHideReviewButtons =
-          req.isOfficerCreatedDocument ||
-          Number(req.is_officer_created_document || 0) === 1 ||
-          Number(req.owner_role_id || 0) === 2 ||
-          Number(req.created_by_role_id || 0) === 2 ||
-          (currentRoleId === 2 && req.isOwnDocument);
-
-        if (shouldHideReviewButtons) {
-          actionHtml = `
-        <div class="mt-3 px-4 py-2 rounded-xl
-                    bg-yellow-50 text-yellow-700
-                    text-sm font-semibold border border-yellow-300">
-          ⏳ กำลังรอตรวจสอบ
-        </div>`;
-        } else {
-          actionHtml = `
+        actionHtml = `
         <div class="mt-3 flex gap-2">
           <button onclick="approveDocument(${req.document_id})"
             class="px-6 py-2 bg-teal-500 hover:bg-teal-600
@@ -581,7 +675,6 @@ if (!isset($_SESSION['user_id'])) {
             ตรวจสอบแล้ว: ไม่ผ่าน
           </button>
         </div>`;
-        }
       } else if (req.status === "done") {
         actionHtml = `
         <div class="mt-3 px-4 py-2 rounded-xl
@@ -597,6 +690,11 @@ if (!isset($_SESSION['user_id'])) {
           ✏️ รอผู้ยื่นแก้ไขเอกสาร
         </div>`;
       }
+
+      const ownerHtml = req.ownerName ? `
+      <div class="break-words mt-1">
+        เจ้าของเอกสาร: ${req.ownerName}
+      </div>` : "";
 
       return `
     <div class="bg-gray-50 p-4 rounded-xl shadow flex justify-between items-start">
@@ -615,6 +713,7 @@ if (!isset($_SESSION['user_id'])) {
     <div class="break-words">
       ${req.detail}
     </div>
+    ${ownerHtml}
 
     <!-- สถานะ -->
     <div class="mt-2 flex items-center gap-2">

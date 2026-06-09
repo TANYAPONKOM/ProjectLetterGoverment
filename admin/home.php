@@ -1,38 +1,48 @@
-<?php   //pro_letter/admin/home.php
+<?php   //pro_letter/user/home.php
 session_start();
-require_once __DIR__ . '/../functions.php';
+require_once __DIR__ . '/../functions.php'; 
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.html");
     exit;
 }
-$current = basename($_SERVER['PHP_SELF']); 
+
+/* รายละเอียดรายการเอกสารในหน้า Home: ใช้เฉพาะเอกสารบางฟอร์มที่เดิมแสดง "(ไม่มีรายละเอียด)" */
+$homeDocDetailMap = [];
+
+try {
+    $pdo = getPDO();
+
+    $detailStmt = $pdo->prepare("
+        SELECT d.document_id, dv.field_id, dv.value_text
+        FROM documents d
+        INNER JOIN document_values dv ON dv.document_id = d.document_id
+        WHERE d.owner_id = ?
+          AND dv.field_id IN (
+            27,28,29,32,35,36,37,
+            49,52,54,
+            60,61,62,66,
+            72,75,76,79
+          )
+    ");
+    $detailStmt->execute([$_SESSION['user_id']]);
+
+    while ($row = $detailStmt->fetch(PDO::FETCH_ASSOC)) {
+        $docId = (int)$row['document_id'];
+        $fieldId = (int)$row['field_id'];
+
+        if (!isset($homeDocDetailMap[$docId])) {
+            $homeDocDetailMap[$docId] = [];
+        }
+
+        $homeDocDetailMap[$docId][$fieldId] = trim((string)$row['value_text']);
+    }
+} catch (Throwable $e) {
+    $homeDocDetailMap = [];
+}
+
 ?>
-<style>
-html,
-body {
-  height: 100vh;
-  overflow: hidden;
-  margin: 0;
-}
 
-body {
-  display: flex;
-  flex-direction: column;
-}
-
-main {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-#requestListContainer {
-  flex: 1;
-  overflow-y: auto;
-}
-</style>
 <!DOCTYPE html>
 <html lang="th">
 
@@ -42,28 +52,93 @@ main {
   <title>รายการส่งคำขอ</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+  html,
+  body {
+    height: 100vh;
+    overflow: hidden;
+    margin: 0;
+  }
 
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  main {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .swal2-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 12px !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .swal2-actions button {
+    margin: 0 !important;
+  }
+
+  #holdCancelBtn {
+    min-width: 220px;
+  }
+
+  .cancel-actions-row {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 12px !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .myCancelBtn {
+    background: #6b7280 !important;
+    color: #fff !important;
+    border: none !important;
+    padding: 12px 24px !important;
+    border-radius: 10px !important;
+    font-weight: bold !important;
+    font-size: 15px !important;
+    min-width: 120px !important;
+    margin: 0 !important;
+  }
+
+  .myCancelBtn {
+    min-width: 140px !important;
+  }
+
+  #requestListContainer {
+    flex: 1;
+    overflow-y: auto;
+  }
+  </style>
 </head>
 
-<body class="bg-gray-100">
+<body class="bg-gray-100 ">
    <?php require_once $_SERVER['DOCUMENT_ROOT'] . '/Pro_letter/includes/role_header.php'; ?>
 
+
+  <!-- Content -->
   <main class="max-w-7xl w-full px-8 mx-auto bg-white mt-4 mb-12 p-6 rounded shadow min-h-[85vh]">
     <h2 class="text-xl font-bold mb-4">รายการส่งคำขอ</h2>
 
     <!-- Tabs -->
     <div class="flex space-x-6 border-b mb-4">
-      <button id="tab-pending" class="relative bg-teal-500 text-white px-4 py-2 rounded-t-md font-semibold">
+      <button id="tab-pending" class="bg-teal-500 text-white px-4 py-2 rounded-t-md font-semibold">
         รอตรวจสอบ
-        <span id="pendingCount" class="absolute -top-2 -right-3 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[11px] leading-5 text-center shadow">0</span>
       </button>
-      <button id="tab-edit" class="relative text-gray-500 px-4 py-2 rounded-t-md font-semibold">
+        <button id="tab-edit" class="text-gray-500 px-4 py-2 rounded-t-md font-semibold">
         รอการแก้ไข
-        <span id="editCount" class="absolute -top-2 -right-3 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[11px] leading-5 text-center shadow">0</span>
       </button>
-      <button id="tab-done" class="relative text-gray-500 px-4 py-2 rounded-t-md font-semibold">
+      <button id="tab-done" class="text-gray-500 px-4 py-2 rounded-t-md font-semibold">
         ผ่านการตรวจสอบแล้ว
-        <span id="doneCount" class="absolute -top-2 -right-3 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[11px] leading-5 text-center shadow">0</span>
       </button>
       
     </div>
@@ -94,78 +169,181 @@ main {
     <div id="pagination" class="flex justify-center mt-6 space-x-2"></div>
   </main>
 
-
-
   <script>
+  const homeDocDetailMap = <?= json_encode($homeDocDetailMap, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+
+  function cleanHomeDetailValue(value) {
+    return String(value || "").replace(/\s+/g, " ").trim();
+  }
+
+  function firstHomeDetailValue(detailMap, fieldIds) {
+    for (const fieldId of fieldIds) {
+      const value = cleanHomeDetailValue(detailMap[fieldId]);
+      if (value) {
+        return value;
+      }
+    }
+
+    return "";
+  }
+
+  function formatHomeThaiDateText(value) {
+    const raw = cleanHomeDetailValue(value);
+    if (!raw) return "";
+
+    const thaiMonths = [
+      "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+      "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+    ];
+
+    return raw.replace(/(\d{4})-(\d{2})-(\d{2})/g, function(_, y, m, d) {
+      const monthName = thaiMonths[parseInt(m, 10) - 1] || m;
+      return `${parseInt(d, 10)} ${monthName} ${parseInt(y, 10) + 543}`;
+    }).replace(/(\d{1,2})\/(\d{1,2})\/(\d{4})/g, function(_, d, m, y) {
+      const monthName = thaiMonths[parseInt(m, 10) - 1] || m;
+      return `${parseInt(d, 10)} ${monthName} ${parseInt(y, 10) + 543}`;
+    });
+  }
+
+  function buildHomeDocumentDetail(d, title, routeHint) {
+    const detailMap = homeDocDetailMap[String(d.document_id)] || {};
+    const textForType = [
+      title || "",
+      routeHint || "",
+      d.subject || "",
+      d.memo_subject || "",
+      d.join_type || ""
+    ].join(" ");
+
+    const courseFallback = cleanHomeDetailValue(d.course_name || "");
+    const memoFallback = cleanHomeDetailValue(d.memo_subject || d.subject || "");
+    const fallback = courseFallback ? `ชื่อหลักสูตร: ${courseFallback}` : (memoFallback ? `เรื่อง: ${memoFallback}` : "");
+    let detailParts = [];
+
+    if (textForType.includes("ขออนุมัติใช้ห้องพักรับรอง") || textForType.includes("room_request")) {
+      const roomFor = firstHomeDetailValue(detailMap, [28, 27]);
+      const roomDate = formatHomeThaiDateText(firstHomeDetailValue(detailMap, [36, 35]));
+      const roomType = firstHomeDetailValue(detailMap, [37]);
+
+      if (roomFor) detailParts.push(`ขอใช้สำหรับ: ${roomFor}`);
+      if (roomDate) detailParts.push(`วันที่เข้าพัก: ${roomDate}`);
+      if (!roomDate && roomType) detailParts.push(`ห้องพัก: ${roomType}`);
+    } else if (textForType.includes("ขอประเมินสถานประกอบการสหกิจศึกษา") || textForType.includes("coop")) {
+      const orgName = firstHomeDetailValue(detailMap, [72]);
+
+      if (orgName) detailParts.push(`หน่วยงาน: ${orgName}`);
+    } else if (textForType.includes("ขอเข้าไปจัดกิจกรรมโครงการ") || textForType.includes("project_activity")) {
+      const mainProject = firstHomeDetailValue(detailMap, [61]);
+      const subActivity = firstHomeDetailValue(detailMap, [62]);
+      const roomFor = firstHomeDetailValue(detailMap, [28, 27]);
+      const roomType = firstHomeDetailValue(detailMap, [37]);
+
+      if (mainProject || subActivity) {
+        if (mainProject) detailParts.push(`โครงการ: ${mainProject}`);
+        if (subActivity) detailParts.push(`กิจกรรม: ${subActivity}`);
+      } else {
+        if (roomFor) detailParts.push(`ขอใช้สำหรับ: ${roomFor}`);
+        if (roomType) detailParts.push(`ห้องพัก: ${roomType}`);
+      }
+    } else if (textForType.includes("หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์") || textForType.includes(
+        "research_data")) {
+      const thesisTitle = firstHomeDetailValue(detailMap, [49]);
+      const supportType = firstHomeDetailValue(detailMap, [52]);
+
+      if (thesisTitle) detailParts.push(`หัวข้อปริญญานิพนธ์: ${thesisTitle}`);
+      if (supportType) detailParts.push(`ข้อมูลที่ขอ: ${supportType}`);
+    }
+
+    const detail = cleanHomeDetailValue(detailParts.join(", "));
+    return detail || fallback || "(ไม่มีรายละเอียด)";
+  }
+
   let dataAll = [];
 
   async function loadRequests() {
-    const res = await fetch("get_requests.php?_=" + Date.now(), {
-      cache: "no-store"
-    });
+    const res = await fetch("../documents/get_requests.php");
+
     const data = await res.json();
 
     dataAll = data.map(d => {
-      // 🟢 แปลงสถานะจากฐานข้อมูล
-      let s = d.status;
-      if (s === "submitted") s = "pending";
-      if (s === "approved") s = "done";
-      if (s === "rejected") s = "edit";
 
-      let statusText = "";
-      let statusClass = "";
+      // ====== สถานะสำหรับแสดงผล ======
+      let statusTh = "";
+      let userViewStatus = "";
 
-      if (s === "pending") {
-        statusText = "รอตรวจสอบ";
-        statusClass = "bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs font-semibold";
-      } else if (s === "done") {
-        statusText = "ผ่านการตรวจสอบแล้ว";
-        statusClass = "bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold";
-      } else if (s === "edit") {
-        statusText = "รอการแก้ไข";
-        statusClass = "bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold";
+      if (d.status === "draft") {
+        // ⚠️ ยังไม่ส่งจริง แต่ให้ user เห็นเหมือนอยู่รอตรวจสอบ
+        statusTh = "รอตรวจสอบ";
+        userViewStatus = "pending_view";
+      } else if (d.status === "submitted") {
+        statusTh = "รอตรวจสอบ";
+        userViewStatus = "pending_view";
+      } else if (d.status === "approved") {
+        statusTh = "ผ่านการตรวจสอบแล้ว";
+        userViewStatus = "approved";
+      } else if (d.status === "rejected") {
+        statusTh = "รอการแก้ไข";
+        userViewStatus = "rejected";
+      }
+
+      const routeHint = [
+        d.join_type || "",
+        d.course_name || "",
+        d.subject || "",
+        d.memo_subject || "",
+        d.form_type || "",
+        d.document_type || "",
+        d.target_form || "",
+        d.redirect_to || "",
+        d.view_file || "",
+        d.word_file || "",
+        d.pdf_file || ""
+      ].join(" ");
+
+      let title = d.join_type || "";
+
+      // แสดงชื่อรายการสำหรับเอกสารนำเสนอผลงานวิจัยให้ตรงกับชื่อฟอร์ม
+      if (title.trim() === "นำเสนอผลงานวิจัย") {
+        title = "ขออนุมัติตัวบุคคลเพื่อไปนำเสนอผลงานวิจัย";
+      }
+
+      if (title.trim() === "อื่นๆ" && (
+          routeHint.includes("consent_research_presentation") ||
+          routeHint.includes("infor_present") ||
+          routeHint.includes("form_consent_research_presentation") ||
+          routeHint.includes("หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ") ||
+          routeHint.includes("ยินยอมให้นำเสนอผลงานวิจัย")
+        )) {
+        title = "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ";
       }
 
       return {
         document_id: d.document_id,
-        title: d.join_type || d.template_name || d.subject || "(ไม่มีชื่อเรื่อง)",
-        detail: formatDocumentDetail(d),
-        ownerName: d.owner_name || "",
-        subject: d.subject || "",
+        join_type: d.join_type || "",
+        route_hint: routeHint,
+        title: title || "(ไม่มีชื่อเรื่อง)",
+        detail: buildHomeDocumentDetail(d, title, routeHint),
+        ownerName: d.owner_name || d.owner_fullname || d.user_fullname || d.created_by_name || d.fullname || [d.first_name, d.last_name].filter(Boolean).join(" ") || d.username || "",
         date: d.doc_date,
-        status: s, // 🟢 ใช้สถานะที่แปลงแล้ว
-        statusText,
-        statusClass,
+
+        raw_status: d.status, // ⭐ สถานะจริง DB
+        view_status: userViewStatus, // ⭐ สถานะใช้จัดแท็บ user
+        status: statusTh, // แสดงผลภาษาไทย
+
         word: d.word_file,
-        pdf: d.pdf_file,
-        // ใช้เป็น hint ตอนหา route ไปหน้าเอกสารจริง กันกรณี join_type เคยถูกบันทึกผิดเป็น "อื่นๆ"
-        routeHint: [
-          d.join_type,
-          d.template_code,
-          d.template_name,
-          d.document_path,
-          d.question_path,
-          d.course_name,
-          d.subject,
-          d.form_type,
-          d.document_type,
-          d.redirect_to,
-          d.target_form,
-          d.word_file,
-          d.pdf_file
-        ].filter(Boolean).join(" | ")
+        pdf: d.pdf_file
       };
     });
 
-    updateStatusCounts();
     renderList();
   }
+
+  loadRequests();
 
 
   let currentPage = 1;
   let itemsPerPage = 10;
   let sortAsc = false;
-  let activeTab = "pending";
 
   const requestList = document.getElementById("requestList");
   const pagination = document.getElementById("pagination");
@@ -175,9 +353,6 @@ main {
   const tabPending = document.getElementById("tab-pending");
   const tabDone = document.getElementById("tab-done");
   const tabEdit = document.getElementById("tab-edit");
-  const pendingCount = document.getElementById("pendingCount");
-  const editCount = document.getElementById("editCount");
-  const doneCount = document.getElementById("doneCount");
 
   function hasThaiMonth(value) {
     const text = String(value || "").trim();
@@ -270,227 +445,8 @@ main {
     });
   }
 
-
-  function cleanDetailText(value) {
-    return String(value ?? "")
-      .replace(/\s+/g, " ")
-      .replace(/\s*\/\s*/g, ", ")
-      .trim();
-  }
-
-  function firstDetailValue(d, keys) {
-    for (const key of keys) {
-      if (d && d[key] !== undefined && d[key] !== null) {
-        const value = cleanDetailText(d[key]);
-        if (value !== "") return value;
-      }
-    }
-    return "";
-  }
-
-  function extractDetailByLabel(text, labels) {
-    const source = String(text || "");
-    for (const label of labels) {
-      const pattern = new RegExp(label + "\\s*[:：]\\s*([^,|\\n\\/]+)", "u");
-      const matched = source.match(pattern);
-      if (matched && matched[1]) {
-        return cleanDetailText(matched[1]);
-      }
-    }
-    return "";
-  }
-
-  function joinDetailParts(parts) {
-    return parts
-      .filter(part => part && String(part.value || "").trim() !== "")
-      .map(part => `${part.label}: ${cleanDetailText(part.value)}`)
-      .join(", ");
-  }
-
-  function formatDocumentDetail(d) {
-    const hint = [
-      d.join_type,
-      d.course_name,
-      d.subject,
-      d.form_type,
-      d.document_type,
-      d.redirect_to,
-      d.target_form,
-      d.word_file,
-      d.pdf_file
-    ].filter(Boolean).join(" | ");
-
-    const searchableText = [
-      d.course_name,
-      d.subject,
-      hint
-    ].filter(Boolean).join(" | ");
-
-    const company = firstDetailValue(d, [
-      "company_name",
-      "company",
-      "establishment_name",
-      "establishment",
-      "coop_company",
-      "coop_company_name",
-      "workplace",
-      "organization_name",
-      "organization"
-    ]) || extractDetailByLabel(searchableText, ["สถานประกอบการ", "บริษัท", "หน่วยงาน"]);
-
-    if (hint.includes("สหกิจ") || hint.includes("ประเมินสถานประกอบการ") || hint.includes("coop_evaluation")) {
-      return company ? `หน่วยงาน: ${company}` : cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
-    }
-
-    const requestFor = firstDetailValue(d, [
-      "request_for",
-      "room_request_for",
-      "use_for",
-      "purpose",
-      "room_purpose",
-      "guest_type",
-      "room_guest_type",
-      "for_whom",
-      "room_for",
-      "room_request_text"
-    ]) || extractDetailByLabel(searchableText, ["ขอใช้สำหรับ", "ใช้สำหรับ", "สำหรับ"]);
-
-    const roomName = firstDetailValue(d, [
-      "room_name",
-      "room",
-      "room_place",
-      "room_type",
-      "accommodation",
-      "accommodation_name",
-      "building",
-      "room_building",
-      "guesthouse",
-      "house_name"
-    ]) || extractDetailByLabel(searchableText, ["ห้องพัก", "อาคาร", "สถานที่พัก"]);
-
-    const checkInDateRaw = firstDetailValue(d, [
-      "checkin_date",
-      "check_in_date",
-      "stay_date",
-      "room_date",
-      "date_in",
-      "start_date",
-      "startDate",
-      "arrival_date",
-      "room_start_date"
-    ]) || extractDetailByLabel(searchableText, ["วันที่เข้าพัก", "วันเข้าพัก"]);
-
-    const checkInDate = checkInDateRaw ? formatDate(checkInDateRaw) : "";
-
-    if (roomName || hint.includes("ห้องพักรับรอง") || hint.includes("room_request")) {
-      const roomDetail = roomName ?
-        joinDetailParts([{
-            label: "ขอใช้สำหรับ",
-            value: requestFor
-          },
-          {
-            label: "ห้องพัก",
-            value: roomName
-          }
-        ]) :
-        joinDetailParts([{
-            label: "ขอใช้สำหรับ",
-            value: requestFor
-          },
-          {
-            label: "วันที่เข้าพัก",
-            value: checkInDate
-          }
-        ]);
-
-      return roomDetail || cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
-    }
-
-    const projectName = firstDetailValue(d, [
-      "project_name",
-      "projectTitle",
-      "project_title",
-      "project",
-      "activity_project"
-    ]) || extractDetailByLabel(searchableText, ["โครงการ"]);
-
-    const activityName = firstDetailValue(d, [
-      "activity_name",
-      "activityTitle",
-      "activity_title",
-      "activity",
-      "training_name"
-    ]) || extractDetailByLabel(searchableText, ["กิจกรรม"]);
-
-    if (hint.includes("จัดกิจกรรมโครงการ") || hint.includes("กิจกรรมโครงการ") || hint.includes("project_activity")) {
-      const projectDetail = joinDetailParts([{
-          label: "โครงการ",
-          value: projectName
-        },
-        {
-          label: "กิจกรรม",
-          value: activityName
-        }
-      ]);
-
-      return projectDetail || cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
-    }
-
-    const thesisTitle = firstDetailValue(d, [
-      "thesis_title",
-      "research_title",
-      "project_title",
-      "projectTitle",
-      "topic",
-      "topic_name",
-      "researchTopic"
-    ]) || extractDetailByLabel(searchableText, ["หัวข้อปริญญานิพนธ์", "หัวข้อ"]);
-
-    const requestData = firstDetailValue(d, [
-      "request_data",
-      "requested_data",
-      "data_request",
-      "data_detail",
-      "data_needed",
-      "information_request"
-    ]) || extractDetailByLabel(searchableText, ["ข้อมูลที่ขอ", "ข้อมูล"]);
-
-    if (hint.includes("ปริญญานิพนธ์") || hint.includes("ขอความอนุเคราะห์ข้อมูล") || hint.includes("research_data")) {
-      const researchDetail = joinDetailParts([{
-          label: "หัวข้อปริญญานิพนธ์",
-          value: thesisTitle
-        },
-        {
-          label: "ข้อมูลที่ขอ",
-          value: requestData
-        }
-      ]);
-
-      return researchDetail || cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
-    }
-
-    const courseName = cleanDetailText(d.course_name || "");
-    return courseName ? `ชื่อหลักสูตร: ${courseName}` : "(ไม่มีรายละเอียด)";
-  }
-
-
-  function updateStatusCounts() {
-    if (!pendingCount || !editCount || !doneCount) return;
-
-    pendingCount.textContent = dataAll.filter(d => d.status === "pending").length;
-    editCount.textContent = dataAll.filter(d => d.status === "edit").length;
-    doneCount.textContent = dataAll.filter(d => d.status === "done").length;
-  }
-
-  function refreshRequestsAfterReview() {
-    updateStatusCounts();
-    renderList();
-    loadRequests();
-  }
-
-
   function renderList() {
-    const dataFiltered = dataAll.filter(d => d.status === activeTab);
+    const dataFiltered = dataAll.filter(d => d.view_status === activeTab);
 
     const sorted = dataFiltered.sort((a, b) => {
       const dateA = parseDateForSort(a.date);
@@ -507,112 +463,102 @@ main {
 
     requestList.innerHTML = shown.map(req => {
 
-      /* ===== badge สถานะ (เหมือน user) ===== */
-      let statusBadge = "";
-      if (req.status === "pending") {
-        statusBadge = `
-        <span class="px-2 py-1 rounded-full text-xs font-semibold
-                     bg-yellow-100 text-yellow-700">
-          รอตรวจสอบ
-        </span>`;
-      } else if (req.status === "done") {
-        statusBadge = `
-        <span class="px-2 py-1 rounded-full text-xs font-semibold
-                     bg-green-100 text-green-700">
-          ผ่านการตรวจสอบแล้ว
-        </span>`;
-      } else if (req.status === "edit") {
-        statusBadge = `
-        <span class="px-2 py-1 rounded-full text-xs font-semibold
-                     bg-red-100 text-red-700">
-          รอการแก้ไข
-        </span>`;
+      /* ===== สถานะ ===== */
+      let statusClass = "";
+      if (req.status === "รอตรวจสอบ") {
+        statusClass = "bg-yellow-100 text-yellow-700";
+      } else if (req.status === "ผ่านการตรวจสอบแล้ว") {
+        statusClass = "bg-green-100 text-green-700";
+      } else if (req.status === "รอการแก้ไข") {
+        statusClass = "bg-red-100 text-red-700";
       }
 
-      /* ===== action (เหมือน user เป๊ะ) ===== */
+      /* ===== ปุ่ม / ข้อความด้านล่าง ===== */
       let actionHtml = "";
 
-      if (req.status === "pending") {
+      // 🟡 ยังเป็น draft → แสดงปุ่ม
+      if (req.raw_status === "draft") {
         actionHtml = `
-        <div class="mt-3 flex gap-2">
-          <button onclick="approveDocument(${req.document_id})"
-            class="px-6 py-2 bg-teal-500 hover:bg-teal-600
-                   text-white text-sm font-semibold rounded-xl shadow">
-            ตรวจสอบแล้ว: ผ่าน
-          </button>
+  <div class="mt-3 flex gap-2">
+    <button onclick="submitDocument(${req.document_id})"
+      class="px-5 py-2 bg-teal-500 hover:bg-teal-600
+             text-white text-sm font-semibold rounded-xl shadow">
+      ส่งเพื่อตรวจสอบ
+    </button>
 
-          <button onclick="rejectDocument(${req.document_id})"
-            class="px-6 py-2 bg-red-400 hover:bg-red-500
-                   text-white text-sm font-semibold rounded-xl shadow">
-            ตรวจสอบแล้ว: ไม่ผ่าน
-          </button>
-        </div>`;
-      } else if (req.status === "done") {
+    <button onclick="cancelDocument(${req.document_id})"
+      class="px-5 py-2 bg-red-500 hover:bg-red-600
+             text-white text-sm font-semibold rounded-xl shadow">
+      ลบรายการนี้
+    </button>
+  </div>
+`;
+      }
+
+      // ⏳ ส่งแล้ว → แสดงข้อความ (ไม่ใช่ปุ่ม)
+      else if (req.raw_status === "submitted") {
         actionHtml = `
         <div class="mt-3 px-4 py-2 rounded-xl
-                    bg-green-50 text-green-700
-                    text-sm font-semibold border border-green-300">
-          📄 เอกสารถูกตรวจสอบแล้ว
-        </div>`;
-      } else if (req.status === "edit") {
-        actionHtml = `
-        <div class="mt-3 px-4 py-2 rounded-xl
-                    bg-red-50 text-red-700
-                    text-sm font-semibold border border-red-300">
-          ✏️ รอผู้ยื่นแก้ไขเอกสาร
-        </div>`;
+                    bg-yellow-50 text-yellow-700
+                    text-sm font-semibold border border-yellow-300">
+          ⏳ กำลังรอตรวจสอบ
+        </div>
+      `;
       }
 
       return `
-    <div class="bg-gray-50 p-4 rounded-xl shadow flex justify-between items-start">
+      <div class="bg-gray-50 p-4 rounded-xl shadow flex justify-between items-start">
 
-      <!-- ซ้าย -->
-<div class="flex-1 min-w-0 pr-4">
+        <!-- ซ้าย -->
+        <div class="flex-1 min-w-0 pr-4">
+          <a href="#" onclick='return openDocument(${req.document_id}, ${JSON.stringify(req.route_hint || req.join_type || "")})'
+             class="font-semibold text-teal-600 hover:underline text-lg">
+            ${req.title}
+          </a>
 
-  <a href="#" onclick="openDocument(${req.document_id}, '${String(req.routeHint || req.title).replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')"
-   class="font-semibold text-teal-600 hover:underline text-lg">
-  ${req.title}
-</a>
+         <div class="text-sm text-gray-500 mt-1">
 
-  <div class="text-sm text-gray-500 mt-1">
+            <!-- รายละเอียด -->
+            <div class="break-words">
+              ${req.detail}
+            </div>
 
-    <!-- รายละเอียด -->
-    <div class="break-words">
-      ${req.detail}
-    </div>
+            ${req.ownerName ? `
+            <div class="break-words mt-1">
+              เจ้าของเอกสาร: ${req.ownerName}
+            </div>` : ""}
 
-    ${req.ownerName ? `
-    <div class="break-words mt-1">
-      เจ้าของเอกสาร: ${req.ownerName}
-    </div>` : ""}
+            <!-- สถานะ -->
+            <div class="mt-2 flex items-center gap-2">
+              <span>สถานะ:</span>
 
-    <!-- สถานะ -->
-    <div class="mt-2 flex items-center gap-2">
-      <span>สถานะ:</span>
-      ${statusBadge}
-    </div>
+              <span class="px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${statusClass}">
+                ${req.status}
+              </span>
+            </div>
 
-  </div>
-
-</div>
-
-      <!-- ขวา (โครงเดียวกับ USER) -->
-      <div class="text-right flex flex-col items-end text-sm text-gray-600 min-w-[200px]">
-
-        <!-- วันที่ -->
-        <div class="font-medium mb-2">
-          ${formatDate(req.date)}
+          </div>
         </div>
 
-        
+        <!-- ขวา -->
+        <div class="text-right flex flex-col items-end text-sm text-gray-600 min-w-[200px]">
 
-        <!-- ปุ่ม / ข้อความ -->
-        ${actionHtml}
+          <!-- วันที่ -->
+          <div class="font-medium mb-2">
+            ${formatDate(req.date)}
+          </div>
 
+          
+
+          <!-- ปุ่ม / ข้อความ -->
+          ${actionHtml}
+
+        </div>
       </div>
-    </div>`;
+    `;
     }).join("");
 
+    /* ===== Pagination ===== */
     const totalPages = Math.ceil(dataFiltered.length / itemsPerPage);
     pagination.innerHTML = Array.from({
         length: totalPages
@@ -629,19 +575,29 @@ main {
   }
 
 
+
+
   function goToPage(page) {
     currentPage = page;
     renderList();
   }
+
   sortBtn.onclick = () => {
     sortAsc = !sortAsc;
+    sortIcon.innerHTML = sortAsc ?
+      '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />' :
+      '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />';
     renderList();
   };
+
   itemsPerPageEl.onchange = () => {
     itemsPerPage = parseInt(itemsPerPageEl.value);
     currentPage = 1;
     renderList();
   };
+
+  let activeTab = "pending_view";
+
 function setActiveTab(activeButton) {
   const tabs = [tabPending, tabEdit, tabDone];
 
@@ -655,27 +611,31 @@ function setActiveTab(activeButton) {
 }
 
 tabPending.onclick = () => {
-  activeTab = "pending";
-  currentPage = 1;
+  activeTab = "pending_view"; // รวม draft + submitted
   setActiveTab(tabPending);
+  currentPage = 1;
   renderList();
 };
 
 tabDone.onclick = () => {
-  activeTab = "done";
-  currentPage = 1;
+  activeTab = "approved";
   setActiveTab(tabDone);
+  currentPage = 1;
   renderList();
 };
 
 tabEdit.onclick = () => {
-  activeTab = "edit";
-  currentPage = 1;
+  activeTab = "rejected";
   setActiveTab(tabEdit);
+  currentPage = 1;
   renderList();
 };
 
-  loadRequests();
+
+  renderList();
+
+
+
 
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -697,93 +657,99 @@ tabEdit.onclick = () => {
     }
   });
 
-  function getDocumentViewUrl(docId, joinType = "") {
-    const type = String(joinType || "").trim();
+  function isConsentResearchPresentationHint(routeHint = "") {
+    const text = String(routeHint || "").trim();
+    return (
+      text.includes("consent_research_presentation") ||
+      text.includes("infor_present") ||
+      text.includes("form_consent_research_presentation") ||
+      text.includes("หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ") ||
+      text.includes("ยินยอมให้นำเสนอผลงานทางวิชาการ") ||
+      text.includes("ยินยอมให้นำเสนอผลงานวิจัย")
+    );
+  }
 
+  function getDocumentViewUrl(docId, routeHint = "") {
+    const text = String(routeHint || "").trim();
+
+    if (isConsentResearchPresentationHint(text)) {
+      return `../form_Memo/form_consent_research_presentation.php?id=${encodeURIComponent(docId)}`;
+    }
+
+    // จับจากข้อความที่แสดงในรายการเอกสาร ให้ตรงกับ redirect ที่ save_memo.php ส่งไป
     const routes = [{
-        keywords: ["ขอประเมินสถานประกอบการสหกิจ", "ประเมินสถานประกอบการ", "สหกิจศึกษา"],
+        keywords: ["สหกิจ", "ประเมินสถานประกอบการ", "coop_evaluation"],
         url: "../form_Memo/form_memo_coop_evaluation.php"
       },
       {
-        keywords: ["ขอเข้าไปจัดกิจกรรมโครงการ", "จัดกิจกรรมโครงการ", "กิจกรรมโครงการ"],
+        keywords: ["จัดกิจกรรมโครงการ", "กิจกรรมโครงการ", "project_activity"],
         url: "../form_Memo/form_memo_project_activity.php"
       },
       {
-        keywords: ["ขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์", "ข้อมูลจัดทำปริญญานิพนธ์", "ปริญญานิพนธ์"],
+        keywords: ["ปริญญานิพนธ์", "ขอความอนุเคราะห์ข้อมูล", "research_data"],
         url: "../form_Memo/form_memo_request_research_data.php"
       },
       {
-        keywords: ["หนังสือเรียนเชิญวิทยากร", "เรียนเชิญวิทยากร"],
+        keywords: ["เรียนเชิญวิทยากร", "เชิญวิทยากร", "invite_speaker_student", "invite"],
         url: "../form_Memo/form_memo_invite_speaker.php"
       },
       {
-        keywords: ["ขออนุมัติใช้ห้องพักรับรอง", "ขอห้องพักรับรอง", "ห้องพักรับรอง"],
+        keywords: ["ห้องพักรับรอง", "room_request"],
         url: "../form_Memo/form_memo_room_request_1.php"
       },
       {
-        keywords: ["ขออนุมัติตัวบุคคลเป็นวิทยากร", "ตัวบุคคลเป็นวิทยากร"],
+        keywords: ["ตัวบุคคลเป็นวิทยากร", "speaker_workshop"],
         url: "../form_Memo/form_memo_speaker.php"
       },
       {
-        keywords: ["ขออนุญาตเข้าเยี่ยมชมศึกษาดูงาน", "ขอเข้าเยี่ยมศึกษาดูงาน", "ศึกษาดูงาน", "เข้าเยี่ยมชม"],
+        keywords: ["ศึกษาดูงาน", "เข้าเยี่ยมชม", "study_visit"],
         url: "../form_Memo/form_memo_sut_wellness.php"
       },
       {
-        keywords: [
-          "consent_research_presentation",
-          "infor_present",
-          "form_consent_research_presentation",
-          "หนังสือยินยอมให้นำเสนอผลงานวิจัย",
-          "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ",
-          "ยินยอมให้นำเสนอผลงาน",
-          "ยินยอมนำเสนอ"
-        ],
+        keywords: ["ยินยอมให้นำเสนอผลงาน", "consent_research_presentation"],
         url: "../form_Memo/form_consent_research_presentation.php"
       },
       {
-        keywords: ["นำเสนอผลงานวิจัย"],
+        keywords: ["นำเสนอผลงานวิจัย", "academic"],
         url: "../form_Memo/form_memo_academic_1.php"
-      },
-      {
-        keywords: ["FREE_DOCUMENT", "บันทึกข้อความทั่วไป", "form_memo_free_document", "infor_free_document"],
-        url: "../form_Memo/form_memo_free_document.php"
       }
     ];
 
-    for (const route of routes) {
-      if (route.keywords.some(keyword => type.includes(keyword))) {
-        return route.url + "?id=" + encodeURIComponent(docId);
-      }
-    }
+    const matched = routes.find(route =>
+      route.keywords.some(keyword => text.includes(keyword))
+    );
 
-    return "../documents/view_memo.php?id=" + encodeURIComponent(docId);
+    const baseUrl = matched ? matched.url : "../documents/view_memo.php";
+    return `${baseUrl}?id=${encodeURIComponent(docId)}`;
   }
 
   function getDocumentPdfDownloadUrl(docId, routeHint = "") {
-    return "../documents/auto_download_pdf.php?id=" + encodeURIComponent(docId) +
-      "&hint=" + encodeURIComponent(routeHint || "");
+    return `../documents/auto_download_pdf.php?id=${encodeURIComponent(docId)}&hint=${encodeURIComponent(routeHint || "")}`;
   }
 
 
-  function sanitizeDownloadFileName(name) {
-    return String(name || "เอกสาร")
+  function makeThaiWordFileName(req) {
+    const rawTitle = String((req && (req.title || req.join_type || req.detail)) || "เอกสาร");
+    const docId = String((req && req.document_id) || "").trim();
+
+    let fileName = rawTitle
       .replace(/[\\\/:*?"<>|\r\n\t]+/g, " ")
       .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 120) || "เอกสาร";
-  }
+      .trim();
 
-  function escapeHtmlAttribute(value) {
-    return String(value || "")
-      .replace(/&/g, "&amp;")
-      .replace(/"/g, "&quot;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-  }
+    if (!fileName) {
+      fileName = "เอกสาร";
+    }
 
-  function getWordThaiFileName(req) {
-    const baseName = sanitizeDownloadFileName(req.subject || req.title || req.detail || "เอกสาร");
-    return baseName + "_เลขที่_" + encodeURIComponent(req.document_id).replace(/%/g, "") + ".docx";
+    if (fileName.length > 90) {
+      fileName = fileName.substring(0, 90).trim();
+    }
+
+    if (docId) {
+      fileName += "_เลขที่_" + docId;
+    }
+
+    return fileName + ".docx";
   }
 
   function downloadWordThai(link) {
@@ -801,14 +767,14 @@ tabEdit.onclick = () => {
         return response.blob();
       })
       .then(blob => {
-        const blobUrl = URL.createObjectURL(blob);
+        const objectUrl = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
-        a.href = blobUrl;
+        a.href = objectUrl;
         a.download = fileName;
         document.body.appendChild(a);
         a.click();
         a.remove();
-        URL.revokeObjectURL(blobUrl);
+        window.URL.revokeObjectURL(objectUrl);
       })
       .catch(() => {
         window.location.href = url;
@@ -821,48 +787,40 @@ tabEdit.onclick = () => {
     const text = String(routeHint || "").trim();
 
     const routes = [{
-        keywords: ["ขอประเมินสถานประกอบการสหกิจ", "ประเมินสถานประกอบการ", "สหกิจศึกษา", "coop_evaluation"],
+        keywords: ["สหกิจ", "ประเมินสถานประกอบการ", "coop_evaluation"],
         url: "../documents/download_word_coop_evaluation.php"
       },
       {
-        keywords: ["ขอเข้าไปจัดกิจกรรมโครงการ", "จัดกิจกรรมโครงการ", "กิจกรรมโครงการ", "project_activity"],
+        keywords: ["จัดกิจกรรมโครงการ", "กิจกรรมโครงการ", "project_activity"],
         url: "../documents/download_word_project_activity.php"
       },
       {
-        keywords: ["หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์", "ขอความอนุเคราะห์ข้อมูล", "ปริญญานิพนธ์",
-          "research_data"
-        ],
+        keywords: ["ปริญญานิพนธ์", "ขอความอนุเคราะห์ข้อมูล", "research_data"],
         url: "../documents/download_word_request_research_data.php"
       },
       {
-        keywords: ["หนังสือเรียนเชิญวิทยากร", "เรียนเชิญวิทยากร", "เชิญวิทยากร", "invite_speaker"],
+        keywords: ["เรียนเชิญวิทยากร", "เชิญวิทยากร", "invite_speaker_student", "invite"],
         url: "../documents/download_word_invite_speaker.php"
       },
       {
-        keywords: ["ขออนุมัติใช้ห้องพักรับรอง", "ขอห้องพักรับรอง", "ห้องพักรับรอง", "room_request"],
+        keywords: ["ห้องพักรับรอง", "room_request"],
         url: "../documents/download_word_room_request.php"
       },
       {
-        keywords: ["ขออนุมัติตัวบุคคลเป็นวิทยากร", "ตัวบุคคลเป็นวิทยากร", "speaker_workshop"],
+        keywords: ["ตัวบุคคลเป็นวิทยากร", "speaker_workshop"],
         url: "../documents/download_word_speaker.php"
       },
       {
-        keywords: ["ขอเข้าเยี่ยมศึกษาดูงาน", "ศึกษาดูงาน", "เข้าเยี่ยมชม", "study_visit"],
+        keywords: ["ศึกษาดูงาน", "เข้าเยี่ยมชม", "study_visit"],
         url: "../documents/download_word_sut_wellness.php"
       },
       {
-        keywords: ["หนังสือยินยอมให้นำเสนอผลงานวิจัย", "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ",
-          "ยินยอมให้นำเสนอผลงาน", "consent_research_presentation"
-        ],
+        keywords: ["ยินยอมให้นำเสนอผลงาน", "consent_research_presentation"],
         url: "../documents/download_word_consent_research_presentation.php"
       },
       {
-        keywords: ["นำเสนอผลงานวิจัย", "academic_presentation"],
+        keywords: ["นำเสนอผลงานวิจัย", "academic"],
         url: "../documents/download_word_academic_1.php"
-      },
-      {
-        keywords: ["FREE_DOCUMENT", "บันทึกข้อความทั่วไป", "form_memo_free_document", "infor_free_document"],
-        url: "../documents/download_word_free_document.php"
       }
     ];
 
@@ -871,11 +829,10 @@ tabEdit.onclick = () => {
     );
 
     const baseUrl = matched ? matched.url : "../documents/download_word_memo.php";
-    return baseUrl + "?id=" + encodeURIComponent(docId);
+    return `${baseUrl}?id=${encodeURIComponent(docId)}`;
   }
 
-
-  function openDocument(docId, joinType = "") {
+  function openDocument(docId, routeHint = "") {
     fetch("../check_view_permission.php?id=" + encodeURIComponent(docId))
       .then(r => r.json())
       .then(res => {
@@ -887,7 +844,7 @@ tabEdit.onclick = () => {
         }
 
         if (res.allowed === true) {
-          window.location.href = getDocumentViewUrl(docId, joinType);
+          window.location.href = getDocumentViewUrl(docId, routeHint);
           return;
         }
 
@@ -912,12 +869,14 @@ tabEdit.onclick = () => {
         console.log("Fetch error:", err);
         Swal.fire("Error", "ไม่สามารถตรวจสอบสิทธิ์ได้", "error");
       });
+
+    return false;
   }
 
-  function approveDocument(id) {
+  function submitDocument(id) {
     Swal.fire({
-      title: "ยืนยันการตรวจสอบเอกสาร?",
-      text: "เอกสารจะถูกระบุว่าตรวจสอบเรียบร้อยแล้ว",
+      title: "ยืนยันการส่งเอกสาร?",
+      text: "เอกสารจะถูกส่งให้เจ้าหน้าที่ตรวจสอบ",
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "ยืนยัน",
@@ -925,157 +884,142 @@ tabEdit.onclick = () => {
     }).then(result => {
       if (!result.isConfirmed) return;
 
-      Swal.fire({
-        html: `
-          <style>
-            @keyframes reviewSpin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-          </style>
-          <div style="padding: 10px 6px 4px; text-align: center;">
-            <div style="
-              width: 58px;
-              height: 58px;
-              border-radius: 50%;
-              border: 7px solid #d9f3ef;
-              border-top-color: #14b8a6;
-              margin: 0 auto 18px;
-              animation: reviewSpin 0.8s linear infinite;
-            "></div>
-            <div style="font-size: 24px; font-weight: 700; color: #0f766e; margin-bottom: 6px;">
-              กำลังบันทึกผลการตรวจสอบ...
-            </div>
-            <div style="font-size: 15px; color: #64748b;">
-              กรุณารอสักครู่ ระบบกำลังบันทึกข้อมูลและส่งอีเมลแจ้งผู้ใช้
-            </div>
-          </div>
-        `,
-        width: 360,
-        padding: "24px 20px 26px",
-        background: "#ffffff",
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        showConfirmButton: false
-      });
+      fetch("../documents/submit_document.php", {
 
-      fetch("../documents/update_status.php", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            id,
-            status: "approved"
+            document_id: id
           })
         })
         .then(r => r.json())
         .then(res => {
           if (res.success) {
+
+
             Swal.fire({
               icon: "success",
-              title: "ตรวจสอบเรียบร้อย",
+              title: "ส่งเรียบร้อย",
+              text: "เอกสารอยู่ระหว่างรอการตรวจสอบ",
               timer: 1500,
               showConfirmButton: false
             });
-            dataAll = dataAll.map(item => {
-              if (Number(item.document_id) === Number(id)) {
-                return {
-                  ...item,
-                  status: "done",
-                  statusText: "ผ่านการตรวจสอบแล้ว",
-                  statusClass: "bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold"
-                };
-              }
-              return item;
-            });
-            refreshRequestsAfterReview();
+
+            // ✅ โหลดข้อมูลใหม่จาก DB
+            loadRequests();
+
+
+          } else {
+            Swal.fire("ผิดพลาด", res.message || "ไม่สามารถส่งได้", "error");
           }
         });
     });
   }
 
-  function rejectDocument(id) {
+  function cancelDocument(id) {
     Swal.fire({
-      title: "เอกสารไม่ผ่านการตรวจสอบ?",
-      text: "เอกสารจะถูกส่งกลับให้ผู้ยื่นแก้ไข",
+      title: "ลบรายการนี้?",
+      html: `
+      <p style="font-size:16px; margin-bottom:10px; text-align:center;">
+        หากลบรายการนี้แล้ว รายการนี้จะถูกลบออกจากรายการคำขอ
+      </p>
+    `,
       icon: "warning",
+      showConfirmButton: false,
       showCancelButton: true,
-      confirmButtonText: "ยืนยัน",
-      cancelButtonText: "ยกเลิก"
-    }).then(result => {
-      if (!result.isConfirmed) return;
+      cancelButtonText: "ยกเลิก",
+      buttonsStyling: false,
+      customClass: {
+        actions: "cancel-actions-row",
+        cancelButton: "myCancelBtn"
+      },
+      didOpen: () => {
+        const actions = Swal.getActions();
 
-      Swal.fire({
-        html: `
-          <style>
-            @keyframes reviewSpin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-          </style>
-          <div style="padding: 10px 6px 4px; text-align: center;">
-            <div style="
-              width: 58px;
-              height: 58px;
-              border-radius: 50%;
-              border: 7px solid #d9f3ef;
-              border-top-color: #14b8a6;
-              margin: 0 auto 18px;
-              animation: reviewSpin 0.8s linear infinite;
-            "></div>
-            <div style="font-size: 24px; font-weight: 700; color: #0f766e; margin-bottom: 6px;">
-              กำลังบันทึกผลการตรวจสอบ...
-            </div>
-            <div style="font-size: 15px; color: #64748b;">
-              กรุณารอสักครู่ ระบบกำลังบันทึกข้อมูลและส่งอีเมลแจ้งผู้ใช้
-            </div>
-          </div>
-        `,
-        width: 360,
-        padding: "24px 20px 26px",
-        background: "#ffffff",
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        showConfirmButton: false
-      });
+        const holdBtn = document.createElement("button");
+        holdBtn.id = "holdCancelBtn";
+        holdBtn.type = "button";
+        holdBtn.textContent = "กดค้าง 2 วินาทีเพื่อยืนยัน";
 
-      fetch("../documents/update_status.php", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            id,
-            status: "rejected"
-          })
-        })
-        .then(r => r.json())
-        .then(res => {
-          if (res.success) {
-            Swal.fire({
-              icon: "success",
-              title: "ส่งกลับให้แก้ไขแล้ว",
-              timer: 1500,
-              showConfirmButton: false
-            });
-            dataAll = dataAll.map(item => {
-              if (Number(item.document_id) === Number(id)) {
-                return {
-                  ...item,
-                  status: "edit",
-                  statusText: "รอการแก้ไข",
-                  statusClass: "bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold"
-                };
-              }
-              return item;
-            });
-            refreshRequestsAfterReview();
-          }
-        });
+        holdBtn.style.cssText = `
+        background:#dc2626;
+        color:#fff;
+        border:none;
+        padding:12px 24px;
+        border-radius:10px;
+        font-weight:bold;
+        cursor:pointer;
+        font-size:15px;
+        min-width:220px;
+        margin:0;
+      `;
+
+        actions.prepend(holdBtn);
+
+        let timer = null;
+
+        const startHold = (e) => {
+          e.preventDefault();
+
+          holdBtn.textContent = "กำลังกดยืนยัน...";
+          holdBtn.style.background = "#991b1b";
+
+          timer = setTimeout(() => {
+            Swal.close();
+
+            fetch("../documents/cancel_document.php", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  document_id: id
+                })
+              })
+              .then(r => r.json())
+              .then(res => {
+                if (res.success) {
+                  Swal.fire({
+                    icon: "success",
+                    title: "ยกเลิกคำขอแล้ว",
+                    timer: 1200,
+                    showConfirmButton: false
+                  });
+
+                  loadRequests();
+                } else {
+                  Swal.fire(
+                    "ผิดพลาด",
+                    res.message || "ไม่สามารถยกเลิกได้",
+                    "error"
+                  );
+                }
+              });
+          }, 2000);
+        };
+
+        const stopHold = () => {
+          clearTimeout(timer);
+          timer = null;
+
+          holdBtn.textContent = "กดค้าง 2 วินาทีเพื่อยืนยัน";
+          holdBtn.style.background = "#dc2626";
+        };
+
+        holdBtn.addEventListener("mousedown", startHold);
+        holdBtn.addEventListener("mouseup", stopHold);
+        holdBtn.addEventListener("mouseleave", stopHold);
+
+        holdBtn.addEventListener("touchstart", startHold);
+        holdBtn.addEventListener("touchend", stopHold);
+        holdBtn.addEventListener("touchcancel", stopHold);
+      }
     });
   }
   </script>
+
 </body>
 
 </html>
