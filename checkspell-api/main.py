@@ -151,6 +151,40 @@ def should_ignore_word(word: str) -> bool:
     return False
 
 
+def is_unreadable_word(word: str) -> bool:
+    """
+    ตรวจเฉพาะคำที่ดูอ่านไม่ได้จริง ๆ เช่น ไไไ, กกกก, เเเ, ำำำ
+    ไม่ใช้กับคำราชการหรือคำทั่วไป
+    """
+    word = word.strip()
+
+    if not word:
+        return False
+
+    if not is_thai_word(word):
+        return False
+
+    if word in CUSTOM_WORDS:
+        return False
+
+    if word in COMMON_MISSPELLINGS:
+        return False
+
+    # ตัวอักษรไทยตัวเดียวกันซ้ำ 3 ตัวขึ้นไป เช่น กกก, ไไไ
+    if re.fullmatch(r"([ก-๙])\1{2,}", word):
+        return True
+
+    # มีแต่สระ/วรรณยุกต์/เครื่องหมายไทยประกอบ ไม่มีพยัญชนะจริง
+    if re.fullmatch(r"[ะาำิีึืุูเแโใไๅ่้๊๋์็ๆฯ]+", word):
+        return True
+
+    # สระนำหน้าเรียงซ้ำผิดรูป เช่น ไไก, เเอก
+    if re.search(r"[เแโใไ]{2,}", word):
+        return True
+
+    return False
+
+
 def tokenize_text(text: str) -> List[str]:
     return word_tokenize(text, engine="newmm")
 
@@ -161,6 +195,7 @@ def check_word(word: str):
     if should_ignore_word(word):
         return None
 
+    # 1) เช็กเฉพาะคำผิดที่กำหนดเองใน common_misspellings.json ก่อน
     if word in COMMON_MISSPELLINGS:
         suggestions = clean_suggestions(word, COMMON_MISSPELLINGS[word])
 
@@ -172,22 +207,24 @@ def check_word(word: str):
             "suggestions": suggestions[:5]
         }
 
+    # 2) ถ้าไม่ใช่คำผิดที่กำหนดเอง และไม่ได้อ่านเพี้ยนชัดเจน ไม่ต้องแนะนำ
+    # เพื่อป้องกันคำถูก เช่น "เรียนเชิญ", "ขออนุมัติ" ถูกแนะนำเป็นคำอื่น
+    if not is_unreadable_word(word):
+        return None
+
+    # 3) เฉพาะคำที่อ่านไม่ได้จริง ๆ เท่านั้น ถึงค่อยลองใช้ spell()
     suggestions = spell(word)
-
-    if not suggestions:
-        return None
-
-    if suggestions[0] == word:
-        return None
-
     cleaned_suggestions = clean_suggestions(word, suggestions)
 
-    if not cleaned_suggestions:
-        return None
+    if cleaned_suggestions:
+        return {
+            "word": word,
+            "suggestions": cleaned_suggestions[:5]
+        }
 
     return {
         "word": word,
-        "suggestions": cleaned_suggestions[:5]
+        "suggestions": ["กรุณาตรวจสอบคำนี้"]
     }
 
 
@@ -204,6 +241,7 @@ def api_spell_check(payload: SpellCheckRequest):
         return {
             "checked": True,
             "hasError": False,
+            "has_error": False,
             "errors": []
         }
 
@@ -261,6 +299,7 @@ def api_spell_check(payload: SpellCheckRequest):
     return {
         "checked": True,
         "hasError": len(found_errors) > 0,
+        "has_error": len(found_errors) > 0,
         "errors": found_errors
     }
 
@@ -268,7 +307,3 @@ def api_spell_check(payload: SpellCheckRequest):
 # รัน local:
 # cd /c/xampp/htdocs/Pro_letter/checkspell-api
 # uvicorn main:app --reload --host 127.0.0.1 --port 8001
-
-
-
-

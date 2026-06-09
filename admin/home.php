@@ -128,8 +128,9 @@ main {
 
       return {
         document_id: d.document_id,
-        title: d.join_type || "(ไม่มีชื่อเรื่อง)",
+        title: d.join_type || d.template_name || d.subject || "(ไม่มีชื่อเรื่อง)",
         detail: formatDocumentDetail(d),
+        ownerName: d.owner_name || "",
         subject: d.subject || "",
         date: d.doc_date,
         status: s, // 🟢 ใช้สถานะที่แปลงแล้ว
@@ -140,6 +141,10 @@ main {
         // ใช้เป็น hint ตอนหา route ไปหน้าเอกสารจริง กันกรณี join_type เคยถูกบันทึกผิดเป็น "อื่นๆ"
         routeHint: [
           d.join_type,
+          d.template_code,
+          d.template_name,
+          d.document_path,
+          d.question_path,
           d.course_name,
           d.subject,
           d.form_type,
@@ -334,7 +339,7 @@ main {
     ]) || extractDetailByLabel(searchableText, ["สถานประกอบการ", "บริษัท", "หน่วยงาน"]);
 
     if (hint.includes("สหกิจ") || hint.includes("ประเมินสถานประกอบการ") || hint.includes("coop_evaluation")) {
-      return company ? `สถานประกอบการ: ${company}` : cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
+      return company ? `หน่วยงาน: ${company}` : cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
     }
 
     const requestFor = firstDetailValue(d, [
@@ -464,7 +469,8 @@ main {
       return researchDetail || cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
     }
 
-    return cleanDetailText(d.course_name || "(ไม่มีรายละเอียด)");
+    const courseName = cleanDetailText(d.course_name || "");
+    return courseName ? `ชื่อหลักสูตร: ${courseName}` : "(ไม่มีรายละเอียด)";
   }
 
 
@@ -574,6 +580,11 @@ main {
     <div class="break-words">
       ${req.detail}
     </div>
+
+    ${req.ownerName ? `
+    <div class="break-words mt-1">
+      เจ้าของเอกสาร: ${req.ownerName}
+    </div>` : ""}
 
     <!-- สถานะ -->
     <div class="mt-2 flex items-center gap-2">
@@ -732,6 +743,10 @@ tabEdit.onclick = () => {
       {
         keywords: ["นำเสนอผลงานวิจัย"],
         url: "../form_Memo/form_memo_academic_1.php"
+      },
+      {
+        keywords: ["FREE_DOCUMENT", "บันทึกข้อความทั่วไป", "form_memo_free_document", "infor_free_document"],
+        url: "../form_Memo/form_memo_free_document.php"
       }
     ];
 
@@ -844,6 +859,10 @@ tabEdit.onclick = () => {
       {
         keywords: ["นำเสนอผลงานวิจัย", "academic_presentation"],
         url: "../documents/download_word_academic_1.php"
+      },
+      {
+        keywords: ["FREE_DOCUMENT", "บันทึกข้อความทั่วไป", "form_memo_free_document", "infor_free_document"],
+        url: "../documents/download_word_free_document.php"
       }
     ];
 

@@ -96,6 +96,8 @@ if (!isset($_SESSION['user_id'])) {
 
   <script>
   let dataAll = [];
+  const currentUserId = <?= (int)($_SESSION['user_id'] ?? 0) ?>;
+  const currentRoleId = <?= (int)($_SESSION['role_id'] ?? 0) ?>;
 
   async function loadRequests() {
     const res = await fetch("get_requests.php?_=" + Date.now(), { cache: "no-store" });
@@ -124,8 +126,12 @@ if (!isset($_SESSION['user_id'])) {
 
       const routeHint = [
         d.join_type,
+        d.template_name,
+        d.template_code,
         d.course_name,
         d.subject,
+        d.document_path,
+        d.question_path,
         d.form_type,
         d.document_type,
         d.redirect_to,
@@ -136,7 +142,31 @@ if (!isset($_SESSION['user_id'])) {
 
       return {
         document_id: d.document_id,
-        title: d.join_type || "(ไม่มีชื่อเรื่อง)",
+        owner_id: Number(d.owner_id || d.user_id || d.created_by || d.created_by_id || d.created_user_id || d.document_owner_id || 0),
+        isOwnDocument: [
+          d.owner_id,
+          d.user_id,
+          d.created_by,
+          d.created_by_id,
+          d.created_user_id,
+          d.document_owner_id
+        ].map(v => Number(v || 0)).includes(currentUserId) ||
+          Number(d.is_own_document || d.isOwnDocument || 0) === 1,
+        owner_role_id: Number(d.owner_role_id || d.created_by_role_id || d.ownerRoleId || d.createdByRoleId || 0),
+        created_by_role_id: Number(d.created_by_role_id || d.owner_role_id || d.createdByRoleId || d.ownerRoleId || 0),
+        is_own_document: Number(d.is_own_document || d.isOwnDocument || 0),
+        is_officer_created_document: Number(d.is_officer_created_document || d.isOfficerCreatedDocument || 0),
+        isOfficerCreatedDocument:
+          Number(d.is_officer_created_document || d.isOfficerCreatedDocument || 0) === 1 ||
+          Number(d.owner_role_id || d.created_by_role_id || d.ownerRoleId || d.createdByRoleId || 0) === 2 ||
+          (
+            currentRoleId === 2 &&
+            (
+              Number(d.owner_id || d.user_id || d.created_by || d.created_by_id || d.created_user_id || d.document_owner_id || 0) === currentUserId ||
+              Number(d.is_own_document || d.isOwnDocument || 0) === 1
+            )
+          ),
+        title: d.join_type || d.template_name || d.subject || "(ไม่มีชื่อเรื่อง)",
         detail: formatDocumentDetail(d),
         date: d.doc_date,
         status: s, // 🟢 ใช้สถานะที่แปลงแล้ว
@@ -311,8 +341,12 @@ if (!isset($_SESSION['user_id'])) {
   function formatDocumentDetail(d) {
     const hint = [
       d.join_type,
+      d.template_name,
+      d.template_code,
       d.course_name,
       d.subject,
+      d.document_path,
+      d.question_path,
       d.form_type,
       d.document_type,
       d.redirect_to,
@@ -324,6 +358,7 @@ if (!isset($_SESSION['user_id'])) {
     const searchableText = [
       d.course_name,
       d.subject,
+      d.template_name,
       hint
     ].filter(Boolean).join(" | ");
 
@@ -517,7 +552,22 @@ if (!isset($_SESSION['user_id'])) {
       let actionHtml = "";
 
       if (req.status === "pending") {
-        actionHtml = `
+        const shouldHideReviewButtons =
+          req.isOfficerCreatedDocument ||
+          Number(req.is_officer_created_document || 0) === 1 ||
+          Number(req.owner_role_id || 0) === 2 ||
+          Number(req.created_by_role_id || 0) === 2 ||
+          (currentRoleId === 2 && req.isOwnDocument);
+
+        if (shouldHideReviewButtons) {
+          actionHtml = `
+        <div class="mt-3 px-4 py-2 rounded-xl
+                    bg-yellow-50 text-yellow-700
+                    text-sm font-semibold border border-yellow-300">
+          ⏳ กำลังรอตรวจสอบ
+        </div>`;
+        } else {
+          actionHtml = `
         <div class="mt-3 flex gap-2">
           <button onclick="approveDocument(${req.document_id})"
             class="px-6 py-2 bg-teal-500 hover:bg-teal-600
@@ -531,6 +581,7 @@ if (!isset($_SESSION['user_id'])) {
             ตรวจสอบแล้ว: ไม่ผ่าน
           </button>
         </div>`;
+        }
       } else if (req.status === "done") {
         actionHtml = `
         <div class="mt-3 px-4 py-2 rounded-xl
@@ -702,6 +753,10 @@ tabEdit.onclick = () => {
           "consent"
         ],
         url: "../form_Memo/form_consent_research_presentation.php?id="
+      },
+      {
+        keywords: ["FREE_DOCUMENT", "free_document", "form_memo_free_document", "บันทึกข้อความทั่วไป"],
+        url: "../form_Memo/form_memo_free_document.php?id="
       },
       {
         keywords: ["นำเสนอผลงานวิจัย"],

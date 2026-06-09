@@ -424,7 +424,23 @@ function thai_digits_to_arabic($text) {
 }
 
 function thai_time_to_html_time($text) {
-    $text = thai_digits_to_arabic($text);
+    $text = trim(thai_digits_to_arabic($text));
+
+    if (preg_match('/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i', $text, $m)) {
+        $hour = (int)$m[1];
+        $minute = $m[2];
+        $period = strtoupper($m[3]);
+
+        if ($period === 'PM' && $hour < 12) {
+            $hour += 12;
+        }
+        if ($period === 'AM' && $hour === 12) {
+            $hour = 0;
+        }
+
+        return str_pad((string)$hour, 2, '0', STR_PAD_LEFT) . ':' . $minute;
+    }
+
     if (preg_match('/(\d{1,2})[.:](\d{2})/', $text, $m)) {
         return str_pad($m[1], 2, '0', STR_PAD_LEFT) . ':' . $m[2];
     }
@@ -1126,7 +1142,7 @@ if ($studyTeacherCount < count($studyTeachers)) {
         </label>
 
         <div class="flex items-center gap-4">
-          <input type="time" id="timeStart" class="border rounded-md p-2 w-40" value="<?= h($studyVisitTimeHtml) ?>">
+          <input type="text" id="timeStart" class="border rounded-md p-2 w-40" value="<?= h($studyVisitTimeHtml) ?>" placeholder="เลือกเวลา">
           <input type="hidden" name="visit_time" id="visitTime" value="<?= h($studyVisitTime) ?>">
         </div>
       </div>
@@ -1289,15 +1305,42 @@ if ($studyTeacherCount < count($studyTeachers)) {
     return `${toThaiNumber(h)}.${toThaiNumber(m)}`;
   }
 
+  function normalizeThaiTimeValue(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+
+    const match12 = raw.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match12) {
+      let hour = parseInt(match12[1], 10);
+      const minute = match12[2];
+      const period = match12[3].toUpperCase();
+
+      if (period === "PM" && hour < 12) hour += 12;
+      if (period === "AM" && hour === 12) hour = 0;
+
+      return String(hour).padStart(2, "0") + ":" + minute;
+    }
+
+    const match24 = raw.match(/^(\d{1,2})[.:](\d{2})/);
+    if (match24) {
+      return String(parseInt(match24[1], 10)).padStart(2, "0") + ":" + match24[2];
+    }
+
+    return raw;
+  }
+
+  if (timeStart) timeStart.value = normalizeThaiTimeValue(timeStart.value);
+
   function updateVisitTime() {
     if (!timeStart.value) {
       visitTime.value = "";
       return;
     }
 
-    visitTime.value = `${formatTimeThai(timeStart.value)} น.`;
+    visitTime.value = normalizeThaiTimeValue(timeStart.value);
   }
   timeStart?.addEventListener("change", updateVisitTime);
+  timeStart?.addEventListener("input", updateVisitTime);
 
   const monthsTH = [
     "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน",
@@ -1433,6 +1476,17 @@ if ($studyTeacherCount < count($studyTeachers)) {
         visitStartPicker?.open();
       });
     }
+
+    if (timeStart) {
+      flatpickr("#timeStart", {
+        enableTime: true,
+        noCalendar: true,
+        dateFormat: "H:i",
+        time_24hr: true,
+        allowInput: false,
+        disableMobile: true
+      });
+    }
   }
 
   function rebuildTeacherInputs() {
@@ -1522,6 +1576,11 @@ if ($studyTeacherCount < count($studyTeachers)) {
   }
   if (timeStart && timeStart.value && !visitTime.value) {
     updateVisitTime();
+  }
+
+  const memoStudyVisitFormForTime = document.getElementById("memoForm");
+  if (memoStudyVisitFormForTime) {
+    memoStudyVisitFormForTime.addEventListener("submit", updateVisitTime);
   }
 
   function getSpellBoxByField(el) {

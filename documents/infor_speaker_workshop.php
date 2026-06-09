@@ -1680,6 +1680,13 @@ if (!empty($document['header_text']) && preg_match('/โทร\.?\s*([^\s]+)/u',
     const SPELL_TIMEOUT_MS = 60000;
     const SPELL_CHUNK_LIMIT = 350;
 
+    const SPELL_API_BASE_URL =
+      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+        ? "http://127.0.0.1:8001"
+        : "https://checkspell-api.onrender.com";
+
+    const SPELL_CHECK_API_URL = `${SPELL_API_BASE_URL}/api/spell-check`;
+
     function splitTextForSpellCheck(text, limit = SPELL_CHUNK_LIMIT) {
       const clean = String(text || "").trim();
       if (!clean) return [];
@@ -1785,22 +1792,7 @@ if (!empty($document['header_text']) && preg_match('/โทร\.?\s*([^\s]+)/u',
       const timeoutId = setTimeout(() => controller.abort(), SPELL_TIMEOUT_MS);
 
       try {
-        const response = await fetch(SPELL_CHECK_API_URL, {const SPELL_TIMEOUT_MS = 60000;
-const SPELL_CHUNK_LIMIT = 350;
-
-/*
-  Spell Check API URL
-  - ถ้ารันระบบบนเครื่องตัวเองผ่าน localhost / 127.0.0.1
-    จะเรียก API ที่ http://127.0.0.1:8001
-  - ถ้ารันบนเว็บจริง
-    จะเรียก API ที่ Render
-*/
-const SPELL_API_BASE_URL =
-  (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
-    ? "http://127.0.0.1:8001"
-    : "https://checkspell-api.onrender.com";
-
-const SPELL_CHECK_API_URL = `${SPELL_API_BASE_URL}/api/spell-check`;
+        const response = await fetch(SPELL_CHECK_API_URL, {
           method: "POST",
           headers: {
             "Content-Type": "application/json"

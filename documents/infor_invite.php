@@ -992,11 +992,11 @@ $formAction = $isEdit ? '/Pro_letter/documents/update_memo.php' : '/Pro_letter/d
             เวลา :
           </label>
 
-          <input type="time" id="timeStart" class="border rounded-md p-2 w-40" value="<?= h($timeStartValue) ?>">
+          <input type="text" id="timeStart" class="border rounded-md p-2 w-40" value="<?= h($timeStartValue) ?>" placeholder="เลือกเวลา">
 
           <span>ถึง</span>
 
-          <input type="time" id="timeEnd" class="border rounded-md p-2 w-40" value="<?= h($timeEndValue) ?>">
+          <input type="text" id="timeEnd" class="border rounded-md p-2 w-40" value="<?= h($timeEndValue) ?>" placeholder="เลือกเวลา">
 
           <input type="hidden" name="event_time" id="eventTime" value="<?= h($eventTimeValue) ?>">
         </div>
@@ -1410,6 +1410,20 @@ $formAction = $isEdit ? '/Pro_letter/documents/update_memo.php' : '/Pro_letter/d
   const SPELL_TIMEOUT_MS = 60000;
   const SPELL_CHUNK_LIMIT = 350;
 
+  /*
+    Spell Check API URL
+    - ถ้ารันระบบบนเครื่องตัวเองผ่าน localhost / 127.0.0.1
+      จะเรียก API ที่ http://127.0.0.1:8001
+    - ถ้ารันบนเว็บจริง
+      จะเรียก API ที่ Render
+  */
+  const SPELL_API_BASE_URL =
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") ?
+    "http://127.0.0.1:8001" :
+    "https://checkspell-api.onrender.com";
+
+  const SPELL_CHECK_API_URL = `${SPELL_API_BASE_URL}/api/spell-check`;
+
   function splitTextForSpellCheck(text, limit = SPELL_CHUNK_LIMIT) {
     const clean = String(text || "").trim();
     if (!clean) return [];
@@ -1516,21 +1530,6 @@ $formAction = $isEdit ? '/Pro_letter/documents/update_memo.php' : '/Pro_letter/d
 
     try {
       const response = await fetch(SPELL_CHECK_API_URL, {
-        const SPELL_TIMEOUT_MS = 60000;
-        const SPELL_CHUNK_LIMIT = 350;
-
-        /*
-          Spell Check API URL
-          - ถ้ารันระบบบนเครื่องตัวเองผ่าน localhost / 127.0.0.1
-            จะเรียก API ที่ http://127.0.0.1:8001
-          - ถ้ารันบนเว็บจริง
-            จะเรียก API ที่ Render
-        */
-        const SPELL_API_BASE_URL =
-          (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") ?
-          "http://127.0.0.1:8001" : "https://checkspell-api.onrender.com";
-
-        const SPELL_CHECK_API_URL = `${SPELL_API_BASE_URL}/api/spell-check`;
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -2265,6 +2264,53 @@ $formAction = $isEdit ? '/Pro_letter/documents/update_memo.php' : '/Pro_letter/d
   const timeStart = document.getElementById("timeStart");
   const timeEnd = document.getElementById("timeEnd");
   const eventTime = document.getElementById("eventTime");
+
+  function normalizeThaiTimeValue(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+
+    const match12 = raw.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match12) {
+      let hour = parseInt(match12[1], 10);
+      const minute = match12[2];
+      const period = match12[3].toUpperCase();
+
+      if (period === "PM" && hour < 12) hour += 12;
+      if (period === "AM" && hour === 12) hour = 0;
+
+      return String(hour).padStart(2, "0") + ":" + minute;
+    }
+
+    const match24 = raw.match(/^(\d{1,2}):(\d{2})/);
+    if (match24) {
+      return String(parseInt(match24[1], 10)).padStart(2, "0") + ":" + match24[2];
+    }
+
+    return raw;
+  }
+
+  if (timeStart) timeStart.value = normalizeThaiTimeValue(timeStart.value);
+  if (timeEnd) timeEnd.value = normalizeThaiTimeValue(timeEnd.value);
+
+  if (typeof flatpickr !== "undefined") {
+    flatpickr("#timeStart", {
+      enableTime: true,
+      noCalendar: true,
+      dateFormat: "H:i",
+      time_24hr: true,
+      allowInput: false,
+      disableMobile: true
+    });
+
+    flatpickr("#timeEnd", {
+      enableTime: true,
+      noCalendar: true,
+      dateFormat: "H:i",
+      time_24hr: true,
+      allowInput: false,
+      disableMobile: true
+    });
+  }
 
   function updateEventTime() {
     if (!eventTime) return;

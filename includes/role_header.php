@@ -136,6 +136,12 @@ if (function_exists('getPDO')) {
       </div>
     </a>
 
+    <a href="/Pro_letter/documents/form_Memo.php">
+      <div class="px-4 py-2 rounded-[11px] font-bold transition <?= nav_active_class('form_Memo.php') ?>">
+        สร้างแบบฟอร์มบันทึกข้อความ
+      </div>
+    </a>
+
     <?php if (function_exists('renderAdminExtraMenus') && in_array(3, $permissions, true)): ?>
     <?php renderAdminExtraMenus(); ?>
     <?php endif; ?>

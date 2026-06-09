@@ -171,6 +171,18 @@ try {
     || isset($_POST['student_list_json'])
   );
 
+  $isFreeDocument = (
+    $purpose === 'free_document'
+    || $redirectTo === 'form_memo_free_document.php'
+    || $targetForm === 'form_memo_free_document.php'
+    || ($_POST['form_type'] ?? '') === 'free_document'
+    || ($_POST['document_type'] ?? '') === 'infor_free_document'
+  );
+
+  if ($isFreeDocument) {
+    $purpose = 'free_document';
+  }
+
   $isAcademicPresentation = (
     $purpose === 'academic'
     || $redirectTo === 'form_memo_academic_1.php'
@@ -396,6 +408,21 @@ $researchDataDetail     = trim($_POST['data_detail'] ?? '');
 $researchDataAmount     = trim($_POST['data_amount'] ?? '');
 $researchContactIndex   = isset($_POST['student_contact_index']) ? (int)$_POST['student_contact_index'] : 0;
 
+$freeSubject = trim($_POST['subject'] ?? $_POST['free_subject'] ?? '');
+$freeToPerson = trim($_POST['to_person'] ?? $_POST['free_to_person'] ?? '');
+$freeDepartmentPhone = trim($_POST['department_phone'] ?? $_POST['free_department_phone'] ?? '');
+$freeDepartmentPhone = strtr($freeDepartmentPhone, [
+  '๐' => '0', '๑' => '1', '๒' => '2', '๓' => '3', '๔' => '4',
+  '๕' => '5', '๖' => '6', '๗' => '7', '๘' => '8', '๙' => '9',
+]);
+$freeDepartmentPhone = preg_replace('/^โทร\.?\s*/u', '', $freeDepartmentPhone);
+$freeDepartmentPhone = preg_replace('/\s+/u', ' ', $freeDepartmentPhone);
+$freeParagraph1 = trim($_POST['free_paragraph_1'] ?? $_POST['paragraph_1'] ?? '');
+$freeParagraph2 = trim($_POST['free_paragraph_2'] ?? $_POST['paragraph_2'] ?? '');
+$freeParagraph3 = trim($_POST['free_paragraph_3'] ?? $_POST['paragraph_3'] ?? '');
+$freeSignerName = trim($_POST['free_signer_name'] ?? $_POST['signer_name'] ?? '');
+$freeSignerPosition = trim($_POST['free_signer_position'] ?? $_POST['signer_position'] ?? '');
+
 $studentNamesRaw  = $_POST['student_name'] ?? [];
 $studentIdsRaw    = $_POST['student_id'] ?? [];
 $studentPhonesRaw = $_POST['student_phone'] ?? [];
@@ -576,7 +603,25 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
   // ตรวจขั้นต่ำ
   $errors = [];
 
-  if ($isCoopEvaluation) {
+  if ($isFreeDocument) {
+    // ตรวจเฉพาะช่องที่มีจริงในฟอร์ม infor_free_document.php เท่านั้น
+    if (!$hideDocDateOnDocument && $docDate === '') {
+      $errors['doc_date'] = 'required';
+    }
+    if ($freeSubject === '') {
+      $errors['subject'] = 'required';
+    }
+    if ($freeToPerson === '') {
+      $errors['to_person'] = 'required';
+    }
+    if ($freeDepartmentPhone === '') {
+      $errors['department_phone'] = 'required';
+    }
+    if ($freeParagraph1 === '') {
+      $errors['free_paragraph_1'] = 'required';
+    }
+
+  } elseif ($isCoopEvaluation) {
     if ($docDate === '') {
       $errors['doc_date'] = 'required';
     }
@@ -804,7 +849,9 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
   }
 
  if (!empty($errors)) {
-    if ($isCoopEvaluation) {
+    if ($isFreeDocument) {
+        header('Location: /Pro_letter/documents/infor_free_document.php?id=' . $documentId . '&edit=1&err=validate');
+    } elseif ($isCoopEvaluation) {
         header('Location: /Pro_letter/documents/infor_coop_evaluation.php?id=' . $documentId . '&edit=1&err=validate');
     } elseif ($isProjectActivity) {
         header('Location: /Pro_letter/documents/infor_project_activity.php?id=' . $documentId . '&edit=1&err=validate');
@@ -839,7 +886,10 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
   $pdo->beginTransaction();
 
 
-  if ($isCoopEvaluation) {
+  if ($isFreeDocument) {
+    $joinType = 'บันทึกข้อความทั่วไป';
+    $subject = $freeSubject !== '' ? $freeSubject : 'บันทึกข้อความทั่วไป';
+  } elseif ($isCoopEvaluation) {
     $joinType = 'ขอประเมินสถานประกอบการสหกิจศึกษา';
     $subject = $coopSubject !== '' ? $coopSubject : 'ขอความอนุเคราะห์ประเมินผลนักศึกษาสหกิจศึกษา';
   } elseif ($isProjectActivity) {
@@ -914,7 +964,44 @@ $up->execute([
   // ค่า field อื่น ๆ
 $valuesByKey = [];
 
-if ($isCoopEvaluation) {
+if ($isFreeDocument) {
+    $values = [
+        1  => $docDateForDisplay,
+        4  => $joinType,
+        10 => $faculty,
+        11 => $department,
+        14 => $freeSubject,
+        26 => $freeToPerson,
+    ];
+
+    $valuesByKey = [
+        'free_doc_date'          => $docDateForDisplay,
+        'free_subject'           => $freeSubject,
+        'free_to_person'         => $freeToPerson,
+        'free_faculty'           => $faculty,
+        'free_department'        => $department,
+        'free_department_phone'  => $freeDepartmentPhone,
+        'free_paragraph_1'       => $freeParagraph1,
+        'free_paragraph_2'       => $freeParagraph2,
+        'free_paragraph_3'       => $freeParagraph3,
+        'free_signer_name'       => $freeSignerName,
+        'free_signer_position'   => $freeSignerPosition,
+
+        // รองรับกรณี template_fields ใช้ key แบบไม่มี prefix
+        'doc_date'               => $docDateForDisplay,
+        'subject'                => $freeSubject,
+        'to_person'              => $freeToPerson,
+        'faculty'                => $faculty,
+        'department'             => $department,
+        'department_phone'       => $freeDepartmentPhone,
+        'paragraph_1'            => $freeParagraph1,
+        'paragraph_2'            => $freeParagraph2,
+        'paragraph_3'            => $freeParagraph3,
+        'signer_name'            => $freeSignerName,
+        'signer_position'        => $freeSignerPosition,
+    ];
+
+} elseif ($isCoopEvaluation) {
     $coopStudentsJson = json_encode($coopStudents, JSON_UNESCAPED_UNICODE);
 
     $values = [
@@ -1173,6 +1260,37 @@ if ($isCoopEvaluation) {
     $fieldIdByKey[$fieldRow['field_key']] = (int)$fieldRow['field_id'];
   }
 
+  // เพิ่มเฉพาะ field ของผู้ลงนามสำหรับ FREE_DOCUMENT กรณีใน template_fields ยังไม่มี
+  if ($isFreeDocument) {
+    $ensureFreeSignerFields = [
+      'free_signer_name' => ['ชื่อผู้ลงนาม', 100],
+      'free_signer_position' => ['ตำแหน่งผู้ลงนาม', 110],
+      'signer_name' => ['ชื่อผู้ลงนาม', 101],
+      'signer_position' => ['ตำแหน่งผู้ลงนาม', 111],
+    ];
+
+    $insertFieldStmt = $pdo->prepare("
+      INSERT INTO template_fields (template_id, field_key, field_label, field_type, is_required, sort_order)
+      VALUES (:template_id, :field_key, :field_label, 'text', 0, :sort_order)
+    ");
+
+    foreach ($ensureFreeSignerFields as $fieldKey => $fieldMeta) {
+      if (isset($fieldIdByKey[$fieldKey])) {
+        continue;
+      }
+
+      $insertFieldStmt->execute([
+        ':template_id' => $templateId,
+        ':field_key' => $fieldKey,
+        ':field_label' => $fieldMeta[0],
+        ':sort_order' => $fieldMeta[1],
+      ]);
+
+      $fieldIdByKey[$fieldKey] = (int)$pdo->lastInsertId();
+      $allowIds[$fieldIdByKey[$fieldKey]] = $fieldIdByKey[$fieldKey];
+    }
+  }
+
   $ins = $pdo->prepare("
         INSERT INTO document_values (document_id, field_id, value_text)
         VALUES (:document_id, :field_id, :value_text)
@@ -1256,12 +1374,14 @@ $redirectBack = trim($redirectBack);
 
 /* ถ้ามี referer ที่ส่งมา → กลับไปหน้าตามประเภทเอกสาร */
 if ($redirectBack !== '') {
-    if (!$noCost && !$isCoopEvaluation && !$isProjectActivity && !$isResearchData && !$isInviteMemo && !$isRoomRequest && !$isSpeakerMemo && !$isStudyVisit && !$isAcademicPresentation) {
+    if (!$noCost && !$isFreeDocument && !$isCoopEvaluation && !$isProjectActivity && !$isResearchData && !$isInviteMemo && !$isRoomRequest && !$isSpeakerMemo && !$isStudyVisit && !$isAcademicPresentation) {
         header("Location: /Pro_letter/documents/form_Calcu.php?id={$documentId}&from=update");
         exit;
     }
 
-    if ($isCoopEvaluation) {
+    if ($isFreeDocument) {
+    $redirectUrl = "/Pro_letter/form_Memo/form_memo_free_document.php?id={$documentId}";
+} elseif ($isCoopEvaluation) {
     $redirectUrl = "/Pro_letter/form_Memo/form_memo_coop_evaluation.php?id={$documentId}";
 } elseif ($isProjectActivity) {
     $redirectUrl = "/Pro_letter/form_Memo/form_memo_project_activity.php?id={$documentId}";
@@ -1289,6 +1409,11 @@ if ($redirectBack !== '') {
 
 
 /* ถ้าไม่มี referer แต่เป็นฟอร์มเฉพาะ → กลับไปหน้าเอกสารเฉพาะเลย */
+if ($isFreeDocument) {
+    header("Location: /Pro_letter/form_Memo/form_memo_free_document.php?id={$documentId}&saved=1&from=update");
+    exit;
+}
+
 if ($isCoopEvaluation) {
     header("Location: /Pro_letter/form_Memo/form_memo_coop_evaluation.php?id={$documentId}&saved=1&from=update");
     exit;
@@ -1354,7 +1479,9 @@ exit;
   if ($DEBUG_ERRORS) {
     echo 'server error: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
   } else {
-    if (!empty($isCoopEvaluation)) {
+    if (!empty($isFreeDocument)) {
+      header('Location: /Pro_letter/documents/infor_free_document.php?id=' . $documentId . '&edit=1&err=server', true, 302);
+    } elseif (!empty($isCoopEvaluation)) {
       header('Location: /Pro_letter/documents/infor_coop_evaluation.php?id=' . $documentId . '&edit=1&err=server', true, 302);
     } elseif (!empty($isProjectActivity)) {
       header('Location: /Pro_letter/documents/infor_project_activity.php?id=' . $documentId . '&edit=1&err=server', true, 302);
