@@ -129,8 +129,53 @@ $getValue = function(array $keys, $fallback = '') use ($valueMap, $valueMapById)
 };
 
 $docStatus = trim((string)($document['status'] ?? ''));
+
+$hasDocumentEditPermission = false;
+$hasAnyExplicitPermission = false;
+try {
+  $permAnyStmt = $pdo->prepare("SELECT COUNT(*) FROM user_permissions WHERE user_id = :uid");
+  $permAnyStmt->execute([':uid' => $userId]);
+  $hasAnyExplicitPermission = ((int)$permAnyStmt->fetchColumn() > 0);
+
+  $permStmt = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM user_permissions up
+    JOIN permissions p ON p.perm_id = up.perm_id
+    WHERE up.user_id = :uid
+      AND (p.perm_code = 'document.edit' OR p.perm_id = 3)
+  ");
+  $permStmt->execute([':uid' => $userId]);
+  $hasDocumentEditPermission = ((int)$permStmt->fetchColumn() > 0);
+} catch (Throwable $e) {
+  $hasDocumentEditPermission = false;
+  $hasAnyExplicitPermission = false;
+}
+
+$userEditableStatuses = ['draft', 'รอยืนยันการส่ง', 'rejected', 'รอแก้เอกสาร', 'รอแก้ไข'];
+$submittedStatuses = ['submitted', 'รอตรวจ', 'รอตรวจสอบ', 'รอการตรวจสอบ'];
 $checkedStatuses = ['ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว', 'ได้รับการตรวจสอบ', 'ได้รับการตรวจสอบแล้ว', 'ตรวจสอบแล้ว', 'approved', 'checked', 'reviewed'];
-$canEdit = !in_array($docStatus, $checkedStatuses, true);
+
+$isCheckedStatus = in_array($docStatus, $checkedStatuses, true);
+$isUserEditableStatus = in_array($docStatus, $userEditableStatuses, true);
+$isSubmittedStatus = in_array($docStatus, $submittedStatuses, true);
+$legacyOwnerCanEdit = ($isOwner && !$hasAnyExplicitPermission);
+
+$editAlertText = 'คุณไม่มีสิทธิ์ในการแก้ไขเอกสารนี้';
+if ($isCheckedStatus) {
+  $editAlertText = 'เอกสารนี้ได้รับการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
+} elseif (!$isAdmin && !$isOfficer && $isSubmittedStatus) {
+  $editAlertText = 'เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
+} elseif (!$isUserEditableStatus) {
+  $editAlertText = 'สถานะเอกสารปัจจุบันไม่อนุญาตให้แก้ไข';
+}
+
+if ($isCheckedStatus) {
+  $canEdit = false;
+} elseif ($isAdmin || $isOfficer) {
+  $canEdit = true;
+} else {
+  $canEdit = (($hasDocumentEditPermission || $legacyOwnerCanEdit) && $isUserEditableStatus);
+}
 
 $docNo = trim((string)($document['doc_no'] ?? ''));
 $docDate = $getValue(['free_doc_date', 'doc_date', 1], (string)($document['doc_date'] ?? ''));
@@ -592,7 +637,8 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
         แก้ไขเอกสาร
       </a>
       <?php else: ?>
-      <span class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block">
+      <span class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block"
+        title="<?= fd_h($editAlertText ?: 'ไม่สามารถแก้ไขเอกสารนี้ได้') ?>">
         แก้ไขเอกสาร
       </span>
       <?php endif; ?>

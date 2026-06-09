@@ -119,12 +119,14 @@ try {
 }
 
 $userEditableStatuses = ['draft', 'รอยืนยันการส่ง', 'rejected', 'รอแก้เอกสาร', 'รอแก้ไข'];
-$officerEditableStatuses = array_merge($userEditableStatuses, ['submitted', 'รอตรวจ', 'รอตรวจสอบ', 'รอการตรวจสอบ']);
+$submittedStatuses = ['submitted', 'รอตรวจ', 'รอตรวจสอบ', 'รอการตรวจสอบ'];
+$officerEditableStatuses = array_merge($userEditableStatuses, $submittedStatuses);
 $checkedStatuses = ['ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว', 'ได้รับการตรวจสอบ', 'ได้รับการตรวจสอบแล้ว', 'ตรวจสอบแล้ว', 'approved', 'checked', 'reviewed'];
 
 $isCheckedStatus = in_array($docStatus, $checkedStatuses, true);
 $isOfficerEditableStatus = in_array($docStatus, $officerEditableStatuses, true);
 $isUserEditableStatus = in_array($docStatus, $userEditableStatuses, true);
+$isSubmittedStatus = in_array($docStatus, $submittedStatuses, true);
 
 // ถ้ามีสิทธิ์รายบุคคลแล้วแต่ไม่มี document.edit ให้เป็นดูอย่างเดียว แม้เป็นเจ้าของเอกสาร
 $legacyOwnerCanEdit = ($isOwner && !$hasAnyExplicitPermission);
@@ -144,6 +146,10 @@ if (!$hasBaseEditPermission) {
   $editDisabledReason = 'checked';
   $editAlertTitle = 'เอกสารผ่านการตรวจสอบแล้ว';
   $editAlertText = 'เอกสารนี้ได้รับการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
+} elseif (!($isAdmin || $isOfficer) && $isSubmittedStatus) {
+  $editDisabledReason = 'submitted';
+  $editAlertTitle = 'เอกสารถูกส่งเข้าสู่การตรวจสอบแล้ว';
+  $editAlertText = 'เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
 } elseif (($isAdmin || $isOfficer) && !$isOfficerEditableStatus) {
   $editDisabledReason = 'locked_status';
   $editAlertTitle = 'ไม่สามารถแก้ไขเอกสารได้';

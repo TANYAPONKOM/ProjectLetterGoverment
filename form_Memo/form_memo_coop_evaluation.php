@@ -90,17 +90,57 @@ if ($roleId !== 1 && $roleId !== 2) {
 /* --------------------------------------------------
    สิทธิ์แก้ไขเอกสาร
 -------------------------------------------------- */
-$sql = "
-    SELECT COUNT(*) 
-    FROM user_permissions up
-    JOIN permissions p ON p.perm_id = up.perm_id
-    WHERE up.user_id = :uid
-    AND p.perm_code = 'document.edit'
-";
-$st = $pdo->prepare($sql);
-$st->execute([':uid' => $userId]);
+$docStatus = trim((string)($document['status'] ?? ''));
+$isOwner = ((int)($document['owner_id'] ?? 0) === $userId);
 
-$canEdit = $st->fetchColumn() > 0;
+$hasDocumentEditPermission = false;
+$hasAnyExplicitPermission = false;
+try {
+  $permAnyStmt = $pdo->prepare("SELECT COUNT(*) FROM user_permissions WHERE user_id = :uid");
+  $permAnyStmt->execute([':uid' => $userId]);
+  $hasAnyExplicitPermission = ((int)$permAnyStmt->fetchColumn() > 0);
+
+  $sql = "
+      SELECT COUNT(*)
+      FROM user_permissions up
+      JOIN permissions p ON p.perm_id = up.perm_id
+      WHERE up.user_id = :uid
+        AND (p.perm_code = 'document.edit' OR p.perm_id = 3)
+  ";
+  $st = $pdo->prepare($sql);
+  $st->execute([':uid' => $userId]);
+  $hasDocumentEditPermission = ((int)$st->fetchColumn() > 0);
+} catch (Throwable $e) {
+  $hasDocumentEditPermission = false;
+  $hasAnyExplicitPermission = false;
+}
+
+$userEditableStatuses = ['draft', 'รอยืนยันการส่ง', 'rejected', 'รอแก้เอกสาร', 'รอแก้ไข'];
+$submittedStatuses = ['submitted', 'รอตรวจ', 'รอตรวจสอบ', 'รอการตรวจสอบ'];
+$checkedStatuses = ['ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว', 'ได้รับการตรวจสอบ', 'ได้รับการตรวจสอบแล้ว', 'ตรวจสอบแล้ว', 'approved', 'checked', 'reviewed'];
+
+$isCheckedStatus = in_array($docStatus, $checkedStatuses, true);
+$isUserEditableStatus = in_array($docStatus, $userEditableStatuses, true);
+$isSubmittedStatus = in_array($docStatus, $submittedStatuses, true);
+
+$legacyOwnerCanEdit = ($isOwner && !$hasAnyExplicitPermission);
+
+$editAlertText = 'คุณไม่มีสิทธิ์ในการแก้ไขเอกสารนี้';
+if ($isCheckedStatus) {
+  $editAlertText = 'เอกสารนี้ได้รับการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
+} elseif (!$isAdmin && !$isOfficer && $isSubmittedStatus) {
+  $editAlertText = 'เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
+} elseif (!$isUserEditableStatus) {
+  $editAlertText = 'สถานะเอกสารปัจจุบันไม่อนุญาตให้แก้ไข';
+}
+
+if ($isCheckedStatus) {
+  $canEdit = false;
+} elseif ($isAdmin || $isOfficer) {
+  $canEdit = true;
+} else {
+  $canEdit = (($hasDocumentEditPermission || $legacyOwnerCanEdit) && $isUserEditableStatus);
+}
 $readonly = !$canEdit;
 
 
@@ -1359,11 +1399,16 @@ $len = max(20, $len);
         </a>
 
         <!-- USER: ปุ่มแก้ไขเอกสาร -->
-        <?php if ($canEdit || $roleId === 3 || $isAdmin || $isOfficer): ?>
+        <?php if ($canEdit): ?>
         <a href="/Pro_letter/documents/infor_coop_evaluation.php?id=<?= urlencode((string)$document['document_id']) ?>&edit=1"
           class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           แก้ไขเอกสาร
         </a>
+        <?php else: ?>
+        <span class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block"
+          title="<?= h($editAlertText ?: 'ไม่สามารถแก้ไขเอกสารนี้ได้') ?>">
+          แก้ไขเอกสาร
+        </span>
         <?php endif; ?>
 
 
