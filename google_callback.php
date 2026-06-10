@@ -294,8 +294,8 @@ try {
                 profile_completed,
                 admin_notified_at
             ) VALUES (
-                NULL,
-                NULL,
+                :email,
+                :email,
                 :fullname,
                 :email,
                 :google_sub,

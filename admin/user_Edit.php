@@ -52,6 +52,7 @@ $departments = $departmentsStmt->fetchAll(PDO::FETCH_ASSOC);
 
 $selectedFacultyId = $user['faculty_id'] ?? ($faculties[0]['faculty_id'] ?? '');
 $selectedDepartmentId = $user['department_id'] ?? '';
+$passwordValue = $user['password'] ?? ($user['Password'] ?? '');
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -129,7 +130,7 @@ $selectedDepartmentId = $user['department_id'] ?? '';
         </div>
 
         <div>
-          <label class="block font-semibold text-gray-700 mb-1">รหัสผ่าน (ใส่ถ้าต้องการเปลี่ยน)</label>
+          <label class="block font-semibold text-gray-700 mb-1">รหัสผ่าน</label>
 
           <div class="relative">
             <!-- Icon -->
@@ -141,17 +142,22 @@ $selectedDepartmentId = $user['department_id'] ?? '';
               </svg>
             </div>
 
-            <input type="password" name="password"
-              class="w-full pl-12 pr-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 <?= (($user['auth_provider'] ?? '') === 'google') ? 'bg-gray-100 cursor-not-allowed text-gray-400' : '' ?>"
-              placeholder="<?= (($user['auth_provider'] ?? '') === 'google') ? 'ไม่จำเป็นสำหรับ Google Login' : 'Password' ?>"
-              <?= (($user['auth_provider'] ?? '') === 'google') ? 'readonly' : '' ?>>
-          </div>
+            <input type="password" id="passwordInput" name="password" value="<?= h($passwordValue) ?>"
+              class="w-full pl-12 pr-12 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
+              placeholder="Password">
 
-          <?php if (($user['auth_provider'] ?? '') === 'google'): ?>
-          <p class="text-xs text-gray-500 mt-1">
-            ผู้ใช้ Google Login ไม่ต้องใช้รหัสผ่าน ระบบจะยืนยันตัวตนผ่านบัญชี Google
-          </p>
-          <?php endif; ?>
+            <button type="button" id="togglePassword"
+              class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-teal-600"
+              aria-label="ดูรหัสผ่าน">
+              <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -375,6 +381,17 @@ $selectedDepartmentId = $user['department_id'] ?? '';
   </div>
 
   <script>
+  const passwordInput = document.getElementById('passwordInput');
+  const togglePassword = document.getElementById('togglePassword');
+
+  togglePassword?.addEventListener('click', function() {
+    if (!passwordInput) return;
+
+    const isPassword = passwordInput.type === 'password';
+    passwordInput.type = isPassword ? 'text' : 'password';
+    this.setAttribute('aria-label', isPassword ? 'ซ่อนรหัสผ่าน' : 'ดูรหัสผ่าน');
+  });
+
   const positionInput = document.getElementById('positionInput');
   const positionToggle = document.getElementById('positionToggle');
   const positionDropdown = document.getElementById('positionDropdown');
