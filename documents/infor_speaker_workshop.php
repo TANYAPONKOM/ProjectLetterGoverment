@@ -295,15 +295,18 @@ if ($isEdit) {
     $stmt->execute([':id' => $documentId]);
     $document = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
-    if (!$document) {
-        header("Location: /Pro_letter/user/home.php?err=notfound");
-        exit;
-    }
+   if (!$document) {
+    header("Location: " . $homePath . "?err=notfound");
+    exit;
+}
 
-    if ((int)$document['owner_id'] !== (int)$_SESSION['user_id']) {
-        header("Location: /Pro_letter/user/home.php?err=forbidden");
-        exit;
-    }
+$isAdminOrOfficer = in_array((int)($_SESSION['role_id'] ?? 0), [1, 2], true);
+$isOwner = ((int)($document['owner_id'] ?? 0) === (int)$userId);
+
+if (!$isAdminOrOfficer && !$isOwner) {
+    header("Location: " . $homePath . "?err=forbidden");
+    exit;
+}
 
     $templateId = (int)($document['template_id'] ?? 1);
 
@@ -1681,9 +1684,9 @@ if (!empty($document['header_text']) && preg_match('/โทร\.?\s*([^\s]+)/u',
     const SPELL_CHUNK_LIMIT = 350;
 
     const SPELL_API_BASE_URL =
-      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
-        ? "http://127.0.0.1:8001"
-        : "https://checkspell-api.onrender.com";
+      (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") ?
+      "http://127.0.0.1:8001" :
+      "https://checkspell-api.onrender.com";
 
     const SPELL_CHECK_API_URL = `${SPELL_API_BASE_URL}/api/spell-check`;
 

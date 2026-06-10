@@ -429,16 +429,82 @@ if ($__editOrgDocId > 0) {
 }
 unset($__editOrgDocId, $__editOrgIdVar, $__editOrg, $__editOrgStmt, $__editOrgPdo, $__savedFacultyName, $__savedDepartmentName, $__fallbackStmt, $__fallbackOrg, $__fallbackSql, $__fallbackParams);
 
-$toPersonValue = $formData[26] ?? '';
-$docDateValue = $formData[1] ?? ($docRow['doc_date'] ?? '');
-$projectTitleValue = $formData[5] ?? '';
-$inviteStatementValue = $formDataByKey['invite_statement'] ?? '';
-$objectiveValue = $formData[25] ?? '';
-$eventDateValue = $formData[6] ?? ($formData[16] ?? '');
-$locationValue = $formData[7] ?? '';
-$facultyValue = $formData[10] ?? $defaultFaculty;
-$departmentValue = $formData[11] ?? $defaultDepartment;
-$eventTimeValue = $formDataByKey['event_time'] ?? '';
+// อ่านค่าเดิมตอนแก้ไขให้รองรับทั้ง field_key และ field_id เดิม
+$readInviteValue = function (array $keys = [], array $ids = [], string $default = '') use ($formDataByKey, $formData, $docRow) {
+    foreach ($keys as $key) {
+        if (array_key_exists($key, $formDataByKey) && trim((string)$formDataByKey[$key]) !== '') {
+            return $formDataByKey[$key];
+        }
+    }
+
+    foreach ($ids as $id) {
+        if (array_key_exists($id, $formData) && trim((string)$formData[$id]) !== '') {
+            return $formData[$id];
+        }
+    }
+
+    return $default;
+};
+
+$toPersonValue = $readInviteValue(
+    ['to_person'],
+    [26],
+    ''
+);
+
+$docDateValue = $readInviteValue(
+    ['doc_date'],
+    [1],
+    $docRow['doc_date'] ?? ''
+);
+
+$projectTitleValue = $readInviteValue(
+    ['thesis_title', 'project_title'],
+    [5],
+    ''
+);
+
+$inviteStatementValue = $readInviteValue(
+    ['invite_statement'],
+    [],
+    ''
+);
+
+$objectiveValue = $readInviteValue(
+    ['objective'],
+    [25],
+    ''
+);
+
+$eventDateValue = $readInviteValue(
+    ['intern_period', 'event_date'],
+    [6, 16],
+    ''
+);
+
+$locationValue = $readInviteValue(
+    ['location_input'],
+    [7],
+    ''
+);
+
+$facultyValue = $readInviteValue(
+    ['faculty'],
+    [10],
+    $defaultFaculty
+);
+
+$departmentValue = $readInviteValue(
+    ['department'],
+    [11],
+    $defaultDepartment
+);
+
+$eventTimeValue = $readInviteValue(
+    ['event_time'],
+    [],
+    ''
+);
 
 $timeStartValue = '';
 $timeEndValue = '';

@@ -6,11 +6,45 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-$permissions = array_map('intval', $_SESSION['permissions'] ?? []);
-$isAdmin = ((int)($_SESSION['role_id'] ?? 0) === 1);
-$canManageUsers = in_array(3, $permissions, true);
+require_once __DIR__ . '/../functions.php';
+$pdo = getPDO();
 
-if (!$isAdmin && !$canManageUsers) {
+function currentUserCanManageUsers(PDO $pdo): bool
+{
+    $currentUserId = (int)($_SESSION['user_id'] ?? 0);
+
+    if ($currentUserId <= 0) {
+        return false;
+    }
+
+    $sessionPermissions = $_SESSION['permissions'] ?? [];
+
+    if (is_string($sessionPermissions)) {
+        $sessionPermissions = array_filter(array_map('trim', explode(',', $sessionPermissions)));
+    }
+
+    if (!is_array($sessionPermissions)) {
+        $sessionPermissions = [];
+    }
+
+    $sessionPermissions = array_map('intval', $sessionPermissions);
+
+    if (in_array(3, $sessionPermissions, true)) {
+        return true;
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*)
+        FROM user_permissions
+        WHERE user_id = ?
+          AND perm_id = 3
+    ");
+    $stmt->execute([$currentUserId]);
+
+    return ((int)$stmt->fetchColumn() > 0);
+}
+
+if (!currentUserCanManageUsers($pdo)) {
     $roleId = (int)($_SESSION['role_id'] ?? 0);
 
     if ($roleId === 2) {
@@ -22,9 +56,6 @@ if (!$isAdmin && !$canManageUsers) {
     }
     exit;
 }
-
-require_once __DIR__ . '/../functions.php';
-$pdo = getPDO();
 
 if (!function_exists('h')) {
     function h($v) {
@@ -230,7 +261,29 @@ $defaultFacultyId = $faculties[0]['faculty_id'] ?? '';
           </select>
         </div>
       </div>
+      <!-- Permissions -->
+      <div>
+        <label class="block font-semibold text-gray-700 mb-2">สิทธิ์ในการเข้าถึง</label>
+        <div class="flex space-x-6 flex-wrap gap-y-3">
+          <label class="flex items-center space-x-2">
+            <input type="checkbox" name="permissions[]" value="1"
+              class="w-5 h-5 text-teal-600 border-2 border-teal-500 rounded focus:ring-teal-400">
+            <span>แก้ไขได้</span>
+          </label>
 
+          <label class="flex items-center space-x-2">
+            <input type="checkbox" name="permissions[]" value="2"
+              class="w-5 h-5 text-teal-600 border-2 border-teal-500 rounded focus:ring-teal-400">
+            <span>ดูได้</span>
+          </label>
+
+          <label class="flex items-center space-x-2">
+            <input type="checkbox" name="permissions[]" value="3"
+              class="w-5 h-5 text-teal-600 border-2 border-teal-500 rounded focus:ring-teal-400">
+            <span>กำหนดสิทธิ์ได้</span>
+          </label>
+        </div>
+      </div>
       <!-- Status -->
       <div>
         <label class="block font-semibold text-gray-700 mb-2">สถานะการใช้งาน</label>

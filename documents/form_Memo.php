@@ -886,7 +886,7 @@ if ($roleIdForHome === 1) {
           <div class="flex items-center gap-3">
             <label class="lbl text-gray-800 whitespace-nowrap" for="position">ตำแหน่ง :</label>
             <input type="text" name="position" class="flex-1 border rounded-md p-2" id="position"
-              value="<?= h($formData[5] ?? ($_SESSION['position'] ?? 'อาจารย์ประจำภาควิชาเทคโนโลยีสารสนเทศ')) ?>">
+              value="<?= h($formData[3] ?? ($_SESSION['position'] ?? 'อาจารย์ประจำภาควิชาเทคโนโลยีสารสนเทศ')) ?>">
           </div>
           <div class="mb-4">
             <div class="flex items-start gap-2">

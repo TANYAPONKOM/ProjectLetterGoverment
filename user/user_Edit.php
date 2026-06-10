@@ -1,28 +1,6 @@
 <?php
 session_start();
 
-if (!isset($_SESSION['user_id'])) {
-    header('Location: ../login.html');
-    exit;
-}
-
-$permissions = array_map('intval', $_SESSION['permissions'] ?? []);
-$isAdmin = ((int)($_SESSION['role_id'] ?? 0) === 1);
-$canManageUsers = in_array(3, $permissions, true);
-
-if (!$isAdmin && !$canManageUsers) {
-    $roleId = (int)($_SESSION['role_id'] ?? 0);
-
-    if ($roleId === 2) {
-        header('Location: ../officer/home.php');
-    } elseif ($roleId === 3) {
-        header('Location: ../user/home.php');
-    } else {
-        header('Location: ../login.html');
-    }
-    exit;
-}
-
 require_once __DIR__ . '/../functions.php';
 $pdo = getPDO();
 
@@ -30,6 +8,57 @@ if (!function_exists('h')) {
     function h($v) {
         return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
     }
+}
+
+/*
+|--------------------------------------------------------------------------
+| ตรวจสอบสิทธิ์กำหนดสิทธิ์ผู้ใช้งาน perm_id = 3
+|--------------------------------------------------------------------------
+*/
+function currentUserCanManageUsers(PDO $pdo): bool
+{
+    if (empty($_SESSION['user_id'])) {
+        return false;
+    }
+
+    $sessionPerms = $_SESSION['permissions'] ?? [];
+
+    if (is_string($sessionPerms)) {
+        $sessionPerms = array_filter(array_map('trim', explode(',', $sessionPerms)));
+    }
+
+    if (!is_array($sessionPerms)) {
+        $sessionPerms = [];
+    }
+
+    if (in_array(3, array_map('intval', $sessionPerms), true)) {
+        return true;
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*)
+        FROM user_permissions
+        WHERE user_id = ?
+          AND perm_id = 3
+    ");
+    $stmt->execute([(int)$_SESSION['user_id']]);
+
+    return (int)$stmt->fetchColumn() > 0;
+}
+
+/*
+|--------------------------------------------------------------------------
+| ต้อง login และมีสิทธิ์กำหนดสิทธิ์ได้เท่านั้น
+|--------------------------------------------------------------------------
+*/
+if (empty($_SESSION['user_id'])) {
+    header('Location: ../login.html');
+    exit;
+}
+
+if (!currentUserCanManageUsers($pdo)) {
+    header('Location: user_Managerment.php?error=permission');
+    exit;
 }
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -69,6 +98,7 @@ $departments = $departmentsStmt->fetchAll(PDO::FETCH_ASSOC);
 
 $selectedFacultyId = $user['faculty_id'] ?? ($faculties[0]['faculty_id'] ?? '');
 $selectedDepartmentId = $user['department_id'] ?? '';
+$passwordValue = ''; // เว้นว่างไว้ เพื่อไม่ให้ hash เดิมถูกส่งไปบันทึกซ้ำ
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -115,7 +145,16 @@ $selectedDepartmentId = $user['department_id'] ?? '';
     <form action="user_process.php" method="POST" class="p-8 space-y-6">
       <input type="hidden" name="action" value="edit">
       <input type="hidden" name="user_id" value="<?= h($user['user_id']) ?>">
-
+      <input type="hidden" name="auth_provider" value="<?= h($user['auth_provider'] ?? 'local') ?>">
+      <?php if (($user['auth_provider'] ?? '') === 'google' && (int)($user['profile_completed'] ?? 0) === 0): ?>
+      <div class="bg-teal-50 border border-teal-200 text-teal-800 rounded-xl p-4">
+        <div class="font-bold mb-1">ผู้ใช้รายนี้เข้าสู่ระบบด้วย Google และรอผู้ดูแลระบบเพิ่มข้อมูล</div>
+        <div class="text-sm leading-relaxed">
+          กรุณาตรวจสอบและเพิ่มข้อมูลสิทธิ์การใช้งาน ตำแหน่ง และหน่วยงานให้ครบถ้วน
+          เมื่อบันทึกข้อมูลครบแล้ว ระบบจะปลดล็อกให้ผู้ใช้สามารถสร้างเอกสารได้
+        </div>
+      </div>
+      <?php endif; ?>
       <!-- Username + Password -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -130,25 +169,40 @@ $selectedDepartmentId = $user['department_id'] ?? '';
                            11-6 0 3 3 0 016 0z" />
               </svg>
             </span>
-            <input type="text" name="username" value="<?= h($user['username']) ?>"
-              class="w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
-              placeholder="Username" required>
+            <input type="text" name="username" value="<?= h($user['username'] ?: $user['email']) ?>"
+              class="w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 <?= (($user['auth_provider'] ?? '') === 'google') ? 'bg-gray-100 cursor-not-allowed' : '' ?>"
+              placeholder="Username" <?= (($user['auth_provider'] ?? '') === 'google') ? 'readonly' : 'required' ?>>
           </div>
         </div>
 
         <div>
-          <label class="block font-semibold text-gray-700 mb-1">รหัสผ่าน (ใส่ถ้าต้องการเปลี่ยน)</label>
+          <label class="block font-semibold text-gray-700 mb-1">รหัสผ่าน</label>
+
           <div class="relative">
-            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0-1.105.895-2 2-2s2 
-                           .895 2 2v1h-4v-1zM6 11V9a6 
-                           6 0 1112 0v2m-6 4h.01" />
+            <!-- Icon -->
+            <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
-            </span>
-            <input type="password" name="password"
-              class="w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
-              placeholder="Password">
+            </div>
+
+            <input type="password" id="passwordInput" name="password" value="<?= h($passwordValue) ?>"
+              class="w-full pl-12 pr-12 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
+              placeholder="เว้นว่างไว้หากไม่ต้องการเปลี่ยนรหัสผ่าน">
+
+            <button type="button" id="togglePassword"
+              class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-teal-600"
+              aria-label="ดูรหัสผ่าน">
+              <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -344,6 +398,18 @@ $selectedDepartmentId = $user['department_id'] ?? '';
           </label>
         </div>
       </div>
+      <div>
+        <label class="block font-semibold text-gray-700 mb-1">สถานะข้อมูลผู้ใช้</label>
+        <?php if ((int)($user['profile_completed'] ?? 0) === 1): ?>
+        <div class="px-4 py-3 rounded-lg bg-green-50 border border-green-200 text-green-700 font-semibold">
+          ข้อมูลครบแล้ว สามารถใช้งานสร้างเอกสารได้
+        </div>
+        <?php else: ?>
+        <div class="px-4 py-3 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-700 font-semibold">
+          รอผู้ดูแลระบบเพิ่มข้อมูลให้ครบก่อนใช้งานสร้างเอกสาร
+        </div>
+        <?php endif; ?>
+      </div>
 
       <!-- Buttons -->
       <div class="flex justify-end space-x-3 pt-4">
@@ -361,6 +427,17 @@ $selectedDepartmentId = $user['department_id'] ?? '';
   </div>
 
   <script>
+  const passwordInput = document.getElementById('passwordInput');
+  const togglePassword = document.getElementById('togglePassword');
+
+  togglePassword?.addEventListener('click', function() {
+    if (!passwordInput) return;
+
+    const isPassword = passwordInput.type === 'password';
+    passwordInput.type = isPassword ? 'text' : 'password';
+    this.setAttribute('aria-label', isPassword ? 'ซ่อนรหัสผ่าน' : 'ดูรหัสผ่าน');
+  });
+
   const positionInput = document.getElementById('positionInput');
   const positionToggle = document.getElementById('positionToggle');
   const positionDropdown = document.getElementById('positionDropdown');
@@ -449,6 +526,18 @@ $selectedDepartmentId = $user['department_id'] ?? '';
   facultySelect.addEventListener('change', () => filterDepartmentsByFaculty(false));
   filterDepartmentsByFaculty(true);
   </script>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const userForm = document.querySelector('form[action="user_process.php"]');
+    if (userForm) {
+      userForm.addEventListener("submit", function() {
+        sessionStorage.setItem("user_success_popup", "edit");
+      });
+    }
+  });
+  </script>
+
 </body>
 
 </html>

@@ -423,24 +423,102 @@ if ($__editOrgDocId > 0) {
 unset($__editOrgDocId, $__editOrgIdVar, $__editOrg, $__editOrgStmt, $__editOrgPdo, $__savedFacultyName, $__savedDepartmentName, $__fallbackStmt, $__fallbackOrg, $__fallbackSql, $__fallbackParams);
 
 // ค่าเริ่มต้นสำหรับฟอร์มนี้
-$projectDocDate = $_POST['doc_date'] ?? ($formDataById[1] ?? '');
+// รองรับทั้งข้อมูลที่บันทึกแบบ field_key และข้อมูลเดิมที่บันทึกแบบ field_id
+$readCoopValue = function (array $keys = [], array $ids = [], string $default = '') use ($formDataByKey, $formDataById) {
+    foreach ($keys as $key) {
+        if (array_key_exists($key, $formDataByKey) && trim((string)$formDataByKey[$key]) !== '') {
+            return $formDataByKey[$key];
+        }
+    }
+
+    foreach ($ids as $id) {
+        if (array_key_exists($id, $formDataById) && trim((string)$formDataById[$id]) !== '') {
+            return $formDataById[$id];
+        }
+    }
+
+    return $default;
+};
+
+$projectDocDate = $_POST['doc_date'] ?? $readCoopValue(['doc_date'], [1], '');
 $projectDocDate = trim((string)$projectDocDate);
-$hasSavedDocDateField = array_key_exists(1, $formDataById);
+
+$hasSavedDocDateField = array_key_exists('doc_date', $formDataByKey) || array_key_exists(1, $formDataById);
 $docDateOption = ($_POST['doc_date_option'] ?? '') === 'no_date'
     ? 'no_date'
     : (($hasSavedDocDateField && $projectDocDate === '') ? 'no_date' : 'use_date');
-$coopSubject = $_POST['subject'] ?? ($formDataByKey['coop_subject'] ?? ($formDataById[14] ?? 'ขอความอนุเคราะห์ประเมินผลนักศึกษาสหกิจศึกษา'));
-$coopToPerson = $_POST['to_person'] ?? ($formDataByKey['coop_to_person'] ?? ($formDataById[26] ?? ''));
-$coopOrganizationName = $_POST['organization_name'] ?? ($formDataByKey['coop_organization_name'] ?? '');
-$coopStudentCount = $_POST['student_count'] ?? ($formDataByKey['coop_student_count'] ?? '');
-$coopStudentsJson = $_POST['student_list_json'] ?? ($formDataByKey['coop_students_json'] ?? '[]');
-$coopStudentListText = $_POST['student_list_text'] ?? ($formDataByKey['coop_student_list_text'] ?? '');
-$coopPeriod = $_POST['coop_period'] ?? ($formDataByKey['coop_period'] ?? '');
-$coopStartDateValue = $_POST['coop_start_date'] ?? ($formDataByKey['coop_start_date'] ?? '');
-$coopEndDateValue = $_POST['coop_end_date'] ?? ($formDataByKey['coop_end_date'] ?? '');
-$coopAdvisorName = $_POST['advisor_name'] ?? ($formDataByKey['coop_advisor_name'] ?? '');
-$projectReceiverName = $_POST['receiver_name'] ?? ($formDataByKey['coop_receiver_name'] ?? '');
-$projectReceiverPosition = $_POST['receiver_position'] ?? ($formDataByKey['coop_receiver_position'] ?? '');
+
+$coopSubject = $_POST['subject'] ?? $readCoopValue(
+    ['coop_subject', 'subject'],
+    [70, 14],
+    'ขอความอนุเคราะห์ประเมินผลนักศึกษาสหกิจศึกษา'
+);
+
+$coopToPerson = $_POST['to_person'] ?? $readCoopValue(
+    ['coop_to_person', 'to_person'],
+    [71, 26],
+    ''
+);
+
+$coopOrganizationName = $_POST['organization_name'] ?? $readCoopValue(
+    ['coop_organization_name', 'organization_name'],
+    [72],
+    ''
+);
+
+$coopStudentCount = $_POST['student_count'] ?? $readCoopValue(
+    ['coop_student_count', 'student_count'],
+    [73],
+    ''
+);
+
+$coopStudentsJson = $_POST['student_list_json'] ?? $readCoopValue(
+    ['coop_students_json', 'student_list_json'],
+    [74],
+    '[]'
+);
+
+$coopStudentListText = $_POST['student_list_text'] ?? $readCoopValue(
+    ['coop_student_list_text', 'student_list_text'],
+    [75],
+    ''
+);
+
+$coopPeriod = $_POST['coop_period'] ?? $readCoopValue(
+    ['coop_period'],
+    [76],
+    ''
+);
+
+$coopStartDateValue = $_POST['coop_start_date'] ?? $readCoopValue(
+    ['coop_start_date'],
+    [77],
+    ''
+);
+
+$coopEndDateValue = $_POST['coop_end_date'] ?? $readCoopValue(
+    ['coop_end_date'],
+    [78],
+    ''
+);
+
+$coopAdvisorName = $_POST['advisor_name'] ?? $readCoopValue(
+    ['coop_advisor_name', 'advisor_name'],
+    [79],
+    ''
+);
+
+$projectReceiverName = $_POST['receiver_name'] ?? $readCoopValue(
+    ['coop_receiver_name', 'receiver_name'],
+    [82],
+    ''
+);
+
+$projectReceiverPosition = $_POST['receiver_position'] ?? $readCoopValue(
+    ['coop_receiver_position', 'receiver_position'],
+    [83],
+    ''
+);
 
 $departmentPhoneValue = $_POST['department_phone'] ?? '';
 if ($departmentPhoneValue === '' && $isEdit && !empty($doc['header_text']) && preg_match('/โทร\.\s*([^\s]+)/u', (string)$doc['header_text'], $phoneMatch)) {

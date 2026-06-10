@@ -232,7 +232,29 @@ $defaultFacultyId = $faculties[0]['faculty_id'] ?? '';
           </select>
         </div>
       </div>
+      <!-- Permissions -->
+      <div>
+        <label class="block font-semibold text-gray-700 mb-2">สิทธิ์ในการเข้าถึง</label>
+        <div class="flex space-x-6 flex-wrap gap-y-3">
+          <label class="flex items-center space-x-2">
+            <input type="checkbox" name="permissions[]" value="1"
+              class="w-5 h-5 text-teal-600 border-2 border-teal-500 rounded focus:ring-teal-400">
+            <span>แก้ไขได้</span>
+          </label>
 
+          <label class="flex items-center space-x-2">
+            <input type="checkbox" name="permissions[]" value="2"
+              class="w-5 h-5 text-teal-600 border-2 border-teal-500 rounded focus:ring-teal-400">
+            <span>ดูได้</span>
+          </label>
+
+          <label class="flex items-center space-x-2">
+            <input type="checkbox" name="permissions[]" value="3"
+              class="w-5 h-5 text-teal-600 border-2 border-teal-500 rounded focus:ring-teal-400">
+            <span>กำหนดสิทธิ์ได้</span>
+          </label>
+        </div>
+      </div>
       <!-- Status -->
       <div>
         <label class="block font-semibold text-gray-700 mb-2">สถานะการใช้งาน</label>
@@ -291,16 +313,7 @@ $defaultFacultyId = $faculties[0]['faculty_id'] ?? '';
   filterDepartmentsByFaculty();
   </script>
 
-  <script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const userForm = document.querySelector('form[action="user_process.php"]');
-    if (userForm) {
-      userForm.addEventListener("submit", function () {
-        sessionStorage.setItem("user_success_popup", "add");
-      });
-    }
-  });
-  </script>
+
 
 </body>
 

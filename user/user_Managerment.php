@@ -1,35 +1,50 @@
 <?php
-// session_start();
-// if (!isset($_SESSION['role_id']) || $_SESSION['role_id'] != 1) {
-//     header('Location: ../login.html');
-//     exit;
-// }
 session_start();
 
-// ถ้ายังไม่ได้ล็อกอินเลย → กลับหน้า login
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../login.html');
     exit;
 }
 
-// ✅ อนุญาตให้เข้าได้เฉพาะ "admin" หรือ "ผู้ที่มีสิทธิ์กำหนดสิทธิ์ (perm_id = 3)"
-if ($_SESSION['role_id'] != 1 && !in_array(3, $_SESSION['permissions'] ?? [])) {
-    // ถ้าไม่มีสิทธิ์ ก็ให้กลับไปหน้าหลักของ role ตัวเอง
-    switch ($_SESSION['role_id']) {
-        case 2:
-            header('Location: ../officer/home.php');
-            break;
-        case 3:
-            header('Location: ../user/home.php');
-            break;
-        default:
-            header('Location: ../login.html');
+require_once __DIR__ . '/../functions.php';
+$pdo = getPDO();
+
+function currentUserCanManageUsers(PDO $pdo): bool
+{
+    $roleId = (int)($_SESSION['role_id'] ?? 0);
+
+    if ($roleId === 1) {
+        return true;
+    }
+
+    $sessionPermissions = array_map('intval', $_SESSION['permissions'] ?? []);
+    if (in_array(3, $sessionPermissions, true)) {
+        return true;
+    }
+
+    $currentUserId = (int)($_SESSION['user_id'] ?? 0);
+    if ($currentUserId <= 0) {
+        return false;
+    }
+
+    $stmt = $pdo->prepare("\n        SELECT COUNT(*)\n        FROM user_permissions\n        WHERE user_id = ?\n          AND perm_id = 3\n    ");
+    $stmt->execute([$currentUserId]);
+
+    return ((int)$stmt->fetchColumn() > 0);
+}
+
+if (!currentUserCanManageUsers($pdo)) {
+    $roleId = (int)($_SESSION['role_id'] ?? 0);
+
+    if ($roleId === 2) {
+        header('Location: ../officer/home.php');
+    } elseif ($roleId === 3) {
+        header('Location: ../user/home.php');
+    } else {
+        header('Location: ../login.html');
     }
     exit;
 }
-
-require_once __DIR__ . '/../functions.php';
-$pdo = getPDO();
 
 // ค่า tab ที่เลือก
 $activeTab = $_GET['tab'] ?? 'all';
@@ -37,6 +52,12 @@ $current = basename($_SERVER['PHP_SELF']);
 
 // ค่าค้นหา
 $search = trim($_GET['search'] ?? '');
+
+// ตัวกรองสถานะข้อมูลผู้ใช้จาก Google Login
+$profileStatus = $_GET['profile_status'] ?? 'all';
+if (!in_array($profileStatus, ['all', 'pending', 'completed'], true)) {
+    $profileStatus = 'all';
+}
 
 // Pagination setup
 $limit = 20; // จำนวนแถวต่อหน้า
@@ -52,6 +73,13 @@ if ($activeTab === 'active') {
     $where[] = "u.is_active = 1";
 } elseif ($activeTab === 'inactive') {
     $where[] = "u.is_active = 0";
+}
+
+// เพิ่มเงื่อนไขสถานะข้อมูลผู้ใช้ Google Login
+if ($profileStatus === 'pending') {
+    $where[] = "u.auth_provider = 'google' AND u.profile_completed = 0";
+} elseif ($profileStatus === 'completed') {
+    $where[] = "u.profile_completed = 1";
 }
 
 // เพิ่มเงื่อนไขค้นหา
@@ -119,6 +147,21 @@ $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
 $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// จำนวนผู้ใช้ Google ที่ยังรอผู้ดูแลระบบเพิ่มข้อมูล
+$pendingGoogleUserCount = 0;
+try {
+    $pendingStmt = $pdo->query("
+        SELECT COUNT(*)
+        FROM users
+        WHERE auth_provider = 'google'
+          AND profile_completed = 0
+          AND is_active = 1
+    ");
+    $pendingGoogleUserCount = (int)$pendingStmt->fetchColumn();
+} catch (Throwable $e) {
+    $pendingGoogleUserCount = 0;
+}
 
 $permMap = [];
 $permStmt = $pdo->query("SELECT * FROM user_permissions");
@@ -211,6 +254,8 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
         <input type="hidden" name="tab" value="<?= htmlspecialchars($activeTab) ?>">
         <input type="hidden" name="page" value="1">
 
+
+
         <div class="relative w-full md:w-96">
           <input type="text" name="search" value="<?= htmlspecialchars($search) ?>"
             placeholder="ค้นหาชื่อผู้ใช้ อีเมล สิทธิ์ ตำแหน่ง หรือสถานะ"
@@ -227,13 +272,26 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
           ค้นหา
         </button>
 
-        <?php if ($search !== ''): ?>
+        <?php if ($search !== '' || $profileStatus !== 'all'): ?>
         <a href="?tab=<?= urlencode($activeTab) ?>"
           class="px-6 py-2 rounded-lg border border-gray-300 text-gray-600 font-semibold hover:bg-gray-100 transition text-center">
           ล้างค่า
         </a>
         <?php endif; ?>
       </form>
+
+      <?php if ($pendingGoogleUserCount > 0): ?>
+      <div
+        class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 flex items-center justify-between gap-3">
+        <div class="font-semibold">
+          มีผู้ใช้ Google Login รอผู้ดูแลระบบเพิ่มข้อมูล จำนวน <?= $pendingGoogleUserCount ?> รายการ
+        </div>
+        <a href="?tab=<?= urlencode($activeTab) ?>&profile_status=pending"
+          class="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition">
+          ดูรายการ
+        </a>
+      </div>
+      <?php endif; ?>
 
       <!-- Modern Alternating Row Table -->
       <div class="mt-6 overflow-x-auto rounded-lg shadow">
@@ -359,7 +417,7 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
         <div class="flex items-center space-x-2">
           <!-- ปุ่ม Prev -->
           <?php if ($page > 1): ?>
-          <a href="?page=<?= $page - 1 ?>&tab=<?= urlencode($activeTab) ?>&search=<?= urlencode($search) ?>"
+          <a href="?page=<?= $page - 1 ?>&tab=<?= urlencode($activeTab) ?>&search=<?= urlencode($search) ?>&profile_status=<?= urlencode($profileStatus) ?>"
             class="px-3 py-1 rounded-md text-teal-600 border border-teal-400 hover:bg-teal-100 transition shadow-sm">
             Prev
           </a>
@@ -367,7 +425,7 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
 
           <!-- ปุ่มตัวเลข -->
           <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-          <a href="?page=<?= $i ?>&tab=<?= urlencode($activeTab) ?>&search=<?= urlencode($search) ?>"
+          <a href="?page=<?= $i ?>&tab=<?= urlencode($activeTab) ?>&search=<?= urlencode($search) ?>&profile_status=<?= urlencode($profileStatus) ?>"
             class="px-3 py-1 rounded-md font-medium <?= $i == $page ? 'bg-teal-500 text-white shadow-md hover:bg-teal-600' : 'text-teal-600 border border-teal-400 hover:bg-teal-100' ?> transition">
             <?= $i ?>
           </a>
@@ -375,7 +433,7 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
 
           <!-- ปุ่ม Next -->
           <?php if ($page < $totalPages): ?>
-          <a href="?page=<?= $page + 1 ?>&tab=<?= urlencode($activeTab) ?>&search=<?= urlencode($search) ?>"
+          <a href="?page=<?= $page + 1 ?>&tab=<?= urlencode($activeTab) ?>&search=<?= urlencode($search) ?>&profile_status=<?= urlencode($profileStatus) ?>"
             class="px-3 py-1 rounded-md text-teal-600 border border-teal-400 hover:bg-teal-100 transition shadow-sm">
             Next
           </a>
@@ -565,10 +623,6 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
       userSuccessAction = sessionStorage.getItem("user_success_popup") || "";
     }
     sessionStorage.removeItem("user_success_popup");
-
-    if (userSuccessAction === "1" || userSuccessAction === "deactivated") {
-      userSuccessAction = "delete";
-    }
 
     const userSuccessMessages = {
       add: "เพิ่มผู้ใช้สำเร็จ",

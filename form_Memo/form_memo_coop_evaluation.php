@@ -58,10 +58,22 @@ if ($docId <= 0) {
    โหลดข้อมูลเอกสาร
 -------------------------------------------------- */
 $stmt = $pdo->prepare("
-    SELECT document_id, template_id, owner_id, department_id, 
-           doc_no, doc_date, subject, header_text, status
-    FROM documents 
-    WHERE document_id = :id
+    SELECT 
+           doc.document_id,
+           doc.template_id,
+           doc.owner_id,
+           doc.department_id,
+           doc.doc_no,
+           doc.doc_date,
+           doc.subject,
+           doc.header_text,
+           doc.status,
+           dep.department_name AS document_department_name,
+           fac.faculty_name AS document_faculty_name
+    FROM documents doc
+    LEFT JOIN departments dep ON dep.department_id = doc.department_id
+    LEFT JOIN faculties fac ON fac.faculty_id = dep.faculty_id
+    WHERE doc.document_id = :id
     LIMIT 1
 ");
 $stmt->execute([':id' => $docId]);
@@ -86,61 +98,108 @@ if ($roleId !== 1 && $roleId !== 2) {
   }
 }
 
-
 /* --------------------------------------------------
    สิทธิ์แก้ไขเอกสาร
 -------------------------------------------------- */
-$docStatus = trim((string)($document['status'] ?? ''));
+$roleId = (int)($_SESSION['role_id'] ?? 0);
+$isAdmin = ($roleId === 1);
+$isOfficer = ($roleId === 2);
 $isOwner = ((int)($document['owner_id'] ?? 0) === $userId);
+$docStatus = trim((string)($document['status'] ?? ''));
 
 $hasDocumentEditPermission = false;
-$hasAnyExplicitPermission = false;
-try {
-  $permAnyStmt = $pdo->prepare("SELECT COUNT(*) FROM user_permissions WHERE user_id = :uid");
-  $permAnyStmt->execute([':uid' => $userId]);
-  $hasAnyExplicitPermission = ((int)$permAnyStmt->fetchColumn() > 0);
 
-  $sql = "
-      SELECT COUNT(*)
+try {
+  $permStmt = $pdo->prepare("
+    SELECT COUNT(*)
+    FROM (
+      SELECT up.perm_id
       FROM user_permissions up
-      JOIN permissions p ON p.perm_id = up.perm_id
+      LEFT JOIN permissions p ON p.perm_id = up.perm_id
       WHERE up.user_id = :uid
-        AND (p.perm_code = 'document.edit' OR p.perm_id = 3)
-  ";
-  $st = $pdo->prepare($sql);
-  $st->execute([':uid' => $userId]);
-  $hasDocumentEditPermission = ((int)$st->fetchColumn() > 0);
+        AND (up.perm_id = 1 OR p.perm_code = 'document.edit')
+
+      UNION
+
+      SELECT rp.perm_id
+      FROM role_permissions rp
+      LEFT JOIN permissions p ON p.perm_id = rp.perm_id
+      WHERE rp.role_id = :rid
+        AND (rp.perm_id = 1 OR p.perm_code = 'document.edit')
+    ) AS edit_perms
+  ");
+  $permStmt->execute([
+    ':uid' => $userId,
+    ':rid' => $roleId
+  ]);
+  $hasDocumentEditPermission = ((int)$permStmt->fetchColumn() > 0);
 } catch (Throwable $e) {
   $hasDocumentEditPermission = false;
-  $hasAnyExplicitPermission = false;
 }
+
+/* เช็กสิทธิ์แก้ไขจาก session เพิ่มอีกชั้น */
+$sessionPermissions = $_SESSION['permissions'] ?? [];
+
+if (is_string($sessionPermissions)) {
+  $sessionPermissions = array_filter(array_map('trim', explode(',', $sessionPermissions)));
+}
+
+if (!is_array($sessionPermissions)) {
+  $sessionPermissions = [];
+}
+
+$sessionPermissionValues = array_map(
+  static fn($value) => is_numeric($value) ? (int)$value : strtolower(trim((string)$value)),
+  $sessionPermissions
+);
+
+$hasDocumentEditPermission = $hasDocumentEditPermission
+  || in_array(1, $sessionPermissionValues, true)
+  || in_array('1', $sessionPermissionValues, true)
+  || in_array('document.edit', $sessionPermissionValues, true);
 
 $userEditableStatuses = ['draft', 'รอยืนยันการส่ง', 'rejected', 'รอแก้เอกสาร', 'รอแก้ไข'];
 $submittedStatuses = ['submitted', 'รอตรวจ', 'รอตรวจสอบ', 'รอการตรวจสอบ'];
 $checkedStatuses = ['ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว', 'ได้รับการตรวจสอบ', 'ได้รับการตรวจสอบแล้ว', 'ตรวจสอบแล้ว', 'approved', 'checked', 'reviewed'];
 
 $isCheckedStatus = in_array($docStatus, $checkedStatuses, true);
-$isUserEditableStatus = in_array($docStatus, $userEditableStatuses, true);
 $isSubmittedStatus = in_array($docStatus, $submittedStatuses, true);
+$isUserEditableStatus = in_array($docStatus, $userEditableStatuses, true);
 
-$legacyOwnerCanEdit = ($isOwner && !$hasAnyExplicitPermission);
+$editDisabledReason = '';
+$editAlertTitle = '';
+$editAlertText = '';
+$editAlertIcon = 'info';
 
-$editAlertText = 'คุณไม่มีสิทธิ์ในการแก้ไขเอกสารนี้';
 if ($isCheckedStatus) {
-  $editAlertText = 'เอกสารนี้ได้รับการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
+  $editDisabledReason = 'checked';
+  $editAlertTitle = 'เอกสารผ่านการตรวจสอบแล้ว';
+  $editAlertText = 'เอกสารนี้ผ่านการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
+  $editAlertIcon = 'success';
 } elseif (!$isAdmin && !$isOfficer && $isSubmittedStatus) {
-  $editAlertText = 'เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
-} elseif (!$isUserEditableStatus) {
-  $editAlertText = 'สถานะเอกสารปัจจุบันไม่อนุญาตให้แก้ไข';
+  $editDisabledReason = 'submitted';
+  $editAlertTitle = 'เอกสารอยู่ระหว่างรอตรวจสอบ';
+  $editAlertText = 'เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้ในขณะนี้';
+  $editAlertIcon = 'info';
+} elseif (!$hasDocumentEditPermission) {
+  $editDisabledReason = 'no_permission';
+  $editAlertTitle = 'ไม่มีสิทธิ์แก้ไขเอกสาร';
+  $editAlertText = 'คุณไม่มีสิทธิ์แก้ไขเอกสารนี้ กรุณาติดต่อผู้ดูแลระบบหากต้องการแก้ไข';
+  $editAlertIcon = 'warning';
 }
 
 if ($isCheckedStatus) {
   $canEdit = false;
+} elseif (!$hasDocumentEditPermission) {
+  $canEdit = false;
+} elseif (!$isAdmin && !$isOfficer && $isSubmittedStatus) {
+  $canEdit = false;
 } elseif ($isAdmin || $isOfficer) {
   $canEdit = true;
 } else {
-  $canEdit = (($hasDocumentEditPermission || $legacyOwnerCanEdit) && $isUserEditableStatus);
+  $canEdit = ($isOwner && $isUserEditableStatus);
 }
+
 $readonly = !$canEdit;
 
 
@@ -326,10 +385,21 @@ $joinDates = $valueMap[6] ?? "";
 $location = $valueMap[7] ?? "";
 $amountStr = $valueMap[8] ?? "";
 $vehicle = $valueMap[9] ?? "";
-$faculty = $valueMap[10] ?? "";
-$department = $valueMap[11] ?? "";
-$displayFaculty = trim($faculty) !== '' ? trim($faculty) : "คณะเทคโนโลยีและการจัดการอุตสาหกรรม";
-$displayDepartment = trim($department) !== '' ? trim($department) : "เทคโนโลยีสารสนเทศ";
+// ใช้คณะ/ภาควิชาล่าสุดจาก documents.department_id ก่อน
+// ถ้าเอกสารเก่าไม่มี department_id ค่อย fallback ไปใช้ document_values field_id 10/11
+$faculty = trim((string)($document['document_faculty_name'] ?? ''));
+$department = trim((string)($document['document_department_name'] ?? ''));
+
+if ($faculty === '') {
+  $faculty = trim((string)($valueMap[10] ?? ''));
+}
+
+if ($department === '') {
+  $department = trim((string)($valueMap[11] ?? ''));
+}
+
+$displayFaculty = $faculty !== '' ? $faculty : "คณะเทคโนโลยีและการจัดการอุตสาหกรรม";
+$displayDepartment = $department !== '' ? $department : "เทคโนโลยีสารสนเทศ";
 $displayDepartmentFull = "ภาควิชา" . $displayDepartment;
 $displayFacultyDean = "คณบดี" . $displayFaculty;
 
@@ -1054,10 +1124,11 @@ $len = max(20, $len);
 
     // แจ้งเตือนแสดง read-only
     Swal.fire({
-      title: "โหมดอ่านอย่างเดียว",
-      text: "คุณไม่มีสิทธิ์แก้ไขเอกสารนี้",
-      icon: "info",
-      confirmButtonText: "ตกลง"
+      title: <?= json_encode($editAlertTitle ?: "ไม่สามารถแก้ไขเอกสารได้", JSON_UNESCAPED_UNICODE) ?>,
+      html: <?= json_encode(($editAlertText ?: "เอกสารนี้ไม่สามารถแก้ไขได้") . "<br><br>ระบบจะแสดงเอกสารในโหมดดูตัวอย่างเท่านั้น", JSON_UNESCAPED_UNICODE) ?>,
+      icon: <?= json_encode($editAlertIcon ?: "info", JSON_UNESCAPED_UNICODE) ?>,
+      confirmButtonText: "ตกลง",
+      confirmButtonColor: "#14b8a6"
     });
   });
   </script>
@@ -1109,8 +1180,8 @@ $len = max(20, $len);
       <input type="hidden" name="place" id="hidden_location" value="<?= h($location) ?>">
       <input type="hidden" name="amount" id="hidden_amountStr" value="<?= h($amountStr) ?>">
       <input type="hidden" name="car_plate" id="hidden_vehicle" value="<?= h($vehicle) ?>">
-      <input type="hidden" name="faculty" id="hidden_faculty" value="<?= h($faculty) ?>">
-      <input type="hidden" name="department" id="hidden_department" value="<?= h($department) ?>">
+      <input type="hidden" name="faculty" id="hidden_faculty" value="<?= h($displayFaculty) ?>">
+      <input type="hidden" name="department" id="hidden_department" value="<?= h($displayDepartment) ?>">
 
       <input type="hidden" name="subject" value="<?= h($coopSubject) ?>">
       <input type="hidden" name="to_person" value="<?= h($coopToPerson) ?>">
@@ -1237,7 +1308,7 @@ $len = max(20, $len);
           <div style="width:55px;">เรื่อง</div>
 
           <div>
-            <?= h($coopSubject ?: 'ขอความอนุเคราะห์ตอบแบบประเมินและแบบสำรวจนักศึกษาปฏิบัติงานสหกิจศึกษา') ?>
+            <?= h(thai_digits($coopSubject ?: 'ขอความอนุเคราะห์ตอบแบบประเมินและแบบสำรวจนักศึกษาปฏิบัติงานสหกิจศึกษา')) ?>
           </div>
         </div>
 
@@ -1251,7 +1322,7 @@ $len = max(20, $len);
           <div style="width:55px;">เรียน</div>
 
           <div>
-            <?= h($coopToPerson ?: 'เลขาธิการ สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ (กสมช.)') ?>
+            <?= h(thai_digits($coopToPerson ?: 'เลขาธิการ สำนักงานคณะกรรมการการรักษาความมั่นคงปลอดภัยไซเบอร์แห่งชาติ (กสมช.)')) ?>
           </div>
         </div>
 
@@ -1267,7 +1338,7 @@ $len = max(20, $len);
         text-indent:2.5cm;
         margin-bottom:4px;
     ">
-            ตามที่ <?= h($coopOrganizationName ?: 'หน่วยงานของท่าน') ?>
+            ตามที่ <?= h(thai_digits($coopOrganizationName ?: 'หน่วยงานของท่าน')) ?>
             ได้ให้ความอนุเคราะห์รับนักศึกษา<?= h($displayDepartmentFull) ?>
             <?= h($displayFaculty) ?> มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ
             วิทยาเขตปราจีนบุรี ได้แก่
@@ -1322,7 +1393,8 @@ $len = max(20, $len);
             ในการนี้ <?= h($displayDepartmentFull) ?> ขอความอนุเคราะห์ตอบแบบประเมินผลรายงาน
             การปฏิบัติงานของนักศึกษาสหกิจศึกษา และแบบสำรวจคุณลักษณะของนักศึกษาปฏิบัติงาน
             สหกิจศึกษาที่พึงประสงค์ตามความต้องการของสถานประกอบการ (ในปีถัดไป)
-            โดยภาควิชาขออนุญาตส่งแบบประเมินและแบบสำรวจดังกล่าวให้กับ “<?= h($coopAdvisorName ?: 'พนักงานที่ปรึกษา') ?>”
+            โดยภาควิชาขออนุญาตส่งแบบประเมินและแบบสำรวจดังกล่าวให้กับ
+            “<?= h(thai_digits($coopAdvisorName ?: 'พนักงานที่ปรึกษา')) ?>”
             ทั้งนี้ ข้อมูลที่ได้จากแบบประเมินและแบบสำรวจจะนำมารวบรวม วิเคราะห์ และสรุปผล
             ซึ่งภาควิชาจะนำข้อมูลมาเป็นแนวทางสำหรับการดำเนินการครั้งต่อไป
           </p>
@@ -1398,17 +1470,18 @@ $len = max(20, $len);
           ดาวน์โหลด Word
         </a>
 
-        <!-- USER: ปุ่มแก้ไขเอกสาร -->
+        <!-- ปุ่มแก้ไขเอกสาร -->
         <?php if ($canEdit): ?>
-        <a href="/Pro_letter/documents/infor_coop_evaluation.php?id=<?= urlencode((string)$document['document_id']) ?>&edit=1"
+        <a href="/Pro_letter/documents/infor_coop_evaluation.php?id=<?= (int)$docId ?>&edit=1"
           class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           แก้ไขเอกสาร
         </a>
         <?php else: ?>
-        <span class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block"
-          title="<?= h($editAlertText ?: 'ไม่สามารถแก้ไขเอกสารนี้ได้') ?>">
+        <button type="button"
+          class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block opacity-80"
+          title="<?= h($editAlertText ?: 'ไม่สามารถแก้ไขเอกสารนี้ได้') ?>" disabled>
           แก้ไขเอกสาร
-        </span>
+        </button>
         <?php endif; ?>
 
 
@@ -1425,22 +1498,7 @@ $len = max(20, $len);
 
     </form>
   </main>
-  <?php if ($readonly && !($isAdmin || $isOfficer)): ?>
-  <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    document.querySelectorAll("[contenteditable]").forEach(e => {
-      e.setAttribute("contenteditable", "false");
-      e.style.background = "#f0f0f0";
-    });
-    document.querySelectorAll("input, textarea, select").forEach(e => {
-      e.disabled = true;
-      e.style.background = "#f0f0f0";
-    });
-    const submitBtn = document.querySelector("button[type=submit]");
-    if (submitBtn) submitBtn.style.display = "none";
-  });
-  </script>
-  <?php endif; ?>
+
 
   <script>
   const alertBox = document.getElementById('alertBox');
@@ -1504,25 +1562,43 @@ $len = max(20, $len);
   document.addEventListener("DOMContentLoaded", () => {
     const errType = getQuery("err");
 
-    if (errType === "no_permission") {
-      Swal.fire({
-        title: "ไม่มีสิทธิ์แก้ไขเอกสารนี้",
-        html: `
-        <div style="font-size: 1.15rem; line-height: 1.6;">
-          คุณไม่มีสิทธิ์ในการแก้ไขเอกสารนี้<br>
-          ต้องการกลับหน้าหลักหรืออยู่ต่อ?
-        </div>
-      `,
-        icon: "error",
-        showCancelButton: true,
-        confirmButtonText: "กลับหน้าหลัก",
-        cancelButtonText: "อยู่หน้านี้ต่อ",
-        confirmButtonColor: "#3085d6",
-        cancelButtonColor: "#aaa",
-      }).then((result) => {
-        if (result.isConfirmed) {
-          window.location.href = "<?= $homePath ?>";
+
+    if (["no_permission", "submitted", "checked"].includes(errType)) {
+      const alertMap = {
+        no_permission: {
+          title: "ไม่มีสิทธิ์แก้ไขเอกสาร",
+          html: `<div style="font-size: 1.15rem; line-height: 1.6;">
+        คุณไม่มีสิทธิ์แก้ไขเอกสารนี้<br>
+        กรุณาติดต่อผู้ดูแลระบบหากต้องการแก้ไข
+      </div>`,
+          icon: "warning"
+        },
+        submitted: {
+          title: "เอกสารอยู่ระหว่างรอตรวจสอบ",
+          html: `<div style="font-size: 1.15rem; line-height: 1.6;">
+        เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว<br>
+        จึงไม่สามารถแก้ไขได้ในขณะนี้
+      </div>`,
+          icon: "info"
+        },
+        checked: {
+          title: "เอกสารผ่านการตรวจสอบแล้ว",
+          html: `<div style="font-size: 1.15rem; line-height: 1.6;">
+        เอกสารนี้ผ่านการตรวจสอบแล้ว<br>
+        จึงไม่สามารถแก้ไขได้
+      </div>`,
+          icon: "success"
         }
+      };
+
+      const alertInfo = alertMap[errType];
+
+      Swal.fire({
+        title: alertInfo.title,
+        html: alertInfo.html,
+        icon: alertInfo.icon,
+        confirmButtonText: "ตกลง",
+        confirmButtonColor: "#14b8a6"
       });
     }
   });

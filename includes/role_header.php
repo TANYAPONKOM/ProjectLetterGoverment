@@ -18,6 +18,11 @@ if (!is_array($permissions)) {
     $permissions = [];
 }
 
+// แปลงสิทธิ์จาก session ให้เป็นตัวเลขก่อนตรวจสอบ
+// เพราะค่าที่ดึงจากฐานข้อมูลมักเป็น string เช่น "3" ถ้าใช้ in_array แบบ strict จะไม่เจอสิทธิ์
+$permissions = array_values(array_unique(array_map('intval', $permissions)));
+$currentUserId = (int)($_SESSION['user_id'] ?? 0);
+
 function nav_active_class($targetFiles)
 {
     $current = basename($_SERVER['PHP_SELF'] ?? '');
@@ -48,6 +53,24 @@ $pendingGoogleUserCount = 0;
 if (function_exists('getPDO')) {
     try {
         $navPdo = getPDO();
+
+        // เช็กสิทธิ์กำหนดสิทธิ์ของผู้ใช้ที่ล็อกอินอยู่เท่านั้น
+        // ไม่แก้หรือดึงสิทธิ์ของผู้ใช้คนอื่นมาใช้กับเมนูนี้
+        if ($currentUserId > 0 && !in_array(3, $permissions, true)) {
+            $permStmt = $navPdo->prepare("
+                SELECT perm_id
+                FROM user_permissions
+                WHERE user_id = ?
+                  AND perm_id = 3
+                LIMIT 1
+            ");
+            $permStmt->execute([$currentUserId]);
+            if ((int)$permStmt->fetchColumn() === 3) {
+                $permissions[] = 3;
+                $_SESSION['permissions'] = $permissions;
+            }
+        }
+
         $pendingStmt = $navPdo->query("
             SELECT COUNT(*)
             FROM users
@@ -59,6 +82,30 @@ if (function_exists('getPDO')) {
     } catch (Throwable $e) {
         $pendingGoogleUserCount = 0;
     }
+}
+
+$canManagePermission = in_array(3, $permissions, true);
+
+function nav_user_management_url($roleId)
+{
+    if ((int)$roleId === 1) {
+        return '/Pro_letter/admin/user_Managerment.php';
+    }
+    if ((int)$roleId === 2) {
+        return '/Pro_letter/officer/user_Managerment.php';
+    }
+    return '/Pro_letter/user/user_Managerment.php';
+}
+
+function nav_render_manage_permission_menu($roleId)
+{
+    ?>
+<a href="<?= nav_h(nav_user_management_url($roleId)) ?>">
+  <div class="px-4 py-2 rounded-[11px] font-bold transition <?= nav_active_class('user_Managerment.php') ?>">
+    กำหนดสิทธิ์
+  </div>
+</a>
+<?php
 }
 ?>
 <header class="bg-teal-500 text-white p-4 flex justify-between items-center shadow-md"
@@ -142,8 +189,8 @@ if (function_exists('getPDO')) {
       </div>
     </a>
 
-    <?php if (function_exists('renderAdminExtraMenus') && in_array(3, $permissions, true)): ?>
-    <?php renderAdminExtraMenus(); ?>
+    <?php if ($canManagePermission): ?>
+    <?php nav_render_manage_permission_menu($roleId); ?>
     <?php endif; ?>
 
     <?php else: ?>
@@ -151,8 +198,8 @@ if (function_exists('getPDO')) {
       <div class="px-4 py-2 rounded-[11px] font-bold transition <?= nav_active_class('home.php') ?>">หน้าหลัก</div>
     </a>
 
-    <?php if (function_exists('renderAdminExtraMenus') && in_array(3, $permissions, true)): ?>
-    <?php renderAdminExtraMenus(); ?>
+    <?php if ($canManagePermission): ?>
+    <?php nav_render_manage_permission_menu($roleId); ?>
     <?php endif; ?>
 
     <a href="/Pro_letter/documents/form_Memo.php">

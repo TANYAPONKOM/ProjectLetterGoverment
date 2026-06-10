@@ -52,7 +52,7 @@ $departments = $departmentsStmt->fetchAll(PDO::FETCH_ASSOC);
 
 $selectedFacultyId = $user['faculty_id'] ?? ($faculties[0]['faculty_id'] ?? '');
 $selectedDepartmentId = $user['department_id'] ?? '';
-$passwordValue = $user['password'] ?? ($user['Password'] ?? '');
+$passwordValue = ''; // เว้นว่างไว้ เพื่อไม่ให้ hash เดิมถูกส่งไปบันทึกซ้ำ
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -144,7 +144,7 @@ $passwordValue = $user['password'] ?? ($user['Password'] ?? '');
 
             <input type="password" id="passwordInput" name="password" value="<?= h($passwordValue) ?>"
               class="w-full pl-12 pr-12 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
-              placeholder="Password">
+              placeholder="เว้นว่างไว้หากไม่ต้องการเปลี่ยนรหัสผ่าน">
 
             <button type="button" id="togglePassword"
               class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-teal-600"

@@ -157,7 +157,7 @@ if ($username === '' && $auth_provider === 'google') {
 
 // ดึงสถานะเดิมก่อนแก้ไข เพื่อเช็กว่าจากรอ Admin กลายเป็นใช้งานได้หรือไม่
 $oldStmt = $pdo->prepare("
-    SELECT user_id, auth_provider, profile_completed, email
+    SELECT user_id, auth_provider, profile_completed, email, password
     FROM users
     WHERE user_id = ?
     LIMIT 1
@@ -167,6 +167,7 @@ $oldUser = $oldStmt->fetch(PDO::FETCH_ASSOC);
 
 $oldProfileCompleted = isset($oldUser['profile_completed']) ? (int)$oldUser['profile_completed'] : 0;
 $oldAuthProvider = $oldUser['auth_provider'] ?? 'local';
+$currentPasswordHash = $oldUser['password'] ?? '';
 
 $profile_completed = (
     $fullname !== '' &&
@@ -205,8 +206,12 @@ $profile_completed = (
         $pdo->beginTransaction();
 
         // ถ้ามีการกรอกรหัสผ่านใหม่ ให้ update password ด้วย
-        if (!empty($_POST['password'])) {
-            $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+        // แต่ถ้าค่าที่ส่งมาเป็น hash เดิมจากฐานข้อมูล ห้าม hash ซ้ำ เพราะจะทำให้รหัสผ่านเปลี่ยนเอง
+        $passwordRaw = trim($_POST['password'] ?? '');
+        $shouldUpdatePassword = ($passwordRaw !== '' && $passwordRaw !== $currentPasswordHash);
+
+        if ($shouldUpdatePassword) {
+            $password = password_hash($passwordRaw, PASSWORD_DEFAULT);
 
             $stmt = $pdo->prepare("
                 UPDATE users 

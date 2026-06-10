@@ -2,11 +2,12 @@
 session_start();
 
 require_once __DIR__ . '/../functions.php';
+require_once __DIR__ . '/../includes/google_user_notify.php';
 $pdo = getPDO();
 
 /*
 |--------------------------------------------------------------------------
-| ฟังก์ชัน redirect กลับหน้า User Management
+| ฟังก์ชัน redirect กลับหน้า User Management ของฝั่ง user
 |--------------------------------------------------------------------------
 */
 function goUserManagement($params = '')
@@ -23,11 +24,69 @@ function goUserManagement($params = '')
 
 /*
 |--------------------------------------------------------------------------
+| ตรวจสอบสิทธิ์กำหนดสิทธิ์ผู้ใช้งาน perm_id = 3
+|--------------------------------------------------------------------------
+*/
+function currentUserCanManageUsers(PDO $pdo): bool
+{
+    if (empty($_SESSION['user_id'])) {
+        return false;
+    }
+
+    $sessionPerms = $_SESSION['permissions'] ?? [];
+
+    if (is_string($sessionPerms)) {
+        $sessionPerms = array_filter(array_map('trim', explode(',', $sessionPerms)));
+    }
+
+    if (!is_array($sessionPerms)) {
+        $sessionPerms = [];
+    }
+
+    if (in_array(3, array_map('intval', $sessionPerms), true)) {
+        return true;
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*)
+        FROM user_permissions
+        WHERE user_id = ?
+          AND perm_id = 3
+    ");
+    $stmt->execute([(int)$_SESSION['user_id']]);
+
+    return (int)$stmt->fetchColumn() > 0;
+}
+
+/*
+|--------------------------------------------------------------------------
+| ต้อง login และมีสิทธิ์กำหนดสิทธิ์ได้เท่านั้น
+|--------------------------------------------------------------------------
+*/
+if (empty($_SESSION['user_id'])) {
+    header('Location: ../login.html');
+    exit;
+}
+
+if (!currentUserCanManageUsers($pdo)) {
+    goUserManagement('error=permission');
+}
+    function alertBack($message)
+{
+    echo "<script>
+        alert(" . json_encode($message, JSON_UNESCAPED_UNICODE) . ");
+        history.back();
+    </script>";
+    exit;
+}
+/*
+|--------------------------------------------------------------------------
 | ตรวจว่าเป็น POST เท่านั้น
 |--------------------------------------------------------------------------
 */
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     goUserManagement();
+
 }
 
 $action = $_POST['action'] ?? '';
@@ -43,84 +102,116 @@ try {
     |--------------------------------------------------------------------------
     */
     if ($action === 'add') {
-        $username = trim($_POST['username'] ?? '');
-        $passwordRaw = $_POST['password'] ?? '';
-        $fullname = trim($_POST['fullname'] ?? '');
-        $email = strtolower(trim($_POST['email'] ?? ''));
-        $role_id = (int)($_POST['role_id'] ?? 0);
-        $position = trim($_POST['position'] ?? '');
-        $department_id = (int)($_POST['department_id'] ?? 0);
+    $username = trim($_POST['username'] ?? '');
+    $passwordRaw = $_POST['password'] ?? '';
+    $fullname = trim($_POST['fullname'] ?? '');
+    $email = strtolower(trim($_POST['email'] ?? ''));
+    $role_id = (int)($_POST['role_id'] ?? 0);
+    $position = trim($_POST['position'] ?? '');
+    $department_id = (int)($_POST['department_id'] ?? 0);
+    $is_active = (int)($_POST['is_active'] ?? 1);
+    $permissions = $_POST['permissions'] ?? [];
 
-        if (
-            $username === '' ||
-            $passwordRaw === '' ||
-            $fullname === '' ||
-            $email === '' ||
-            $role_id <= 0 ||
-            $department_id <= 0
-        ) {
-            goUserManagement('error=missing');
-        }
-
-        // เช็ก username ซ้ำก่อนเพิ่ม
-        $checkUsername = $pdo->prepare("
-            SELECT COUNT(*) 
-            FROM users 
-            WHERE username = ?
-        ");
-        $checkUsername->execute([$username]);
-
-        if ((int)$checkUsername->fetchColumn() > 0) {
-            goUserManagement('error=duplicate_username');
-        }
-
-        // เช็ก email ซ้ำก่อนเพิ่ม
-        $checkEmail = $pdo->prepare("
-            SELECT COUNT(*) 
-            FROM users 
-            WHERE email = ?
-        ");
-        $checkEmail->execute([$email]);
-
-        if ((int)$checkEmail->fetchColumn() > 0) {
-            goUserManagement('error=duplicate_email');
-        }
-
-        $password = password_hash($passwordRaw, PASSWORD_DEFAULT);
-
-        $stmt = $pdo->prepare("
-            INSERT INTO users 
-                (
-                    username, 
-                    password, 
-                    fullname, 
-                    email, 
-                    role_id, 
-                    position, 
-                    department_id, 
-                    is_active, 
-                    created_at
-                ) 
-            VALUES 
-                (?, ?, ?, ?, ?, ?, ?, 1, NOW())
-        ");
-
-        $stmt->execute([
-            $username,
-            $password,
-            $fullname,
-            $email,
-            $role_id,
-            $position,
-            $department_id
-        ]);
-
-        if (function_exists('addLog') && $currentUserId) {
-            addLog($currentUserId, "ผู้ใช้ {$currentUser} จัดการเพิ่มผู้ใช้: {$username}");
-        }
-
-        goUserManagement('success=add');
+    if (
+        $username === '' ||
+        $passwordRaw === '' ||
+        $fullname === '' ||
+        $email === '' ||
+        $role_id <= 0 ||
+        $department_id <= 0 ||
+        $position === ''
+    ) {
+        alertBack('กรุณากรอกข้อมูลให้ครบถ้วน');
     }
+
+    $checkUsername = $pdo->prepare("
+        SELECT COUNT(*)
+        FROM users
+        WHERE username = ?
+    ");
+    $checkUsername->execute([$username]);
+
+    if ((int)$checkUsername->fetchColumn() > 0) {
+        alertBack('ชื่อผู้ใช้นี้มีอยู่แล้ว กรุณาใช้ชื่อผู้ใช้อื่น');
+    }
+
+    $checkEmail = $pdo->prepare("
+        SELECT COUNT(*)
+        FROM users
+        WHERE email = ?
+    ");
+    $checkEmail->execute([$email]);
+
+    if ((int)$checkEmail->fetchColumn() > 0) {
+        alertBack('อีเมลนี้มีอยู่แล้ว กรุณาใช้อีเมลอื่น');
+    }
+
+    $password = password_hash($passwordRaw, PASSWORD_DEFAULT);
+
+    $profile_completed = (
+        $fullname !== '' &&
+        $email !== '' &&
+        $role_id > 0 &&
+        $department_id > 0 &&
+        $position !== '' &&
+        $is_active === 1
+    ) ? 1 : 0;
+
+    $stmt = $pdo->prepare("
+        INSERT INTO users
+            (
+                username,
+                password,
+                fullname,
+                email,
+                role_id,
+                position,
+                department_id,
+                is_active,
+                auth_provider,
+                profile_completed,
+                created_at
+            )
+        VALUES
+            (?, ?, ?, ?, ?, ?, ?, ?, 'local', ?, NOW())
+    ");
+
+    $stmt->execute([
+        $username,
+        $password,
+        $fullname,
+        $email,
+        $role_id,
+        $position,
+        $department_id,
+        $is_active,
+        $profile_completed
+    ]);
+    $newUserId = (int)$pdo->lastInsertId();
+
+if (!empty($permissions) && is_array($permissions)) {
+    $insertPerm = $pdo->prepare("
+        INSERT INTO user_permissions 
+            (user_id, perm_id) 
+        VALUES 
+            (?, ?)
+    ");
+
+    foreach ($permissions as $perm_id) {
+        $perm_id = (int)$perm_id;
+
+        if ($perm_id > 0) {
+            $insertPerm->execute([$newUserId, $perm_id]);
+        }
+    }
+}
+
+    if (function_exists('addLog') && $currentUserId) {
+        addLog($currentUserId, "ผู้ใช้ {$currentUser} จัดการเพิ่มผู้ใช้: {$username}");
+    }
+
+    goUserManagement('success=add');
+}
 
     /*
     |--------------------------------------------------------------------------
@@ -128,27 +219,54 @@ try {
     |--------------------------------------------------------------------------
     */
     if ($action === 'edit') {
-        $user_id = (int)($_POST['user_id'] ?? 0);
-        $username = trim($_POST['username'] ?? '');
-        $fullname = trim($_POST['fullname'] ?? '');
-        $email = strtolower(trim($_POST['email'] ?? ''));
-        $role_id = (int)($_POST['role_id'] ?? 0);
-        $position = trim($_POST['position'] ?? '');
-        $department_id = (int)($_POST['department_id'] ?? 0);
-        $is_active = (int)($_POST['is_active'] ?? 1);
-        $permissions = $_POST['permissions'] ?? [];
+       $user_id = (int)($_POST['user_id'] ?? 0);
+$username = trim($_POST['username'] ?? '');
+$fullname = trim($_POST['fullname'] ?? '');
+$email = strtolower(trim($_POST['email'] ?? ''));
+$auth_provider = trim($_POST['auth_provider'] ?? 'local');
+$role_id = (int)($_POST['role_id'] ?? 0);
+$position = trim($_POST['position'] ?? '');
+$department_id = (int)($_POST['department_id'] ?? 0);
+$is_active = (int)($_POST['is_active'] ?? 1);
+$permissions = $_POST['permissions'] ?? [];
+
+if ($username === '' && $auth_provider === 'google') {
+    $username = $email;
+}
 
         if (
-            $user_id <= 0 ||
-            $username === '' ||
-            $fullname === '' ||
-            $email === '' ||
-            $role_id <= 0 ||
-            $department_id <= 0
-        ) {
-            goUserManagement('error=missing');
-        }
+    $user_id <= 0 ||
+    $fullname === '' ||
+    $email === '' ||
+    $role_id <= 0 ||
+    $department_id <= 0 ||
+    $position === ''
+) {
+    alertBack('กรุณากรอกข้อมูลให้ครบถ้วน');
+}
 
+// ดึงสถานะเดิมก่อนแก้ไข เพื่อเช็กว่าจากรอ Admin กลายเป็นใช้งานได้หรือไม่
+$oldStmt = $pdo->prepare("
+    SELECT user_id, auth_provider, profile_completed, email, password
+    FROM users
+    WHERE user_id = ?
+    LIMIT 1
+");
+$oldStmt->execute([$user_id]);
+$oldUser = $oldStmt->fetch(PDO::FETCH_ASSOC);
+
+$oldProfileCompleted = isset($oldUser['profile_completed']) ? (int)$oldUser['profile_completed'] : 0;
+$oldAuthProvider = $oldUser['auth_provider'] ?? 'local';
+$currentPasswordHash = $oldUser['password'] ?? '';
+
+$profile_completed = (
+    $fullname !== '' &&
+    $email !== '' &&
+    $role_id > 0 &&
+    $department_id > 0 &&
+    $position !== '' &&
+    $is_active === 1
+) ? 1 : 0;
         // เช็ก username ซ้ำ แต่ยกเว้น user ตัวเอง
         $checkUsername = $pdo->prepare("
             SELECT COUNT(*) 
@@ -159,7 +277,7 @@ try {
         $checkUsername->execute([$username, $user_id]);
 
         if ((int)$checkUsername->fetchColumn() > 0) {
-            goUserManagement('error=duplicate_username');
+            alertBack('ชื่อผู้ใช้นี้มีอยู่แล้ว กรุณาใช้ชื่อผู้ใช้อื่น');
         }
 
         // เช็ก email ซ้ำ แต่ยกเว้น user ตัวเอง
@@ -172,64 +290,72 @@ try {
         $checkEmail->execute([$email, $user_id]);
 
         if ((int)$checkEmail->fetchColumn() > 0) {
-            goUserManagement('error=duplicate_email');
+           alertBack('อีเมลนี้มีอยู่แล้ว กรุณาใช้อีเมลอื่น');
         }
 
         $pdo->beginTransaction();
 
         // ถ้ามีการกรอกรหัสผ่านใหม่ ให้ update password ด้วย
-        if (!empty($_POST['password'])) {
-            $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+        // แต่ถ้าค่าที่ส่งมาเป็น hash เดิมจากฐานข้อมูล ห้าม hash ซ้ำ เพราะจะทำให้รหัสผ่านเปลี่ยนเอง
+        $passwordRaw = trim($_POST['password'] ?? '');
+        $shouldUpdatePassword = ($passwordRaw !== '' && $passwordRaw !== $currentPasswordHash);
+
+        if ($shouldUpdatePassword) {
+            $password = password_hash($passwordRaw, PASSWORD_DEFAULT);
 
             $stmt = $pdo->prepare("
                 UPDATE users 
-                SET 
-                    username = ?,
-                    password = ?,
-                    fullname = ?,
-                    email = ?,
-                    role_id = ?,
-                    position = ?,
-                    department_id = ?,
-                    is_active = ?
-                WHERE user_id = ?
+SET 
+    username = ?,
+    password = ?,
+    fullname = ?,
+    email = ?,
+    role_id = ?,
+    position = ?,
+    department_id = ?,
+    is_active = ?,
+    profile_completed = ?
+WHERE user_id = ?
             ");
 
             $stmt->execute([
-                $username,
-                $password,
-                $fullname,
-                $email,
-                $role_id,
-                $position,
-                $department_id,
-                $is_active,
-                $user_id
-            ]);
+    $username,
+    $password,
+    $fullname,
+    $email,
+    $role_id,
+    $position,
+    $department_id,
+    $is_active,
+    $profile_completed,
+    $user_id
+]);
         } else {
             $stmt = $pdo->prepare("
                 UPDATE users 
-                SET 
-                    username = ?,
-                    fullname = ?,
-                    email = ?,
-                    role_id = ?,
-                    position = ?,
-                    department_id = ?,
-                    is_active = ?
-                WHERE user_id = ?
+SET 
+    username = ?,
+    fullname = ?,
+    email = ?,
+    role_id = ?,
+    position = ?,
+    department_id = ?,
+    is_active = ?,
+    profile_completed = ?
+WHERE user_id = ?
             ");
 
             $stmt->execute([
-                $username,
-                $fullname,
-                $email,
-                $role_id,
-                $position,
-                $department_id,
-                $is_active,
-                $user_id
-            ]);
+    $username,
+    $fullname,
+    $email,
+    $role_id,
+    $position,
+    $department_id,
+    $is_active,
+    $profile_completed,
+    $user_id
+]);
         }
 
         // ลบสิทธิ์เก่าก่อน
@@ -258,6 +384,18 @@ try {
         }
 
         $pdo->commit();
+        // ถ้าเป็น Google user และเดิมยังรอ Admin แต่ตอนนี้ข้อมูลครบแล้ว ให้ส่งอีเมลแจ้งผู้ใช้
+if (
+    $oldAuthProvider === 'google' &&
+    $oldProfileCompleted === 0 &&
+    (int)$profile_completed === 1
+) {
+    try {
+        notifyGoogleUserProfileApproved($pdo, $user_id);
+    } catch (Throwable $e) {
+        error_log('Google User Approved Notify Error: ' . $e->getMessage());
+    }
+}
 
         if (function_exists('addLog') && $currentUserId) {
             addLog($currentUserId, "แก้ไขข้อมูลผู้ใช้ {$username} และอัปเดตสิทธิ์การเข้าถึง");
@@ -336,7 +474,7 @@ try {
         $msg = $e->getMessage();
 
         if (stripos($msg, 'username') !== false) {
-            goUserManagement('error=duplicate_username');
+            alertBack('ชื่อผู้ใช้นี้มีอยู่แล้ว กรุณาใช้ชื่อผู้ใช้อื่น');
         }
 
         if (stripos($msg, 'email') !== false) {

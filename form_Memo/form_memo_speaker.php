@@ -87,7 +87,6 @@ if ($roleId !== 1 && $roleId !== 2) {
   }
 }
 
-
 /* --------------------------------------------------
    สิทธิ์แก้ไขเอกสาร
 -------------------------------------------------- */
@@ -97,76 +96,98 @@ $isOfficer = ($roleId === 2);
 $isOwner = ((int)($document['owner_id'] ?? 0) === $userId);
 $docStatus = trim((string)($document['status'] ?? ''));
 
+/*
+  เช็กสิทธิ์แก้ไขจาก permission จริง
+  perm_id = 1 คือ แก้ไขได้
+  หรือ perm_code = document.edit
+*/
 $hasDocumentEditPermission = false;
-$hasAnyExplicitPermission = false;
 try {
-  $permAnyStmt = $pdo->prepare("SELECT COUNT(*) FROM user_permissions WHERE user_id = :uid");
-  $permAnyStmt->execute([':uid' => $userId]);
-  $hasAnyExplicitPermission = ((int)$permAnyStmt->fetchColumn() > 0);
-
   $permStmt = $pdo->prepare("
     SELECT COUNT(*)
-    FROM user_permissions up
-    JOIN permissions p ON p.perm_id = up.perm_id
-    WHERE up.user_id = :uid
-      AND p.perm_code = 'document.edit'
+    FROM (
+      SELECT up.perm_id
+      FROM user_permissions up
+      LEFT JOIN permissions p ON p.perm_id = up.perm_id
+      WHERE up.user_id = :uid
+        AND (up.perm_id = 1 OR p.perm_code = 'document.edit')
+
+      UNION
+
+      SELECT rp.perm_id
+      FROM role_permissions rp
+      LEFT JOIN permissions p ON p.perm_id = rp.perm_id
+      WHERE rp.role_id = :rid
+        AND (rp.perm_id = 1 OR p.perm_code = 'document.edit')
+    ) AS edit_perms
   ");
-  $permStmt->execute([':uid' => $userId]);
+  $permStmt->execute([
+    ':uid' => $userId,
+    ':rid' => $roleId
+  ]);
   $hasDocumentEditPermission = ((int)$permStmt->fetchColumn() > 0);
 } catch (Throwable $permError) {
-  $hasAnyExplicitPermission = false;
   $hasDocumentEditPermission = false;
+}
+
+// กันกรณี session/role_permissions อ่านไม่ครบ แต่ role เป็น admin/officer จริง
+if ($isAdmin || $isOfficer) {
+  $hasDocumentEditPermission = true;
 }
 
 $userEditableStatuses = ['draft', 'รอยืนยันการส่ง', 'rejected', 'รอแก้เอกสาร', 'รอแก้ไข'];
 $submittedStatuses = ['submitted', 'รอตรวจ', 'รอตรวจสอบ', 'รอการตรวจสอบ'];
-$officerEditableStatuses = array_merge($userEditableStatuses, $submittedStatuses);
 $checkedStatuses = ['ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว', 'ได้รับการตรวจสอบ', 'ได้รับการตรวจสอบแล้ว', 'ตรวจสอบแล้ว', 'approved', 'checked', 'reviewed'];
 
 $isCheckedStatus = in_array($docStatus, $checkedStatuses, true);
-$isOfficerEditableStatus = in_array($docStatus, $officerEditableStatuses, true);
-$isUserEditableStatus = in_array($docStatus, $userEditableStatuses, true);
 $isSubmittedStatus = in_array($docStatus, $submittedStatuses, true);
+$isUserEditableStatus = in_array($docStatus, $userEditableStatuses, true);
 
-// ถ้ามีสิทธิ์รายบุคคลแล้วแต่ไม่มี document.edit ให้เป็นดูอย่างเดียว แม้เป็นเจ้าของเอกสาร
-$legacyOwnerCanEdit = ($isOwner && !$hasAnyExplicitPermission);
-$hasBaseEditPermission = ($isAdmin || $isOfficer || $hasDocumentEditPermission || $legacyOwnerCanEdit);
-
+/*
+  เหตุผลที่แก้ไม่ได้ มี 3 กรณีตามที่กำหนด
+*/
 $editDisabledReason = '';
 $editAlertTitle = '';
 $editAlertText = '';
 $editAlertIcon = 'info';
 
-if (!$hasBaseEditPermission) {
-  $editDisabledReason = 'no_permission';
-  $editAlertTitle = 'จำกัดสิทธิ์การแก้ไข';
-  $editAlertText = 'คุณไม่มีสิทธิ์ในการแก้ไขเอกสารนี้';
-  $editAlertIcon = 'error';
-} elseif ($isCheckedStatus) {
+if ($isCheckedStatus) {
   $editDisabledReason = 'checked';
   $editAlertTitle = 'เอกสารผ่านการตรวจสอบแล้ว';
-  $editAlertText = 'เอกสารนี้ได้รับการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
-} elseif (!($isAdmin || $isOfficer) && $isSubmittedStatus) {
+  $editAlertText = 'เอกสารนี้ผ่านการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
+  $editAlertIcon = 'success';
+} elseif (!$isAdmin && !$isOfficer && $isSubmittedStatus) {
   $editDisabledReason = 'submitted';
-  $editAlertTitle = 'เอกสารถูกส่งเข้าสู่การตรวจสอบแล้ว';
-  $editAlertText = 'เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
-} elseif (($isAdmin || $isOfficer) && !$isOfficerEditableStatus) {
-  $editDisabledReason = 'locked_status';
-  $editAlertTitle = 'ไม่สามารถแก้ไขเอกสารได้';
-  $editAlertText = 'สถานะเอกสารปัจจุบันไม่อนุญาตให้แก้ไข';
-} elseif (!($isAdmin || $isOfficer) && !$isUserEditableStatus) {
-  $editDisabledReason = 'locked_status';
-  $editAlertTitle = 'ไม่สามารถแก้ไขเอกสารได้';
-  $editAlertText = 'สถานะเอกสารปัจจุบันไม่อนุญาตให้แก้ไข';
+  $editAlertTitle = 'เอกสารอยู่ระหว่างรอตรวจสอบ';
+  $editAlertText = 'เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้ในขณะนี้';
+  $editAlertIcon = 'info';
+} elseif (!$hasDocumentEditPermission) {
+  $editDisabledReason = 'no_permission';
+  $editAlertTitle = 'ไม่มีสิทธิ์แก้ไขเอกสาร';
+  $editAlertText = 'คุณไม่มีสิทธิ์แก้ไขเอกสารนี้ กรุณาติดต่อผู้ดูแลระบบหากต้องการแก้ไข';
+  $editAlertIcon = 'warning';
 }
 
+/*
+  เงื่อนไขปุ่มแก้ไข
+  - ผ่านการตรวจสอบแล้ว: ทุก role แก้ไม่ได้
+  - User ที่รอตรวจสอบ: แก้ไม่ได้
+  - ไม่มีสิทธิ์แก้ไข: ทุก role แก้ไม่ได้
+  - User ต้องเป็นเจ้าของเอกสารและสถานะอยู่ในกลุ่มที่แก้ได้
+  - Admin/Officer ที่มีสิทธิ์แก้ไข แก้ได้ถ้าเอกสารยังไม่ผ่านตรวจ
+*/
 if ($isCheckedStatus) {
   $canEdit = false;
+} elseif (!$hasDocumentEditPermission) {
+  $canEdit = false;
+} elseif (!$isAdmin && !$isOfficer && $isSubmittedStatus) {
+  $canEdit = false;
 } elseif ($isAdmin || $isOfficer) {
-  $canEdit = $isOfficerEditableStatus;
+  $canEdit = true;
 } else {
-  $canEdit = (($hasDocumentEditPermission || $legacyOwnerCanEdit) && $isUserEditableStatus);
+  $canEdit = ($isOwner && $isUserEditableStatus);
 }
+
 $readonly = !$canEdit;
 
 
@@ -1163,9 +1184,10 @@ $len = max(20, $len);
     // แจ้งเตือนแสดง read-only
     Swal.fire({
       title: <?= json_encode($editAlertTitle ?: "ไม่สามารถแก้ไขเอกสารได้", JSON_UNESCAPED_UNICODE) ?>,
-      text: <?= json_encode($editAlertText ?: "เอกสารนี้ไม่สามารถแก้ไขได้ในสถานะปัจจุบัน", JSON_UNESCAPED_UNICODE) ?>,
+      html: <?= json_encode(($editAlertText ?: "เอกสารนี้ไม่สามารถแก้ไขได้") . "<br><br>ระบบจะแสดงเอกสารในโหมดดูตัวอย่างเท่านั้น", JSON_UNESCAPED_UNICODE) ?>,
       icon: <?= json_encode($editAlertIcon ?: "info", JSON_UNESCAPED_UNICODE) ?>,
-      confirmButtonText: "ตกลง"
+      confirmButtonText: "ตกลง",
+      confirmButtonColor: "#14b8a6"
     });
   });
   </script>
@@ -1400,17 +1422,18 @@ $len = max(20, $len);
           ดาวน์โหลด Word
         </a>
 
-        <!-- USER: ปุ่มแก้ไขเอกสาร -->
+        <!-- ปุ่มแก้ไขเอกสาร -->
         <?php if ($canEdit): ?>
-        <a href="<?= h($editQuestionUrl) ?>"
+        <a href="/Pro_letter/documents/infor_speaker_workshop.php?id=<?= (int)$docId ?>&edit=1"
           class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
           แก้ไขเอกสาร
         </a>
         <?php else: ?>
-        <span class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block"
-          title="<?= h($editAlertText ?: 'ไม่สามารถแก้ไขเอกสารนี้ได้') ?>">
+        <button type="button"
+          class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block opacity-80"
+          title="<?= h($editAlertText ?: 'ไม่สามารถแก้ไขเอกสารนี้ได้') ?>" disabled>
           แก้ไขเอกสาร
-        </span>
+        </button>
         <?php endif; ?>
 
 
@@ -1517,45 +1540,43 @@ $len = max(20, $len);
   document.addEventListener("DOMContentLoaded", () => {
     const errType = getQuery("err");
 
-    if (["no_permission", "submitted", "checked", "locked_status"].includes(errType)) {
+
+    if (["no_permission", "submitted", "checked"].includes(errType)) {
       const alertMap = {
         no_permission: {
-          title: "จำกัดสิทธิ์การแก้ไข",
-          html: `<div style="font-size: 1.15rem; line-height: 1.6;">คุณไม่มีสิทธิ์ในการแก้ไขเอกสารนี้<br>ต้องการกลับหน้าหลักหรืออยู่ต่อ?</div>`,
-          icon: "error"
+          title: "ไม่มีสิทธิ์แก้ไขเอกสาร",
+          html: `<div style="font-size: 1.15rem; line-height: 1.6;">
+        คุณไม่มีสิทธิ์แก้ไขเอกสารนี้<br>
+        กรุณาติดต่อผู้ดูแลระบบหากต้องการแก้ไข
+      </div>`,
+          icon: "warning"
         },
         submitted: {
-          title: "เอกสารถูกส่งแล้ว",
-          html: `<div style="font-size: 1.15rem; line-height: 1.6;">เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้<br>ต้องการกลับหน้าหลักหรืออยู่ต่อ?</div>`,
+          title: "เอกสารอยู่ระหว่างรอตรวจสอบ",
+          html: `<div style="font-size: 1.15rem; line-height: 1.6;">
+        เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว<br>
+        จึงไม่สามารถแก้ไขได้ในขณะนี้
+      </div>`,
           icon: "info"
         },
         checked: {
           title: "เอกสารผ่านการตรวจสอบแล้ว",
-          html: `<div style="font-size: 1.15rem; line-height: 1.6;">เอกสารนี้ได้รับการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้<br>ต้องการกลับหน้าหลักหรืออยู่ต่อ?</div>`,
-          icon: "info"
-        },
-        locked_status: {
-          title: "ไม่สามารถแก้ไขเอกสารได้",
-          html: `<div style="font-size: 1.15rem; line-height: 1.6;">สถานะเอกสารปัจจุบันไม่อนุญาตให้แก้ไข<br>ต้องการกลับหน้าหลักหรืออยู่ต่อ?</div>`,
-          icon: "info"
+          html: `<div style="font-size: 1.15rem; line-height: 1.6;">
+        เอกสารนี้ผ่านการตรวจสอบแล้ว<br>
+        จึงไม่สามารถแก้ไขได้
+      </div>`,
+          icon: "success"
         }
       };
 
-      const alertInfo = alertMap[errType] || alertMap.locked_status;
+      const alertInfo = alertMap[errType];
 
       Swal.fire({
         title: alertInfo.title,
         html: alertInfo.html,
         icon: alertInfo.icon,
-        showCancelButton: true,
-        confirmButtonText: "กลับหน้าหลัก",
-        cancelButtonText: "อยู่หน้านี้ต่อ",
-        confirmButtonColor: "#3085d6",
-        cancelButtonColor: "#aaa",
-      }).then((result) => {
-        if (result.isConfirmed) {
-          window.location.href = "<?= $homePath ?>";
-        }
+        confirmButtonText: "ตกลง",
+        confirmButtonColor: "#14b8a6"
       });
     }
   });

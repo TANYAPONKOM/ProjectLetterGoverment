@@ -130,52 +130,104 @@ $getValue = function(array $keys, $fallback = '') use ($valueMap, $valueMapById)
 
 $docStatus = trim((string)($document['status'] ?? ''));
 
+/*
+  เช็กสิทธิ์แก้ไขเอกสาร
+  perm_id = 1 คือ แก้ไขได้
+  หรือ perm_code = document.edit
+*/
 $hasDocumentEditPermission = false;
-$hasAnyExplicitPermission = false;
 try {
-  $permAnyStmt = $pdo->prepare("SELECT COUNT(*) FROM user_permissions WHERE user_id = :uid");
-  $permAnyStmt->execute([':uid' => $userId]);
-  $hasAnyExplicitPermission = ((int)$permAnyStmt->fetchColumn() > 0);
-
   $permStmt = $pdo->prepare("
     SELECT COUNT(*)
-    FROM user_permissions up
-    JOIN permissions p ON p.perm_id = up.perm_id
-    WHERE up.user_id = :uid
-      AND (p.perm_code = 'document.edit' OR p.perm_id = 3)
+    FROM (
+      SELECT up.perm_id
+      FROM user_permissions up
+      LEFT JOIN permissions p ON p.perm_id = up.perm_id
+      WHERE up.user_id = :uid
+        AND (up.perm_id = 1 OR p.perm_code = 'document.edit')
+
+      UNION
+
+      SELECT rp.perm_id
+      FROM role_permissions rp
+      LEFT JOIN permissions p ON p.perm_id = rp.perm_id
+      WHERE rp.role_id = :rid
+        AND (rp.perm_id = 1 OR p.perm_code = 'document.edit')
+    ) AS edit_perms
   ");
-  $permStmt->execute([':uid' => $userId]);
+  $permStmt->execute([
+    ':uid' => $userId,
+    ':rid' => $roleId
+  ]);
   $hasDocumentEditPermission = ((int)$permStmt->fetchColumn() > 0);
 } catch (Throwable $e) {
   $hasDocumentEditPermission = false;
-  $hasAnyExplicitPermission = false;
 }
+
+/* เช็กสิทธิ์แก้ไขจาก session เพิ่มอีกชั้น */
+$sessionPermissions = $_SESSION['permissions'] ?? [];
+
+if (is_string($sessionPermissions)) {
+  $sessionPermissions = array_filter(array_map('trim', explode(',', $sessionPermissions)));
+}
+
+if (!is_array($sessionPermissions)) {
+  $sessionPermissions = [];
+}
+
+$sessionPermissionValues = array_map(
+  static fn($value) => is_numeric($value) ? (int)$value : strtolower(trim((string)$value)),
+  $sessionPermissions
+);
+
+$hasDocumentEditPermission = $hasDocumentEditPermission
+  || in_array(1, $sessionPermissionValues, true)
+  || in_array('1', $sessionPermissionValues, true)
+  || in_array('document.edit', $sessionPermissionValues, true);
 
 $userEditableStatuses = ['draft', 'รอยืนยันการส่ง', 'rejected', 'รอแก้เอกสาร', 'รอแก้ไข'];
 $submittedStatuses = ['submitted', 'รอตรวจ', 'รอตรวจสอบ', 'รอการตรวจสอบ'];
 $checkedStatuses = ['ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว', 'ได้รับการตรวจสอบ', 'ได้รับการตรวจสอบแล้ว', 'ตรวจสอบแล้ว', 'approved', 'checked', 'reviewed'];
 
 $isCheckedStatus = in_array($docStatus, $checkedStatuses, true);
-$isUserEditableStatus = in_array($docStatus, $userEditableStatuses, true);
 $isSubmittedStatus = in_array($docStatus, $submittedStatuses, true);
-$legacyOwnerCanEdit = ($isOwner && !$hasAnyExplicitPermission);
+$isUserEditableStatus = in_array($docStatus, $userEditableStatuses, true);
 
-$editAlertText = 'คุณไม่มีสิทธิ์ในการแก้ไขเอกสารนี้';
+$editDisabledReason = '';
+$editAlertTitle = '';
+$editAlertText = '';
+$editAlertIcon = 'info';
+
 if ($isCheckedStatus) {
-  $editAlertText = 'เอกสารนี้ได้รับการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
+  $editDisabledReason = 'checked';
+  $editAlertTitle = 'เอกสารผ่านการตรวจสอบแล้ว';
+  $editAlertText = 'เอกสารนี้ผ่านการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
+  $editAlertIcon = 'success';
 } elseif (!$isAdmin && !$isOfficer && $isSubmittedStatus) {
-  $editAlertText = 'เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
-} elseif (!$isUserEditableStatus) {
-  $editAlertText = 'สถานะเอกสารปัจจุบันไม่อนุญาตให้แก้ไข';
+  $editDisabledReason = 'submitted';
+  $editAlertTitle = 'เอกสารอยู่ระหว่างรอตรวจสอบ';
+  $editAlertText = 'เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้ในขณะนี้';
+  $editAlertIcon = 'info';
+} elseif (!$hasDocumentEditPermission) {
+  $editDisabledReason = 'no_permission';
+  $editAlertTitle = 'ไม่มีสิทธิ์แก้ไขเอกสาร';
+  $editAlertText = 'คุณไม่มีสิทธิ์แก้ไขเอกสารนี้ กรุณาติดต่อผู้ดูแลระบบหากต้องการแก้ไข';
+  $editAlertIcon = 'warning';
 }
 
 if ($isCheckedStatus) {
   $canEdit = false;
+} elseif (!$hasDocumentEditPermission) {
+  $canEdit = false;
+} elseif (!$isAdmin && !$isOfficer && $isSubmittedStatus) {
+  $canEdit = false;
 } elseif ($isAdmin || $isOfficer) {
   $canEdit = true;
 } else {
-  $canEdit = (($hasDocumentEditPermission || $legacyOwnerCanEdit) && $isUserEditableStatus);
+  $canEdit = ($isOwner && $isUserEditableStatus);
 }
+
+$readonly = !$canEdit;
 
 $docNo = trim((string)($document['doc_no'] ?? ''));
 $docDate = $getValue(['free_doc_date', 'doc_date', 1], (string)($document['doc_date'] ?? ''));
@@ -238,6 +290,7 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
 ?>
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -249,294 +302,305 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
   <link rel="stylesheet" href="../documents/memo-styles.css">
 
   <style>
-    @font-face {
-      font-family: 'TH SarabunPSK';
-      src: url('../fonts/THSarabun.ttf') format('truetype');
-      font-weight: normal;
-      font-style: normal;
+  @font-face {
+    font-family: 'TH SarabunPSK';
+    src: url('../fonts/THSarabun.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'TH SarabunPSK';
+    src: url('../fonts/THSarabun-Bold.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+  }
+
+  html,
+  body,
+  .page,
+  .content-block,
+  .chip,
+  .dot-input,
+  .subject-line,
+  .signature-block {
+    font-family: 'TH SarabunPSK', sans-serif !important;
+  }
+
+  .memo-title-row {
+    position: relative;
+    height: 1.65cm;
+    margin-bottom: 0.35em;
+  }
+
+  .memo-title-row .garuda-img {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 1.6cm;
+    width: auto;
+  }
+
+  .memo-title-row .doc-title {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0.50cm;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: "TH SarabunPSK";
+    font-size: 30pt;
+    font-weight: bold;
+    line-height: 1 !important;
+    text-align: center;
+    transform: translateX(-0.3cm);
+  }
+
+  .doc-row {
+    display: flex;
+    align-items: flex-end;
+    width: 100%;
+    margin-bottom: 0.04cm;
+    font-size: 16pt;
+    line-height: 1.05;
+  }
+
+  .doc-label {
+    font-size: 20pt;
+    font-weight: bold;
+    white-space: nowrap;
+    margin-right: 0.12cm;
+    line-height: 1.05;
+  }
+
+  .dot-line {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0.55cm;
+    line-height: 1.05;
+  }
+
+  .chip {
+    display: inline-block;
+    position: relative;
+    top: -2px;
+    line-height: 1;
+    font-size: 16pt;
+  }
+
+  .row-ty-date .ty-left {
+    flex: 0 0 6.4cm;
+  }
+
+  .subject-row .subject-label {
+    width: 1.15cm !important;
+    flex: 0 0 1.15cm !important;
+  }
+
+  .subject-wrap {
+    flex: 1;
+    padding-left: 0;
+    margin-left: -8px;
+  }
+
+  .subject-line {
+    min-height: 22px;
+    line-height: 1.05;
+    border-bottom: 2px dotted #000;
+    padding-left: 19px;
+    padding-top: 4px;
+    font-family: "TH SarabunPSK";
+    font-size: 16pt;
+    font-weight: 300;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: normal;
+  }
+
+  .subject-line.blank-label-line {
+    margin-left: 0;
+  }
+
+  .subject-text {
+    display: inline-block;
+    position: relative;
+    top: 4px;
+  }
+
+  .doc-row:not(.subject-row) .dot-line>.chip {
+    display: inline-block;
+    position: relative;
+    top: -2px;
+    line-height: 1;
+  }
+
+  .doc-row.gov-row>.doc-label {
+    width: auto !important;
+    min-width: 2.15cm !important;
+    white-space: nowrap !important;
+  }
+
+  .doc-row.gov-row>.dot-line {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0.25cm !important;
+    width: calc(100% - 2.15cm - 0.25cm) !important;
+    flex: 0 0 calc(100% - 2.15cm - 0.25cm) !important;
+  }
+
+  .doc-row.gov-row>.dot-line>.chip.gov-text {
+    display: inline-block !important;
+    margin-left: -0.05cm !important;
+    transform: none !important;
+    white-space: nowrap !important;
+    font-size: 16pt;
+    max-width: 100%;
+  }
+
+  .page.gov-agency-overflow-fit {
+    padding-left: 2.80cm !important;
+    padding-right: 1.80cm !important;
+  }
+
+  .memo-to-row {
+    display: flex;
+    align-items: flex-end;
+    margin-bottom: 6px;
+  }
+
+  .memo-to-row .memo-to-label,
+  .memo-to-label {
+    font-family: "TH SarabunPSK";
+    font-size: 16pt;
+    width: 1.15cm;
+    flex: 0 0 1.15cm;
+    line-height: 2;
+    font-weight: normal;
+    margin-right: 0;
+    white-space: nowrap;
+  }
+
+  .memo-to-row .memo-to-text,
+  .memo-to-text {
+    font-family: "TH SarabunPSK";
+    font-size: 16pt;
+    font-weight: 300;
+    line-height: 2;
+    padding-left: 14px;
+  }
+
+  .content-block.paragraph {
+    font-family: "TH SarabunPSK";
+    font-size: 16pt;
+    font-weight: 400;
+    line-height: 1.34 !important;
+    margin-top: 0 !important;
+    margin-bottom: 6px !important;
+    text-indent: 2.5cm;
+    text-align: justify !important;
+    text-align-last: left !important;
+    word-spacing: -1.2px !important;
+    letter-spacing: -0.05px !important;
+    white-space: pre-line;
+    text-justify: inter-character;
+    overflow-wrap: normal;
+  }
+
+  .free-document-signature {
+    font-family: "TH SarabunPSK";
+    font-size: 16pt;
+    font-weight: 400;
+    line-height: 1.35;
+    text-align: center;
+    width: 7.2cm;
+    margin-left: auto;
+    margin-right: 0.4cm;
+    margin-top: 1.35cm;
+  }
+
+  .free-document-signature .signer-name {
+    margin-bottom: 0.05cm;
+  }
+
+  .footer-actions {
+    margin-top: 1.0cm;
+    display: flex;
+    justify-content: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+  }
+
+  .pdf-loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(255, 255, 255, 0.72);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+  }
+
+  .pdf-loading-box {
+    min-width: 260px;
+    padding: 28px 34px;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+    text-align: center;
+    font-family: "TH SarabunPSK", sans-serif;
+  }
+
+  .pdf-spinner {
+    width: 58px;
+    height: 58px;
+    margin: 0 auto 14px auto;
+    border: 6px solid rgba(20, 184, 166, 0.18);
+    border-top-color: #14b8a6;
+    border-right-color: #14b8a6;
+    border-radius: 50%;
+    animation: pdfSpin 0.85s linear infinite;
+  }
+
+  .pdf-loading-title {
+    color: #0f766e;
+    font-size: 22pt;
+    font-weight: bold;
+    line-height: 1.1;
+  }
+
+  .pdf-loading-subtitle {
+    margin-top: 4px;
+    color: #475569;
+    font-size: 16pt;
+    line-height: 1.1;
+  }
+
+  @keyframes pdfSpin {
+    from {
+      transform: rotate(0deg);
     }
 
-    @font-face {
-      font-family: 'TH SarabunPSK';
-      src: url('../fonts/THSarabun-Bold.ttf') format('truetype');
-      font-weight: bold;
-      font-style: normal;
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @media print {
+    body {
+      background: #fff !important;
     }
 
-    html,
-    body,
-    .page,
-    .content-block,
-    .chip,
-    .dot-input,
-    .subject-line,
-    .signature-block {
-      font-family: 'TH SarabunPSK', sans-serif !important;
-    }
-
-    .memo-title-row {
-      position: relative;
-      height: 1.65cm;
-      margin-bottom: 0.35em;
-    }
-
-    .memo-title-row .garuda-img {
-      position: absolute;
-      left: 0;
-      top: 0;
-      height: 1.6cm;
-      width: auto;
-    }
-
-    .memo-title-row .doc-title {
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 0.50cm;
-      margin: 0 !important;
-      padding: 0 !important;
-      font-family: "TH SarabunPSK";
-      font-size: 30pt;
-      font-weight: bold;
-      line-height: 1 !important;
-      text-align: center;
-      transform: translateX(-0.3cm);
-    }
-
-    .doc-row {
-      display: flex;
-      align-items: flex-end;
-      width: 100%;
-      margin-bottom: 0.04cm;
-      font-size: 16pt;
-      line-height: 1.05;
-    }
-
-    .doc-label {
-      font-size: 20pt;
-      font-weight: bold;
-      white-space: nowrap;
-      margin-right: 0.12cm;
-      line-height: 1.05;
-    }
-
-    .dot-line {
-      position: relative;
-      flex: 1 1 auto;
-      min-height: 0.55cm;
-      line-height: 1.05;
-    }
-
-    .chip {
-      display: inline-block;
-      position: relative;
-      top: -2px;
-      line-height: 1;
-      font-size: 16pt;
-    }
-
-    .row-ty-date .ty-left {
-      flex: 0 0 6.4cm;
-    }
-
-    .subject-row .subject-label {
-      width: 1.15cm !important;
-      flex: 0 0 1.15cm !important;
-    }
-
-    .subject-wrap {
-      flex: 1;
-      padding-left: 0;
-      margin-left: -8px;
-    }
-
-    .subject-line {
-      min-height: 22px;
-      line-height: 1.05;
-      border-bottom: 2px dotted #000;
-      padding-left: 19px;
-      padding-top: 4px;
-      font-family: "TH SarabunPSK";
-      font-size: 16pt;
-      font-weight: 300;
-      white-space: normal;
-      word-break: normal;
-      overflow-wrap: normal;
-    }
-
-    .subject-line.blank-label-line {
-      margin-left: 0;
-    }
-
-    .subject-text {
-      display: inline-block;
-      position: relative;
-      top: 4px;
-    }
-
-    .doc-row:not(.subject-row) .dot-line>.chip {
-      display: inline-block;
-      position: relative;
-      top: -2px;
-      line-height: 1;
-    }
-
-    .doc-row.gov-row>.doc-label {
-      width: auto !important;
-      min-width: 2.15cm !important;
-      white-space: nowrap !important;
-    }
-
-    .doc-row.gov-row>.dot-line {
-      margin-left: 0 !important;
-      padding-left: 0 !important;
-      padding-right: 0.25cm !important;
-      width: calc(100% - 2.15cm - 0.25cm) !important;
-      flex: 0 0 calc(100% - 2.15cm - 0.25cm) !important;
-    }
-
-    .doc-row.gov-row>.dot-line>.chip.gov-text {
-      display: inline-block !important;
-      margin-left: -0.05cm !important;
-      transform: none !important;
-      white-space: nowrap !important;
-      font-size: 16pt;
-      max-width: 100%;
-    }
-
-    .page.gov-agency-overflow-fit {
-      padding-left: 2.80cm !important;
-      padding-right: 1.80cm !important;
-    }
-
-    .memo-to-row {
-      display: flex;
-      align-items: flex-end;
-      margin-bottom: 6px;
-    }
-
-    .memo-to-row .memo-to-label,
-    .memo-to-label {
-      font-family: "TH SarabunPSK";
-      font-size: 16pt;
-      width: 1.15cm;
-      flex: 0 0 1.15cm;
-      line-height: 2;
-      font-weight: normal;
-      margin-right: 0;
-      white-space: nowrap;
-    }
-
-    .memo-to-row .memo-to-text,
-    .memo-to-text {
-      font-family: "TH SarabunPSK";
-      font-size: 16pt;
-      font-weight: 300;
-      line-height: 2;
-      padding-left: 14px;
-    }
-
-    .content-block.paragraph {
-      font-family: "TH SarabunPSK";
-      font-size: 16pt;
-      font-weight: 400;
-      line-height: 1.34 !important;
-      margin-top: 0 !important;
-      margin-bottom: 6px !important;
-      text-indent: 2.5cm;
-      text-align: justify !important;
-      text-align-last: left !important;
-      word-spacing: -1.2px !important;
-      letter-spacing: -0.05px !important;
-      white-space: pre-line;
-      text-justify: inter-character;
-      overflow-wrap: normal;
-    }
-
-    .free-document-signature {
-      font-family: "TH SarabunPSK";
-      font-size: 16pt;
-      font-weight: 400;
-      line-height: 1.35;
-      text-align: center;
-      width: 7.2cm;
-      margin-left: auto;
-      margin-right: 0.4cm;
-      margin-top: 1.35cm;
-    }
-
-    .free-document-signature .signer-name {
-      margin-bottom: 0.05cm;
-    }
-
-    .footer-actions {
-      margin-top: 1.0cm;
-      display: flex;
-      justify-content: center;
-      gap: 0.35rem;
-      flex-wrap: wrap;
-    }
-
+    .footer-actions,
     .pdf-loading-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 99999;
-      background: rgba(255, 255, 255, 0.72);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      backdrop-filter: blur(2px);
+      display: none !important;
     }
 
-    .pdf-loading-box {
-      min-width: 260px;
-      padding: 28px 34px;
-      border-radius: 18px;
-      background: #ffffff;
-      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
-      text-align: center;
-      font-family: "TH SarabunPSK", sans-serif;
+    .page {
+      margin: 0 !important;
+      box-shadow: none !important;
     }
-
-    .pdf-spinner {
-      width: 58px;
-      height: 58px;
-      margin: 0 auto 14px auto;
-      border: 6px solid rgba(20, 184, 166, 0.18);
-      border-top-color: #14b8a6;
-      border-right-color: #14b8a6;
-      border-radius: 50%;
-      animation: pdfSpin 0.85s linear infinite;
-    }
-
-    .pdf-loading-title {
-      color: #0f766e;
-      font-size: 22pt;
-      font-weight: bold;
-      line-height: 1.1;
-    }
-
-    .pdf-loading-subtitle {
-      margin-top: 4px;
-      color: #475569;
-      font-size: 16pt;
-      line-height: 1.1;
-    }
-
-    @keyframes pdfSpin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    @media print {
-      body { background: #fff !important; }
-      .footer-actions,
-      .pdf-loading-overlay { display: none !important; }
-      .page {
-        margin: 0 !important;
-        box-shadow: none !important;
-      }
-    }
+  }
   </style>
 </head>
 
@@ -550,13 +614,52 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
   </div>
 
   <?php if (isset($_GET['saved']) && $_GET['saved'] == '1'): ?>
-  <div id="alertBox" class="bg-green-500 text-white px-4 py-2 rounded-md text-center mb-4 shadow-md">
-    ✅ บันทึกสำเร็จ
-  </div>
-  <?php elseif (isset($_GET['err']) && $_GET['err'] == 'no_permission'): ?>
-  <div id="alertBox" class="bg-red-500 text-white px-4 py-2 rounded-md text-center mb-4 shadow-md">
-    ❌ ไม่สามารถแก้ไขเอกสารนี้ได้
-  </div>
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    Swal.fire({
+      title: "บันทึกสำเร็จ",
+      text: "ระบบบันทึกข้อมูลเอกสารเรียบร้อยแล้ว",
+      icon: "success",
+      confirmButtonText: "ตกลง",
+      confirmButtonColor: "#14b8a6"
+    });
+  });
+  </script>
+  <?php elseif (isset($_GET['err'])): ?>
+  <?php
+  $errType = trim((string)$_GET['err']);
+
+  $errTitle = '';
+  $errText = '';
+  $errIcon = 'info';
+
+  if ($errType === 'no_permission') {
+    $errTitle = 'ไม่มีสิทธิ์แก้ไขเอกสาร';
+    $errText = 'คุณไม่มีสิทธิ์แก้ไขเอกสารนี้ กรุณาติดต่อผู้ดูแลระบบหากต้องการแก้ไข';
+    $errIcon = 'warning';
+  } elseif ($errType === 'submitted') {
+    $errTitle = 'เอกสารอยู่ระหว่างรอตรวจสอบ';
+    $errText = 'เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้ในขณะนี้';
+    $errIcon = 'info';
+  } elseif ($errType === 'checked') {
+    $errTitle = 'เอกสารผ่านการตรวจสอบแล้ว';
+    $errText = 'เอกสารนี้ผ่านการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
+    $errIcon = 'success';
+  }
+?>
+  <?php if ($errTitle !== ''): ?>
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    Swal.fire({
+      title: <?= json_encode($errTitle, JSON_UNESCAPED_UNICODE) ?>,
+      html: <?= json_encode($errText . "<br><br>ระบบจะแสดงเอกสารในโหมดดูตัวอย่างเท่านั้น", JSON_UNESCAPED_UNICODE) ?>,
+      icon: <?= json_encode($errIcon, JSON_UNESCAPED_UNICODE) ?>,
+      confirmButtonText: "ตกลง",
+      confirmButtonColor: "#14b8a6"
+    });
+  });
+  </script>
+  <?php endif; ?>
   <?php endif; ?>
 
   <main class="page" id="memoPage">
@@ -589,7 +692,7 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
       <div class="doc-label subject-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
       <div class="subject-wrap">
         <?php foreach ($subjectLines as $line): ?>
-          <div class="subject-line"><span class="subject-text"><?= fd_h($line) ?></span></div>
+        <div class="subject-line"><span class="subject-text"><?= fd_h($line) ?></span></div>
         <?php endforeach; ?>
       </div>
     </div>
@@ -600,24 +703,26 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
     </div>
 
     <?php foreach ($paragraphs as $paragraph): ?>
-      <?php if ($paragraph !== ''): ?>
-        <div class="content-block paragraph"><?= fd_h($paragraph) ?></div>
-      <?php endif; ?>
+    <?php if ($paragraph !== ''): ?>
+    <div class="content-block paragraph"><?= fd_h($paragraph) ?></div>
+    <?php endif; ?>
     <?php endforeach; ?>
 
     <?php if (trim(implode('', $paragraphs)) === ''): ?>
-      <div class="content-block paragraph">................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................</div>
+    <div class="content-block paragraph">
+      ................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+    </div>
     <?php endif; ?>
 
     <?php if ($signerName !== '' || $signerPosition !== ''): ?>
-      <div class="free-document-signature">
-        <?php if ($signerName !== ''): ?>
-          <div class="signer-name">(<?= fd_h($signerName) ?>)</div>
-        <?php endif; ?>
-        <?php if ($signerPosition !== ''): ?>
-          <div class="signer-position"><?= fd_h($signerPosition) ?></div>
-        <?php endif; ?>
-      </div>
+    <div class="free-document-signature">
+      <?php if ($signerName !== ''): ?>
+      <div class="signer-name">(<?= fd_h($signerName) ?>)</div>
+      <?php endif; ?>
+      <?php if ($signerPosition !== ''): ?>
+      <div class="signer-position"><?= fd_h($signerPosition) ?></div>
+      <?php endif; ?>
+    </div>
     <?php endif; ?>
 
     <div class="footer-actions">
@@ -637,10 +742,11 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
         แก้ไขเอกสาร
       </a>
       <?php else: ?>
-      <span class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block"
-        title="<?= fd_h($editAlertText ?: 'ไม่สามารถแก้ไขเอกสารนี้ได้') ?>">
+      <button type="button"
+        class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block opacity-80"
+        title="<?= fd_h($editAlertText ?: 'ไม่สามารถแก้ไขเอกสารนี้ได้') ?>" disabled>
         แก้ไขเอกสาร
-      </span>
+      </button>
       <?php endif; ?>
 
       <a href="<?= fd_h($homePath) ?>"
@@ -651,271 +757,284 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
   </main>
 
   <script>
-    function fitGovAgencyText(root = document) {
-      root.querySelectorAll(".doc-row.gov-row .chip.gov-text").forEach(el => {
-        const line = el.closest(".dot-line");
-        const page = el.closest(".page");
-        if (!line) return;
+  function fitGovAgencyText(root = document) {
+    root.querySelectorAll(".doc-row.gov-row .chip.gov-text").forEach(el => {
+      const line = el.closest(".dot-line");
+      const page = el.closest(".page");
+      if (!line) return;
 
-        if (!el.dataset.govOriginalText) {
-          el.dataset.govOriginalText = (el.textContent || "").trim();
-        }
+      if (!el.dataset.govOriginalText) {
+        el.dataset.govOriginalText = (el.textContent || "").trim();
+      }
 
-        const originalText = el.dataset.govOriginalText;
-        const compactText = originalText.replace(/\s+/gu, "");
+      const originalText = el.dataset.govOriginalText;
+      const compactText = originalText.replace(/\s+/gu, "");
 
-        if (page) {
-          page.classList.remove("gov-agency-overflow-fit");
-        }
+      if (page) {
+        page.classList.remove("gov-agency-overflow-fit");
+      }
 
-        el.style.setProperty("display", "inline-block", "important");
-        el.style.setProperty("white-space", "nowrap", "important");
-        el.style.setProperty("max-width", "none", "important");
-        el.style.setProperty("letter-spacing", "normal", "important");
+      el.style.setProperty("display", "inline-block", "important");
+      el.style.setProperty("white-space", "nowrap", "important");
+      el.style.setProperty("max-width", "none", "important");
+      el.style.setProperty("letter-spacing", "normal", "important");
 
-        const fits = () => {
-          const lineWidth = Math.floor(line.getBoundingClientRect().width || line.clientWidth);
-          const textWidth = Math.ceil(el.getBoundingClientRect().width || el.scrollWidth);
-          return !!lineWidth && textWidth <= lineWidth + 1;
-        };
+      const fits = () => {
+        const lineWidth = Math.floor(line.getBoundingClientRect().width || line.clientWidth);
+        const textWidth = Math.ceil(el.getBoundingClientRect().width || el.scrollWidth);
+        return !!lineWidth && textWidth <= lineWidth + 1;
+      };
 
-        el.textContent = originalText;
-        for (const size of [16, 15, 14]) {
-          el.style.setProperty("font-size", size + "pt", "important");
-          if (fits()) return;
-        }
-
-        el.textContent = compactText;
-        el.style.setProperty("font-size", "14pt", "important");
+      el.textContent = originalText;
+      for (const size of [16, 15, 14]) {
+        el.style.setProperty("font-size", size + "pt", "important");
         if (fits()) return;
+      }
 
-        if (page) {
-          page.classList.add("gov-agency-overflow-fit");
-          void page.offsetWidth;
-        }
-        if (!fits()) {
-          el.style.setProperty("letter-spacing", "-0.2px", "important");
-        }
-      });
-    }
+      el.textContent = compactText;
+      el.style.setProperty("font-size", "14pt", "important");
+      if (fits()) return;
 
-    document.addEventListener("DOMContentLoaded", () => {
-      fitGovAgencyText(document);
-      if (document.fonts && document.fonts.ready) {
-        document.fonts.ready.then(() => fitGovAgencyText(document));
+      if (page) {
+        page.classList.add("gov-agency-overflow-fit");
+        void page.offsetWidth;
+      }
+      if (!fits()) {
+        el.style.setProperty("letter-spacing", "-0.2px", "important");
       }
     });
+  }
 
-    setTimeout(() => {
-      const alertBox = document.getElementById('alertBox');
-      if (alertBox) alertBox.style.display = 'none';
-    }, 2500);
-
-    function showPdfLoading() {
-      const overlay = document.getElementById('pdfLoadingOverlay');
-      if (overlay) overlay.style.display = 'flex';
+  document.addEventListener("DOMContentLoaded", () => {
+    fitGovAgencyText(document);
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => fitGovAgencyText(document));
     }
+  });
 
-    function hidePdfLoading() {
-      const overlay = document.getElementById('pdfLoadingOverlay');
-      if (overlay) overlay.style.display = 'none';
-    }
 
-    async function downloadPdf() {
-      const loadingOverlay = document.getElementById("pdfLoadingOverlay");
-      const loadingTitle = document.getElementById("downloadLoadingTitle");
-      const loadingSubtitle = document.getElementById("downloadLoadingSubtitle");
-      const downloadButtons = document.querySelectorAll("button[onclick='downloadPdf()']");
 
-      if (loadingTitle) loadingTitle.innerText = "กำลังสร้าง PDF...";
-      if (loadingSubtitle) loadingSubtitle.innerText = "กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร";
-      if (loadingOverlay) loadingOverlay.style.display = "flex";
+  function showPdfLoading() {
+    const overlay = document.getElementById('pdfLoadingOverlay');
+    if (overlay) overlay.style.display = 'flex';
+  }
 
-      downloadButtons.forEach(btn => {
-        btn.disabled = true;
-        btn.dataset.oldText = btn.innerText;
-        btn.innerText = "กำลังสร้าง PDF...";
-        btn.style.opacity = "0.65";
-        btn.style.cursor = "not-allowed";
+  function hidePdfLoading() {
+    const overlay = document.getElementById('pdfLoadingOverlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  async function downloadPdf() {
+    const loadingOverlay = document.getElementById("pdfLoadingOverlay");
+    const loadingTitle = document.getElementById("downloadLoadingTitle");
+    const loadingSubtitle = document.getElementById("downloadLoadingSubtitle");
+    const downloadButtons = document.querySelectorAll("button[onclick='downloadPdf()']");
+
+    if (loadingTitle) loadingTitle.innerText = "กำลังสร้าง PDF...";
+    if (loadingSubtitle) loadingSubtitle.innerText = "กรุณารอสักครู่ ระบบกำลังเตรียมเอกสาร";
+    if (loadingOverlay) loadingOverlay.style.display = "flex";
+
+    downloadButtons.forEach(btn => {
+      btn.disabled = true;
+      btn.dataset.oldText = btn.innerText;
+      btn.innerText = "กำลังสร้าง PDF...";
+      btn.style.opacity = "0.65";
+      btn.style.cursor = "not-allowed";
+    });
+
+    try {
+      const {
+        jsPDF
+      } = window.jspdf;
+      const pages = document.querySelectorAll(".page");
+
+      if (!pages.length) {
+        alert("ไม่พบหน้าเอกสาร .page");
+        return;
+      }
+
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4"
       });
 
-      try {
-        const { jsPDF } = window.jspdf;
-        const pages = document.querySelectorAll(".page");
+      for (let i = 0; i < pages.length; i++) {
+        const clone = pages[i].cloneNode(true);
+        clone.classList.add("print-mode");
 
-        if (!pages.length) {
-          alert("ไม่พบหน้าเอกสาร .page");
-          return;
-        }
+        clone.style.position = "fixed";
+        clone.style.left = "-9999px";
+        clone.style.top = "0";
+        clone.style.width = "794px";
+        clone.style.minHeight = "1123px";
+        clone.style.boxSizing = "border-box";
+        clone.style.background = "#ffffff";
 
-        const pdf = new jsPDF({
-          orientation: "portrait",
-          unit: "mm",
-          format: "a4"
-        });
+        clone.querySelectorAll(".footer-actions").forEach(el => el.remove());
 
-        for (let i = 0; i < pages.length; i++) {
-          const clone = pages[i].cloneNode(true);
-          clone.classList.add("print-mode");
-
-          clone.style.position = "fixed";
-          clone.style.left = "-9999px";
-          clone.style.top = "0";
-          clone.style.width = "794px";
-          clone.style.minHeight = "1123px";
-          clone.style.boxSizing = "border-box";
-          clone.style.background = "#ffffff";
-
-          clone.querySelectorAll(".footer-actions").forEach(el => el.remove());
-
-          clone.querySelectorAll(".content-block.paragraph").forEach(block => {
-            block.childNodes.forEach(node => {
-              if (node.nodeType === Node.TEXT_NODE) {
-                node.textContent = node.textContent.replace(/\s+/g, " ");
-              }
-            });
-
-            block.style.setProperty("text-align", "justify", "important");
-            block.style.setProperty("text-align-last", "left", "important");
-            block.style.setProperty("text-justify", "inter-character", "important");
-            block.style.setProperty("word-spacing", "-1.2px", "important");
-            block.style.setProperty("letter-spacing", "-0.05px", "important");
-            block.style.setProperty("line-height", "1.34", "important");
-            block.style.setProperty("margin-bottom", "4px", "important");
-          });
-
-          const cloneGaruda = clone.querySelector(".garuda-img");
-          if (cloneGaruda) {
-            cloneGaruda.style.transform = "translateY(-0.65cm)";
-          }
-
-          const cloneTitle = clone.querySelector(".doc-title");
-          if (cloneTitle) {
-            cloneTitle.style.top = "-0.85cm";
-          }
-
-          const cloneTitleRow = clone.querySelector(".memo-title-row");
-          if (cloneTitleRow) {
-            cloneTitleRow.style.height = "0.8cm";
-            cloneTitleRow.style.marginBottom = "0.1cm";
-          }
-
-          clone.querySelectorAll(".dot-line").forEach(line => {
-            line.style.position = "relative";
-            line.style.overflow = "visible";
-            line.style.backgroundImage = "none";
-            line.style.setProperty("border-bottom", "none", "important");
-
-            line.querySelectorAll(".pdf-real-dot-line").forEach(el => el.remove());
-
-            const dot = document.createElement("div");
-            dot.className = "pdf-real-dot-line";
-            dot.style.position = "absolute";
-            dot.style.left = "0";
-            dot.style.right = "0";
-            dot.style.bottom = "-12px";
-            dot.style.height = "0";
-            dot.style.zIndex = "1";
-            dot.style.pointerEvents = "none";
-            dot.style.borderTop = "2px dotted #000";
-
-            line.prepend(dot);
-
-            if (!line.closest(".subject-row")) {
-              line.querySelectorAll(".chip").forEach(chip => {
-                chip.style.setProperty("display", "inline-block", "important");
-                chip.style.setProperty("position", "relative", "important");
-                chip.style.setProperty("top", "-2px", "important");
-                chip.style.setProperty("line-height", "1", "important");
-                chip.style.setProperty("z-index", "3", "important");
-                chip.style.setProperty("background", "transparent", "important");
-              });
+        clone.querySelectorAll(".content-block.paragraph").forEach(block => {
+          block.childNodes.forEach(node => {
+            if (node.nodeType === Node.TEXT_NODE) {
+              node.textContent = node.textContent.replace(/\s+/g, " ");
             }
           });
 
-          clone.querySelectorAll(".subject-line").forEach((line, index) => {
-            line.querySelectorAll(".pdf-subject-dot-line").forEach(el => el.remove());
+          block.style.setProperty("text-align", "justify", "important");
+          block.style.setProperty("text-align-last", "left", "important");
+          block.style.setProperty("text-justify", "inter-character", "important");
+          block.style.setProperty("word-spacing", "-1.2px", "important");
+          block.style.setProperty("letter-spacing", "-0.05px", "important");
+          block.style.setProperty("line-height", "1.34", "important");
+          block.style.setProperty("margin-bottom", "4px", "important");
+        });
 
-            line.style.position = "relative";
-            line.style.height = "auto";
-            line.style.minHeight = "20px";
-            line.style.lineHeight = "1.2";
-            line.style.paddingLeft = "18px";
-            line.style.paddingTop = "0";
-            line.style.paddingBottom = "16px";
-            line.style.margin = "0";
-            line.style.borderBottom = "2px dotted #000";
-            line.style.overflow = "visible";
-            line.style.fontSize = "16pt";
-            line.style.wordBreak = "normal";
-            line.style.overflowWrap = "normal";
-            line.style.fontFamily = "TH SarabunPSK";
-            line.style.backgroundImage = "none";
-
-            if (index > 0) {
-              line.style.marginTop = "-10px";
-            }
-
-            line.querySelectorAll(".subject-text").forEach(text => {
-              text.style.display = "inline-block";
-              text.style.position = "relative";
-              text.style.top = "4px";
-              text.style.zIndex = "3";
-              text.style.background = "transparent";
-            });
-          });
-
-          document.body.appendChild(clone);
-
-          if (typeof fitGovAgencyText === "function") {
-            fitGovAgencyText(clone);
-          }
-
-          if (document.fonts && document.fonts.ready) {
-            await document.fonts.ready;
-          }
-
-          const canvas = await html2canvas(clone, {
-            scale: 2.2,
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: "#ffffff",
-            windowWidth: 794,
-            windowHeight: 1123,
-            scrollX: 0,
-            scrollY: 0,
-            logging: false,
-            imageTimeout: 10000,
-            removeContainer: true
-          });
-
-          document.body.removeChild(clone);
-
-          const imgData = canvas.toDataURL("image/png");
-
-          if (i > 0) {
-            pdf.addPage();
-          }
-
-          pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "FAST");
+        const cloneGaruda = clone.querySelector(".garuda-img");
+        if (cloneGaruda) {
+          cloneGaruda.style.transform = "translateY(-0.65cm)";
         }
 
-        const pdfFileName = <?= json_encode($pdfDownloadName, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
-        pdf.save(pdfFileName);
-      } catch (error) {
-        console.error(error);
-        alert("สร้าง PDF ไม่สำเร็จ กรุณากด F12 ดู Console");
-      } finally {
-        if (loadingOverlay) loadingOverlay.style.display = "none";
+        const cloneTitle = clone.querySelector(".doc-title");
+        if (cloneTitle) {
+          cloneTitle.style.top = "-0.85cm";
+        }
 
-        downloadButtons.forEach(btn => {
-          btn.disabled = false;
-          btn.innerText = btn.dataset.oldText || "ดาวน์โหลด PDF";
-          btn.style.opacity = "1";
-          btn.style.cursor = "pointer";
+        const cloneTitleRow = clone.querySelector(".memo-title-row");
+        if (cloneTitleRow) {
+          cloneTitleRow.style.height = "0.8cm";
+          cloneTitleRow.style.marginBottom = "0.1cm";
+        }
+
+        clone.querySelectorAll(".dot-line").forEach(line => {
+          line.style.position = "relative";
+          line.style.overflow = "visible";
+          line.style.backgroundImage = "none";
+          line.style.setProperty("border-bottom", "none", "important");
+
+          line.querySelectorAll(".pdf-real-dot-line").forEach(el => el.remove());
+
+          const dot = document.createElement("div");
+          dot.className = "pdf-real-dot-line";
+          dot.style.position = "absolute";
+          dot.style.left = "0";
+          dot.style.right = "0";
+          dot.style.bottom = "-12px";
+          dot.style.height = "0";
+          dot.style.zIndex = "1";
+          dot.style.pointerEvents = "none";
+          dot.style.borderTop = "2px dotted #000";
+
+          line.prepend(dot);
+
+          if (!line.closest(".subject-row")) {
+            line.querySelectorAll(".chip").forEach(chip => {
+              chip.style.setProperty("display", "inline-block", "important");
+              chip.style.setProperty("position", "relative", "important");
+              chip.style.setProperty("top", "-2px", "important");
+              chip.style.setProperty("line-height", "1", "important");
+              chip.style.setProperty("z-index", "3", "important");
+              chip.style.setProperty("background", "transparent", "important");
+            });
+          }
         });
+
+        clone.querySelectorAll(".subject-line").forEach((line, index) => {
+          line.querySelectorAll(".pdf-subject-dot-line").forEach(el => el.remove());
+
+          line.style.position = "relative";
+          line.style.height = "auto";
+          line.style.minHeight = "20px";
+          line.style.lineHeight = "1.2";
+          line.style.paddingLeft = "18px";
+          line.style.paddingTop = "0";
+          line.style.paddingBottom = "16px";
+          line.style.margin = "0";
+          line.style.borderBottom = "2px dotted #000";
+          line.style.overflow = "visible";
+          line.style.fontSize = "16pt";
+          line.style.wordBreak = "normal";
+          line.style.overflowWrap = "normal";
+          line.style.fontFamily = "TH SarabunPSK";
+          line.style.backgroundImage = "none";
+
+          if (index > 0) {
+            line.style.marginTop = "-10px";
+          }
+
+          line.querySelectorAll(".subject-text").forEach(text => {
+            text.style.display = "inline-block";
+            text.style.position = "relative";
+            text.style.top = "4px";
+            text.style.zIndex = "3";
+            text.style.background = "transparent";
+          });
+        });
+
+        document.body.appendChild(clone);
+
+        if (typeof fitGovAgencyText === "function") {
+          fitGovAgencyText(clone);
+        }
+
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
+
+        const canvas = await html2canvas(clone, {
+          scale: 2.2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          windowWidth: 794,
+          windowHeight: 1123,
+          scrollX: 0,
+          scrollY: 0,
+          logging: false,
+          imageTimeout: 10000,
+          removeContainer: true
+        });
+
+        document.body.removeChild(clone);
+
+        const imgData = canvas.toDataURL("image/png");
+
+        if (i > 0) {
+          pdf.addPage();
+        }
+
+        pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "FAST");
       }
+
+      const pdfFileName = <?= json_encode($pdfDownloadName, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+      pdf.save(pdfFileName);
+    } catch (error) {
+      console.error(error);
+      alert("สร้าง PDF ไม่สำเร็จ กรุณากด F12 ดู Console");
+    } finally {
+      if (loadingOverlay) loadingOverlay.style.display = "none";
+
+      downloadButtons.forEach(btn => {
+        btn.disabled = false;
+        btn.innerText = btn.dataset.oldText || "ดาวน์โหลด PDF";
+        btn.style.opacity = "1";
+        btn.style.cursor = "pointer";
+      });
     }
+  }
   </script>
+  <?php if ($readonly): ?>
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    Swal.fire({
+      title: <?= json_encode($editAlertTitle ?: "ไม่สามารถแก้ไขเอกสารได้", JSON_UNESCAPED_UNICODE) ?>,
+      html: <?= json_encode(($editAlertText ?: "เอกสารนี้ไม่สามารถแก้ไขได้") . "<br><br>ระบบจะแสดงเอกสารในโหมดดูตัวอย่างเท่านั้น", JSON_UNESCAPED_UNICODE) ?>,
+      icon: <?= json_encode($editAlertIcon ?: "info", JSON_UNESCAPED_UNICODE) ?>,
+      confirmButtonText: "ตกลง",
+      confirmButtonColor: "#14b8a6"
+    });
+  });
+  </script>
+  <?php endif; ?>
 </body>
+
 </html>

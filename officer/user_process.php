@@ -45,7 +45,14 @@ function goUserManagement($params = '')
     header("Location: {$url}");
     exit;
 }
-
+function alertBack($message)
+{
+    echo "<script>
+        alert(" . json_encode($message, JSON_UNESCAPED_UNICODE) . ");
+        history.back();
+    </script>";
+    exit;
+}
 /*
 |--------------------------------------------------------------------------
 | ตรวจว่าเป็น POST เท่านั้น
@@ -75,6 +82,7 @@ try {
         $role_id = (int)($_POST['role_id'] ?? 0);
         $position = trim($_POST['position'] ?? '');
         $department_id = (int)($_POST['department_id'] ?? 0);
+        $permissions = $_POST['permissions'] ?? [];
 
         if (
             $username === '' ||
@@ -84,7 +92,7 @@ try {
             $role_id <= 0 ||
             $department_id <= 0
         ) {
-            goUserManagement('error=missing');
+            alertBack('กรุณากรอกข้อมูลให้ครบถ้วน');
         }
 
         // เช็ก username ซ้ำก่อนเพิ่ม
@@ -96,7 +104,7 @@ try {
         $checkUsername->execute([$username]);
 
         if ((int)$checkUsername->fetchColumn() > 0) {
-            goUserManagement('error=duplicate_username');
+            alertBack('ชื่อผู้ใช้นี้มีอยู่แล้ว กรุณาใช้ชื่อผู้ใช้อื่น');
         }
 
         // เช็ก email ซ้ำก่อนเพิ่ม
@@ -108,7 +116,7 @@ try {
         $checkEmail->execute([$email]);
 
         if ((int)$checkEmail->fetchColumn() > 0) {
-            goUserManagement('error=duplicate_email');
+            alertBack('อีเมลนี้มีอยู่แล้ว กรุณาใช้อีเมลอื่น');
         }
 
         $password = password_hash($passwordRaw, PASSWORD_DEFAULT);
@@ -139,6 +147,24 @@ try {
             $position,
             $department_id
         ]);
+        $newUserId = (int)$pdo->lastInsertId();
+
+if (!empty($permissions) && is_array($permissions)) {
+    $insertPerm = $pdo->prepare("
+        INSERT INTO user_permissions 
+            (user_id, perm_id) 
+        VALUES 
+            (?, ?)
+    ");
+
+    foreach ($permissions as $perm_id) {
+        $perm_id = (int)$perm_id;
+
+        if ($perm_id > 0) {
+            $insertPerm->execute([$newUserId, $perm_id]);
+        }
+    }
+}
 
         if (function_exists('addLog') && $currentUserId) {
             addLog($currentUserId, "ผู้ใช้ {$currentUser} จัดการเพิ่มผู้ใช้: {$username}");
@@ -171,7 +197,7 @@ try {
             $role_id <= 0 ||
             $department_id <= 0
         ) {
-            goUserManagement('error=missing');
+            alertBack('กรุณากรอกข้อมูลให้ครบถ้วน');
         }
 
         // เช็ก username ซ้ำ แต่ยกเว้น user ตัวเอง
@@ -184,7 +210,7 @@ try {
         $checkUsername->execute([$username, $user_id]);
 
         if ((int)$checkUsername->fetchColumn() > 0) {
-            goUserManagement('error=duplicate_username');
+            alertBack('ชื่อผู้ใช้นี้มีอยู่แล้ว กรุณาใช้ชื่อผู้ใช้อื่น');
         }
 
         // เช็ก email ซ้ำ แต่ยกเว้น user ตัวเอง
@@ -197,7 +223,7 @@ try {
         $checkEmail->execute([$email, $user_id]);
 
         if ((int)$checkEmail->fetchColumn() > 0) {
-            goUserManagement('error=duplicate_email');
+            alertBack('อีเมลนี้มีอยู่แล้ว กรุณาใช้อีเมลอื่น');
         }
 
         $pdo->beginTransaction();
@@ -361,11 +387,11 @@ try {
         $msg = $e->getMessage();
 
         if (stripos($msg, 'username') !== false) {
-            goUserManagement('error=duplicate_username');
+            alertBack('ชื่อผู้ใช้นี้มีอยู่แล้ว กรุณาใช้ชื่อผู้ใช้อื่น');
         }
 
         if (stripos($msg, 'email') !== false) {
-            goUserManagement('error=duplicate_email');
+            alertBack('อีเมลนี้มีอยู่แล้ว กรุณาใช้อีเมลอื่น');
         }
 
         goUserManagement('error=duplicate');

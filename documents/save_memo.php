@@ -618,12 +618,6 @@ try {
         if ($projectLecturerNames === '') {
             $errors['lecturer_names'] = 'required';
         }
-        if ($projectReceiverName === '') {
-            $errors['receiver_name'] = 'required';
-        }
-        if ($projectReceiverPosition === '') {
-            $errors['receiver_position'] = 'required';
-        }
     } elseif ($isResearchData) {
 
         if (!$hideDocDateOnDocument && $docDate === '') {

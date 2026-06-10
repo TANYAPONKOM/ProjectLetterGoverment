@@ -561,9 +561,7 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
     }
 
 
-    if (!userSuccessAction) {
-      userSuccessAction = sessionStorage.getItem("user_success_popup") || "";
-    }
+
     sessionStorage.removeItem("user_success_popup");
 
     const userSuccessMessages = {

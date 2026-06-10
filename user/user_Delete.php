@@ -6,11 +6,34 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-$permissions = array_map('intval', $_SESSION['permissions'] ?? []);
-$isAdmin = ((int)($_SESSION['role_id'] ?? 0) === 1);
-$canManageUsers = in_array(3, $permissions, true);
+require_once __DIR__ . '/../functions.php';
+$pdo = getPDO();
 
-if (!$isAdmin && !$canManageUsers) {
+function currentUserCanManageUsers(PDO $pdo): bool
+{
+    $roleId = (int)($_SESSION['role_id'] ?? 0);
+
+    if ($roleId === 1) {
+        return true;
+    }
+
+    $sessionPermissions = array_map('intval', $_SESSION['permissions'] ?? []);
+    if (in_array(3, $sessionPermissions, true)) {
+        return true;
+    }
+
+    $currentUserId = (int)($_SESSION['user_id'] ?? 0);
+    if ($currentUserId <= 0) {
+        return false;
+    }
+
+    $stmt = $pdo->prepare("\n        SELECT COUNT(*)\n        FROM user_permissions\n        WHERE user_id = ?\n          AND perm_id = 3\n    ");
+    $stmt->execute([$currentUserId]);
+
+    return ((int)$stmt->fetchColumn() > 0);
+}
+
+if (!currentUserCanManageUsers($pdo)) {
     $roleId = (int)($_SESSION['role_id'] ?? 0);
 
     if ($roleId === 2) {
@@ -22,9 +45,6 @@ if (!$isAdmin && !$canManageUsers) {
     }
     exit;
 }
-
-require_once __DIR__ . '/../functions.php';
-$pdo = getPDO();
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $currentUser = $_SESSION['username'] ?? 'Unknown';
