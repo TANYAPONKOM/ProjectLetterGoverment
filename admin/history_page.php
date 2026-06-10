@@ -155,7 +155,7 @@ function statusBadge($status)
     return '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">อนุมัติแล้ว</span>';
   }
   if ($status === 'rejected') {
-    return '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-700">รอแก้ไข</span>';
+    return '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-700">ถูกตีกลับ</span>';
   }
   if ($status === 'draft') {
     return '<span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700">ฉบับร่าง</span>';
