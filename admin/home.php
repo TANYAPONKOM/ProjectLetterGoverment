@@ -117,7 +117,7 @@ try {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>รายการส่งคำขอ (Officer)</title>
+  <title>รายการส่งคำขอ (Admin)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -246,6 +246,16 @@ try {
         d.pdf_file
       ].filter(Boolean).join(" ");
 
+      const isResearchDataDocument =
+        routeHint.toLowerCase().includes("research_data") ||
+        routeHint.includes("ปริญญานิพนธ์") ||
+        routeHint.includes("form_memo_request_research_data.php") ||
+        routeHint.includes("infor_research_data.php");
+
+      const displayDate = isResearchDataDocument
+        ? (d.updated_at || d.created_at || d.doc_date)
+        : d.doc_date;
+
       return {
         document_id: d.document_id,
         owner_id: Number(d.owner_id || d.user_id || d.created_by || d.created_by_id || d.created_user_id || d.document_owner_id || 0),
@@ -284,7 +294,7 @@ try {
           homeDocOwnerMap[String(d.document_id || d.id || d.doc_id)] ||
           ""
         ),
-        date: d.doc_date,
+        date: displayDate,
         status: s, // 🟢 ใช้สถานะที่แปลงแล้ว
         statusText,
         statusClass,

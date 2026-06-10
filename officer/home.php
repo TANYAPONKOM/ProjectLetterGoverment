@@ -246,6 +246,11 @@ try {
         d.pdf_file
       ].filter(Boolean).join(" ");
 
+      const isResearchDataDocument = /RESEARCH_DATA|infor_research_data|form_memo_request_research_data|ปริญญานิพนธ์/.test(routeHint);
+      const displayDocDate = isResearchDataDocument
+        ? (d.updated_at || d.updatedAt || d.created_at || d.createdAt || d.doc_date)
+        : d.doc_date;
+
       return {
         document_id: d.document_id,
         owner_id: Number(d.owner_id || d.user_id || d.created_by || d.created_by_id || d.created_user_id || d.document_owner_id || 0),
@@ -284,7 +289,7 @@ try {
           homeDocOwnerMap[String(d.document_id || d.id || d.doc_id)] ||
           ""
         ),
-        date: d.doc_date,
+        date: displayDocDate,
         status: s, // 🟢 ใช้สถานะที่แปลงแล้ว
         statusText,
         statusClass,

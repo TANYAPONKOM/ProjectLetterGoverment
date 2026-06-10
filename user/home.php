@@ -347,6 +347,18 @@ try {
         title = "หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ";
       }
 
+      const isResearchData = (
+        String(d.template_code || "").toUpperCase() === "RESEARCH_DATA" ||
+        routeHint.includes("infor_research_data.php") ||
+        routeHint.includes("form_memo_request_research_data.php") ||
+        routeHint.includes("ขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์") ||
+        routeHint.includes("ปริญญานิพนธ์")
+      );
+
+      const listDate = isResearchData
+        ? (d.updated_at || d.updatedAt || d.modified_at || d.created_at || d.createdAt || d.doc_date)
+        : d.doc_date;
+
       return {
         document_id: d.document_id,
         join_type: d.join_type || "",
@@ -357,7 +369,7 @@ try {
         title: title || "(ไม่มีชื่อเรื่อง)",
         detail: buildHomeDocumentDetail(d, title, routeHint),
         owner_name: d.owner_name || d.fullname || d.owner_fullname || d.created_by_name || d.user_name || currentOwnerName || "",
-        date: d.doc_date,
+        date: listDate,
 
         raw_status: d.status, // ⭐ สถานะจริง DB
         view_status: userViewStatus, // ⭐ สถานะใช้จัดแท็บ user
