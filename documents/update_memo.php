@@ -1170,8 +1170,20 @@ if ($isFreeDocument) {
     ];
 
     $valuesByKey = [
+        // เก็บซ้ำแบบ field_key เฉพาะฟอร์มเชิญวิทยากร เพื่อให้หน้าเจนเอกสารดึงข้อมูลได้แน่นอน
+        'doc_date' => $docDateForDisplay,
+        'subject' => $memoSubject,
+        'to_person' => $toPerson,
+        'faculty' => $faculty,
+        'department' => $department,
+        'project_title' => $eventTitle,
+        'thesis_title' => $eventTitle,
+        'event_date' => $joinDates,
+        'intern_period' => $joinDates,
+        'event_time' => $eventTime,
+        'location_input' => $place,
+        'objective' => $objectiveText,
         'invite_statement' => $inviteStatement,
-        'event_time'       => $eventTime,
     ];
 
 } elseif ($isRoomRequest) {
@@ -1374,6 +1386,50 @@ if ($isFreeDocument) {
       }
 
       $insertCoopFieldStmt->execute([
+        ':template_id' => $templateId,
+        ':field_key' => $fieldKey,
+        ':field_label' => $fieldMeta[0],
+        ':field_type' => $fieldMeta[2],
+        ':is_required' => $fieldMeta[3],
+        ':sort_order' => $fieldMeta[1],
+      ]);
+
+      $fieldIdByKey[$fieldKey] = (int)$pdo->lastInsertId();
+      $allowIds[$fieldIdByKey[$fieldKey]] = $fieldIdByKey[$fieldKey];
+    }
+  }
+
+
+  // เพิ่มเฉพาะ field ของฟอร์มเชิญวิทยากร กรณี template_fields ของ template_id นี้ยังไม่มี
+  // เพื่อให้ valuesByKey ถูกบันทึก และหน้า form_memo_invite_speaker.php ดึงข้อมูลกลับมาแสดงได้
+  if ($isInviteMemo) {
+    $ensureInviteFields = [
+      'doc_date' => ['วันที่', 101, 'text', 0],
+      'subject' => ['เรื่อง', 102, 'textarea', 1],
+      'to_person' => ['เรียน', 103, 'textarea', 1],
+      'faculty' => ['คณะ', 104, 'text', 0],
+      'department' => ['ภาควิชา', 105, 'text', 0],
+      'project_title' => ['ชื่อโครงการ/กิจกรรม', 201, 'textarea', 1],
+      'thesis_title' => ['ชื่อโครงการ/กิจกรรม', 202, 'textarea', 1],
+      'event_date' => ['วันที่จัดกิจกรรม', 203, 'text', 1],
+      'intern_period' => ['วันที่จัดกิจกรรม', 204, 'text', 1],
+      'event_time' => ['เวลา', 205, 'text', 1],
+      'location_input' => ['สถานที่', 206, 'textarea', 1],
+      'objective' => ['วัตถุประสงค์', 207, 'textarea', 1],
+      'invite_statement' => ['คำกล่าวเชิญ', 801, 'textarea', 1],
+    ];
+
+    $insertInviteFieldStmt = $pdo->prepare("
+      INSERT INTO template_fields (template_id, field_key, field_label, field_type, is_required, sort_order)
+      VALUES (:template_id, :field_key, :field_label, :field_type, :is_required, :sort_order)
+    ");
+
+    foreach ($ensureInviteFields as $fieldKey => $fieldMeta) {
+      if (isset($fieldIdByKey[$fieldKey])) {
+        continue;
+      }
+
+      $insertInviteFieldStmt->execute([
         ':template_id' => $templateId,
         ':field_key' => $fieldKey,
         ':field_label' => $fieldMeta[0],

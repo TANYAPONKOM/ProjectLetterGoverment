@@ -155,7 +155,7 @@ function statusBadge($status)
     return '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">อนุมัติแล้ว</span>';
   }
   if ($status === 'rejected') {
-    return '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-700">ถูกตีกลับ</span>';
+    return '<span class="px-2 py-1 text-xs rounded-full bg-red-100 text-red-700">รอแก้ไข</span>';
   }
   if ($status === 'draft') {
     return '<span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700">ฉบับร่าง</span>';
@@ -228,11 +228,11 @@ function statusBadge($status)
         </a>
         <a href="?tab=approved&keyword=<?= urlencode($keyword) ?>&date_from=<?= urlencode($dateFrom) ?>&date_to=<?= urlencode($dateTo) ?>"
           class="px-4 py-2 rounded-t-md font-semibold <?= $activeTab === 'approved' ? 'bg-teal-500 text-white' : 'text-gray-500' ?>">
-          อนุมัติแล้ว
+          ผ่านการตรวจสอบ
         </a>
         <a href="?tab=rejected&keyword=<?= urlencode($keyword) ?>&date_from=<?= urlencode($dateFrom) ?>&date_to=<?= urlencode($dateTo) ?>"
           class="px-4 py-2 rounded-t-md font-semibold <?= $activeTab === 'rejected' ? 'bg-teal-500 text-white' : 'text-gray-500' ?>">
-          ถูกตีกลับ
+          รอแก้ไข
         </a>
       </div>
 

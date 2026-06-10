@@ -206,6 +206,7 @@ $templateDropdownOptions = [
     'internal' => [],
     'external' => []
 ];
+$currentInviteTemplateId = 0;
 
 try {
     $templatePdo = db();
@@ -258,9 +259,10 @@ try {
             'is_active' => 1
         ];
 
-        if ($url === $currentQuestionPath) {
+        if ($url === $currentQuestionPath || basename($url) === basename(__FILE__)) {
             $CURRENT_MAIN = $group;
             $CURRENT_SUB = $name;
+            $currentInviteTemplateId = (int)($tpl['template_id'] ?? 0);
         }
     }
 } catch (Throwable $e) {
@@ -715,7 +717,7 @@ $formAction = $isEdit ? '/Pro_letter/documents/update_memo.php' : '/Pro_letter/d
     <?php else: ?>
     <input type="hidden" name="mode" value="create">
     <?php endif; ?>
-    <input type="hidden" name="template_id" value="1">
+    <input type="hidden" name="template_id" value="<?= (int)$currentInviteTemplateId ?>">
     <input type="hidden" name="document_type_name" value="หนังสือเรียนเชิญวิทยากร">
     <input type="hidden" name="purpose" value="invite_speaker_student">
     <input type="hidden" name="form_type" value="invite">

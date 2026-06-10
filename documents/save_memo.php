@@ -70,7 +70,9 @@ try {
         $purpose === 'invite_speaker_student'
         || $purpose === 'invite'
         || $redirectTo === 'infor_invite.php'
+        || $redirectTo === 'form_memo_invite_speaker.php'
         || $targetForm === 'infor_invite.php'
+        || $targetForm === 'form_memo_invite_speaker.php'
         || ($_POST['form_type'] ?? '') === 'invite'
         || ($_POST['document_type'] ?? '') === 'infor_invite'
     );
@@ -118,8 +120,13 @@ try {
     // ถ้าถูกระบุว่าเป็นเอกสารเชิญวิทยากรแล้ว ห้ามให้เงื่อนไข project_activity แทรก
     // เพื่อให้บันทึกและ redirect ไป form_memo_invite_speaker.php ตามฟอร์มจริง
     if ($isInviteMemo) {
+        // infor_invite.php มีบาง field ชื่อซ้ำกับฟอร์ม research_data เช่น thesis_title
+        // จึงต้องให้ invite_speaker มีสิทธิ์มาก่อน และปิด research_data เพื่อไม่ให้ redirect ผิดหน้า
+        $isResearchData = false;
         $isProjectActivity = false;
-        $purpose = ($purpose !== '') ? $purpose : 'invite';
+        $purpose = 'invite_speaker_student';
+        $redirectTo = 'form_memo_invite_speaker.php';
+        $targetForm = 'form_memo_invite_speaker.php';
     }
 
     // รองรับทั้งชื่อ field ของ form_Memo.php เดิม และ infor_speaker_workshop.php
@@ -169,6 +176,13 @@ try {
         || ($_POST['form_type'] ?? '') === 'free_document'
         || ($_POST['document_type'] ?? '') === 'infor_free_document'
     );
+
+    if ($isInviteMemo) {
+        // infor_invite.php มี field ชื่อ thesis_title เหมือน research_data
+        // ต้องปิด research_data ก่อนเข้า validation / mapping เพื่อไม่ให้ข้อมูลถูกบันทึกผิดชุด
+        $isResearchData = false;
+        $isProjectActivity = false;
+    }
 
     if ($isFreeDocument) {
         $purpose = 'free_document';
@@ -997,6 +1011,35 @@ try {
     }
 
 
+    // บังคับให้ฟอร์ม infor_invite.php ใช้ template_id ของหนังสือเรียนเชิญวิทยากรจริง
+    // แก้เฉพาะกรณีนี้ เพื่อให้บันทึกแล้วไปหน้า form_memo_invite_speaker.php ถูกต้อง
+    if ($isInviteMemo) {
+        $isResearchData = false;
+        $isProjectActivity = false;
+
+        $findInviteTemplate = $pdo->prepare("
+            SELECT template_id
+            FROM templates
+            WHERE question_path LIKE '%infor_invite.php%'
+               OR document_path LIKE '%form_memo_invite_speaker.php%'
+               OR word_path LIKE '%invite%'
+               OR pdf_path LIKE '%invite%'
+            ORDER BY
+                CASE WHEN document_path LIKE '%form_memo_invite_speaker.php%' THEN 0 ELSE 1 END,
+                template_id ASC
+            LIMIT 1
+        ");
+        $findInviteTemplate->execute();
+        $inviteTemplateId = (int) ($findInviteTemplate->fetchColumn() ?: 0);
+
+        if ($inviteTemplateId > 0) {
+            $templateId = $inviteTemplateId;
+        }
+
+        $documentTypeName = 'หนังสือเรียนเชิญวิทยากร';
+    }
+
+
     // 1) map ฟิลด์
     if ($isFreeDocument) {
         $joinType = 'บันทึกข้อความทั่วไป';
@@ -1355,8 +1398,21 @@ VALUES
         ];
 
         $valuesByKey = [
-            'invite_statement' => $inviteStatement,
+            // เก็บซ้ำแบบ field_key เฉพาะฟอร์มเชิญวิทยากร เพื่อให้หน้าเจนเอกสารดึงข้อมูลได้แน่นอน
+            // เพราะ template_fields ของบางฐานข้อมูลไม่มี field_id 5,6,7,14,25,26 ของ template นี้
+            'doc_date' => $docDateForDisplay,
+            'subject' => $memoSubject,
+            'to_person' => $toPerson,
+            'faculty' => $faculty,
+            'department' => $department,
+            'project_title' => $eventTitle,
+            'thesis_title' => $eventTitle,
+            'event_date' => $joinDates,
+            'intern_period' => $joinDates,
             'event_time' => $eventTime,
+            'location_input' => $place,
+            'objective' => $objectiveText,
+            'invite_statement' => $inviteStatement,
             'invite_phone' => $invitePhone,
             'invite_phone_ext' => $invitePhoneExt,
         ];
@@ -1508,6 +1564,19 @@ VALUES
 
         if ($isInviteMemo) {
             $extraFieldsByKey += [
+                'doc_date' => ['label' => 'วันที่', 'sort_order' => 101],
+                'subject' => ['label' => 'เรื่อง', 'sort_order' => 102],
+                'to_person' => ['label' => 'เรียน', 'sort_order' => 103],
+                'faculty' => ['label' => 'คณะ', 'sort_order' => 104],
+                'department' => ['label' => 'ภาควิชา', 'sort_order' => 105],
+                'project_title' => ['label' => 'ชื่อโครงการ/กิจกรรม', 'sort_order' => 201],
+                'thesis_title' => ['label' => 'ชื่อโครงการ/กิจกรรม', 'sort_order' => 202],
+                'event_date' => ['label' => 'วันที่จัดกิจกรรม', 'sort_order' => 203],
+                'intern_period' => ['label' => 'วันที่จัดกิจกรรม', 'sort_order' => 204],
+                'event_time' => ['label' => 'เวลา', 'sort_order' => 205],
+                'location_input' => ['label' => 'สถานที่', 'sort_order' => 206],
+                'objective' => ['label' => 'วัตถุประสงค์', 'sort_order' => 207],
+                'invite_statement' => ['label' => 'คำกล่าวเชิญ', 'sort_order' => 801],
                 'invite_phone' => ['label' => 'เบอร์โทรศัพท์', 'sort_order' => 901],
                 'invite_phone_ext' => ['label' => 'เบอร์โทรศัพท์ต่อ', 'sort_order' => 902],
             ];

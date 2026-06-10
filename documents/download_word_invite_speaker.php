@@ -423,15 +423,15 @@ function invite_word_create_docx($path, $documentXml, $footerXml, $garudaPath) {
     return is_file($path) && filesize($path) > 0;
 }
 
-$docDate = $valueMap[1] ?? ($document['doc_date'] ?? '');
-$projectTitle = $valueMap[5] ?? '';
-$eventDate = $valueMap[6] ?? ($valueMap[16] ?? '');
-$location = $valueMap[7] ?? '';
-$faculty = $valueMap[10] ?? '';
-$department = $valueMap[11] ?? '';
-$docSubject = $valueMap[14] ?? ($document['subject'] ?? '');
-$objective = $valueMap[25] ?? '';
-$toPerson = $valueMap[26] ?? '';
+$docDate = $valueMapByKey['doc_date'] ?? ($valueMap[1] ?? ($document['doc_date'] ?? ''));
+$projectTitle = $valueMapByKey['project_title'] ?? ($valueMapByKey['thesis_title'] ?? ($valueMap[5] ?? ''));
+$eventDate = $valueMapByKey['event_date'] ?? ($valueMapByKey['intern_period'] ?? ($valueMap[6] ?? ($valueMap[16] ?? '')));
+$location = $valueMapByKey['location_input'] ?? ($valueMapByKey['place'] ?? ($valueMap[7] ?? ''));
+$faculty = $valueMapByKey['faculty'] ?? ($valueMap[10] ?? '');
+$department = $valueMapByKey['department'] ?? ($valueMap[11] ?? '');
+$docSubject = $valueMapByKey['subject'] ?? ($valueMap[14] ?? ($document['subject'] ?? ''));
+$objective = $valueMapByKey['objective'] ?? ($valueMap[25] ?? '');
+$toPerson = $valueMapByKey['to_person'] ?? ($valueMap[26] ?? '');
 $inviteStatement = $valueMapByKey['invite_statement'] ?? '';
 $eventTime = $valueMapByKey['event_time'] ?? '';
 
