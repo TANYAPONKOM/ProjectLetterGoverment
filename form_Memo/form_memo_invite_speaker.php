@@ -363,25 +363,25 @@ function format_thai_time_range($timeText)
 /* --------------------------------------------------
    Mapping ตัวแปรหลักจาก document_values
 -------------------------------------------------- */
-$hasSavedDocDateField = array_key_exists(1, $valueMap);
-$docDate = $hasSavedDocDateField ? trim((string)($valueMap[1] ?? '')) : trim($document['doc_date'] ?? '');
+$hasSavedDocDateField = array_key_exists(1, $valueMap) || array_key_exists('doc_date', $valueMapByKey);
+$docDate = $hasSavedDocDateField ? trim((string)($valueMapByKey['doc_date'] ?? ($valueMap[1] ?? ''))) : trim($document['doc_date'] ?? '');
 $ownerName = $valueMap[2] ?? "";
 $position = $valueMap[3] ?? "";
 $joinType = $valueMap[4] ?? "";
-$courseName = $valueMap[5] ?? "";
-$projectTitle = $valueMap[5] ?? "";
-$joinDates = $valueMap[6] ?? "";
-$eventDate = $valueMap[6] ?? ($valueMap[16] ?? "");
-$location = $valueMap[7] ?? "";
+$courseName = $valueMapByKey['course_name'] ?? ($valueMap[5] ?? "");
+$projectTitle = $valueMapByKey['project_title'] ?? ($valueMapByKey['thesis_title'] ?? ($valueMap[5] ?? ""));
+$joinDates = $valueMapByKey['intern_period'] ?? ($valueMapByKey['event_date'] ?? ($valueMap[6] ?? ""));
+$eventDate = $valueMapByKey['event_date'] ?? ($valueMapByKey['intern_period'] ?? ($valueMap[6] ?? ($valueMap[16] ?? "")));
+$location = $valueMapByKey['location_input'] ?? ($valueMapByKey['place'] ?? ($valueMap[7] ?? ""));
 $amountStr = $valueMap[8] ?? "";
 $vehicle = $valueMap[9] ?? "";
-$faculty = $valueMap[10] ?? "";
-$department = $valueMap[11] ?? "";
+$faculty = $valueMapByKey['faculty'] ?? ($valueMap[10] ?? "");
+$department = $valueMapByKey['department'] ?? ($valueMap[11] ?? "");
 $eventPlace = $valueMap[13] ?? "";
 
-$docSubject = $valueMap[14] ?? ($document['subject'] ?? "");
-$objective = $valueMap[25] ?? "";
-$toPerson = $valueMap[26] ?? "";
+$docSubject = $valueMapByKey['subject'] ?? ($valueMap[14] ?? ($document['subject'] ?? ""));
+$objective = $valueMapByKey['objective'] ?? ($valueMap[25] ?? "");
+$toPerson = $valueMapByKey['to_person'] ?? ($valueMap[26] ?? "");
 $inviteStatement = $valueMapByKey['invite_statement'] ?? "";
 $eventTime = $valueMapByKey['event_time'] ?? "";
 

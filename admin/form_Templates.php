@@ -499,9 +499,6 @@ if ($flashStatus === 'deleted') {
       }
     }
   }
-      }
-    });
-  }
 
   document.addEventListener("DOMContentLoaded", async function() {
     const templateStatus = <?= json_encode($flashStatus) ?>;
