@@ -535,7 +535,7 @@ $signerPositionValue = $formData['free_signer_position'] ?? $formData['signer_po
       <div class="form-row-inline">
         <label class="lbl asterisk row-label">3. เรียน :</label>
         <div class="w-full">
-          <input type="text" name="to_person" id="toPersonInput" data-spell-field="to_person" class="field-input" value="<?= hv($toPersonValue) ?>" required>
+          <input type="text" name="to_person" id="toPersonInput" data-spell-field="to_person" class="field-input" placeholder="เช่น ผู้อำนวยการศูนย์พัฒนาศักยภาพบุคลากรและบริการวิชาการ" required>
           <div id="toPersonInputSpellBox" class="spell-box hidden"></div>
           <div id="toPersonInputSpellLoading" class="spell-loading hidden">
             <div class="spell-loading-row">

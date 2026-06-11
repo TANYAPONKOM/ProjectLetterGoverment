@@ -35,14 +35,54 @@ function fd_thai_date($date) {
 function fd_split_subject_lines($text, $limit = 82) {
   $text = trim(preg_replace('/\s+/u', ' ', (string)$text));
   if ($text === '') return [''];
+
+  $safeWords = [
+    'หลักสูตร', 'การอบรม', 'การพัฒนา', 'เชิงปฏิบัติการ', 'ปฏิบัติการ',
+    'แอปพลิเคชัน', 'ฐานข้อมูล', 'สารสนเทศ', 'เทคโนโลยี', 'ระบบ',
+    'เข้าร่วม', 'นำเสนอ', 'ผลงานวิจัย', 'งานประชุม', 'ประชุม', 'วิชาการ',
+    'ระดับนานาชาติ', 'ระดับชาติ', 'โครงการ', 'กิจกรรม',
+    'และ', 'เพื่อ', 'ในการ', 'ของ', 'ด้วย', 'โดย', 'จาก', 'กับ', 'ใหม่', 'การ'
+  ];
+
   $lines = [];
   while (mb_strlen($text, 'UTF-8') > $limit) {
-    $head = mb_substr($text, 0, $limit, 'UTF-8');
-    $cut = mb_strrpos($head, ' ', 0, 'UTF-8');
-    if ($cut === false || $cut < 25) $cut = $limit;
-    $lines[] = trim(mb_substr($text, 0, $cut, 'UTF-8'));
-    $text = trim(mb_substr($text, $cut, null, 'UTF-8'));
+    $cutPos = 0;
+    $maxBefore = mb_substr($text, 0, $limit, 'UTF-8');
+    $spacePos = mb_strrpos($maxBefore, ' ', 0, 'UTF-8');
+
+    if ($spacePos !== false && $spacePos >= 30) {
+      $cutPos = $spacePos;
+    } else {
+      foreach ($safeWords as $word) {
+        $offset = 1;
+        while (($pos = mb_strpos($text, $word, $offset, 'UTF-8')) !== false) {
+          if ($pos >= 30 && $pos <= $limit) {
+            $cutPos = max($cutPos, $pos);
+          }
+          if ($pos > $limit) {
+            break;
+          }
+          $offset = $pos + mb_strlen($word, 'UTF-8');
+        }
+      }
+    }
+
+    if ($cutPos < 30) {
+      $lookAhead = mb_substr($text, $limit, 24, 'UTF-8');
+      $nextSpace = mb_strpos($lookAhead, ' ', 0, 'UTF-8');
+      if ($nextSpace !== false) {
+        $cutPos = $limit + $nextSpace;
+      }
+    }
+
+    if ($cutPos < 30) {
+      $cutPos = $limit;
+    }
+
+    $lines[] = trim(mb_substr($text, 0, $cutPos, 'UTF-8'));
+    $text = trim(mb_substr($text, $cutPos, null, 'UTF-8'));
   }
+
   if ($text !== '') $lines[] = $text;
   return $lines;
 }
@@ -392,39 +432,30 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
     flex: 0 0 6.4cm;
   }
 
-  .subject-row .subject-label {
-    width: 1.15cm !important;
-    flex: 0 0 1.15cm !important;
-  }
-
   .subject-wrap {
     flex: 1;
-    padding-left: 0;
-    margin-left: -8px;
   }
 
   .subject-line {
     min-height: 22px;
     line-height: 1.05;
     border-bottom: 2px dotted #000;
-    padding-left: 19px;
+    padding-left: 4px;
     padding-top: 4px;
     font-family: "TH SarabunPSK";
     font-size: 16pt;
     font-weight: 300;
     white-space: normal;
-    word-break: normal;
-    overflow-wrap: normal;
-  }
-
-  .subject-line.blank-label-line {
-    margin-left: 0;
+    word-break: break-word;
   }
 
   .subject-text {
     display: inline-block;
     position: relative;
     top: 4px;
+
+    /* ขยับเฉพาะตัวอักษรชื่อเรื่อง เส้นประไม่ขยับ */
+    margin-left: 0.35cm;
   }
 
   .doc-row:not(.subject-row) .dot-line>.chip {
@@ -945,15 +976,14 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
           line.style.height = "auto";
           line.style.minHeight = "20px";
           line.style.lineHeight = "1.2";
-          line.style.paddingLeft = "18px";
+          line.style.paddingLeft = "4px";
           line.style.paddingTop = "0";
           line.style.paddingBottom = "16px";
           line.style.margin = "0";
           line.style.borderBottom = "2px dotted #000";
           line.style.overflow = "visible";
           line.style.fontSize = "16pt";
-          line.style.wordBreak = "normal";
-          line.style.overflowWrap = "normal";
+          line.style.wordBreak = "break-word";
           line.style.fontFamily = "TH SarabunPSK";
           line.style.backgroundImage = "none";
 
@@ -965,6 +995,7 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
             text.style.display = "inline-block";
             text.style.position = "relative";
             text.style.top = "4px";
+            text.style.marginLeft = "0.35cm";
             text.style.zIndex = "3";
             text.style.background = "transparent";
           });
