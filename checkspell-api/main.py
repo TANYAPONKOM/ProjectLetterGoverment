@@ -261,7 +261,12 @@ def api_spell_check(payload: SpellCheckRequest):
         if not suggestions:
             continue
 
-        if wrong_word in text:
+                # เช็กคำผิดแบบไม่ให้จับคำที่แทรกอยู่กลางคำถูก
+        # เช่น "ขออนุมัติ" ห้ามจับเป็น "ออนุมัติ"
+        boundary_chars = r"ก-๙A-Za-z0-9"
+        wrong_word_pattern = rf"(?<![{boundary_chars}]){re.escape(wrong_word)}(?![{boundary_chars}])"
+
+        if re.search(wrong_word_pattern, text):
             is_part_of_correct_suggestion = any(
                 wrong_word != correct_word
                 and wrong_word in correct_word
