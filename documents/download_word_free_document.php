@@ -385,11 +385,11 @@ function addAcademicMemoManualPara($section, array $textParts, $spaceAfter = 28)
 
 function addAcademicClosePara($section, $spaceAfter = 120) {
     $runClose = $section->addTextRun([
-        'alignment' => Jc::LEFT,
+        'alignment' => Jc::CENTER,
         'lineHeight' => 1.15,
         'spaceAfter' => $spaceAfter,
         'indentation' => [
-            'firstLine' => Converter::cmToTwip(2.5)
+            'left' => Converter::cmToTwip(3),
         ],
     ]);
     $runClose->addText('จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ', 'normalFont');
@@ -823,6 +823,8 @@ foreach ($paragraphs as $paragraph) {
 if (!$hasParagraph) {
     addAcademicMemoManualPara($section, ['................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................']);
 }
+
+addAcademicClosePara($section);
 
 /* เพิ่มเฉพาะส่วนผู้ลงนามของเอกสารบันทึกข้อความทั่วไป */
 if ($signerName !== '' || $signerPosition !== '') {

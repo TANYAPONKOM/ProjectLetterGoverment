@@ -745,6 +745,11 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
     </div>
     <?php endif; ?>
 
+<!-- ย่อหน้า 3 -->
+<div class="content-block paragraph" style="text-align: center !important; padding-left: 3cm;">
+  จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ
+</div>
+
     <?php if ($signerName !== '' || $signerPosition !== ''): ?>
     <div class="free-document-signature">
       <?php if ($signerName !== ''): ?>

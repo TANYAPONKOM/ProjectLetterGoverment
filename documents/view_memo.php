@@ -309,6 +309,55 @@ function arabic_digits($text)
   ]);
 }
 
+function format_lodging_date_range($text)
+{
+  $months = '(ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.)';
+
+  return preg_replace_callback(
+    '/(\d{1,2})\s+' . $months . '\s+(\d{2,4})\s*[–-]\s*(\d{1,2})\s+' . $months . '\s+(\d{2,4})/u',
+    function ($m) {
+      $startDay = $m[1];
+      $startMonth = $m[2];
+      $startYear = $m[3];
+
+      $endDay = $m[4];
+      $endMonth = $m[5];
+      $endYear = $m[6];
+
+      if ($startYear === $endYear && $startMonth === $endMonth) {
+        return $startDay . ' - ' . $endDay . ' ' . $endMonth . ' ' . $endYear;
+      }
+
+      if ($startYear === $endYear) {
+        return $startDay . ' ' . $startMonth . ' - ' . $endDay . ' ' . $endMonth . ' ' . $endYear;
+      }
+
+      return $startDay . ' ' . $startMonth . ' ' . $startYear . ' - ' . $endDay . ' ' . $endMonth . ' ' . $endYear;
+    },
+    $text
+  );
+}
+
+function format_budget_desc_money($text)
+{
+  $text = arabic_digits($text);
+  $text = format_lodging_date_range($text);
+
+  return preg_replace_callback('/(?<![\d,])\d{4,}(?:\.\d+)?(?![\d,])/u', function ($m) {
+    $num = str_replace(',', '', $m[0]);
+
+    if (!is_numeric($num)) {
+      return $m[0];
+    }
+
+    if (strpos($num, '.') !== false) {
+      return number_format((float)$num, 2);
+    }
+
+    return number_format((float)$num, 0);
+  }, $text);
+}
+
 function ht_date($text)
 {
   return h(arabic_digits($text));
@@ -1514,7 +1563,7 @@ $hasEditErrAlert = in_array($editErrType, ['no_permission', 'submitted', 'checke
             <?= h(arabic_digits($index + 1)) ?>
           </td>
           <td style="border:0.6px solid #000; padding:3px 8px; text-align:left; vertical-align: top;">
-            <?= nl2br(h(arabic_digits($item['description'] ?: $item['item_type']))) ?>
+            <?= nl2br(h(format_budget_desc_money($item['description'] ?: $item['item_type']))) ?>
           </td>
           <td style="border:0.6px solid #000; padding:3px 4px; text-align:right; vertical-align: top;">
             <?= h(arabic_digits(number_format((float)$item['amount'], 2))) ?>

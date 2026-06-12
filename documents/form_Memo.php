@@ -1264,8 +1264,8 @@ if ($roleIdForHome === 1) {
             </div>
             <div id="regForm" class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label class="text-gray-700">ราคา (บาท)</label>
-                <input type="number" id="regPrice" class="w-full border rounded-md p-2" min="0" step="0.01" value="0">
+               <label class="text-gray-700">ราคา (บาท)</label>
+                <input type="text" id="regPrice" class="w-full border rounded-md p-2 js-money-input" inputmode="decimal" value="0">
               </div>
               <div>
                 <label class="text-gray-700">จำนวนคน</label>
@@ -1317,7 +1317,7 @@ if ($roleIdForHome === 1) {
               </div>
               <div class="md:col-span-2">
                 <label class="text-gray-700">ราคา/คืน</label>
-                <input type="number" id="lodUnit" class="w-full border rounded-md p-2" min="0" step="0.01" value="1500">
+                <input type="text" id="lodUnit" class="w-full border rounded-md p-2 js-money-input" inputmode="decimal" value="1,500.00">
                 <div class="text-xs text-gray-500 mt-1">ค่าเริ่มต้นราชการ: 1 คน = 1,500/คืน, มากกว่า 1 คน = 1,000/คืน/คน
                 </div>
               </div>
@@ -1349,8 +1349,8 @@ if ($roleIdForHome === 1) {
             </div>
             <div id="perForm" class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label class="text-gray-700">ราคา/มื้อ</label>
-                <input type="number" id="perUnit" class="w-full border rounded-md p-2" min="0" step="0.01" value="120">
+              <label class="text-gray-700">ราคา/มื้อ</label>
+              <input type="text" id="perUnit" class="w-full border rounded-md p-2 js-money-input" inputmode="decimal" value="120">
                 <div class="text-xs text-gray-500 mt-1">ค่าเริ่มต้นราชการ: มื้อละ 120 บาท</div>
               </div>
               <div>
@@ -2650,6 +2650,44 @@ if ($roleIdForHome === 1) {
     function money(x) {
       return (Math.round((x + Number.EPSILON) * 100) / 100).toFixed(2);
     }
+    
+    function moneyDisplay(x) {
+  return Number(money(x)).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function formatMoneyInput(el) {
+  if (!el) return;
+  el.value = moneyDisplay(n(el.value));
+}
+function formatMoneyTyping(el) {
+  if (!el) return;
+
+  const oldValue = el.value;
+  const oldLength = oldValue.length;
+  const oldPos = el.selectionStart ?? oldLength;
+
+  let value = oldValue.replace(/,/g, "").replace(/[^\d.]/g, "");
+
+  const parts = value.split(".");
+  let intPart = parts[0] || "";
+  let decimalPart = "";
+
+  if (parts.length > 1) {
+    decimalPart = "." + parts.slice(1).join("").slice(0, 2);
+  }
+
+  intPart = intPart.replace(/^0+(?=\d)/, "");
+  intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+  el.value = intPart + decimalPart;
+
+  const newLength = el.value.length;
+  const newPos = oldPos + (newLength - oldLength);
+  el.setSelectionRange(Math.max(0, newPos), Math.max(0, newPos));
+}
 
     const GOV_LOD_RATE_ONE_PERSON = 1500;
     const GOV_LOD_RATE_MULTI_PERSON = 1000;
@@ -2664,7 +2702,7 @@ if ($roleIdForHome === 1) {
       const current = n(lodUnit.value);
       const oldDefaultValues = [0, GOV_LOD_RATE_ONE_PERSON, GOV_LOD_RATE_MULTI_PERSON];
       if (force || lodUnit.dataset.userEdited !== "1" || oldDefaultValues.includes(current)) {
-        lodUnit.value = String(defaultLodRateByPeople());
+        lodUnit.value = moneyDisplay(defaultLodRateByPeople());
         lodUnit.dataset.userEdited = "0";
       }
     }
@@ -2809,7 +2847,7 @@ if ($roleIdForHome === 1) {
     </div>
     <div class="w-[180px]">
       <label class="text-gray-700">จำนวนเงิน (บาท)</label>
-      <input type="number" class="w-full border rounded-md p-2 js-amt" min="0" step="0.01" value="0">
+      <input type="text" class="w-full border rounded-md p-2 js-amt js-money-input" inputmode="decimal" value="0">
     </div>
     <div>
       <button type="button" class="js-del bg-white border-2 border-red-400 text-red-600 font-bold px-3 py-2 rounded-md hover:bg-red-50">
@@ -2875,8 +2913,8 @@ if ($roleIdForHome === 1) {
               <input type="number" class="w-full border rounded-md p-2 js-tr-distance" min="0" step="0.01" value="0">
             </div>
             <div>
-              <label class="text-gray-700 block mb-1">บาท/กม.</label>
-              <input type="number" class="w-full border rounded-md p-2 js-tr-rate" min="0" step="0.01" value="4">
+            <label class="text-gray-700 block mb-1">บาท/กม.</label>
+            <input type="text" class="w-full border rounded-md p-2 js-tr-rate js-money-input" inputmode="decimal" value="4">
             </div>
             <div>
               <label class="text-gray-700 block mb-1">จำนวนเที่ยว</label>
@@ -2898,8 +2936,8 @@ if ($roleIdForHome === 1) {
           </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-              <label class="text-gray-700 block mb-1">ราคาตั๋ว/คน</label>
-              <input type="number" class="w-full border rounded-md p-2 js-tr-ticket" min="0" step="0.01" value="0">
+            <label class="text-gray-700 block mb-1">ราคาตั๋ว/คน</label>
+            <input type="text" class="w-full border rounded-md p-2 js-tr-ticket js-money-input" inputmode="decimal" value="0">
             </div>
             <div>
               <label class="text-gray-700 block mb-1">จำนวนเที่ยว</label>
@@ -2919,8 +2957,8 @@ if ($roleIdForHome === 1) {
           </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-              <label class="text-gray-700 block mb-1">ราคา/เที่ยว/คน</label>
-              <input type="number" class="w-full border rounded-md p-2 js-tr-unit" min="0" step="0.01" value="0">
+            <label class="text-gray-700 block mb-1">ราคา/เที่ยว/คน</label>
+            <input type="text" class="w-full border rounded-md p-2 js-tr-unit js-money-input" inputmode="decimal" value="0">
             </div>
             <div>
               <label class="text-gray-700 block mb-1">จำนวนเที่ยว</label>
@@ -3242,12 +3280,13 @@ if ($roleIdForHome === 1) {
 
       let trSum = 0;
       if (trEnabled?.checked) trSum = calcTransportTotal();
-      regTotal.textContent = money(regSum);
-      lodTotal.textContent = money(lodSum);
-      perTotal.textContent = money(perSum);
-      trTotal.textContent = money(trSum);
+      regTotal.textContent = moneyDisplay(regSum);
+      lodTotal.textContent = moneyDisplay(lodSum);
+      perTotal.textContent = moneyDisplay(perSum);
+      trTotal.textContent = moneyDisplay(trSum);
+
       const total = compSum + matSum + regSum + lodSum + perSum + trSum;
-      if (totalAmountEl) totalAmountEl.value = money(total);
+      if (totalAmountEl) totalAmountEl.value = moneyDisplay(total);
       if (totalAmountHidden) totalAmountHidden.value = money(total);
       if (amountInput && !noCostCheckbox?.checked) {
         amountInput.value = money(total);
@@ -3271,7 +3310,19 @@ if ($roleIdForHome === 1) {
 
     [regPrice, regPeople, lodUnit, lodNights, lodPeople, perUnit, perMeals, perPeople]
     .forEach(el => el?.addEventListener("input", calcAll));
+    document.addEventListener("input", (e) => {
+      const el = e.target.closest(".js-money-input");
+      if (!el) return;
+      formatMoneyTyping(el);
+      calcAll();
+    });
 
+    document.addEventListener("blur", (e) => {
+      const el = e.target.closest(".js-money-input");
+      if (!el) return;
+      formatMoneyInput(el);
+      calcAll();
+    }, true);
     [lodSingleDate, lodStartDate, lodEndDate].forEach(el => {
       el?.addEventListener("change", updateLodDateText);
     });
@@ -3459,9 +3510,9 @@ if ($roleIdForHome === 1) {
       <label class="text-gray-700">รายละเอียด</label>
       <input type="text" class="w-full border rounded-md p-2 js-desc" placeholder="รายละเอียด" value="${escapeHtml(desc || "")}">
     </div>
-    <div class="w-[180px]">
-      <label class="text-gray-700">จำนวนเงิน (บาท)</label>
-      <input type="number" class="w-full border rounded-md p-2 js-amt" min="0" step="0.01" value="${money(n(amount))}">
+   <div class="w-[180px]">
+  <label class="text-gray-700">จำนวนเงิน (บาท)</label>
+  <input type="text" class="w-full border rounded-md p-2 js-amt js-money-input" inputmode="decimal" value="${moneyDisplay(n(amount))}">
     </div>
     <div>
       <button type="button" class="js-del bg-white border-2 border-red-400 text-red-600 font-bold px-3 py-2 rounded-md hover:bg-red-50">
