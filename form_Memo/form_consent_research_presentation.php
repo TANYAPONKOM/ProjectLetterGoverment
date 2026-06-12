@@ -95,39 +95,7 @@ $isOfficer = ($roleId === 2);
 $isOwner = ((int)($document['owner_id'] ?? 0) === $userId);
 $docStatus = trim((string)($document['status'] ?? ''));
 
-/*
-  เช็กสิทธิ์แก้ไขจาก permission จริง
-  perm_id = 1 คือ แก้ไขได้
-  หรือ perm_code = document.edit
-*/
-$hasDocumentEditPermission = false;
-try {
-  $permStmt = $pdo->prepare("
-    SELECT COUNT(*)
-    FROM (
-      SELECT up.perm_id
-      FROM user_permissions up
-      LEFT JOIN permissions p ON p.perm_id = up.perm_id
-      WHERE up.user_id = :uid
-        AND (up.perm_id = 1 OR p.perm_code = 'document.edit')
 
-      UNION
-
-      SELECT rp.perm_id
-      FROM role_permissions rp
-      LEFT JOIN permissions p ON p.perm_id = rp.perm_id
-      WHERE rp.role_id = :rid
-        AND (rp.perm_id = 1 OR p.perm_code = 'document.edit')
-    ) AS edit_perms
-  ");
-  $permStmt->execute([
-    ':uid' => $userId,
-    ':rid' => $roleId
-  ]);
-  $hasDocumentEditPermission = ((int)$permStmt->fetchColumn() > 0);
-} catch (Throwable $permError) {
-  $hasDocumentEditPermission = false;
-}
 
 $userEditableStatuses = ['draft', 'รอยืนยันการส่ง', 'rejected', 'รอแก้เอกสาร', 'รอแก้ไข'];
 $submittedStatuses = ['submitted', 'รอตรวจ', 'รอตรวจสอบ', 'รอการตรวจสอบ'];
@@ -150,36 +118,23 @@ if ($isCheckedStatus) {
   $editAlertTitle = 'เอกสารผ่านการตรวจสอบแล้ว';
   $editAlertText = 'เอกสารนี้ผ่านการตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้';
   $editAlertIcon = 'success';
-} elseif (!$isAdmin && !$isOfficer && $isSubmittedStatus) {
+} elseif ($isSubmittedStatus) {
   $editDisabledReason = 'submitted';
   $editAlertTitle = 'เอกสารอยู่ระหว่างรอตรวจสอบ';
   $editAlertText = 'เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว จึงไม่สามารถแก้ไขได้ในขณะนี้';
   $editAlertIcon = 'info';
-} elseif (!$hasDocumentEditPermission) {
-  $editDisabledReason = 'no_permission';
-  $editAlertTitle = 'ไม่มีสิทธิ์แก้ไขเอกสาร';
-  $editAlertText = 'คุณไม่มีสิทธิ์แก้ไขเอกสารนี้ กรุณาติดต่อผู้ดูแลระบบหากต้องการแก้ไข';
-  $editAlertIcon = 'warning';
 }
 
 /*
   เงื่อนไขปุ่มแก้ไข
-  - ผ่านการตรวจสอบแล้ว: ทุก role แก้ไม่ได้
-  - User ที่รอตรวจสอบ: แก้ไม่ได้
-  - ไม่มีสิทธิ์แก้ไข: ทุก role แก้ไม่ได้
-  - User ต้องเป็นเจ้าของเอกสารและสถานะอยู่ในกลุ่มที่แก้ได้
-  - Admin/Officer ที่มีสิทธิ์แก้ไข แก้ได้ถ้าเอกสารยังไม่ผ่านตรวจ
+  - รอตรวจสอบ: แก้ไม่ได้
+  - ผ่านการตรวจสอบแล้ว: แก้ไม่ได้
+  - สถานะอื่น: แก้ไขได้
 */
-if ($isCheckedStatus) {
+if ($isCheckedStatus || $isSubmittedStatus) {
   $canEdit = false;
-} elseif (!$hasDocumentEditPermission) {
-  $canEdit = false;
-} elseif (!$isAdmin && !$isOfficer && $isSubmittedStatus) {
-  $canEdit = false;
-} elseif ($isAdmin || $isOfficer) {
-  $canEdit = true;
 } else {
-  $canEdit = ($isOwner && $isUserEditableStatus);
+  $canEdit = true;
 }
 
 $readonly = !$canEdit;
@@ -1204,17 +1159,9 @@ $len = max(20, $len);
     const errType = getQuery("err");
 
 
-    if (["no_permission", "submitted", "checked"].includes(errType)) {
-      const alertMap = {
-        no_permission: {
-          title: "ไม่มีสิทธิ์แก้ไขเอกสาร",
-          html: `<div style="font-size: 1.15rem; line-height: 1.6;">
-        คุณไม่มีสิทธิ์แก้ไขเอกสารนี้<br>
-        กรุณาติดต่อผู้ดูแลระบบหากต้องการแก้ไข
-      </div>`,
-          icon: "warning"
-        },
-        submitted: {
+      if (["submitted", "checked"].includes(errType)) {
+        const alertMap = {
+          submitted: {
           title: "เอกสารอยู่ระหว่างรอตรวจสอบ",
           html: `<div style="font-size: 1.15rem; line-height: 1.6;">
         เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว<br>

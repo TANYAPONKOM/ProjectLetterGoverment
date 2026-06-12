@@ -46,7 +46,6 @@ if ($roleId === 1) {
 }
 
 $logoutPath = '/Pro_letter/logout.php';
-$settingsVerifyUrl = '/Pro_letter/admin/form_Templates.php';
 $userPermissionVerifyUrl = '/Pro_letter/admin/verify_user.php';
 $isSettingsPage = in_array($current, ['form_Templates.php', 'department_Managerment.php', 'user_Managerment.php'], true);
 $pendingGoogleUserCount = 0;
@@ -238,7 +237,6 @@ function nav_render_manage_permission_menu($roleId)
   const templateMenu = document.getElementById('templateMenu');
   const profileBtn = document.getElementById('profileBtn');
   const profileMenu = document.getElementById('profileMenu');
-  const settingsVerifyUrl = '<?= nav_h($settingsVerifyUrl) ?>';
   const userPermissionVerifyUrl = '<?= nav_h($userPermissionVerifyUrl) ?>';
   const currentRoleId = <?= (int)$roleId ?>;
   const currentPage = '<?= nav_h($current) ?>';
@@ -386,80 +384,6 @@ function nav_render_manage_permission_menu($roleId)
     });
   }
 
-  async function verifySettingsMenu() {
-    const username = await showHeaderPopup({
-      title: "ยืนยันตัวตนผู้ดูแลระบบ",
-      message: "กรุณากรอกชื่อผู้ใช้ของผู้ดูแลระบบเพื่อยืนยัน",
-      inputType: "text",
-      confirmText: "ถัดไป"
-    });
-    if (username === null || username.trim() === "") return false;
-
-    const password = await showHeaderPopup({
-      title: "ยืนยันรหัสผ่าน",
-      message: "กรุณากรอกรหัสผ่านของผู้ดูแลระบบเพื่อยืนยัน",
-      inputType: "password",
-      confirmText: "ยืนยัน"
-    });
-    if (password === null || password.trim() === "") return false;
-
-    try {
-      const params = new URLSearchParams();
-      params.append("action", "verify_template_admin");
-      params.append("admin_username", username.trim());
-      params.append("admin_password", password);
-
-      const response = await fetch(settingsVerifyUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-          "Accept": "application/json"
-        },
-        credentials: "same-origin",
-        body: params.toString()
-      });
-
-      const text = await response.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        console.error("verify_template_admin response:", text);
-        await showHeaderPopup({
-          title: "ยืนยันตัวตนไม่สำเร็จ",
-          message: "ระบบตรวจสอบสิทธิ์ไม่ได้ส่ง JSON กลับมา หรือมี PHP error",
-          confirmText: "ตกลง",
-          hideCancel: true,
-          danger: true
-        });
-        return false;
-      }
-
-      if (!response.ok || !data.success) {
-        await showHeaderPopup({
-          title: "ยืนยันตัวตนไม่สำเร็จ",
-          message: data.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
-          confirmText: "ตกลง",
-          hideCancel: true,
-          danger: true
-        });
-        return false;
-      }
-
-      return true;
-    } catch (err) {
-      await showHeaderPopup({
-        title: "เกิดข้อผิดพลาด",
-        message: "เกิดข้อผิดพลาดในการยืนยันตัวตน: " + err.message,
-        confirmText: "ตกลง",
-        hideCancel: true,
-        danger: true
-      });
-      return false;
-    }
-  }
-
-
   async function verifyUserPermissionMenu() {
     const username = await showHeaderPopup({
       title: "ยืนยันตัวตน",
@@ -538,13 +462,8 @@ function nav_render_manage_permission_menu($roleId)
   };
 
   if (templateBtn && templateMenu) {
-    templateBtn.addEventListener('click', async function(event) {
+    templateBtn.addEventListener('click', function(event) {
       event.stopPropagation();
-
-      if (!isSettingsPage) {
-        const verified = await verifySettingsMenu();
-        if (!verified) return;
-      }
 
       templateMenu.classList.toggle('hidden');
       if (profileMenu) profileMenu.classList.add('hidden');
