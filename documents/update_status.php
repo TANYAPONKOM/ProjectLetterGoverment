@@ -36,6 +36,8 @@ try {
             d.owner_id,
             u.fullname AS owner_name,
             u.email AS owner_email,
+            u.role_id AS owner_role_id,
+            d.document_type_name,
             t.template_name,
             actor.fullname AS actor_name
         FROM documents d
@@ -75,6 +77,26 @@ try {
         ? 'REVIEW_PASSED'
         : 'REVIEW_FAILED';
 
+    // ดึงความคิดเห็นล่าสุดจากผู้ตรวจเอกสาร เฉพาะกรณีตีกลับ/ไม่ผ่านการตรวจสอบ
+    $reviewComment = '';
+    if ($status === 'rejected') {
+        $commentStmt = $pdo->prepare("
+            SELECT detail
+            FROM audit_logs
+            WHERE document_id = :document_id
+              AND action = 'REVIEW_COMMENT'
+              AND detail IS NOT NULL
+              AND TRIM(detail) <> ''
+            ORDER BY created_at DESC, log_id DESC
+            LIMIT 1
+        "
+        );
+        $commentStmt->execute([
+            ':document_id' => $docId
+        ]);
+        $reviewComment = trim((string)($commentStmt->fetchColumn() ?: ''));
+    }
+
     // บันทึกประวัติ
     $log = $pdo->prepare("
         INSERT INTO audit_logs (user_id, document_id, action, detail)
@@ -100,11 +122,16 @@ try {
     ]);
 
     // เตรียมส่งเมลหาเจ้าของเอกสาร
-    $ownerEmail = $doc['owner_email'] ?? '';
-    $ownerName = $doc['owner_name'] ?: 'ผู้ใช้งาน';
+    // เจ้าของเอกสารอาจเป็น user ปกติหรือ officer ที่สร้างเอกสารเองได้
+    // ดังนั้นห้ามจำกัดการส่งอีเมลเฉพาะ role user เท่านั้น ให้ส่งตาม owner_id ของเอกสารเสมอ
+    $ownerEmail = trim((string)($doc['owner_email'] ?? ''));
+    $ownerRoleId = (int)($doc['owner_role_id'] ?? 0);
+    $ownerName = $doc['owner_name'] ?: (($ownerRoleId === 2) ? 'เจ้าหน้าที่' : 'ผู้ใช้งาน');
     $actorName = $doc['actor_name'] ?: 'เจ้าหน้าที่';
     $subjectText = $doc['subject'] ?: 'ไม่ระบุเรื่องเอกสาร';
-    $templateName = $doc['template_name'] ?: 'ไม่ระบุประเภทเอกสาร';
+    $templateName = trim((string)($doc['document_type_name'] ?? '')) !== ''
+        ? trim((string)$doc['document_type_name'])
+        : ($doc['template_name'] ?: 'ไม่ระบุประเภทเอกสาร');
     $reviewedAt = date('d/m/Y H:i');
 
     $baseUrl = (
@@ -119,6 +146,19 @@ try {
 
     $statusColor = ($status === 'approved') ? '#16a34a' : '#dc2626';
     $statusBg = ($status === 'approved') ? '#f0fdf4' : '#fef2f2';
+
+    $commentHtml = '';
+    if ($status === 'rejected' && $reviewComment !== '') {
+        $commentHtml = '
+            <div style="margin-top:14px; padding-top:14px; border-top:1px solid #fecaca;">
+                <p style="margin:0 0 8px 0; font-size:15px; font-weight:bold; color:#991b1b;">
+                    ความคิดเห็นจากผู้ตรวจเอกสาร
+                </p>
+                <div style="background:#ffffff; border:1px solid #fecaca; border-radius:8px; padding:12px 14px; font-size:15px; color:#374151; line-height:1.8; white-space:normal;">
+                    ' . nl2br(htmlspecialchars($reviewComment, ENT_QUOTES, 'UTF-8')) . '
+                </div>
+            </div>';
+    }
 
     $emailBody = '
     <div style="font-family: Arial, Tahoma, sans-serif; max-width:680px; margin:auto; padding:24px; border:1px solid #e5e7eb; border-radius:14px; background:#ffffff;">
@@ -142,6 +182,7 @@ try {
             <p><b>สถานะปัจจุบัน :</b> 
                 <span style="color:' . $statusColor . '; font-weight:bold;">' . htmlspecialchars($statusText) . '</span>
             </p>
+            ' . $commentHtml . '
         </div>
 
         <p style="font-size:15px; color:#374151;">

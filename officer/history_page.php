@@ -64,6 +64,7 @@ $historySql = "
         WHEN al.action = 'UPDATED' THEN 'แก้ไขเอกสาร'
         WHEN al.action = 'REVIEW_PASSED' THEN 'ผ่านการตรวจสอบ'
         WHEN al.action = 'REVIEW_FAILED' THEN 'ไม่ผ่านการตรวจสอบ'
+        WHEN al.action = 'REVIEW_COMMENT' THEN 'แสดงความคิดเห็นตีกลับเอกสาร'
         WHEN al.action = 'APPROVED' THEN 'อนุมัติเอกสาร'
         WHEN al.action = 'REJECTED' THEN 'ตีกลับเอกสาร'
         ELSE al.action
@@ -74,7 +75,7 @@ $historySql = "
       d.subject,
       CASE
         WHEN al.action IN ('REVIEW_PASSED', 'APPROVED') THEN 'approved'
-        WHEN al.action IN ('REVIEW_FAILED', 'REJECTED') THEN 'rejected'
+        WHEN al.action IN ('REVIEW_FAILED', 'REJECTED', 'REVIEW_COMMENT') THEN 'rejected'
         WHEN al.action IN ('SUBMITTED') THEN 'submitted'
         WHEN al.action IN ('CREATED') THEN 'draft'
         WHEN al.action = 'UPDATED' THEN
@@ -104,7 +105,7 @@ $historySql = "
       d.document_id,
       d.doc_no,
       d.subject,
-      'draft' AS status,
+      d.status AS status,
       t.template_name,
       owner.fullname AS actor_name,
       owner.fullname AS owner_name
@@ -123,7 +124,7 @@ $historySql = "
       d.document_id,
       d.doc_no,
       d.subject,
-      'draft' AS status,
+      d.status AS status,
       t.template_name,
       COALESCE(owner.fullname, 'ไม่ระบุผู้ดำเนินการ') AS actor_name,
       owner.fullname AS owner_name
@@ -182,7 +183,7 @@ function statusBadge($status)
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>รายการส่งคำขอ (admin)</title>
+  <title>ประวัติการใช้งานเอกสาร</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 

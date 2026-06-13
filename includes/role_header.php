@@ -49,26 +49,11 @@ $logoutPath = '/Pro_letter/logout.php';
 $userPermissionVerifyUrl = '/Pro_letter/admin/verify_user.php';
 $isSettingsPage = in_array($current, ['form_Templates.php', 'department_Managerment.php', 'user_Managerment.php'], true);
 $pendingGoogleUserCount = 0;
+$navPdo = null;
+
 if (function_exists('getPDO')) {
     try {
         $navPdo = getPDO();
-
-        // เช็กสิทธิ์กำหนดสิทธิ์ของผู้ใช้ที่ล็อกอินอยู่เท่านั้น
-        // ไม่แก้หรือดึงสิทธิ์ของผู้ใช้คนอื่นมาใช้กับเมนูนี้
-        if ($currentUserId > 0 && !in_array(3, $permissions, true)) {
-            $permStmt = $navPdo->prepare("
-                SELECT perm_id
-                FROM user_permissions
-                WHERE user_id = ?
-                  AND perm_id = 3
-                LIMIT 1
-            ");
-            $permStmt->execute([$currentUserId]);
-            if ((int)$permStmt->fetchColumn() === 3) {
-                $permissions[] = 3;
-                $_SESSION['permissions'] = $permissions;
-            }
-        }
 
         $pendingStmt = $navPdo->query("
             SELECT COUNT(*)
@@ -78,12 +63,34 @@ if (function_exists('getPDO')) {
               AND is_active = 1
         ");
         $pendingGoogleUserCount = (int)$pendingStmt->fetchColumn();
+
     } catch (Throwable $e) {
+        $navPdo = null;
         $pendingGoogleUserCount = 0;
     }
 }
 
-$canManagePermission = in_array(3, $permissions, true);
+if ($currentUserId > 0 && !in_array(3, $permissions, true) && $navPdo instanceof PDO) {
+    try {
+        $permStmt = $navPdo->prepare("
+            SELECT perm_id
+            FROM user_permissions
+            WHERE user_id = ?
+              AND perm_id = 3
+            LIMIT 1
+        ");
+        $permStmt->execute([$currentUserId]);
+
+        if ((int)$permStmt->fetchColumn() === 3) {
+            $permissions[] = 3;
+            $_SESSION['permissions'] = $permissions;
+        }
+    } catch (Throwable $e) {
+        // ใช้สิทธิ์จาก session เดิม
+    }
+}
+
+$canManagePermission = ($roleId === 1 || in_array(3, $permissions, true));
 
 function nav_user_management_url($roleId)
 {
@@ -188,18 +195,80 @@ function nav_render_manage_permission_menu($roleId)
       </div>
     </a>
 
-    <?php if ($canManagePermission): ?>
-    <?php nav_render_manage_permission_menu($roleId); ?>
+<?php if ($canManagePermission): ?>
+<div class="relative">
+  <button type="button" id="templateBtn" class="relative px-4 py-2 rounded-[11px] font-bold transition
+      text-white hover:bg-white hover:text-teal-500 flex items-center space-x-1">
+    <span>ตั้งค่าระบบเริ่มต้น</span>
+
+    <?php if ($pendingGoogleUserCount > 0): ?>
+    <span
+      class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center shadow">
+      !
+    </span>
     <?php endif; ?>
+
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+    </svg>
+  </button>
+
+  <div id="templateMenu" class="hidden absolute bg-white text-gray-700 mt-1 rounded-lg shadow-lg w-56 z-50">
+    <a href="<?= nav_h(nav_user_management_url($roleId)) ?><?= $pendingGoogleUserCount > 0 ? '?profile_status=pending' : '' ?>"
+      class="flex items-center justify-between gap-3 px-4 py-2 hover:bg-teal-100">
+      <span>กำหนดสิทธิ์ผู้ใช้งาน</span>
+
+      <?php if ($pendingGoogleUserCount > 0): ?>
+      <span
+        class="min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
+        <?= $pendingGoogleUserCount ?>
+      </span>
+      <?php endif; ?>
+    </a>
+  </div>
+</div>
+<?php endif; ?>
+
+
 
     <?php else: ?>
     <a href="/Pro_letter/user/home.php">
       <div class="px-4 py-2 rounded-[11px] font-bold transition <?= nav_active_class('home.php') ?>">หน้าหลัก</div>
     </a>
 
-    <?php if ($canManagePermission): ?>
-    <?php nav_render_manage_permission_menu($roleId); ?>
+<?php if ($canManagePermission): ?>
+<div class="relative">
+  <button type="button" id="templateBtn" class="relative px-4 py-2 rounded-[11px] font-bold transition
+      text-white hover:bg-white hover:text-teal-500 flex items-center space-x-1">
+    <span>ตั้งค่าระบบเริ่มต้น</span>
+
+    <?php if ($pendingGoogleUserCount > 0): ?>
+    <span
+      class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center shadow">
+      !
+    </span>
     <?php endif; ?>
+
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+    </svg>
+  </button>
+
+  <div id="templateMenu" class="hidden absolute bg-white text-gray-700 mt-1 rounded-lg shadow-lg w-56 z-50">
+    <a href="<?= nav_h(nav_user_management_url($roleId)) ?><?= $pendingGoogleUserCount > 0 ? '?profile_status=pending' : '' ?>"
+      class="flex items-center justify-between gap-3 px-4 py-2 hover:bg-teal-100">
+      <span>กำหนดสิทธิ์ผู้ใช้งาน</span>
+
+      <?php if ($pendingGoogleUserCount > 0): ?>
+      <span
+        class="min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
+        <?= $pendingGoogleUserCount ?>
+      </span>
+      <?php endif; ?>
+    </a>
+  </div>
+</div>
+<?php endif; ?>
 
     <a href="/Pro_letter/documents/form_Memo.php">
       <div class="px-4 py-2 rounded-[11px] font-bold transition <?= nav_active_class('form_Memo.php') ?>">
@@ -478,22 +547,6 @@ function nav_render_manage_permission_menu($roleId)
     });
   }
 
-
-  document.querySelectorAll('a[href*="user_Managerment.php"]').forEach(function(link) {
-    link.addEventListener('click', async function(event) {
-      if (currentRoleId === 1 || currentPage === 'user_Managerment.php') {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-
-      const verified = await verifyUserPermissionMenu();
-      if (verified) {
-        window.location.href = link.href;
-      }
-    });
-  });
 
   document.addEventListener('click', function(event) {
     if (templateMenu && templateBtn && !templateBtn.contains(event.target) && !templateMenu.contains(event

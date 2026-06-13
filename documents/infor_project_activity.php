@@ -77,21 +77,27 @@ if ($isEditModeForGuard) {
             $hasDocumentEditPermissionForEditGuard = false;
         }
 
-        $checkedStatusesForEditGuard = [
-            'ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว', 'ได้รับการตรวจสอบ',
-            'ได้รับการตรวจสอบแล้ว', 'ตรวจสอบแล้ว', 'approved', 'checked', 'reviewed'
-        ];
-        $isCheckedStatusForEditGuard = in_array($editGuardDocStatus, $checkedStatusesForEditGuard, true);
+        $blockedEditStatusesForEditGuard = [
+          'รอตรวจสอบ',
+          'รอการตรวจสอบ',
+          'รอตรวจ',
+          'ผ่านการตรวจสอบ',
+          'ผ่านการตรวจสอบแล้ว',
+          'ได้รับการตรวจสอบ',
+          'ได้รับการตรวจสอบแล้ว',
+          'ตรวจสอบแล้ว',
+          'approved',
+          'checked',
+          'reviewed'
+      ];
 
-        // รองรับระบบเดิม: ถ้ายังไม่เคยกำหนดสิทธิ์รายบุคคล ให้เจ้าของเอกสารยังแก้เอกสารตัวเองได้
-        // แต่ถ้ามีการกำหนดสิทธิ์แล้วและไม่มี document.edit ให้ถือว่าเป็นสิทธิ์ดูอย่างเดียว
-        $legacyOwnerCanEditForEditGuard = ($editGuardOwnerId === $userId && !$hasAnyExplicitPermissionForEditGuard);
+      $isBlockedEditStatusForEditGuard = in_array($editGuardDocStatus, $blockedEditStatusesForEditGuard, true);
 
-        $canEditThisFormForEditGuard = (!$isCheckedStatusForEditGuard) && (
-            $isAdminOrOfficerForEditGuard
-            || $hasDocumentEditPermissionForEditGuard
-            || $legacyOwnerCanEditForEditGuard
-        );
+      $canEditThisFormForEditGuard = !$isBlockedEditStatusForEditGuard && (
+          $isAdminOrOfficerForEditGuard
+          || $editGuardOwnerId === $userId
+          || $hasDocumentEditPermissionForEditGuard
+      );
 
         if (!$canEditThisFormForEditGuard) {
             header('Location: /Pro_letter/documents/view_memo.php?id=' . $editGuardDocId . '&err=no_permission');
@@ -1943,16 +1949,21 @@ $formAction = $isEditMode ? '/Pro_letter/documents/update_memo.php' : 'save_memo
     checkSpellField(target);
   });
 
-  form?.addEventListener("submit", async (e) => {
-    e.preventDefault();
+ form?.addEventListener("submit", async (e) => {
+  e.preventDefault();
 
-    if (!validateForm()) return;
+  if (!validateForm()) return;
 
-    const okSpell = await checkAllSpellFields();
-    if (!okSpell) return;
+  const okSpell = await checkAllSpellFields();
+  if (!okSpell) return;
 
-    form.submit();
-  });
+  <?php if ($isEditMode): ?>
+  form.action = "/Pro_letter/documents/update_memo.php";
+  form.method = "post";
+  <?php endif; ?>
+
+  HTMLFormElement.prototype.submit.call(form);
+});
   </script>
   <script>
   // หมวดหมู่ใช้สคริปต์ชุดเดียวด้านล่าง เพื่อไม่ให้ event ซ้ำ และให้เปลี่ยนฟอร์มตามหมวดที่เลือก

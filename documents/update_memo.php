@@ -75,21 +75,31 @@ try {
     $hasAnyExplicitPermission = false;
   }
 
-  $checkedStatusesForPermission = [
-    'ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว', 'ได้รับการตรวจสอบ',
-    'ได้รับการตรวจสอบแล้ว', 'ตรวจสอบแล้ว', 'approved', 'checked', 'reviewed'
-  ];
-  $isCheckedStatusForPermission = in_array($currentStatusForPermission, $checkedStatusesForPermission, true);
+$checkedStatusesForPermission = [
+  'ผ่านการตรวจสอบ',
+  'ผ่านการตรวจสอบแล้ว',
+  'ได้รับการตรวจสอบ',
+  'ได้รับการตรวจสอบแล้ว',
+  'ตรวจสอบแล้ว',
+  'approved',
+  'checked',
+  'reviewed'
+];
 
-  // ถ้ามีการกำหนดสิทธิ์รายบุคคลแล้ว แต่ไม่มี document.edit ให้ถือว่าเป็นสิทธิ์ดูอย่างเดียว
-  $legacyOwnerCanEdit = ($owner === $userId && !$hasAnyExplicitPermission);
+$isCheckedStatusForPermission = in_array($currentStatusForPermission, $checkedStatusesForPermission, true);
 
-  $canEditThisDocument = (!$isCheckedStatusForPermission) && (
-    $isAdminOrOfficer
-    || $canEditByPermission
-    || $legacyOwnerCanEdit
+$ownerCanEdit = ($owner === $userId);
+
+if ($isCheckedStatusForPermission) {
+  $canEditThisDocument = false;
+} elseif ($isAdminOrOfficer) {
+  $canEditThisDocument = true;
+} else {
+  $canEditThisDocument = (
+    $canEditByPermission
+    || $ownerCanEdit
   );
-
+}
   if (!$canEditThisDocument) {
     header('Location: /Pro_letter/documents/view_memo.php?id=' . $documentId . '&err=no_permission', true, 302);
     exit;
@@ -635,9 +645,9 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
       $errors['free_paragraph_1'] = 'required';
     }
 
-  } elseif ($isCoopEvaluation) {
-    if ($docDate === '') {
-      $errors['doc_date'] = 'required';
+} elseif ($isCoopEvaluation) {
+    if (!$hideDocDateOnDocument && $docDate === '') {
+        $errors['doc_date'] = 'required';
     }
     if ($coopSubject === '') {
       $errors['subject'] = 'required';
@@ -708,10 +718,10 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
     if ($projectLecturerNames === '') {
       $errors['lecturer_names'] = 'required';
     }
-    if ($projectReceiverName === '') {
-      $errors['receiver_name'] = 'required';
+    if (isset($_POST['receiver_name']) && $projectReceiverName === '') {
+  $errors['receiver_name'] = 'required';
     }
-    if ($projectReceiverPosition === '') {
+    if (isset($_POST['receiver_position']) && $projectReceiverPosition === '') {
       $errors['receiver_position'] = 'required';
     }
   } elseif ($isResearchData) {
@@ -892,6 +902,11 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
   // user แก้แล้วให้กลับไปเป็นเค้าโครง/รอยืนยันการส่ง (draft)
   $newStatusAfterEdit = $isAdminOrOfficer ? 'submitted' : 'draft';
 
+  // ถ้า user แก้เอกสารจากสถานะรอแก้ไขแล้วส่งกลับมาใหม่
+  // ให้ล้างคอมเมนต์รอบตรวจเดิมออก เพื่อให้กล่องความคิดเห็นของ admin/officer กลับไปว่างเหมือนเริ่มตรวจรอบใหม่
+  $resetReviewCommentStatuses = ['รอแก้ไข', 'รอแก้เอกสาร', 'rejected'];
+  $shouldResetReviewComment = (!$isAdminOrOfficer && in_array($currentStatus, $resetReviewCommentStatuses, true));
+
   $pdo->beginTransaction();
 
 
@@ -922,27 +937,30 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
 
   // บังคับให้เอกสารประเมินสหกิจใช้ template_id ที่ถูกต้อง
   // แก้เฉพาะฟอร์ม infor_coop_evaluation.php เพื่อให้ตอนแก้ไขบันทึกค่ากลับเข้าฟิลด์ของ template สหกิจจริง
-  if ($isCoopEvaluation) {
-    $findCoopTemplate = $pdo->prepare("
-      SELECT template_id
-      FROM templates
-      WHERE template_code = 'COOP_EVALUATION'
-         OR question_path LIKE '%infor_coop_evaluation.php%'
-         OR document_path LIKE '%form_memo_coop_evaluation.php%'
-      ORDER BY
-        CASE WHEN template_code = 'COOP_EVALUATION' THEN 0 ELSE 1 END,
-        template_id ASC
-      LIMIT 1
-    ");
-    $findCoopTemplate->execute();
-    $coopTemplateId = (int) ($findCoopTemplate->fetchColumn() ?: 0);
+if ($isCoopEvaluation) {
+  $findCoopTemplate = $pdo->prepare("
+    SELECT template_id
+    FROM templates
+    WHERE template_code = 'COOP_EVALUATION'
+       OR question_path LIKE '%infor_coop_evaluation.php%'
+       OR document_path LIKE '%form_memo_coop_evaluation.php%'
+    ORDER BY
+      CASE WHEN template_code = 'COOP_EVALUATION' THEN 0 ELSE 1 END,
+      template_id ASC
+    LIMIT 1
+  ");
+  $findCoopTemplate->execute();
+  $coopTemplateId = (int) ($findCoopTemplate->fetchColumn() ?: 0);
 
-    if ($coopTemplateId > 0) {
-      $templateId = $coopTemplateId;
-    }
-
-    $documentTypeName = 'ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)';
+  if ($coopTemplateId > 0) {
+    $templateId = $coopTemplateId;
   }
+
+  $purpose = 'coop_evaluation';
+  $redirectTo = 'form_memo_coop_evaluation.php';
+  $targetForm = 'infor_coop_evaluation.php';
+  $documentTypeName = 'ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)';
+}
 
   if ($isFreeDocument) {
     $joinType = 'บันทึกข้อความทั่วไป';
@@ -1020,6 +1038,15 @@ $up->execute([
       ':document_id' => $documentId,
       ':detail' => 'มีการแก้ไขข้อมูลเอกสาร'
   ]);
+
+  if (!empty($shouldResetReviewComment)) {
+    $resetCommentStmt = $pdo->prepare("
+      DELETE FROM audit_logs
+      WHERE document_id = :document_id
+        AND action = 'REVIEW_COMMENT'
+    ");
+    $resetCommentStmt->execute([':document_id' => $documentId]);
+  }
 
   // ค่า field อื่น ๆ
 $valuesByKey = [];
@@ -1548,8 +1575,8 @@ if ($redirectBack !== '') {
 } elseif ($isStudyVisit) {
     $redirectUrl = "/Pro_letter/form_Memo/form_memo_sut_wellness.php?id={$documentId}";
     } elseif ($purpose === 'consent_research_presentation') {
-        $redirectUrl = "/Pro_letter/form_Memo/form_consent_research_presentation.php?id={$documentId}";
-    } elseif ($purpose === 'academic') {
+    $redirectUrl = "/Pro_letter/form_Memo/form_consent_research_presentation.php?id={$documentId}";
+    } elseif (!empty($isAcademicPresentation) || $purpose === 'academic') {
         $redirectUrl = "/Pro_letter/form_Memo/form_memo_academic_1.php?id={$documentId}";
     } else {
         $redirectUrl = "/Pro_letter/documents/view_memo.php?id={$documentId}";

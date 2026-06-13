@@ -77,21 +77,27 @@ if ($isEditModeForGuard) {
             $hasDocumentEditPermissionForEditGuard = false;
         }
 
-        $checkedStatusesForEditGuard = [
-            'ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว', 'ได้รับการตรวจสอบ',
-            'ได้รับการตรวจสอบแล้ว', 'ตรวจสอบแล้ว', 'approved', 'checked', 'reviewed'
-        ];
-        $isCheckedStatusForEditGuard = in_array($editGuardDocStatus, $checkedStatusesForEditGuard, true);
+       $blockedEditStatusesForEditGuard = [
+    'รอตรวจสอบ',
+    'รอการตรวจสอบ',
+    'รอตรวจ',
+    'ผ่านการตรวจสอบ',
+    'ผ่านการตรวจสอบแล้ว',
+    'ได้รับการตรวจสอบ',
+    'ได้รับการตรวจสอบแล้ว',
+    'ตรวจสอบแล้ว',
+    'approved',
+    'checked',
+    'reviewed'
+];
 
-        // รองรับระบบเดิม: ถ้ายังไม่เคยกำหนดสิทธิ์รายบุคคล ให้เจ้าของเอกสารยังแก้เอกสารตัวเองได้
-        // แต่ถ้ามีการกำหนดสิทธิ์แล้วและไม่มี document.edit ให้ถือว่าเป็นสิทธิ์ดูอย่างเดียว
-        $legacyOwnerCanEditForEditGuard = ($editGuardOwnerId === $userId && !$hasAnyExplicitPermissionForEditGuard);
+$isBlockedEditStatusForEditGuard = in_array($editGuardDocStatus, $blockedEditStatusesForEditGuard, true);
 
-        $canEditThisFormForEditGuard = (!$isCheckedStatusForEditGuard) && (
-            $isAdminOrOfficerForEditGuard
-            || $hasDocumentEditPermissionForEditGuard
-            || $legacyOwnerCanEditForEditGuard
-        );
+$canEditThisFormForEditGuard = !$isBlockedEditStatusForEditGuard && (
+    $isAdminOrOfficerForEditGuard
+    || $editGuardOwnerId === $userId
+    || $hasDocumentEditPermissionForEditGuard
+);
 
         if (!$canEditThisFormForEditGuard) {
             header('Location: /Pro_letter/documents/view_memo.php?id=' . $editGuardDocId . '&err=no_permission');
@@ -295,16 +301,27 @@ if ($isEdit) {
     $isOfficer = ($roleId === 2);
 
     if (!$isAdmin && !$isOfficer) {
-        if ((int)$doc['owner_id'] !== (int)$_SESSION['user_id']) {
-            header("Location: /Pro_letter/documents/view_memo.php?id={$docId}&err=no_permission");
-            exit;
-        }
-
-        if (!in_array($doc['status'], ['draft', 'rejected'], true)) {
-            header("Location: /Pro_letter/documents/view_memo.php?id={$docId}&err=no_permission");
-            exit;
-        }
+    if ((int)$doc['owner_id'] !== (int)$_SESSION['user_id']) {
+        header("Location: /Pro_letter/documents/view_memo.php?id={$docId}&err=no_permission");
+        exit;
     }
+
+    $blockedEditStatuses = [
+        'รอตรวจสอบ',
+        'รอการตรวจสอบ',
+        'รอตรวจ',
+        'ผ่านการตรวจสอบ',
+        'ผ่านการตรวจสอบแล้ว',
+        'approved',
+        'checked',
+        'reviewed'
+    ];
+
+    if (in_array(trim((string)$doc['status']), $blockedEditStatuses, true)) {
+        header("Location: /Pro_letter/documents/view_memo.php?id={$docId}&err=no_permission");
+        exit;
+    }
+}
 
     $q = $pdo->prepare("
         SELECT dv.field_id, tf.field_key, dv.value_text
@@ -828,19 +845,18 @@ if (!$coopStudentCount && count($coopStudents) > 0) {
 <body class="bg-gray-100">
   <?php require_once $_SERVER['DOCUMENT_ROOT'] . '/Pro_letter/includes/role_header.php'; ?>
 
-  <form method="post" action="<?= $isEdit ? '/Pro_letter/documents/update_memo.php' : 'save_memo.php' ?>" id="memoForm">
-    <input type="hidden" name="template_id" value="1">
+<form method="post" action="<?= $isEdit ? '/Pro_letter/documents/update_memo.php' : '/Pro_letter/documents/save_memo.php' ?>" id="memoForm">
+    <input type="hidden" name="template_id" value="6">
     <input type="hidden" name="document_type_name" value="ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)">
     <input type="hidden" name="department_id" id="selectedDepartmentId" value="<?= (int)$currentUserDepartmentId ?>">
     <input type="hidden" name="document_type" value="infor_coop_evaluation">
     <input type="hidden" name="form_type" value="coop_evaluation">
     <input type="hidden" name="purpose" value="coop_evaluation">
-    <input type="hidden" name="target_form" value="infor_coop_evaluation.php">
+    <input type="hidden" name="target_form" value="form_memo_coop_evaluation.php">
     <input type="hidden" name="redirect_to" value="form_memo_coop_evaluation.php">
     <?php if ($isEdit): ?>
     <input type="hidden" name="document_id" value="<?= (int)$docId ?>">
     <input type="hidden" name="mode" value="update">
-    <input type="hidden" name="redirect_back" value="1">
     <?php else: ?>
     <input type="hidden" name="mode" value="create">
     <?php endif; ?>

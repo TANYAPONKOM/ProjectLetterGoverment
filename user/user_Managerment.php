@@ -254,7 +254,16 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
         <input type="hidden" name="tab" value="<?= htmlspecialchars($activeTab) ?>">
         <input type="hidden" name="page" value="1">
 
-
+        <div class="w-full md:w-64">
+          <select name="profile_status"
+            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400">
+            <option value="all" <?= $profileStatus === 'all' ? 'selected' : '' ?>>สถานะข้อมูลทั้งหมด</option>
+            <option value="pending" <?= $profileStatus === 'pending' ? 'selected' : '' ?>>
+              รอผู้ดูแลระบบเพิ่มข้อมูล (<?= (int)$pendingGoogleUserCount ?>)
+            </option>
+            <option value="completed" <?= $profileStatus === 'completed' ? 'selected' : '' ?>>ข้อมูลครบแล้ว</option>
+          </select>
+        </div>
 
         <div class="relative w-full md:w-96">
           <input type="text" name="search" value="<?= htmlspecialchars($search) ?>"
@@ -303,8 +312,6 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
               <th class="px-4 py-3 text-left font-semibold">อีเมล</th>
               <th class="px-4 py-3 text-left font-semibold">สิทธิ์</th>
               <th class="px-4 py-3 text-left font-semibold">ตำแหน่ง</th>
-              <th class="px-4 py-3 text-center font-semibold">แก้ไขได้</th>
-              <th class="px-4 py-3 text-center font-semibold">ดูได้</th>
               <th class="px-4 py-3 text-center font-semibold">กำหนดสิทธิ์ได้</th>
               <th class="px-4 py-3 text-center font-semibold">สถานะ</th>
               <th class="px-4 py-3 text-center font-semibold">การจัดการ</th>
@@ -315,7 +322,7 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
           <tbody>
             <?php if (empty($users)): ?>
             <tr>
-              <td colspan="9" class="px-4 py-8 text-center text-gray-500 bg-gray-50">
+              <td colspan="7" class="px-4 py-8 text-center text-gray-500 bg-gray-50">
                 ไม่พบข้อมูลที่ค้นหา
               </td>
             </tr>
@@ -343,14 +350,6 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
               <td class="px-4 py-3 text-gray-800"><?= htmlspecialchars($row['position']) ?></td>
 
               <!-- Permissions -->
-              <td class="px-4 py-3 text-center">
-                <input type="checkbox" class="w-4 h-4 rounded border-2 border-teal-500 bg-gray-50 cursor-not-allowed"
-                  <?= in_array(1, $permMap[$row['user_id']] ?? []) ? 'checked' : '' ?> disabled>
-              </td>
-              <td class="px-4 py-3 text-center">
-                <input type="checkbox" class="w-4 h-4 rounded border-2 border-teal-500 bg-gray-50 cursor-not-allowed"
-                  <?= in_array(2, $permMap[$row['user_id']] ?? []) ? 'checked' : '' ?> disabled>
-              </td>
               <td class="px-4 py-3 text-center">
                 <input type="checkbox" class="w-4 h-4 rounded border-2 border-teal-500 bg-gray-50 cursor-not-allowed"
                   <?= in_array(3, $permMap[$row['user_id']] ?? []) ? 'checked' : '' ?> disabled>

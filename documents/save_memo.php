@@ -164,7 +164,13 @@ try {
         || isset($_POST['signature_affiliation'])
     );
 
-    if ($isConsentResearchPresentation) {
+    if ($isCoopEvaluation) {
+        $isConsentResearchPresentation = false;
+        $purpose = 'coop_evaluation';
+        $documentTypeName = 'ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)';
+        $redirectTo = 'form_memo_coop_evaluation.php';
+        $targetForm = 'infor_coop_evaluation.php';
+    } elseif ($isConsentResearchPresentation) {
         // บังคับไม่ให้ flow นี้ถูกมองเป็น "อื่นๆ"
         $purpose = 'consent_research_presentation';
     }
@@ -1004,6 +1010,32 @@ try {
         $documentTypeName = 'หนังสือขอความอนุเคราะห์ข้อมูลจัดทำปริญญานิพนธ์';
     }
 
+    // บังคับให้ฟอร์ม infor_coop_evaluation.php ใช้ template_id ของสหกิจจริง
+if ($isCoopEvaluation) {
+    $findCoopTemplate = $pdo->prepare("
+        SELECT template_id
+        FROM templates
+        WHERE template_code = 'COOP_EVALUATION'
+           OR question_path LIKE '%infor_coop_evaluation.php%'
+           OR document_path LIKE '%form_memo_coop_evaluation.php%'
+        ORDER BY
+            CASE WHEN template_code = 'COOP_EVALUATION' THEN 0 ELSE 1 END,
+            template_id ASC
+        LIMIT 1
+    ");
+    $findCoopTemplate->execute();
+    $coopTemplateId = (int)($findCoopTemplate->fetchColumn() ?: 0);
+
+    if ($coopTemplateId > 0) {
+        $templateId = $coopTemplateId;
+    }
+
+    $purpose = 'coop_evaluation';
+    $redirectTo = 'form_memo_coop_evaluation.php';
+    $targetForm = 'infor_coop_evaluation.php';
+    $documentTypeName = 'ขอประเมินสถานประกอบการสหกิจ(ประเมินเด็กสหกิจ)';
+}
+
 
     // บังคับให้ฟอร์ม infor_invite.php ใช้ template_id ของหนังสือเรียนเชิญวิทยากรจริง
     // แก้เฉพาะกรณีนี้ เพื่อให้บันทึกแล้วไปหน้า form_memo_invite_speaker.php ถูกต้อง
@@ -1141,8 +1173,8 @@ try {
         $isAdmin = ($roleId === 1);
         $isOfficer = ($roleId === 2);
 
-        // 🔒 ถ้าเอกสารถูกตรวจแล้วหรืออนุมัติแล้ว → ใครก็แก้ไม่ได้
-        if (in_array($doc['status'], ['checked', 'approved'])) {
+        // 🔒 ถ้าเอกสารผ่านการตรวจสอบแล้ว → ใครก็แก้ไม่ได้
+        if (in_array($doc['status'], ['checked', 'approved', 'ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว'], true)) {
             throw new Exception("Document locked");
         }
 
@@ -1852,29 +1884,40 @@ VALUES
 
     $pdo->commit();
 
-    if ($isFreeDocument) {
-        $redirectUrl = '/Pro_letter/form_Memo/form_memo_free_document.php?id=' . $documentId;
-    } elseif ($isCoopEvaluation) {
-        $redirectUrl = '/Pro_letter/form_Memo/form_memo_coop_evaluation.php?id=' . $documentId;
-    } elseif ($isResearchData) {
-        $redirectUrl = '/Pro_letter/form_Memo/form_memo_request_research_data.php?id=' . $documentId;
-    } elseif ($isProjectActivity) {
-        $redirectUrl = '/Pro_letter/form_Memo/form_memo_project_activity.php?id=' . $documentId;
-    } elseif ($isInviteMemo) {
-        $redirectUrl = '/Pro_letter/form_Memo/form_memo_invite_speaker.php?id=' . $documentId;
-    } elseif ($isRoomRequest) {
-        $redirectUrl = '/Pro_letter/form_Memo/form_memo_room_request_1.php?id=' . $documentId;
-    } elseif ($isSpeakerMemo) {
-        $redirectUrl = '/Pro_letter/form_Memo/form_memo_speaker.php?id=' . $documentId;
-    } elseif ($isStudyVisit) {
-        $redirectUrl = '/Pro_letter/form_Memo/form_memo_sut_wellness.php?id=' . $documentId;
-    } elseif (!empty($isConsentResearchPresentation) || $purpose === 'consent_research_presentation') {
-        $redirectUrl = '/Pro_letter/form_Memo/form_consent_research_presentation.php?id=' . $documentId;
-    } elseif ($purpose === 'academic') {
-        $redirectUrl = '/Pro_letter/form_Memo/form_memo_academic_1.php?id=' . $documentId;
-    } else {
-        $redirectUrl = '/Pro_letter/documents/view_memo.php?id=' . $documentId;
-    }
+    $postFormType = trim($_POST['form_type'] ?? '');
+$postDocumentType = trim($_POST['document_type'] ?? '');
+$postPurpose = trim($_POST['purpose'] ?? '');
+$postRedirectTo = trim($_POST['redirect_to'] ?? '');
+
+if (
+    $postFormType === 'coop_evaluation'
+    || $postDocumentType === 'infor_coop_evaluation'
+    || $postPurpose === 'coop_evaluation'
+    || $postRedirectTo === 'form_memo_coop_evaluation.php'
+    || !empty($isCoopEvaluation)
+) {
+    $redirectUrl = '/Pro_letter/form_Memo/form_memo_coop_evaluation.php?id=' . $documentId;
+} elseif ($isFreeDocument) {
+    $redirectUrl = '/Pro_letter/form_Memo/form_memo_free_document.php?id=' . $documentId;
+} elseif ($isResearchData) {
+    $redirectUrl = '/Pro_letter/form_Memo/form_memo_request_research_data.php?id=' . $documentId;
+} elseif ($isProjectActivity) {
+    $redirectUrl = '/Pro_letter/form_Memo/form_memo_project_activity.php?id=' . $documentId;
+} elseif ($isInviteMemo) {
+    $redirectUrl = '/Pro_letter/form_Memo/form_memo_invite_speaker.php?id=' . $documentId;
+} elseif ($isRoomRequest) {
+    $redirectUrl = '/Pro_letter/form_Memo/form_memo_room_request_1.php?id=' . $documentId;
+} elseif ($isSpeakerMemo) {
+    $redirectUrl = '/Pro_letter/form_Memo/form_memo_speaker.php?id=' . $documentId;
+} elseif ($isStudyVisit) {
+    $redirectUrl = '/Pro_letter/form_Memo/form_memo_sut_wellness.php?id=' . $documentId;
+} elseif (!empty($isConsentResearchPresentation) || $purpose === 'consent_research_presentation') {
+    $redirectUrl = '/Pro_letter/form_Memo/form_consent_research_presentation.php?id=' . $documentId;
+} elseif ($purpose === 'academic') {
+    $redirectUrl = '/Pro_letter/form_Memo/form_memo_academic_1.php?id=' . $documentId;
+} else {
+    $redirectUrl = '/Pro_letter/documents/view_memo.php?id=' . $documentId;
+}
 
     header('Location: ' . $redirectUrl . '&saved=1&from=' . $mode);
 

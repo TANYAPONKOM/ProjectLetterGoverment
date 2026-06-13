@@ -70,6 +70,8 @@ $document = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$document)
   exit("ไม่พบเอกสาร");
 
+$docStatus = trim((string)($document['status'] ?? ''));
+$isOwner = ((int)($document['owner_id'] ?? 0) === $userId);
 $editQuestionUrl = "/Pro_letter/documents/infor_academic_presentation.php?id=" . (int)$docId . "&edit=1";
 
 /* --------------------------------------------------
@@ -89,14 +91,77 @@ if ($roleId !== 1 && $roleId !== 2) {
 }
 
 /* --------------------------------------------------
-   สิทธิ์แก้ไขเอกสาร
+   ความคิดเห็นผู้ตรวจเอกสาร + สิทธิ์แก้ไขเอกสาร
 -------------------------------------------------- */
-$roleId = (int)($_SESSION['role_id'] ?? 0);
-$isAdmin = ($roleId === 1);
-$isOfficer = ($roleId === 2);
-$isOwner = ((int)($document['owner_id'] ?? 0) === $userId);
-$docStatus = trim((string)($document['status'] ?? ''));
+$roleId = (int)($_SESSION['role_id'] ?? $_SESSION['role'] ?? 0);
+$role = strtolower(trim((string)($_SESSION['role_name'] ?? $_SESSION['role'] ?? 'user')));
 
+$isAdmin = ($roleId === 1 || in_array($role, ['admin', 'administrator', 'ผู้ดูแลระบบ'], true));
+$isOfficer = ($roleId === 2 || in_array($role, ['officer', 'เจ้าหน้าที่'], true));
+
+/*
+  กล่องความคิดเห็น
+  - admin/officer เห็นช่องพิมพ์และบันทึกความคิดเห็นได้
+  - user เห็นความคิดเห็นแบบอ่านอย่างเดียว เฉพาะตอนเอกสารถูกตีกลับ/รอแก้ไข
+*/
+$canWriteReviewComment = ($isAdmin || $isOfficer);
+$userCanReadCommentStatuses = ['รอแก้ไข', 'รอแก้เอกสาร', 'rejected'];
+$canReadReviewComment = $canWriteReviewComment || ($isOwner && in_array($docStatus, $userCanReadCommentStatuses, true));
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_review_comment') {
+  if (!$canWriteReviewComment) {
+    http_response_code(403);
+    exit('Forbidden');
+  }
+
+  if ($userId <= 0) {
+    http_response_code(403);
+    exit('ไม่พบข้อมูลผู้ใช้งาน');
+  }
+
+  $reviewComment = trim((string)($_POST['review_comment'] ?? ''));
+  $reviewComment = preg_replace('/
+|
+/u', "
+", $reviewComment);
+  $reviewComment = preg_replace('/[ 	]+/u', ' ', $reviewComment);
+
+  if ($reviewComment === '') {
+    header("Location: form_memo_academic_1.php?id=" . (int)$docId . "&comment_err=empty");
+    exit;
+  }
+
+  if (mb_strlen($reviewComment, 'UTF-8') > 1000) {
+    $reviewComment = mb_substr($reviewComment, 0, 1000, 'UTF-8');
+  }
+
+  $commentLog = $pdo->prepare("
+    INSERT INTO audit_logs (user_id, document_id, action, detail)
+    VALUES (:user_id, :document_id, 'REVIEW_COMMENT', :detail)
+  ");
+  $commentLog->execute([
+    ':user_id' => $userId,
+    ':document_id' => $docId,
+    ':detail' => $reviewComment
+  ]);
+
+  header("Location: form_memo_academic_1.php?id=" . (int)$docId . "&comment_saved=1");
+  exit;
+}
+
+$lastReviewComment = '';
+if ($canReadReviewComment) {
+  $lastCommentStmt = $pdo->prepare("
+    SELECT detail
+    FROM audit_logs
+    WHERE document_id = :document_id
+      AND action = 'REVIEW_COMMENT'
+    ORDER BY log_id DESC
+    LIMIT 1
+  ");
+  $lastCommentStmt->execute([':document_id' => $docId]);
+  $lastReviewComment = (string)($lastCommentStmt->fetchColumn() ?: '');
+}
 
 $userEditableStatuses = ['draft', 'รอยืนยันการส่ง', 'rejected', 'รอแก้เอกสาร', 'รอแก้ไข'];
 $submittedStatuses = ['submitted', 'รอตรวจ', 'รอตรวจสอบ', 'รอการตรวจสอบ'];
@@ -106,9 +171,14 @@ $isCheckedStatus = in_array($docStatus, $checkedStatuses, true);
 $isSubmittedStatus = in_array($docStatus, $submittedStatuses, true);
 $isUserEditableStatus = in_array($docStatus, $userEditableStatuses, true);
 
-/*
-  เหตุผลที่แก้ไม่ได้ มี 3 กรณีตามที่กำหนด
-*/
+// กล่องความคิดเห็นของ admin/officer
+// - ถ้ามีความคิดเห็นล่าสุดแล้ว ให้แสดงค้างไว้หลังบันทึก
+// - จะว่างเฉพาะตอนยังไม่เคยมีความคิดเห็นของเอกสารรอบนั้น
+$reviewCommentTextareaValue = $lastReviewComment;
+if ($canWriteReviewComment && $isSubmittedStatus) {
+  $reviewCommentTextareaValue = '';
+}
+
 $editDisabledReason = '';
 $editAlertTitle = '';
 $editAlertText = '';
@@ -126,20 +196,19 @@ if ($isCheckedStatus) {
   $editAlertIcon = 'info';
 }
 
-/*
-  เงื่อนไขปุ่มแก้ไข
-  - รอตรวจสอบ: แก้ไม่ได้
-  - ผ่านการตรวจสอบแล้ว: แก้ไม่ได้
-  - สถานะอื่น: แก้ไขได้
-*/
-if ($isCheckedStatus || $isSubmittedStatus) {
+// กติกาการแก้ไขเอกสาร
+// - ถ้าเอกสารอยู่สถานะรอตรวจสอบ: user ปกติแก้ไขไม่ได้
+// - admin/officer ยังแก้ไขได้ เพื่อใช้ตรวจและปรับเอกสารก่อนอนุมัติ
+// - ถ้าผ่านการตรวจสอบแล้ว ยังล็อกไม่ให้แก้เหมือนเดิม
+if ($isCheckedStatus) {
   $canEdit = false;
+} elseif ($isSubmittedStatus) {
+  $canEdit = ($isAdmin || $isOfficer);
 } else {
   $canEdit = true;
 }
 
 $readonly = !$canEdit;
-
 
 
 /* --------------------------------------------------
@@ -1229,7 +1298,109 @@ $len = max(20, $len);
       transform: rotate(360deg);
     }
   }
-  </style>
+    /* ===== กล่องความคิดเห็นผู้ตรวจเอกสาร ===== */
+  .review-comment-panel {
+    position: fixed;
+    right: 18px;
+    bottom: 70px;
+    width: 300px;
+    background: #ffffff;
+    border: 1px solid #99f6e4;
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.10);
+    z-index: 40;
+  }
+
+  .review-comment-title {
+    font-family: 'TH SarabunPSK', sans-serif !important;
+    font-size: 20pt;
+    font-weight: bold;
+    color: #0f766e;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .review-comment-textarea {
+    width: 100%;
+    min-height: 118px;
+    resize: vertical;
+    border: 1px solid #99f6e4;
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-family: 'TH SarabunPSK', sans-serif !important;
+    font-size: 18pt;
+    line-height: 1.15;
+    outline: none;
+    color: #111827;
+    background: #ffffff;
+  }
+
+  .review-comment-textarea:focus {
+    border-color: #14b8a6;
+    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.16);
+  }
+
+  .review-comment-readonly {
+    min-height: 96px;
+    border: 1px solid #ccfbf1;
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #f0fdfa;
+    color: #134e4a;
+    font-family: 'TH SarabunPSK', sans-serif !important;
+    font-size: 18pt;
+    line-height: 1.22;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .review-comment-hint {
+    margin-top: 8px;
+    color: #64748b;
+    font-family: 'TH SarabunPSK', sans-serif !important;
+    font-size: 15pt;
+    line-height: 1.1;
+  }
+
+  .review-comment-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+  }
+
+  .review-comment-save-btn {
+    background: #14b8a6;
+    color: #ffffff;
+    border: 0;
+    border-radius: 6px;
+    padding: 7px 22px;
+    font-family: 'TH SarabunPSK', sans-serif !important;
+    font-size: 18pt;
+    font-weight: bold;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .review-comment-save-btn:hover {
+    background: #0f766e;
+  }
+
+  @media (max-width: 1180px) {
+    .review-comment-panel {
+      position: static;
+      width: min(92vw, 684px);
+      margin: 18px auto 30px auto;
+    }
+  }
+
+  @media print {
+    .review-comment-panel {
+      display: none !important;
+    }
+  }
+
+</style>
 </head>
 
 <body class="view-document">
@@ -1291,6 +1462,49 @@ $len = max(20, $len);
     ⚠️ เกิดข้อผิดพลาดในระบบ กรุณาลองใหม่อีกครั้ง
   </div>
   <?php endif; ?>
+
+  <?php if (isset($_GET['comment_saved']) && $_GET['comment_saved'] == '1'): ?>
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    Swal.fire({
+      title: "บันทึกความคิดเห็นแล้ว",
+      icon: "success",
+      confirmButtonText: "ตกลง",
+      confirmButtonColor: "#14b8a6"
+    });
+  });
+  </script>
+  <?php elseif (isset($_GET['comment_err']) && $_GET['comment_err'] === 'empty'): ?>
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    Swal.fire({
+      title: "กรุณากรอกความคิดเห็นก่อนบันทึก",
+      icon: "warning",
+      confirmButtonText: "ตกลง",
+      confirmButtonColor: "#14b8a6"
+    });
+  });
+  </script>
+  <?php endif; ?>
+
+  <?php if ($canWriteReviewComment): ?>
+  <form method="post" class="review-comment-panel">
+    <input type="hidden" name="action" value="save_review_comment">
+    <div class="review-comment-title">ความคิดเห็นผู้ตรวจเอกสาร</div>
+    <textarea name="review_comment" class="review-comment-textarea" maxlength="1000"
+      placeholder="พิมพ์ความคิดเห็นสำหรับเอกสารนี้..." required><?= h($reviewCommentTextareaValue) ?></textarea>
+    <div class="review-comment-footer">
+      <button type="submit" class="review-comment-save-btn">บันทึก</button>
+    </div>
+  </form>
+  <?php elseif ($canReadReviewComment): ?>
+  <aside class="review-comment-panel" aria-label="ความคิดเห็นผู้ตรวจเอกสาร">
+    <div class="review-comment-title">ความคิดเห็นผู้ตรวจเอกสาร</div>
+    <div class="review-comment-readonly"><?= h($lastReviewComment !== '' ? $lastReviewComment : 'ยังไม่มีความคิดเห็นจากผู้ตรวจเอกสาร') ?></div>
+    <div class="review-comment-hint">อ่านความคิดเห็นนี้ แล้วกดแก้ไขเอกสารเพื่อปรับข้อมูลตามคำแนะนำ</div>
+  </aside>
+  <?php endif; ?>
+
 
   <main class="page">
     <form id="updateForm" action="update_memo.php" method="post">

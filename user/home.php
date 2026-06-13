@@ -907,46 +907,10 @@ setInterval(loadRequests, 10000);
     return `${baseUrl}?id=${encodeURIComponent(docId)}`;
   }
 
-  function openDocument(docId, routeHint = "") {
-    fetch("../check_view_permission.php?id=" + encodeURIComponent(docId))
-      .then(r => r.json())
-      .then(res => {
-        console.log("Returned JSON:", res);
-
-        if (!res || typeof res.allowed === "undefined") {
-          Swal.fire("Error", "ข้อมูลที่ส่งกลับไม่ถูกต้อง", "error");
-          return;
-        }
-
-        if (res.allowed === true) {
-          window.location.href = getDocumentViewUrl(docId, routeHint);
-          return;
-        }
-
-        if (res.reason === "not_login") {
-          Swal.fire("กรุณาเข้าสู่ระบบ", "", "warning");
-          return;
-        }
-
-        if (res.reason === "no_permission") {
-          Swal.fire({
-            title: "ไม่มีสิทธิ์เข้าดูเอกสารนี้",
-            text: "คุณไม่สามารถเข้าถึงเอกสารนี้ได้",
-            icon: "error",
-            confirmButtonText: "ตกลง"
-          });
-          return;
-        }
-
-        Swal.fire("เกิดข้อผิดพลาด", "ไม่สามารถตรวจสอบสิทธิ์ได้", "error");
-      })
-      .catch(err => {
-        console.log("Fetch error:", err);
-        Swal.fire("Error", "ไม่สามารถตรวจสอบสิทธิ์ได้", "error");
-      });
-
-    return false;
-  }
+function openDocument(docId, routeHint = "") {
+  window.location.href = getDocumentViewUrl(docId, routeHint);
+  return false;
+}
 
   function submitDocument(id) {
     Swal.fire({
