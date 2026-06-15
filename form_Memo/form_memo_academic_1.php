@@ -870,6 +870,7 @@ $len = max(20, $len);
     border-top: 1px solid #e5e7eb;
   }
 
+
   .dot-line {
     flex: 1;
     position: relative;
@@ -1218,6 +1219,35 @@ $len = max(20, $len);
     color: #475569;
     font-size: 16pt;
     line-height: 1.1;
+  }
+
+  /* ===== แบ่งหน้าใหม่แบบ A4 สำหรับ Preview/PDF ===== */
+  .page {
+    width: 794px !important;
+    height: 1123px !important;
+    min-height: 1123px !important;
+    max-height: 1123px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    position: relative !important;
+  }
+
+  .generated-continuation-page {
+    background: #ffffff !important;
+  }
+
+  .continuation-page-number {
+    width: 100%;
+    text-align: center;
+    font-family: "TH SarabunPSK", sans-serif !important;
+    font-size: 16pt !important;
+    line-height: 1 !important;
+    margin: 0 0 1.2cm 0 !important;
+    padding: 0 !important;
+  }
+
+  .generated-continuation-page .content-block.paragraph:first-of-type {
+    margin-top: 0 !important;
   }
 
   @keyframes pdfSpin {
@@ -1875,6 +1905,223 @@ $len = max(20, $len);
     }, 3000); // ซ่อนหลัง 3 วินาที
   }
 
+  function paginateAcademicPages(root = document, forceRebuild = false) {
+    const A4_HEIGHT_PX = 1123;
+    const SAFE_BOTTOM_PX = 36;
+    const PAGE_LIMIT = A4_HEIGHT_PX - SAFE_BOTTOM_PX;
+
+    const basePages = Array.from(root.querySelectorAll(".page")).filter(page => {
+      return page.dataset.generatedContinuation !== "1";
+    });
+
+    basePages.forEach(page => {
+      const contentRoot = getAcademicPageContentRoot(page);
+
+      if (!contentRoot.dataset.originalHtml) {
+        contentRoot.dataset.originalHtml = contentRoot.innerHTML;
+      }
+    });
+
+    if (forceRebuild) {
+      root.querySelectorAll(".page[data-generated-continuation='1']").forEach(page => page.remove());
+
+      basePages.forEach(page => {
+        const contentRoot = getAcademicPageContentRoot(page);
+
+        if (contentRoot.dataset.originalHtml) {
+          contentRoot.innerHTML = contentRoot.dataset.originalHtml;
+        }
+      });
+    } else {
+      if (root.querySelector(".page[data-generated-continuation='1']")) {
+        return;
+      }
+    }
+
+    const originalPages = Array.from(root.querySelectorAll(".page")).filter(page => {
+      return page.dataset.generatedContinuation !== "1";
+    });
+
+    originalPages.forEach(originalPage => {
+      let currentPage = originalPage;
+      let pageNo = 2;
+      let guard = 0;
+
+      while (guard < 20) {
+        guard++;
+
+        const overflowChild = findAcademicOverflowChild(currentPage, PAGE_LIMIT);
+        if (!overflowChild) break;
+
+        const nextPage = createAcademicContinuationPage(pageNo);
+        pageNo++;
+
+        currentPage.insertAdjacentElement("afterend", nextPage);
+
+        if (
+          overflowChild.classList.contains("content-block") &&
+          overflowChild.classList.contains("paragraph") &&
+          getAcademicNodeTopInPage(overflowChild, currentPage) < PAGE_LIMIT
+        ) {
+          const remainder = splitAcademicParagraphToFit(overflowChild, currentPage, PAGE_LIMIT);
+
+          if (remainder) {
+            getAcademicPageContentRoot(nextPage).appendChild(remainder);
+            moveFollowingAcademicNodes(overflowChild, nextPage);
+          } else {
+            moveAcademicNodeAndFollowing(overflowChild, nextPage);
+          }
+        } else {
+          moveAcademicNodeAndFollowing(overflowChild, nextPage);
+        }
+
+        currentPage = nextPage;
+      }
+    });
+  }
+
+  function getAcademicPageContentRoot(page) {
+    return page.querySelector(":scope > form") || page;
+  }
+
+  function getAcademicNodeBottomInPage(node, page) {
+    const nodeRect = node.getBoundingClientRect();
+    const pageRect = page.getBoundingClientRect();
+    return nodeRect.bottom - pageRect.top;
+  }
+
+  function getAcademicNodeTopInPage(node, page) {
+    const nodeRect = node.getBoundingClientRect();
+    const pageRect = page.getBoundingClientRect();
+    return nodeRect.top - pageRect.top;
+  }
+
+  function findAcademicOverflowChild(page, limit) {
+    const contentRoot = getAcademicPageContentRoot(page);
+
+    const children = Array.from(contentRoot.children).filter(el => {
+      if (el.matches("input[type='hidden'], .footer-actions, script, style")) {
+        return false;
+      }
+
+      if (el.classList.contains("continuation-page-number")) {
+        return false;
+      }
+
+      return true;
+    });
+
+    return children.find(el => {
+      return getAcademicNodeBottomInPage(el, page) > limit;
+    });
+  }
+
+  function createAcademicContinuationPage(pageNo) {
+    const page = document.createElement("section");
+    page.className = "page generated-continuation-page";
+    page.dataset.generatedContinuation = "1";
+
+    const pageNumber = document.createElement("div");
+    pageNumber.className = "continuation-page-number";
+    pageNumber.textContent = "-" + pageNo + "-";
+
+    page.appendChild(pageNumber);
+    return page;
+  }
+
+  function splitAcademicParagraphToFit(paragraph, page, limit) {
+    const originalText = paragraph.textContent.replace(/\s+/g, " ").trim();
+
+    if (!originalText || originalText.length < 20) {
+      return null;
+    }
+
+    let low = 1;
+    let high = originalText.length;
+    let best = 0;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+
+      paragraph.textContent = originalText.slice(0, mid).trim();
+
+      const bottom = getAcademicNodeBottomInPage(paragraph, page);
+
+      if (bottom <= limit) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    if (best < 10 || best >= originalText.length) {
+      paragraph.textContent = originalText;
+      return null;
+    }
+
+    const beforeText = originalText.slice(0, best).trim();
+    const afterText = originalText.slice(best).trim();
+
+    paragraph.textContent = beforeText;
+
+    const remainder = paragraph.cloneNode(false);
+    remainder.textContent = afterText;
+
+    return remainder;
+  }
+
+  function moveAcademicNodeAndFollowing(startNode, targetPage) {
+    const targetRoot = getAcademicPageContentRoot(targetPage);
+    let node = startNode;
+
+    while (node) {
+      const next = node.nextElementSibling;
+
+      if (
+        !node.matches("input[type='hidden'], .footer-actions, script, style") &&
+        !node.classList.contains("continuation-page-number")
+      ) {
+        targetRoot.appendChild(node);
+      }
+
+      node = next;
+    }
+  }
+
+  function moveFollowingAcademicNodes(startNode, targetPage) {
+    const targetRoot = getAcademicPageContentRoot(targetPage);
+    let node = startNode.nextElementSibling;
+
+    while (node) {
+      const next = node.nextElementSibling;
+
+      if (
+        !node.matches("input[type='hidden'], .footer-actions, script, style") &&
+        !node.classList.contains("continuation-page-number")
+      ) {
+        targetRoot.appendChild(node);
+      }
+
+      node = next;
+    }
+  }
+
+  function moveAcademicFooterActionsToLastPage(root = document) {
+    const footerActions = root.querySelector(".footer-actions");
+    if (!footerActions) return;
+
+    const pages = Array.from(root.querySelectorAll(".page")).filter(page => {
+      return page.offsetParent !== null;
+    });
+
+    if (pages.length === 0) return;
+
+    const lastPage = pages[pages.length - 1];
+    const lastRoot = getAcademicPageContentRoot(lastPage);
+
+    lastRoot.appendChild(footerActions);
+  }
 
   function fitGovAgencyText(root = document) {
     root.querySelectorAll(".doc-row.gov-row .chip.gov-text").forEach(el => {
@@ -1929,8 +2176,21 @@ $len = max(20, $len);
 
   document.addEventListener("DOMContentLoaded", () => {
     fitGovAgencyText(document);
+
+    requestAnimationFrame(() => {
+      paginateAcademicPages(document, true);
+      moveAcademicFooterActionsToLastPage(document);
+    });
+
     if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(() => fitGovAgencyText(document));
+      document.fonts.ready.then(() => {
+        fitGovAgencyText(document);
+
+        requestAnimationFrame(() => {
+          paginateAcademicPages(document, true);
+          moveAcademicFooterActionsToLastPage(document);
+        });
+      });
     }
   });
 
@@ -2030,7 +2290,23 @@ $len = max(20, $len);
         jsPDF
       } = window.jspdf;
 
-      const pages = document.querySelectorAll(".page");
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+
+      fitGovAgencyText(document);
+      paginateAcademicPages(document, true);
+      moveAcademicFooterActionsToLastPage(document);
+
+      await new Promise(resolve => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(resolve);
+        });
+      });
+
+      const pages = Array.from(document.querySelectorAll(".page")).filter(page => {
+        return page.offsetParent !== null;
+      });
       if (!pages.length) {
         alert("ไม่พบหน้าเอกสาร .page");
         return;
@@ -2050,7 +2326,10 @@ $len = max(20, $len);
         clone.style.left = "-9999px";
         clone.style.top = "0";
         clone.style.width = "794px";
+        clone.style.height = "1123px";
         clone.style.minHeight = "1123px";
+        clone.style.maxHeight = "1123px";
+        clone.style.overflow = "hidden";
         clone.style.boxSizing = "border-box";
         clone.style.background = "#ffffff";
 
@@ -2319,9 +2598,9 @@ $len = max(20, $len);
     const errType = getQuery("err");
 
 
-  if (["submitted", "checked"].includes(errType)) {
-    const alertMap = {
-      submitted: {
+    if (["submitted", "checked"].includes(errType)) {
+      const alertMap = {
+        submitted: {
           title: "เอกสารอยู่ระหว่างรอตรวจสอบ",
           html: `<div style="font-size: 1.15rem; line-height: 1.6;">
         เอกสารนี้ถูกส่งเข้าสู่การตรวจสอบแล้ว<br>

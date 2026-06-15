@@ -443,15 +443,9 @@ $isEventRangeDate = preg_match('/\d+\s*-\s*\d+/', $eventDate);
 
 $isOnline = ($location === 'เข้าร่วมรูปแบบออนไลน์');
 
-$purpose = 'other';
-if ($joinType === 'นำเสนอผลงานวิจัย') {
-    $purpose = 'academic';
-} elseif ($joinType === 'เข้าร่วมประชุมวิชาการในงาน') {
-    $purpose = 'meeting';
-} elseif ($joinType === 'เข้ารับการฝึกอบรมหลักสูตร') {
-    $purpose = 'training';
-}
-$purposeOther = ($purpose === 'other') ? $joinType : '';
+$purpose = 'training';
+
+
 
 $roleIdForHome = (int)($_SESSION['role_id'] ?? 0);
 if ($roleIdForHome === 1) {
@@ -748,7 +742,7 @@ if ($roleIdForHome === 1) {
 
 <body class="bg-gray-100">
   <?php require_once $_SERVER['DOCUMENT_ROOT'] . '/Pro_letter/includes/role_header.php'; ?>
-  <form method="post" action="save_memo.php" id="memoForm">
+  <form method="post" action="<?= $isEdit ? '/Pro_letter/documents/update_memo.php' : 'save_memo.php' ?>" id="memoForm">
     <input type="hidden" name="template_id" value="1">
     <input type="hidden" name="document_type_name" value="ขออนุมัติไปเข้ารับการฝึกอบรมหลักสูตร">
     <input type="hidden" name="department_id" id="selectedDepartmentId" value="<?= (int)$currentUserDepartmentId ?>">
@@ -888,69 +882,31 @@ if ($roleIdForHome === 1) {
             <input type="text" name="position" class="flex-1 border rounded-md p-2" id="position"
               value="<?= h($formData[3] ?? ($_SESSION['position'] ?? 'อาจารย์ประจำภาควิชาเทคโนโลยีสารสนเทศ')) ?>">
           </div>
-          <div class="mb-4">
-            <div class="flex items-start gap-2">
-              <label class="lbl text-gray-800 whitespace-nowrap mt-1" id="purposeLabel">
-                3.ขออนุมัติไปเข้าร่วม
-              </label>
-              <div class="space-y-1 text-gray-800" id="purposeGroup" role="radiogroup" aria-labelledby="purposeLabel">
-                <label class="flex items-center gap-2">
-                  <input type="radio" name="purpose" value="training" class="accent-black"
-                    <?= ($purpose === 'training') ? 'checked' : '' ?> />
-                  เข้ารับการฝึกอบรมหลักสูตร
-                </label>
-                <label class="flex items-center gap-2">
-                  <input type="radio" name="purpose" value="meeting" class="accent-black"
-                    <?= ($purpose === 'meeting') ? 'checked' : '' ?> />
-                  เข้าร่วมประชุมวิชาการในงาน
-                </label>
-                <label class="flex items-start gap-2">
-                  <input type="radio" name="purpose" value="other" class="accent-black mt-2" id="purposeOtherRadio"
-                    <?= ($purpose === 'other') ? 'checked' : '' ?> />
+          <div class="mb-4 flex items-start gap-4">
+            <label class="lbl text-gray-800 whitespace-nowrap pt-2" for="memoSubject">
+              3.เรื่อง :
+            </label>
 
-                  <span class="mt-2">อื่น ๆ (ระบุ)</span>
+            <div class="w-full">
+              <input type="hidden" name="purpose" value="training">
 
-                  <div class="flex flex-col ml-3">
-                    <input type="text" name="purpose_other_detail" id="purposeOtherInput"
-                      data-spell-field="purpose_other_detail"
-                      class="border rounded-md p-2 w-[260px] <?= ($purpose === 'other') ? '' : 'bg-gray-100 text-gray-400' ?>"
-                      placeholder="โปรดระบุ" value="<?= h($purposeOther) ?>"
-                      <?= ($purpose === 'other') ? '' : 'disabled' ?> />
+              <textarea name="memo_subject" id="memoSubject" data-spell-field="memo_subject" rows="2"
+                class="w-full border rounded-md p-2 shadow-sm"
+                placeholder="เช่น การพัฒนาเว็บแอปพลิเคชันด้วย Laravel"><?= h($memoSubject) ?></textarea>
 
-                    <div id="purposeOtherSpellBox" class="spell-box hidden"></div>
+              <p class="text-sm text-gray-500 mt-1">
+                หมายเหตุ: กรอกเฉพาะรายละเอียดเรื่อง ระบบจะเติมคำขึ้นต้นในเอกสารให้อัตโนมัติ เช่น ขออนุมัติตัวบุคคลไป
+              </p>
 
-                    <div id="purposeOtherSpellLoading" class="spell-loading hidden">
-                      <div class="spell-loading-row">
-                        <div class="spell-spinner"></div>
-                        <span>กำลังตรวจคำผิด...</span>
-                      </div>
-                    </div>
-                  </div>
-                </label>
-              </div>
-            </div>
-          </div>
-          <div class="<?= ($purpose === 'academic') ? '' : 'hidden' ?>" id="academicExtraWrap">
+              <div id="memoSubjectSpellBox" class="spell-box hidden"></div>
 
-            <div class="mb-4 flex items-start gap-4">
-              <label class="lbl text-gray-800 whitespace-nowrap pt-2 ml-3" for="memoSubject">
-                เรื่อง :
-              </label>
-              <div class="w-full">
-                <textarea name="memo_subject" id="memoSubject" data-spell-field="memo_subject" rows="2"
-                  class="w-full border rounded-md p-2 shadow-sm"
-                  placeholder="ขออนุมัติตัวบุคคลเพื่อไปนำเสนอผลงานวิจัยในงานประชุมวิชาการระดับนานาชาติ ACIE 2025"><?= h($memoSubject) ?></textarea>
-
-                <div id="memoSubjectSpellBox" class="spell-box hidden"></div>
-                <div id="memoSubjectSpellLoading" class="spell-loading hidden">
-                  <div class="spell-loading-row">
-                    <div class="spell-spinner"></div>
-                    <span>กำลังตรวจคำผิด...</span>
-                  </div>
+              <div id="memoSubjectSpellLoading" class="spell-loading hidden">
+                <div class="spell-loading-row">
+                  <div class="spell-spinner"></div>
+                  <span>กำลังตรวจคำผิด...</span>
                 </div>
               </div>
             </div>
-
           </div>
 
           <div class="mb-4 flex items-start gap-4">
@@ -1215,7 +1171,7 @@ if ($roleIdForHome === 1) {
             </button>
 
             <button type="submit" id="submitBtn"
-              class="bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md transition">
+              class="hidden bg-[#11C2B9] hover:bg-[#0fa39c] text-white font-bold w-[130px] h-[35px] rounded-md transition">
               ดำเนินการ
             </button>
           </div>
@@ -1264,8 +1220,9 @@ if ($roleIdForHome === 1) {
             </div>
             <div id="regForm" class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-               <label class="text-gray-700">ราคา (บาท)</label>
-                <input type="text" id="regPrice" class="w-full border rounded-md p-2 js-money-input" inputmode="decimal" value="0">
+                <label class="text-gray-700">ราคา (บาท)</label>
+                <input type="text" id="regPrice" class="w-full border rounded-md p-2 js-money-input" inputmode="decimal"
+                  value="0">
               </div>
               <div>
                 <label class="text-gray-700">จำนวนคน</label>
@@ -1317,7 +1274,8 @@ if ($roleIdForHome === 1) {
               </div>
               <div class="md:col-span-2">
                 <label class="text-gray-700">ราคา/คืน</label>
-                <input type="text" id="lodUnit" class="w-full border rounded-md p-2 js-money-input" inputmode="decimal" value="1,500.00">
+                <input type="text" id="lodUnit" class="w-full border rounded-md p-2 js-money-input" inputmode="decimal"
+                  value="1,500.00">
                 <div class="text-xs text-gray-500 mt-1">ค่าเริ่มต้นราชการ: 1 คน = 1,500/คืน, มากกว่า 1 คน = 1,000/คืน/คน
                 </div>
               </div>
@@ -1349,8 +1307,9 @@ if ($roleIdForHome === 1) {
             </div>
             <div id="perForm" class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-              <label class="text-gray-700">ราคา/มื้อ</label>
-              <input type="text" id="perUnit" class="w-full border rounded-md p-2 js-money-input" inputmode="decimal" value="120">
+                <label class="text-gray-700">ราคา/มื้อ</label>
+                <input type="text" id="perUnit" class="w-full border rounded-md p-2 js-money-input" inputmode="decimal"
+                  value="120">
                 <div class="text-xs text-gray-500 mt-1">ค่าเริ่มต้นราชการ: มื้อละ 120 บาท</div>
               </div>
               <div>
@@ -1422,13 +1381,6 @@ if ($roleIdForHome === 1) {
   const byId = (id) => document.getElementById(id);
   const initialBudgetItems = <?= json_encode($budgetItems ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
   const spellState = {
-    purpose_other_detail: {
-      checked: false,
-      hasError: false,
-      ignored: false,
-      suggestions: [],
-      errors: []
-    },
     event_title: {
       checked: false,
       hasError: false,
@@ -1514,7 +1466,6 @@ if ($roleIdForHome === 1) {
     });
     updateMemoHeaderText();
 
-    const purposeOtherInput = document.getElementById("purposeOtherInput");
     const academicExtraWrap = document.getElementById("academicExtraWrap");
     const academicDetailWrap = document.getElementById("academicDetailWrap");
 
@@ -1542,7 +1493,6 @@ if ($roleIdForHome === 1) {
     const fullname = document.getElementById("fullname");
     const position = document.getElementById("position");
 
-    const purposeOtherSpellBox = document.getElementById("purposeOtherSpellBox");
     const eventTitleSpellBox = document.getElementById("eventTitleSpellBox");
     const memoSubjectSpellBox = document.getElementById("memoSubjectSpellBox");
     const academicTopicSpellBox = document.getElementById("academicTopicSpellBox");
@@ -1551,7 +1501,6 @@ if ($roleIdForHome === 1) {
 
 
 
-    const purposeOtherRadio = document.getElementById("purposeOtherRadio");
     const purposeRadios = document.querySelectorAll('input[name="purpose"]');
 
     const optSingle = document.getElementById("optSingle");
@@ -1574,7 +1523,7 @@ if ($roleIdForHome === 1) {
 
     function getSpellLoadingByField(el) {
       if (!el) return null;
-      if (el.id === "purposeOtherInput") return document.getElementById("purposeOtherSpellLoading");
+
       if (el.id === "eventTitle") return document.getElementById("eventTitleSpellLoading");
       if (el.id === "memoSubject") return document.getElementById("memoSubjectSpellLoading");
       if (el.id === "academicTopic") return document.getElementById("academicTopicSpellLoading");
@@ -1658,8 +1607,8 @@ if ($roleIdForHome === 1) {
     }
 
     function syncPurposeUI() {
-      const chosenPurpose = document.querySelector('input[name="purpose"]:checked');
-      const isAcademic = chosenPurpose?.value === "academic";
+      const purposeInput = document.querySelector('input[name="purpose"]');
+      const isAcademic = purposeInput?.value === "academic";
 
       if (academicExtraWrap) {
         academicExtraWrap.classList.toggle("hidden", !isAcademic);
@@ -1670,7 +1619,7 @@ if ($roleIdForHome === 1) {
       }
 
       if (!isAcademic) {
-        [memoSubject, academicTopic, academicLevel].forEach(el => {
+        [academicTopic, academicLevel].forEach(el => {
           if (!el) return;
           el.value = "";
           clearError(el);
@@ -1682,7 +1631,7 @@ if ($roleIdForHome === 1) {
         if (eventStartDate) eventStartDate.value = "";
         if (eventEndDate) eventEndDate.value = "";
 
-        ["memo_subject", "academic_topic", "academic_level"].forEach(key => {
+        ["academic_topic", "academic_level"].forEach(key => {
           spellState[key] = {
             checked: false,
             hasError: false,
@@ -1693,24 +1642,8 @@ if ($roleIdForHome === 1) {
         });
       }
 
-      if (purposeOtherRadio && purposeOtherRadio.checked) {
-        purposeOtherInput.disabled = false;
-        purposeOtherInput.classList.remove("bg-gray-100", "text-gray-400");
-      } else if (purposeOtherInput) {
-        purposeOtherInput.value = "";
-        purposeOtherInput.disabled = true;
-        purposeOtherInput.classList.add("bg-gray-100", "text-gray-400");
-        clearError(purposeOtherInput);
-        clearSpellResult(purposeOtherInput);
-        spellState.purpose_other_detail = {
-          checked: false,
-          hasError: false,
-          ignored: false,
-          suggestions: [],
-          errors: []
-        };
-      }
     }
+
     purposeRadios.forEach(r => r.addEventListener("change", syncPurposeUI));
 
     function syncPlaceUI(fromUserAction = false) {
@@ -1815,17 +1748,23 @@ if ($roleIdForHome === 1) {
     noCostCheckbox?.addEventListener("change", syncCostUI);
 
     function syncCarUI() {
-      if (carCheckbox?.checked) {
+      if (!carCheckbox || !carPlateInput) return;
+
+      if (carCheckbox.checked) {
         carPlateInput.disabled = false;
+        carPlateInput.readOnly = false;
         carPlateInput.classList.remove("bg-gray-100", "text-gray-400");
       } else {
         carPlateInput.value = "";
         carPlateInput.disabled = true;
+        carPlateInput.readOnly = false;
         carPlateInput.classList.add("bg-gray-100", "text-gray-400");
         clearError(carPlateInput);
       }
     }
+
     carCheckbox?.addEventListener("change", syncCarUI);
+    syncCarUI();
 
     function syncDocDateOptionUI() {
       const isNoDate = !!docDateNone?.checked;
@@ -2148,20 +2087,18 @@ if ($roleIdForHome === 1) {
         memoSubject, academicTopic, academicLevel,
         eventSingleDate, eventStartDate, eventEndDate,
         eventTitle, singleDate, startDate, endDate, rangeDisplay,
-        placeOnsite, amountInput, departmentPhone
+        placeOnsite, amountInput, departmentPhone, carPlateInput
       ].forEach(clearError);
+
       let firstError = null;
-      const chosenPurpose = document.querySelector('input[name="purpose"]:checked');
+      const chosenPurpose = document.querySelector('input[name="purpose"]');
 
-      if (!chosenPurpose) {
-        firstError = firstError || (purposeOtherRadio || purposeRadios[0]);
-        setError((purposeOtherRadio || purposeRadios[0]), "กรุณาเลือกข้อ 3");
-      } else if (chosenPurpose.value === "academic") {
-        if (!memoSubject?.value?.trim()) {
-          firstError = firstError || memoSubject;
-          setError(memoSubject, "กรุณากรอกเรื่อง");
-        }
+      if (!memoSubject?.value?.trim()) {
+        firstError = firstError || memoSubject;
+        setError(memoSubject, "กรุณากรอกเรื่อง");
+      }
 
+      if (chosenPurpose?.value === "academic") {
         if (!academicTopic?.value?.trim()) {
           firstError = firstError || academicTopic;
           setError(academicTopic, "กรุณากรอกหัวข้อ");
@@ -2188,30 +2125,28 @@ if ($roleIdForHome === 1) {
             setError(eventEndDate, "กรุณาเลือกวันที่สิ้นสุด");
           }
         }
-      } else if (chosenPurpose.value === "other") {
-        if (!purposeOtherInput?.value?.trim()) {
-          firstError = firstError || purposeOtherInput;
-          setError(purposeOtherInput, "กรุณาระบุรายละเอียด (อื่น ๆ)");
-        }
       }
-
 
       if (!docDateNone?.checked && !docDateHidden?.value?.trim()) {
         firstError = firstError || docDateDisplay;
         setError(docDateDisplay, "กรุณาเลือกวัน เดือน ปี");
       }
+
       if (!fullname?.value?.trim()) {
         firstError = firstError || fullname;
         setError(fullname, "กรุณาเลือกชื่อ - นามสกุล");
       }
+
       if (!position?.value?.trim()) {
         firstError = firstError || position;
         setError(position, "กรุณากรอกตำแหน่ง");
       }
+
       if (!eventTitle?.value?.trim()) {
         firstError = firstError || eventTitle;
         setError(eventTitle, "กรุณากรอกชื่อของงาน/หลักสูตรอบรม");
       }
+
       if (optSingle?.checked) {
         if (!singleDate?.value?.trim()) {
           firstError = firstError || singleDate;
@@ -2220,6 +2155,8 @@ if ($roleIdForHome === 1) {
           joinDate.value = singleDate.value.trim();
         }
       } else if (optRange?.checked) {
+        updateRangeDisplay();
+
         if (!rangeDisplay?.value?.trim()) {
           firstError = firstError || rangeDisplay;
           setError(rangeDisplay, "กรุณาเลือกช่วงวันที่ (หลายวัน)");
@@ -2230,6 +2167,7 @@ if ($roleIdForHome === 1) {
         firstError = firstError || optSingle;
         setError(optSingle, "กรุณาเลือก วันเดียว หรือ หลายวัน");
       }
+
       if (onlineCheckbox?.checked) {
         placeOnsite.value = "เข้าร่วมรูปแบบออนไลน์";
       } else if (onsiteCheckbox?.checked) {
@@ -2241,26 +2179,31 @@ if ($roleIdForHome === 1) {
         firstError = firstError || onlineCheckbox;
         setError(onlineCheckbox, "กรุณาเลือก ออนไลน์ หรือ ออนไซต์");
       }
+
       if (!departmentPhone?.value?.trim()) {
         firstError = firstError || departmentPhone;
         setError(departmentPhone, "กรุณากรอกเบอร์โทรภาควิชา");
       }
 
-      // หน้านี้เป็นแค่ Step 1 จึงยังไม่บังคับกรอกยอดค่าใช้จ่าย
-      // ยอดจริงจะถูกคำนวณ/ตรวจตอนกด "ดำเนินการ" ใน Step 2
+      if (carCheckbox?.checked && !carPlateInput?.value?.trim()) {
+        firstError = firstError || carPlateInput;
+        setError(carPlateInput, "กรุณากรอกทะเบียนรถ");
+      }
+
       if (noCostCheckbox?.checked && amountInput) {
         amountInput.value = "0.00";
       }
+
       if (firstError) {
         scrollToFirstError(firstError);
         return false;
       }
+
       return true;
     }
 
     async function checkAllSpellFields() {
       const fields = [
-        purposeOtherInput,
         memoSubject,
         eventTitle,
         academicTopic,
@@ -2365,9 +2308,8 @@ if ($roleIdForHome === 1) {
     });
 
     memoForm?.addEventListener("submit", async (event) => {
-      event.preventDefault(); // กันส่งฟอร์มก่อนเสมอ
+      event.preventDefault();
 
-      // กันกดรัว
       const submitter = event.submitter || finalSubmitBtn || submitBtnStep1;
       if (submitter) submitter.disabled = true;
 
@@ -2386,7 +2328,6 @@ if ($roleIdForHome === 1) {
         [
           mainCategory, subCategory,
           docDateDisplay, fullname, position,
-          purposeOtherInput,
           memoSubject, academicTopic, academicLevel,
           eventSingleDate, eventStartDate, eventEndDate,
           eventTitle,
@@ -2416,47 +2357,9 @@ if ($roleIdForHome === 1) {
           setError(position, "กรุณากรอกตำแหน่ง");
         }
 
-        const chosenPurpose = document.querySelector('input[name="purpose"]:checked');
-        if (!chosenPurpose) {
-          firstError = firstError || (purposeOtherRadio || purposeRadios[0]);
-          setError((purposeOtherRadio || purposeRadios[0]), "กรุณาเลือกข้อ 3");
-        } else if (chosenPurpose.value === "academic") {
-          if (!memoSubject?.value?.trim()) {
-            firstError = firstError || memoSubject;
-            setError(memoSubject, "กรุณากรอกเรื่อง");
-          }
-
-          if (!academicTopic?.value?.trim()) {
-            firstError = firstError || academicTopic;
-            setError(academicTopic, "กรุณากรอกหัวข้อ");
-          }
-
-          if (!academicLevel?.value?.trim()) {
-            firstError = firstError || academicLevel;
-            setError(academicLevel, "กรุณากรอกระดับวิชาการ");
-          }
-
-          if (eventOptSingle?.checked) {
-            if (!eventSingleDate?.value?.trim()) {
-              firstError = firstError || eventSingleDate;
-              setError(eventSingleDate, "กรุณาเลือกวันที่จัด");
-            } else {
-              eventDate.value = eventSingleDate.value.trim();
-            }
-          } else if (eventOptRange?.checked) {
-            updateEventRangeDisplay();
-
-            if (!eventDate?.value?.trim()) {
-              firstError = firstError || eventStartDate;
-              setError(eventStartDate, "กรุณาเลือกวันที่เริ่มต้น");
-              setError(eventEndDate, "กรุณาเลือกวันที่สิ้นสุด");
-            }
-          }
-        } else if (chosenPurpose.value === "other") {
-          if (!purposeOtherInput?.value?.trim()) {
-            firstError = firstError || purposeOtherInput;
-            setError(purposeOtherInput, "กรุณาระบุรายละเอียด (อื่น ๆ)");
-          }
+        if (!memoSubject?.value?.trim()) {
+          firstError = firstError || memoSubject;
+          setError(memoSubject, "กรุณากรอกเรื่อง");
         }
 
         if (!eventTitle?.value?.trim()) {
@@ -2472,6 +2375,8 @@ if ($roleIdForHome === 1) {
             joinDate.value = singleDate.value.trim();
           }
         } else if (optRange?.checked) {
+          updateRangeDisplay();
+
           if (!rangeDisplay?.value?.trim()) {
             firstError = firstError || rangeDisplay;
             setError(rangeDisplay, "กรุณาเลือกช่วงวันที่ (หลายวัน)");
@@ -2509,16 +2414,6 @@ if ($roleIdForHome === 1) {
           setError(departmentPhone, "กรุณากรอกเบอร์โทรภาควิชา");
         }
 
-        amountInput.value = (amountInput.value || "").replace(/,/g, "").trim();
-
-        if (noCostCheckbox?.checked) {
-          amountInput.value = "0.00";
-        } else {
-          // ไม่ต้องบังคับกรอกยอดใน form_Memo.php
-          // เพราะจะไปคำนวณจริงในหน้าประมาณการค่าใช้จ่าย
-          amountInput.value = amountInput.value || "0.00";
-        }
-
         if (carCheckbox?.checked) {
           if (!carPlateInput?.value?.trim()) {
             firstError = firstError || carPlateInput;
@@ -2534,21 +2429,23 @@ if ($roleIdForHome === 1) {
         const okSpell = await checkAllSpellFields();
         if (!okSpell) return;
 
-        // ส่งเข้าระบบบันทึกเดิมเสมอ ให้ save_memo.php เป็นคน redirect ไปหน้าเอกสาร
+        amountInput.value = (amountInput.value || "").replace(/,/g, "").trim();
+
         if (noCostCheckbox?.checked) {
           amountInput.value = "0.00";
         } else {
           if (!validateExpenseCheckboxes()) return;
           calcAll();
           syncExpenseJsonForPresentation();
+          amountInput.value = amountInput.value || "0.00";
         }
 
         updateMemoHeaderText();
-        memoForm.action = "save_memo.php";
 
-        // ผ่านทุกอย่างแล้วค่อย submit จริง
-        memoForm.submit();
+        memoForm.action =
+          <?= $isEdit ? json_encode('/Pro_letter/documents/update_memo.php') : json_encode('save_memo.php') ?>;
 
+        HTMLFormElement.prototype.submit.call(memoForm);
       } finally {
         if (submitter) submitter.disabled = false;
       }
@@ -2650,44 +2547,45 @@ if ($roleIdForHome === 1) {
     function money(x) {
       return (Math.round((x + Number.EPSILON) * 100) / 100).toFixed(2);
     }
-    
+
     function moneyDisplay(x) {
-  return Number(money(x)).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-}
+      return Number(money(x)).toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
 
-function formatMoneyInput(el) {
-  if (!el) return;
-  el.value = moneyDisplay(n(el.value));
-}
-function formatMoneyTyping(el) {
-  if (!el) return;
+    function formatMoneyInput(el) {
+      if (!el) return;
+      el.value = moneyDisplay(n(el.value));
+    }
 
-  const oldValue = el.value;
-  const oldLength = oldValue.length;
-  const oldPos = el.selectionStart ?? oldLength;
+    function formatMoneyTyping(el) {
+      if (!el) return;
 
-  let value = oldValue.replace(/,/g, "").replace(/[^\d.]/g, "");
+      const oldValue = el.value;
+      const oldLength = oldValue.length;
+      const oldPos = el.selectionStart ?? oldLength;
 
-  const parts = value.split(".");
-  let intPart = parts[0] || "";
-  let decimalPart = "";
+      let value = oldValue.replace(/,/g, "").replace(/[^\d.]/g, "");
 
-  if (parts.length > 1) {
-    decimalPart = "." + parts.slice(1).join("").slice(0, 2);
-  }
+      const parts = value.split(".");
+      let intPart = parts[0] || "";
+      let decimalPart = "";
 
-  intPart = intPart.replace(/^0+(?=\d)/, "");
-  intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      if (parts.length > 1) {
+        decimalPart = "." + parts.slice(1).join("").slice(0, 2);
+      }
 
-  el.value = intPart + decimalPart;
+      intPart = intPart.replace(/^0+(?=\d)/, "");
+      intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
-  const newLength = el.value.length;
-  const newPos = oldPos + (newLength - oldLength);
-  el.setSelectionRange(Math.max(0, newPos), Math.max(0, newPos));
-}
+      el.value = intPart + decimalPart;
+
+      const newLength = el.value.length;
+      const newPos = oldPos + (newLength - oldLength);
+      el.setSelectionRange(Math.max(0, newPos), Math.max(0, newPos));
+    }
 
     const GOV_LOD_RATE_ONE_PERSON = 1500;
     const GOV_LOD_RATE_MULTI_PERSON = 1000;
@@ -3714,14 +3612,16 @@ function formatMoneyTyping(el) {
         const data = getTransportRowData(row);
 
         if (data.type === "fuel") {
-          if (!data.origin || !data.destination || n(data.distance) <= 0 || n(data.rate) <= 0 || n(data.trips) <=
+          if (!data.origin || !data.destination || n(data.distance) <= 0 || n(data.rate) <= 0 || n(data
+              .trips) <=
             0) {
             markExpenseBlockError(trEnabled,
               "กรุณากรอกต้นทาง ปลายทาง ระยะทาง บาท/กม. และจำนวนเที่ยวของค่าพาหนะให้ครบ");
             return false;
           }
         } else if (data.type === "flight") {
-          if (!data.airline || !data.route || n(data.ticket_price) <= 0 || n(data.trips) <= 0 || n(data.people) <=
+          if (!data.airline || !data.route || n(data.ticket_price) <= 0 || n(data.trips) <= 0 || n(data
+              .people) <=
             0) {
             markExpenseBlockError(trEnabled,
               "กรุณากรอกสายการบิน เส้นทางบิน ราคาตั๋ว จำนวนเที่ยว และจำนวนคนของค่าพาหนะให้ครบ");
@@ -3779,7 +3679,8 @@ function formatMoneyTyping(el) {
         return false;
       }
 
-      if (perEnabled?.checked && (n(perUnit?.value) <= 0 || n(perMeals?.value || 1) <= 0 || n(perPeople?.value ||
+      if (perEnabled?.checked && (n(perUnit?.value) <= 0 || n(perMeals?.value || 1) <= 0 || n(perPeople
+          ?.value ||
           1) <= 0)) {
         markExpenseBlockError(perEnabled, "กรุณากรอกราคา/มื้อ จำนวนมื้อ และจำนวนคนของค่าอาหารให้ถูกต้อง");
         return false;
@@ -3800,7 +3701,8 @@ function formatMoneyTyping(el) {
     applyDefaultLodRate(false);
     applyDefaultMealRate(false);
     preloadBudgetItems();
-    syncEmpty(compList, compEmpty);
+    syncEmpty(compList,
+      compEmpty);
     syncEmpty(matList, matEmpty);
     syncEmpty(trList, trEmpty);
     calcAll();
@@ -3828,12 +3730,14 @@ function formatMoneyTyping(el) {
 
         if (amountInput) {
           amountInput.disabled = false;
-          amountInput.value = (totalAmountHidden?.value || totalAmountEl?.value || amountInput.value || "0.00")
+          amountInput.value = (totalAmountHidden?.value || totalAmountEl?.value || amountInput.value ||
+              "0.00")
             .replace(/,/g, "")
             .trim();
         }
 
-        memoForm.action = "save_memo.php";
+        memoForm.action =
+          <?= $isEdit ? json_encode('/Pro_letter/documents/update_memo.php') : json_encode('save_memo.php') ?>;
 
         // ส่งแบบ native เพื่อไม่ให้ submit handler ตรวจ Step 1 ซ้ำจนขัดกับ Step 2
         HTMLFormElement.prototype.submit.call(memoForm);
@@ -3846,7 +3750,6 @@ function formatMoneyTyping(el) {
 
     function getSpellBoxByField(el) {
       if (!el) return null;
-      if (el.id === "purposeOtherInput") return purposeOtherSpellBox;
       if (el.id === "eventTitle") return eventTitleSpellBox;
       if (el.id === "memoSubject") return memoSubjectSpellBox;
       if (el.id === "academicTopic") return academicTopicSpellBox;
@@ -3944,9 +3847,7 @@ function formatMoneyTyping(el) {
       if (!el) return false;
       if (el.disabled || el.readOnly) return false;
 
-      if (el.id === "purposeOtherInput") {
-        return !!purposeOtherRadio?.checked;
-      }
+
 
       if (el.id === "placeOnsite") {
         return !!onsiteCheckbox?.checked;
@@ -4343,8 +4244,6 @@ function formatMoneyTyping(el) {
         }
       }
     }
-
-
   });
   </script>
   <script>

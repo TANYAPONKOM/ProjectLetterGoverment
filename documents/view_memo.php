@@ -540,6 +540,34 @@ $header_text = $document["header_text"] ?? "";
 $doc_no = $document["doc_no"] ?? "";
 $subject = $document["subject"] ?? "";
 
+/*
+  field_id 14 = เรื่องที่ผู้ใช้กรอกในข้อ 3
+  ใช้เป็นรายละเอียดเรื่อง แล้วระบบเติมคำขึ้นต้นของแต่ละหน้าเอง
+*/
+$memoSubject = trim((string)($valueMap[14] ?? ''));
+
+$subjectDetail = $memoSubject !== '' ? $memoSubject : trim((string)$subject);
+
+$subjectPrefixList = [
+  'ขออนุมัติตัวบุคคลเข้าร่วม',
+  'ขออนุมัติตัวบุคคลเพื่อไป',
+  'ขออนุมัติตัวบุคคลเพื่อเข้าร่วม',
+  'ขออนุมัติค่าใช้จ่ายในการเข้าร่วม',
+  'ขออนุมัติใช้รถยนต์ส่วนบุคคลในการเดินทางไปเข้าร่วม',
+  'ขออนุมัติใช้รถยนต์ส่วนบุคคล'
+];
+
+foreach ($subjectPrefixList as $prefix) {
+  if (mb_strpos($subjectDetail, $prefix, 0, 'UTF-8') === 0) {
+    $subjectDetail = trim(mb_substr($subjectDetail, mb_strlen($prefix, 'UTF-8'), null, 'UTF-8'));
+    break;
+  }
+}
+
+if ($subjectDetail === '') {
+  $subjectDetail = $courseName ?: 'ชื่อหลักสูตร';
+}
+
 /* ===== ชื่อไฟล์ดาวน์โหลดภาษาไทย (ใช้กับ PDF และส่งต่อให้ Word) ===== */
 $downloadSubject = trim((string) $subject);
 if ($downloadSubject === '') {
@@ -992,6 +1020,32 @@ $len = max(20, $len);
     padding-right: 1.80cm !important;
   }
 
+  /* ===== เพิ่มหน้าใหม่เฉพาะกรณีลายเซ็นคณบดีล้น A4 ===== */
+  /* ===== ล็อกหน้า Preview ให้เป็น A4 จริง ไม่ให้ยืดตามเนื้อหา ===== */
+  .page {
+    width: 794px !important;
+    height: 1123px !important;
+    min-height: 1123px !important;
+    max-height: 1123px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    position: relative !important;
+  }
+
+  .continuation-page-number {
+    width: 100%;
+    text-align: center;
+    font-family: "TH SarabunPSK", sans-serif !important;
+    font-size: 16pt !important;
+    line-height: 1 !important;
+    margin: 0 0 1.2cm 0 !important;
+    padding: 0 !important;
+  }
+
+  .generated-continuation-page .content-block.paragraph:first-of-type {
+    margin-top: 0 !important;
+  }
+
   @keyframes pdfSpin {
     from {
       transform: rotate(0deg);
@@ -1006,7 +1060,182 @@ $len = max(20, $len);
 </head>
 
 <body class="view-document">
+  <script>
+  function paginateMemoPages(root = document, forceRebuild = false) {
+    const A4_HEIGHT_PX = 1123;
+    const SAFE_BOTTOM_PX = 36;
+    const PAGE_LIMIT = A4_HEIGHT_PX - SAFE_BOTTOM_PX;
 
+    /*
+      เก็บ HTML ต้นฉบับของหน้าเอกสารไว้ก่อน
+      เพื่อให้แบ่งหน้าใหม่ได้ทุกครั้งโดยไม่ทำให้ข้อความหาย
+    */
+    const basePages = Array.from(root.querySelectorAll(".page")).filter(page => {
+      return page.dataset.generatedContinuation !== "1" &&
+        !page.querySelector("form");
+    });
+
+    basePages.forEach(page => {
+      if (!page.dataset.originalHtml) {
+        page.dataset.originalHtml = page.innerHTML;
+      }
+    });
+
+    /*
+      ถ้าสั่ง rebuild ให้ลบหน้าที่ระบบสร้างขึ้น แล้วคืนหน้าเดิมจากต้นฉบับ
+      ใช้ตอนโหลด PDF และตอนฟอนต์โหลดเสร็จ
+    */
+    if (forceRebuild) {
+      root.querySelectorAll(".page[data-generated-continuation='1']").forEach(page => page.remove());
+
+      basePages.forEach(page => {
+        if (page.dataset.originalHtml) {
+          page.innerHTML = page.dataset.originalHtml;
+        }
+      });
+    } else {
+      if (root.querySelector(".page[data-generated-continuation='1']")) {
+        return;
+      }
+    }
+
+    const originalPages = Array.from(root.querySelectorAll(".page")).filter(page => {
+      return page.dataset.generatedContinuation !== "1" &&
+        !page.querySelector("form");
+    });
+
+    originalPages.forEach(originalPage => {
+      let currentPage = originalPage;
+      let pageNo = 2;
+      let guard = 0;
+
+      while (guard < 20) {
+        guard++;
+
+        const overflowChild = findOverflowChild(currentPage, PAGE_LIMIT);
+        if (!overflowChild) break;
+
+        const nextPage = createContinuationPage(pageNo);
+        pageNo++;
+
+        currentPage.insertAdjacentElement("afterend", nextPage);
+
+        if (
+          overflowChild.classList.contains("content-block") &&
+          overflowChild.classList.contains("paragraph") &&
+          overflowChild.offsetTop < PAGE_LIMIT
+        ) {
+          const remainder = splitParagraphToFit(overflowChild, PAGE_LIMIT);
+
+          if (remainder) {
+            nextPage.appendChild(remainder);
+            moveFollowingDocumentNodes(overflowChild, nextPage);
+          } else {
+            moveNodeAndFollowing(overflowChild, nextPage);
+          }
+        } else {
+          moveNodeAndFollowing(overflowChild, nextPage);
+        }
+
+        currentPage = nextPage;
+      }
+    });
+  }
+
+  function findOverflowChild(page, limit) {
+    const children = Array.from(page.children).filter(el => {
+      return !el.classList.contains("footer-actions") &&
+        !el.classList.contains("continuation-page-number");
+    });
+
+    return children.find(el => {
+      return (el.offsetTop + el.offsetHeight) > limit;
+    });
+  }
+
+  function createContinuationPage(pageNo) {
+    const page = document.createElement("section");
+    page.className = "page generated-continuation-page";
+    page.dataset.generatedContinuation = "1";
+
+    const pageNumber = document.createElement("div");
+    pageNumber.className = "continuation-page-number";
+    pageNumber.textContent = "-" + pageNo + "-";
+
+    page.appendChild(pageNumber);
+    return page;
+  }
+
+  function splitParagraphToFit(paragraph, limit) {
+    const originalText = paragraph.textContent.replace(/\s+/g, " ").trim();
+
+    if (!originalText || originalText.length < 20) {
+      return null;
+    }
+
+    let low = 1;
+    let high = originalText.length;
+    let best = 0;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+
+      paragraph.textContent = originalText.slice(0, mid).trim();
+
+      const bottom = paragraph.offsetTop + paragraph.offsetHeight;
+
+      if (bottom <= limit) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    if (best < 10 || best >= originalText.length) {
+      paragraph.textContent = originalText;
+      return null;
+    }
+
+    const beforeText = originalText.slice(0, best).trim();
+    const afterText = originalText.slice(best).trim();
+
+    paragraph.textContent = beforeText;
+
+    const remainder = paragraph.cloneNode(false);
+    remainder.textContent = afterText;
+
+    return remainder;
+  }
+
+  function moveNodeAndFollowing(startNode, targetPage) {
+    let node = startNode;
+
+    while (node) {
+      const next = node.nextElementSibling;
+
+      if (!node.classList.contains("footer-actions")) {
+        targetPage.appendChild(node);
+      }
+
+      node = next;
+    }
+  }
+
+  function moveFollowingDocumentNodes(startNode, targetPage) {
+    let node = startNode.nextElementSibling;
+
+    while (node) {
+      const next = node.nextElementSibling;
+
+      if (!node.classList.contains("footer-actions")) {
+        targetPage.appendChild(node);
+      }
+
+      node = next;
+    }
+  }
+  </script>
   <div id="pdfLoadingOverlay" class="pdf-loading-overlay">
     <div class="pdf-loading-box">
       <div class="pdf-spinner"></div>
@@ -1083,8 +1312,8 @@ $hasEditErrAlert = in_array($editErrType, ['no_permission', 'submitted', 'checke
       </div>
     </div>
     <?php
-      $mainSubjectText = 'ขออนุมัติตัวบุคคลเข้าร่วม' . ($subject ?: 'ขออนุมัติ...');
-      $mainSubjectLines = splitSubjectLines($mainSubjectText, 82);
+    $mainSubjectText = 'ขออนุมัติตัวบุคคลเข้าร่วม' . $subjectDetail;
+$mainSubjectLines = splitSubjectLines($mainSubjectText, 82);
     ?>
     <div class="doc-row subject-row" style="align-items:flex-start;">
       <div class="doc-label subject-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
@@ -1221,8 +1450,8 @@ $hasEditErrAlert = in_array($editErrType, ['no_permission', 'submitted', 'checke
       </div>
     </div>
     <?php
-      $expenseSubjectText = 'ขออนุมัติค่าใช้จ่ายในการเข้าร่วม' . ($subject ?: 'ขออนุมัติ...');
-      $expenseSubjectLines = splitSubjectLines($expenseSubjectText, 82);
+     $expenseSubjectText = 'ขออนุมัติค่าใช้จ่ายในการเข้าร่วม' . $subjectDetail;
+$expenseSubjectLines = splitSubjectLines($expenseSubjectText, 82);
     ?>
     <div class="doc-row subject-row" style="align-items:flex-start;">
       <div class="doc-label subject-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
@@ -1244,8 +1473,8 @@ $hasEditErrAlert = in_array($editErrType, ['no_permission', 'submitted', 'checke
       สังกัดภาควิชา<span class="chip"><?= ht($department ?: '...') ?></span>
       <span class="chip"><?= ht($faculty ?: '...') ?></span>
       มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี
-      จึงมีความประสงค์ขออนุมัติค่าใช้จ่ายในการเข้าร่วม
-      <span class="chip subject-inline"><?= ht($subject ?: 'ขออนุมัติ...') ?></span>
+      จึงมีวามประสงค์ขออนุมัติค่าใช้จ่ายในการเข้าร่วม
+      <span class="chip subject-inline"><?= ht($courseName ?: 'ชื่อหลักสูตร') ?></span>
       ระหว่างวันที่ <span class="chip"><?= ht_date($joinDates ?: '') ?></span>
       ณ <span class="chip"><?= ht($location ?: '') ?></span>
       <?php if ($hasExpense): ?>
@@ -1354,8 +1583,8 @@ $hasEditErrAlert = in_array($editErrType, ['no_permission', 'submitted', 'checke
       </div>
     </div>
     <?php
-      $carSubjectText = 'ขออนุมัติใช้รถยนต์ส่วนบุคคลในการเดินทางไปเข้าร่วม' . ($subject ?: 'ขออนุมัติ...');
-      $carSubjectLines = splitSubjectLines($carSubjectText, 82);
+      $carSubjectText = 'ขออนุมัติใช้รถยนต์ส่วนบุคคลในการเดินทางไปเข้าร่วม' . $subjectDetail;
+$carSubjectLines = splitSubjectLines($carSubjectText, 82);
     ?>
     <div class="doc-row subject-row" style="align-items:flex-start;">
       <div class="doc-label subject-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
@@ -1387,7 +1616,7 @@ $hasEditErrAlert = in_array($editErrType, ['no_permission', 'submitted', 'checke
     <div class="content-block paragraph">
       ในการนี้ ข้าพเจ้าจึงขออนุมัติใช้รถยนต์ส่วนบุคคล หมายเลขทะเบียน
       <span class="chip"><?= h(arabic_digits($vehicle ?: '...')) ?></span>
-      ในการเดินทางไป<span class="chip subject-inline"><?= ht($subject ?: 'ชื่อหลักสูตร') ?></span>
+      ในการเดินทางไป<span class="chip subject-inline"><?= ht($courseName ?: 'ชื่อหลักสูตร') ?></span>
       ตามวัน เวลา และสถานที่ดังกล่าว ทั้งนี้ โดยให้เป็นไปตามหลักเกณฑ์และวิธีการของมหาวิทยาลัย
 
 
@@ -1696,8 +1925,19 @@ $hasEditErrAlert = in_array($editErrType, ['no_permission', 'submitted', 'checke
   document.addEventListener("DOMContentLoaded", () => {
 
     fitGovAgencyText(document);
+
+    requestAnimationFrame(() => {
+      paginateMemoPages(document, true);
+    });
+
     if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(() => fitGovAgencyText(document));
+      document.fonts.ready.then(() => {
+        fitGovAgencyText(document);
+
+        requestAnimationFrame(() => {
+          paginateMemoPages(document, true);
+        });
+      });
     }
 
     // ===== จัดช่องว่างในเนื้อหาไม่ให้คำห่างเกินตอนใช้ justify =====
@@ -1893,7 +2133,23 @@ $hasEditErrAlert = in_array($editErrType, ['no_permission', 'submitted', 'checke
         jsPDF
       } = window.jspdf;
 
-      const pages = document.querySelectorAll(".page");
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+
+      fitGovAgencyText(document);
+      paginateMemoPages(document, true);
+
+      await new Promise(resolve => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(resolve);
+        });
+      });
+
+      const pages = Array.from(document.querySelectorAll(".page")).filter(page => {
+        return page.offsetParent !== null;
+      });
+
       if (!pages.length) {
         alert("ไม่พบหน้าเอกสาร .page");
         return;
@@ -1913,7 +2169,10 @@ $hasEditErrAlert = in_array($editErrType, ['no_permission', 'submitted', 'checke
         clone.style.left = "-9999px";
         clone.style.top = "0";
         clone.style.width = "794px";
+        clone.style.height = "1123px";
         clone.style.minHeight = "1123px";
+        clone.style.maxHeight = "1123px";
+        clone.style.overflow = "hidden";
         clone.style.boxSizing = "border-box";
         clone.style.background = "#ffffff";
 

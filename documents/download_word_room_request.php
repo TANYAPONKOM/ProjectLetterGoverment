@@ -12,6 +12,7 @@ if (!file_exists($autoload)) {
 }
 require_once $autoload;
 require_once __DIR__ . '/word_templates/word_common.php';
+require_once __DIR__ . '/../includes/thai_word_breaks.php';
 
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\IOFactory;
@@ -23,13 +24,13 @@ if (empty($_SESSION['user_id'])) {
     exit('Unauthorized');
 }
 
-$userId = (int)$_SESSION['user_id'];
-$roleId = (int)($_SESSION['role_id'] ?? 0);
+$userId = (int) $_SESSION['user_id'];
+$roleId = (int) ($_SESSION['role_id'] ?? 0);
 $isAdmin = ($roleId === 1);
 $isOfficer = ($roleId === 2);
 
 $pdo = db();
-$docId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$docId = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 if ($docId <= 0) {
     exit('ไม่พบรหัสเอกสาร');
 }
@@ -47,7 +48,7 @@ if (!$document) {
     exit('ไม่พบเอกสาร');
 }
 
-if (!$isAdmin && !$isOfficer && (int)$document['owner_id'] !== $userId) {
+if (!$isAdmin && !$isOfficer && (int) $document['owner_id'] !== $userId) {
     http_response_code(403);
     exit('คุณไม่มีสิทธิ์ดาวน์โหลดเอกสารนี้');
 }
@@ -63,63 +64,93 @@ $q->execute([':id' => $docId]);
 $valueMap = [];
 $valueMapByKey = [];
 foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $row) {
-    $fid = (int)($row['field_id'] ?? 0);
-    $val = (string)($row['value_text'] ?? '');
+    $fid = (int) ($row['field_id'] ?? 0);
+    $val = (string) ($row['value_text'] ?? '');
     if ($fid > 0) {
         $valueMap[$fid] = $val;
     }
-    $key = trim((string)($row['field_key'] ?? ''));
+    $key = trim((string) ($row['field_key'] ?? ''));
     if ($key !== '') {
         $valueMapByKey[$key] = $val;
     }
 }
 
-function roomField(array $valueMapByKey, array $valueMap, string $key, int $fieldId = 0, string $default = '') {
+function roomField(array $valueMapByKey, array $valueMap, string $key, int $fieldId = 0, string $default = '')
+{
     $v = $valueMapByKey[$key] ?? ($fieldId > 0 ? ($valueMap[$fieldId] ?? null) : null);
-    $v = trim((string)($v ?? ''));
+    $v = trim((string) ($v ?? ''));
     return $v !== '' ? $v : $default;
 }
 
-function roomThaiDigit($text) {
-    return strtr((string)$text, [
-        '0' => '๐', '1' => '๑', '2' => '๒', '3' => '๓', '4' => '๔',
-        '5' => '๕', '6' => '๖', '7' => '๗', '8' => '๘', '9' => '๙',
+function roomThaiDigit($text)
+{
+    return strtr((string) $text, [
+        '0' => '๐',
+        '1' => '๑',
+        '2' => '๒',
+        '3' => '๓',
+        '4' => '๔',
+        '5' => '๕',
+        '6' => '๖',
+        '7' => '๗',
+        '8' => '๘',
+        '9' => '๙',
     ]);
 }
 
-function roomArabicDigit($text) {
-    return strtr((string)$text, [
-        '๐' => '0', '๑' => '1', '๒' => '2', '๓' => '3', '๔' => '4',
-        '๕' => '5', '๖' => '6', '๗' => '7', '๘' => '8', '๙' => '9',
+function roomArabicDigit($text)
+{
+    return strtr((string) $text, [
+        '๐' => '0',
+        '๑' => '1',
+        '๒' => '2',
+        '๓' => '3',
+        '๔' => '4',
+        '๕' => '5',
+        '๖' => '6',
+        '๗' => '7',
+        '๘' => '8',
+        '๙' => '9',
     ]);
 }
 
-function roomThaiMonths() {
+function roomThaiMonths()
+{
     return [
-        1 => 'มกราคม', 2 => 'กุมภาพันธ์', 3 => 'มีนาคม', 4 => 'เมษายน',
-        5 => 'พฤษภาคม', 6 => 'มิถุนายน', 7 => 'กรกฎาคม', 8 => 'สิงหาคม',
-        9 => 'กันยายน', 10 => 'ตุลาคม', 11 => 'พฤศจิกายน', 12 => 'ธันวาคม',
+        1 => 'มกราคม',
+        2 => 'กุมภาพันธ์',
+        3 => 'มีนาคม',
+        4 => 'เมษายน',
+        5 => 'พฤษภาคม',
+        6 => 'มิถุนายน',
+        7 => 'กรกฎาคม',
+        8 => 'สิงหาคม',
+        9 => 'กันยายน',
+        10 => 'ตุลาคม',
+        11 => 'พฤศจิกายน',
+        12 => 'ธันวาคม',
     ];
 }
 
-function roomThaiDateAny($date) {
-    $date = trim(roomArabicDigit((string)$date));
+function roomThaiDateAny($date)
+{
+    $date = trim(roomArabicDigit((string) $date));
     if ($date === '') {
         return '';
     }
 
     if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $date, $m)) {
-        $y = (int)$m[1];
-        $mo = (int)$m[2];
-        $d = (int)$m[3];
+        $y = (int) $m[1];
+        $mo = (int) $m[2];
+        $d = (int) $m[3];
         $months = roomThaiMonths();
         return $d . ' ' . ($months[$mo] ?? '') . ' ' . ($y + 543);
     }
 
     if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $date, $m)) {
-        $d = (int)$m[1];
-        $mo = (int)$m[2];
-        $y = (int)$m[3];
+        $d = (int) $m[1];
+        $mo = (int) $m[2];
+        $y = (int) $m[3];
         $months = roomThaiMonths();
         return $d . ' ' . ($months[$mo] ?? '') . ' ' . ($y + 543);
     }
@@ -127,8 +158,9 @@ function roomThaiDateAny($date) {
     return $date;
 }
 
-function roomThaiDateTextAny($text) {
-    $text = roomArabicDigit((string)$text);
+function roomThaiDateTextAny($text)
+{
+    $text = roomArabicDigit((string) $text);
     $text = preg_replace_callback('/(\d{4})-(\d{1,2})-(\d{1,2})/u', function ($m) {
         return roomThaiDateAny($m[1] . '-' . $m[2] . '-' . $m[3]);
     }, $text);
@@ -138,18 +170,21 @@ function roomThaiDateTextAny($text) {
     return $text;
 }
 
-function roomClean($text) {
-    $text = str_replace(["\r", "\n", "\t"], ' ', roomArabicDigit((string)$text));
+function roomClean($text)
+{
+    $text = str_replace(["\r", "\n", "\t"], ' ', roomArabicDigit((string) $text));
     $text = cleanWordText($text);
     $text = preg_replace('/[ ]{2,}/u', ' ', $text);
     return trim($text);
 }
 
-function roomRemoveGovSpaces($text) {
+function roomRemoveGovSpaces($text)
+{
     return preg_replace('/\s+/u', '', roomClean($text));
 }
 
-function roomGovHeaderFontSize($text) {
+function roomGovHeaderFontSize($text)
+{
     $len = mb_strlen(roomClean($text), 'UTF-8');
     if ($len > 82) {
         return 14;
@@ -161,47 +196,56 @@ function roomGovHeaderFontSize($text) {
 }
 
 // คัดรูปแบบการตัดคำ/กระจายคำจาก word_room_request.php
-function insertRoomThaiWordBreaks($text) {
-    $words = [
-        'ตามที่', 'ภาควิชา', 'เทคโนโลยี', 'สารสนเทศ', 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม',
-        'คณะเทคโนโลยี', 'และการจัดการ', 'อุตสาหกรรม', 'มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ',
-        'วิทยาเขต', 'ปราจีนบุรี', 'มีความประสงค์', 'ขออนุมัติ', 'ใช้ห้องพัก', 'ห้องพักรับรอง',
-        'สำหรับ', 'ให้แก่', 'ซึ่งเป็น', 'ในระหว่างวันที่', 'นั้น', 'ในการนี้', 'จึงมี',
-        'ณ', 'ทั้งนี้เพื่อ', 'รายละเอียด', 'ตามเอกสาร', 'แนบท้าย', 'จึงเรียนมา', 'เพื่อโปรด', 'พิจารณา', 'อนุมัติ'
-    ];
+function insertRoomThaiWordBreaks($text)
+{
+    $text = roomClean((string) $text);
+    $text = str_replace(["\r", "\n", "\t"], ' ', $text);
+    $text = preg_replace('/[ ]{2,}/u', ' ', $text);
+    $text = trim($text);
 
-    foreach ($words as $word) {
-        $text = str_replace($word, $word . "\u{200B}", $text);
+    if ($text === '') {
+        return '';
+    }
+
+    if (function_exists('insertThaiWordBreaksForMemoBody')) {
+        return insertThaiWordBreaksForMemoBody($text);
     }
 
     return $text;
 }
 
 // คัดรูปแบบย่อหน้าจาก word_room_request.php: lineHeight 1.15 / firstLine 2.5cm / alignment BOTH
-function addRoomRequestPara($section, array $lines, $spaceAfter = 80) {
-    $run = $section->addTextRun([
-        // ใช้ค่า WordprocessingML สำหรับกระจายแบบไทยโดยตรง
-        // ห้ามใช้ textAlignment => distribute เพราะทำให้ Word แจ้ง unreadable content
-        'alignment' => 'thaiDistribute',
-        'lineHeight' => 1.15,
-        'spaceBefore' => 0,
-        'spaceAfter' => $spaceAfter,
-        'indentation' => [
-            'firstLine' => Converter::cmToTwip(2.5)
-        ],
-    ]);
+function addRoomRequestPara($section, array $lines, $spaceAfter = 80)
+{
+    $fullText = '';
 
-    foreach ($lines as $index => $line) {
-        $processedText = insertRoomThaiWordBreaks(roomClean($line));
-        $run->addText($processedText, 'normalFont');
-
-        if ($index < count($lines) - 1) {
-            $run->addTextBreak();
-        }
+    foreach ($lines as $line) {
+        $fullText .= ' ' . roomClean($line);
     }
+
+    $fullText = trim(preg_replace('/\s+/u', ' ', $fullText));
+
+    if ($fullText === '') {
+        return;
+    }
+
+    $section->addText(
+        insertRoomThaiWordBreaks($fullText),
+        'normalFont',
+        [
+            'alignment' => 'thaiDistribute',
+            'lineHeight' => 0.94,
+            'spaceBefore' => 0,
+            'spaceAfter' => $spaceAfter,
+            'indentation' => [
+                'firstLine' => Converter::cmToTwip(2.5),
+            ],
+        ]
+    );
 }
 
-function addRoomRequestClosePara($section) {
+function addRoomRequestClosePara($section)
+{
     $runClose = $section->addTextRun([
         'alignment' => Jc::LEFT,
         'lineHeight' => 1.15,
@@ -214,7 +258,8 @@ function addRoomRequestClosePara($section) {
 }
 
 
-function addRoomOwnerSignature($section, string $signatureName, string $signaturePosition) {
+function addRoomOwnerSignature($section, string $signatureName, string $signaturePosition)
+{
     $leftWidth = 9.00;
     $signWidth = 7.20;
 
@@ -246,8 +291,86 @@ function addRoomOwnerSignature($section, string $signatureName, string $signatur
         'lineHeight' => 1.0,
     ]);
 }
+function roomPartsToPlainText(array $parts)
+{
+    $text = '';
 
-function addRoomDeanApprovalSignature($section, string $deanToText, string $deanName, string $deanPosition) {
+    foreach ($parts as $part) {
+        $text .= is_array($part) ? ($part[0] ?? '') : $part;
+    }
+
+    $text = roomClean($text);
+    $text = preg_replace('/\s+/u', ' ', $text);
+
+    return trim($text);
+}
+
+function roomEstimateWordLines($text, $charsPerLine = 95)
+{
+    $text = trim(preg_replace('/\s+/u', ' ', (string) $text));
+
+    if ($text === '') {
+        return 0;
+    }
+
+    $len = mb_strlen($text, 'UTF-8');
+
+    return max(1, (int) ceil($len / $charsPerLine));
+}
+
+function roomShouldMoveDeanToNextPage(array $bodyTexts, $subjectText = '')
+{
+    /*
+      Word วัดความสูงจริงแบบ Preview ไม่ได้
+      เลยประเมินจากจำนวนบรรทัดแทน
+      ให้ขึ้นหน้า -2- เฉพาะตอนเนื้อหายาวจนลายเซ็นคณบดีมีโอกาสล้นหน้า
+    */
+
+    $bodyLines = 0;
+
+    foreach ($bodyTexts as $text) {
+        $bodyLines += roomEstimateWordLines($text, 95);
+    }
+
+    $subjectLines = count(roomSplitHeaderLines($subjectText, 78));
+
+    // ส่วนหัวเอกสาร + เรื่อง/เรียน + ระยะลายเซ็นผู้ขอ
+    $fixedLinesBeforeDean = 12 + $subjectLines;
+
+    // บล็อกคณบดีทั้งก้อน
+    $deanBlockLines = 6;
+
+    // ยิ่งเลขมาก = ขึ้นหน้าใหม่ยากขึ้น / ยิ่งเลขน้อย = ขึ้นหน้าใหม่ง่ายขึ้น
+    $maxLinesPerPage = 39;
+
+    return ($fixedLinesBeforeDean + $bodyLines + $deanBlockLines) > $maxLinesPerPage;
+}
+
+function addRoomContinuationPageNumber($section, $pageNo = 2)
+{
+    /*
+      ไฟล์ห้องพักต้องบังคับให้เลข -2- เริ่มหน้าใหม่
+      เพราะถ้าไม่ใส่ pageBreakBefore เลข -2- จะไปต่อท้ายหน้าแรก
+    */
+    $section->addText('-' . $pageNo . '-', 'normalFont', [
+        'alignment' => Jc::CENTER,
+        'spaceBefore' => 0,
+        'spaceAfter' => 360,
+        'lineHeight' => 1.0,
+        'pageBreakBefore' => true,
+    ]);
+}
+
+function addRoomDeanApprovalWithAutoPage($section, string $deanToText, string $deanName, string $deanPosition, array $bodyTexts, string $subjectText)
+{
+    if (roomShouldMoveDeanToNextPage($bodyTexts, $subjectText)) {
+        addRoomContinuationPageNumber($section, 2);
+    }
+
+    addRoomDeanApprovalSignature($section, $deanToText, $deanName, $deanPosition);
+}
+function addRoomDeanApprovalSignature($section, string $deanToText, string $deanName, string $deanPosition)
+{
     $labelWidth = 1.15;
     $textWidth = 8.40;
 
@@ -292,7 +415,7 @@ function addRoomDeanApprovalSignature($section, string $deanToText, string $dean
     $signTable->addRow(null, ['exactHeight' => false]);
     $signTable->addCell(Converter::cmToTwip($labelWidth), roomNoBorderCell('top'))->addText('', 'normalFont', roomHeaderPara());
     $signCell = $signTable->addCell(Converter::cmToTwip($textWidth), roomNoBorderCell('top'));
-    $signCell->addText('', 'normalFont', ['spaceBefore' => 0, 'spaceAfter' => 900, 'lineHeight' => 1.0]);
+    $signCell->addText('', 'normalFont', ['spaceBefore' => 0, 'spaceAfter' => 600, 'lineHeight' => 1.0]);
     $signCell->addText('(' . roomClean($deanName) . ')', 'normalFont', [
         'alignment' => Jc::LEFT,
         'spaceBefore' => 0,
@@ -308,7 +431,8 @@ function addRoomDeanApprovalSignature($section, string $deanToText, string $dean
 }
 
 
-function roomNoBorderCell($valign = 'bottom') {
+function roomNoBorderCell($valign = 'bottom')
+{
     return [
         'borderSize' => 0,
         'borderColor' => 'FFFFFF',
@@ -320,7 +444,8 @@ function roomNoBorderCell($valign = 'bottom') {
     ];
 }
 
-function roomDottedBottomCell($valign = 'bottom') {
+function roomDottedBottomCell($valign = 'bottom')
+{
     return [
         'borderSize' => 0,
         'borderColor' => 'FFFFFF',
@@ -336,7 +461,8 @@ function roomDottedBottomCell($valign = 'bottom') {
     ];
 }
 
-function roomHeaderPara($align = Jc::LEFT, $spaceAfter = 0) {
+function roomHeaderPara($align = Jc::LEFT, $spaceAfter = 0)
+{
     return [
         'alignment' => $align,
         'spaceBefore' => 0,
@@ -344,8 +470,54 @@ function roomHeaderPara($align = Jc::LEFT, $spaceAfter = 0) {
         'lineHeight' => 1.0,
     ];
 }
+function roomDottedValuePara($align = Jc::LEFT, $spaceBefore = 85)
+{
+    return [
+        'alignment' => $align,
+        'spaceBefore' => $spaceBefore,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ];
+}
 
-function roomSplitHeaderLines($text, $limit = 86) {
+function roomDottedValueParaIndent($leftCm = 0.30, $spaceBefore = 85)
+{
+    return [
+        'alignment' => Jc::LEFT,
+        'spaceBefore' => $spaceBefore,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+        'indentation' => [
+            'left' => Converter::cmToTwip($leftCm),
+        ],
+    ];
+}
+
+function roomHeaderLabelCell($valign = 'bottom')
+{
+    return [
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'valign' => $valign,
+        'noWrap' => true,
+        'marginTop' => 0,
+        'marginBottom' => 0,
+        'marginLeft' => 0,
+        'marginRight' => 0,
+    ];
+}
+
+function roomHeaderLabelPara($align = Jc::LEFT)
+{
+    return [
+        'alignment' => $align,
+        'spaceBefore' => 40,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ];
+}
+function roomSplitHeaderLines($text, $limit = 86)
+{
     $text = trim(preg_replace('/\s+/u', ' ', roomClean($text)));
     if ($text === '') {
         return [''];
@@ -369,17 +541,15 @@ function roomSplitHeaderLines($text, $limit = 86) {
     return $lines;
 }
 
-function addRoomMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText) {
+function addRoomMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText)
+{
     $garuda = __DIR__ . '/../assets/img/garuda.jpg';
 
     $cleanHeaderText = roomClean($headerText);
     $govFontSize = roomGovHeaderFontSize($cleanHeaderText);
-    $headerLen = mb_strlen($cleanHeaderText, 'UTF-8');
-    $headerTextForDisplay = ($headerLen > 72) ? roomRemoveGovSpaces($cleanHeaderText) : $cleanHeaderText;
+    $headerTextForDisplay = roomRemoveGovSpaces($cleanHeaderText);
     $contentWidthCm = 16.0;
 
-    // คัดรูปแบบหัวข้อจาก download_word_academic_1.php:
-    // ครุฑเล็ก, หัว "บันทึกข้อความ", เส้นปะชัด และช่องวันที่ไม่ตกบรรทัด
     $titleTable = $section->addTable([
         'borderSize' => 0,
         'borderColor' => 'FFFFFF',
@@ -388,11 +558,15 @@ function addRoomMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $su
         'layout' => 'fixed',
         'width' => Converter::cmToTwip($contentWidthCm),
     ]);
+
     $titleTable->addRow(Converter::cmToTwip(1.65));
 
     $left = $titleTable->addCell(Converter::cmToTwip(2.2), roomNoBorderCell('top'));
     if (file_exists($garuda)) {
-        $left->addImage($garuda, ['width' => 62, 'alignment' => Jc::LEFT]);
+        $left->addImage($garuda, [
+            'height' => 43,
+            'alignment' => Jc::LEFT,
+        ]);
     } else {
         $left->addText('', 'normalFont', roomHeaderPara());
     }
@@ -408,7 +582,9 @@ function addRoomMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $su
         'spaceAfter' => 0,
         'lineHeight' => 1.0,
     ]);
-    $titleTable->addCell(Converter::cmToTwip(2.2), roomNoBorderCell('top'))->addText('', 'normalFont', roomHeaderPara());
+
+    $titleTable->addCell(Converter::cmToTwip(2.2), roomNoBorderCell('top'))
+        ->addText('', 'normalFont', roomHeaderPara());
 
     // ส่วนราชการ
     $agencyTable = $section->addTable([
@@ -419,14 +595,24 @@ function addRoomMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $su
         'layout' => 'fixed',
         'width' => Converter::cmToTwip($contentWidthCm),
     ]);
-    $agencyTable->addRow(null, ['exactHeight' => false]);
-    $agencyTable->addCell(Converter::cmToTwip(2.05), roomNoBorderCell())->addText('ส่วนราชการ', 'boldFont', roomHeaderPara());
+
+    $agencyTable->addRow(Converter::cmToTwip(0.80), ['exactHeight' => true]);
+
+    $agencyTable->addCell(Converter::cmToTwip(2.40), roomHeaderLabelCell())
+        ->addText('ส่วนราชการ', 'headerLabelFont', roomHeaderLabelPara());
+
     $agencyTextCellStyle = roomDottedBottomCell();
     $agencyTextCellStyle['noWrap'] = true;
-    $agencyTable->addCell(Converter::cmToTwip($contentWidthCm - 2.05), $agencyTextCellStyle)->addText($headerTextForDisplay, [
-        'name' => 'TH SarabunPSK',
-        'size' => $govFontSize,
-    ], roomHeaderPara());
+
+    $agencyTable->addCell(Converter::cmToTwip($contentWidthCm - 2.40), $agencyTextCellStyle)
+        ->addText(
+            $headerTextForDisplay,
+            [
+                'name' => 'TH SarabunPSK',
+                'size' => $govFontSize,
+            ],
+            roomDottedValuePara()
+        );
 
     // ที่ / วันที่
     $dateTable = $section->addTable([
@@ -437,11 +623,20 @@ function addRoomMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $su
         'layout' => 'fixed',
         'width' => Converter::cmToTwip($contentWidthCm),
     ]);
-    $dateTable->addRow(null, ['exactHeight' => false]);
-    $dateTable->addCell(Converter::cmToTwip(0.45), roomNoBorderCell())->addText('ที่', 'boldFont', roomHeaderPara());
-    $dateTable->addCell(Converter::cmToTwip(5.25), roomDottedBottomCell())->addText(roomClean($docNo), 'normalFont', roomHeaderPara());
-    $dateTable->addCell(Converter::cmToTwip(1.10), roomNoBorderCell())->addText('วันที่', 'boldFont', roomHeaderPara(Jc::CENTER));
-    $dateTable->addCell(Converter::cmToTwip($contentWidthCm - 6.80), roomDottedBottomCell())->addText(roomClean($thaiDocDate), 'normalFont', roomHeaderPara());
+
+    $dateTable->addRow(Converter::cmToTwip(0.72), ['exactHeight' => true]);
+
+    $dateTable->addCell(Converter::cmToTwip(0.45), roomHeaderLabelCell())
+        ->addText('ที่', 'headerLabelFont', roomHeaderLabelPara());
+
+    $dateTable->addCell(Converter::cmToTwip(5.25), roomDottedBottomCell())
+        ->addText(roomClean($docNo), 'normalFont', roomDottedValuePara());
+
+    $dateTable->addCell(Converter::cmToTwip(1.10), roomHeaderLabelCell())
+        ->addText('วันที่', 'headerLabelFont', roomHeaderLabelPara(Jc::CENTER));
+
+    $dateTable->addCell(Converter::cmToTwip(9.20), roomDottedBottomCell())
+        ->addText(roomClean($thaiDocDate), 'normalFont', roomDottedValueParaIndent(0.40));
 
     // เรื่อง
     $subjectLines = roomSplitHeaderLines($subjectText, 86);
@@ -453,21 +648,48 @@ function addRoomMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $su
         'layout' => 'fixed',
         'width' => Converter::cmToTwip($contentWidthCm),
     ]);
+
     foreach ($subjectLines as $i => $line) {
-        $subjectTable->addRow(null, ['exactHeight' => false]);
-        $subjectTable->addCell(Converter::cmToTwip(0.90), roomNoBorderCell())->addText($i === 0 ? 'เรื่อง' : '', 'boldFont', roomHeaderPara());
-        $subjectTable->addCell(Converter::cmToTwip($contentWidthCm - 0.90), roomDottedBottomCell())->addText(roomClean($line), 'normalFont', roomHeaderPara());
+        $subjectTable->addRow(Converter::cmToTwip(0.80), ['exactHeight' => true]);
+
+        $subjectTable->addCell(Converter::cmToTwip(0.90), roomHeaderLabelCell())
+            ->addText($i === 0 ? 'เรื่อง' : '', 'headerLabelFont', roomHeaderLabelPara());
+
+        $subjectTable->addCell(Converter::cmToTwip($contentWidthCm - 0.90), roomDottedBottomCell())
+            ->addText(roomClean($line), 'normalFont', roomDottedValueParaIndent(0.30));
     }
 
-    $section->addText('เรียน ' . roomClean($toText), 'normalFont', [
-        'alignment' => Jc::LEFT,
-        'spaceBefore' => 20,
-        'spaceAfter' => 120,
-        'lineHeight' => 1.0,
+    // เรียน
+    $learnTable = $section->addTable([
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'cellMargin' => 0,
+        'cellSpacing' => 0,
+        'layout' => 'fixed',
+        'width' => Converter::cmToTwip($contentWidthCm),
     ]);
+
+    $learnTable->addRow(null, ['exactHeight' => false]);
+
+    $learnTable->addCell(Converter::cmToTwip(1.20), roomNoBorderCell())
+        ->addText('เรียน', 'normalFont', [
+            'alignment' => Jc::LEFT,
+            'spaceBefore' => 20,
+            'spaceAfter' => 120,
+            'lineHeight' => 1.0,
+        ]);
+
+    $learnTable->addCell(Converter::cmToTwip(14.80), roomNoBorderCell())
+        ->addText(roomClean($toText), 'normalFont', [
+            'alignment' => Jc::LEFT,
+            'spaceBefore' => 20,
+            'spaceAfter' => 120,
+            'lineHeight' => 1.0,
+        ]);
 }
 
-function addRoomRequestWordPage($phpWord, array $data) {
+function addRoomRequestWordPage($phpWord, array $data)
+{
     $section = addSectionPage($phpWord);
 
     // ใช้หัวข้อ/ครุฑ/เส้นปะตามตัวอย่าง download_word_academic_1.php
@@ -480,22 +702,26 @@ function addRoomRequestWordPage($phpWord, array $data) {
         $data['toText']
     );
 
-    addRoomRequestPara($section, [
+    $firstPara = [
         'ตามที่ ' . $data['displayDepartmentFull'] . ' ' . $data['displayFaculty'] .
         ' มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ วิทยาเขตปราจีนบุรี' .
         ' มีความประสงค์ขออนุมัติใช้ห้องพักรับรองสำหรับ ' . ($data['roomRequestText'] ?: '.................................') .
         ' ให้แก่ ' . ($data['guestFullname'] ?: '.................................') .
         ' ซึ่งเป็น ' . ($data['personTypeText'] ?: '.................................') .
         ' ในระหว่างวันที่ ' . ($data['stayDateText'] ?: '.................................') . ' นั้น'
-    ]);
+    ];
 
-    addRoomRequestPara($section, [
+    addRoomRequestPara($section, $firstPara);
+
+    $secondPara = [
         'ในการนี้ ' . $data['displayDepartmentFull'] .
         ' จึงมีความประสงค์ขออนุมัติใช้ห้องพักรับรอง ณ ' . ($data['roomType'] ?: '.................................') .
         ' ให้แก่ ' . ($data['guestFullname'] ?: '.................................') .
         ' ทั้งนี้เพื่อ ' . ($data['reasonText'] ?: '.................................') .
         ' รายละเอียดตามเอกสารแนบท้าย'
-    ]);
+    ];
+
+    addRoomRequestPara($section, $secondPara);
 
     addRoomRequestClosePara($section);
 
@@ -505,11 +731,17 @@ function addRoomRequestWordPage($phpWord, array $data) {
         $data['signaturePosition']
     );
 
-    addRoomDeanApprovalSignature(
+    addRoomDeanApprovalWithAutoPage(
         $section,
         $data['deanToText'],
         $data['deanName'],
-        $data['deanPosition']
+        $data['deanPosition'],
+        [
+            roomPartsToPlainText($firstPara),
+            roomPartsToPlainText($secondPara),
+            'จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ'
+        ],
+        $data['subjectText']
     );
 }
 
@@ -591,8 +823,8 @@ $stayDateTextRaw = (trim($dateOption) === 'range' && trim($rangeDate) !== '') ? 
 $stayDateText = roomThaiDateTextAny($stayDateTextRaw);
 
 $thaiDocDate = roomThaiDateAny($docDate);
-$docNo = trim((string)($document['doc_no'] ?? ''));
-$headerText = trim((string)($document['header_text'] ?? ''));
+$docNo = trim((string) ($document['doc_no'] ?? ''));
+$headerText = trim((string) ($document['header_text'] ?? ''));
 $subjectText = 'ขออนุมัติใช้ห้องพักรับรอง' . (trim($roomRequestText) !== '' ? 'สำหรับ' . roomClean($roomRequestText) : '');
 
 $phpWord = new PhpWord();
@@ -606,6 +838,12 @@ $phpWord->addFontStyle('boldFont', [
     'name' => 'TH SarabunPSK',
     'size' => 16,
     'bold' => true,
+]);
+$phpWord->addFontStyle('headerLabelFont', [
+    'name' => 'TH SarabunPSK',
+    'size' => 20,
+    'bold' => true,
+    'position' => -4,
 ]);
 
 addRoomRequestWordPage($phpWord, [

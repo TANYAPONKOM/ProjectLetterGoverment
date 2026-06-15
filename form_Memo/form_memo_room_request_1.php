@@ -639,6 +639,11 @@ $len = max(20, $len);
     text-indent: 2.5cm;
     margin-top: 0.5em;
     line-height: 1.3;
+    text-align: justify !important;
+    text-justify: inter-character !important;
+    text-align-last: left !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
   }
 
   .content-block.single {
@@ -821,6 +826,8 @@ $len = max(20, $len);
     border-top: 1px solid #e5e7eb;
   }
 
+
+
   .dot-line {
     flex: 1;
     position: relative;
@@ -878,14 +885,16 @@ $len = max(20, $len);
 
   .doc-row.gov-row>.dot-line>.chip.gov-text {
     display: inline-block !important;
-    white-space: nowrap !important;
-    margin-left: 14px !important;
-    margin-right: 6px !important;
-    padding-left: 6px !important;
-    padding-right: 6px !important;
+    margin-left: -0.05cm !important;
     transform: none !important;
-    line-height: 0.9 !important;
-    top: -1px !important;
+    white-space: nowrap !important;
+    font-size: 16pt;
+    max-width: 100%;
+  }
+
+  .page.gov-agency-overflow-fit {
+    padding-left: 2.80cm !important;
+    padding-right: 1.80cm !important;
   }
 
   .page.gov-header-compact .doc-row.gov-row>.dot-line>.chip.gov-text {
@@ -1119,6 +1128,64 @@ $len = max(20, $len);
     line-height: 1.1;
   }
 
+  /* ===== แบ่งหน้า Preview/PDF แบบ A4 ===== */
+  .page {
+    width: 794px !important;
+    height: 1123px !important;
+    min-height: 1123px !important;
+    max-height: 1123px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    position: relative !important;
+  }
+
+  .generated-continuation-page {
+    background: #ffffff !important;
+  }
+
+  .continuation-page-number {
+    width: 100%;
+    text-align: center;
+    font-family: "TH SarabunPSK", sans-serif !important;
+    font-size: 16pt !important;
+    line-height: 1 !important;
+    margin: 0 0 1.2cm 0 !important;
+    padding: 0 !important;
+  }
+
+  .generated-continuation-page .content-block.paragraph:first-of-type {
+    margin-top: 0 !important;
+  }
+
+  /* ===== แบ่งหน้า Preview/PDF แบบ A4 ===== */
+  .page {
+    width: 794px !important;
+    height: 1123px !important;
+    min-height: 1123px !important;
+    max-height: 1123px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    position: relative !important;
+  }
+
+  .generated-continuation-page {
+    background: #ffffff !important;
+  }
+
+  .continuation-page-number {
+    width: 100%;
+    text-align: center;
+    font-family: "TH SarabunPSK", sans-serif !important;
+    font-size: 16pt !important;
+    line-height: 1 !important;
+    margin: 0 0 1.2cm 0 !important;
+    padding: 0 !important;
+  }
+
+  .generated-continuation-page .content-block.paragraph:first-of-type {
+    margin-top: 0 !important;
+  }
+
   @keyframes pdfSpin {
     from {
       transform: rotate(0deg);
@@ -1336,6 +1403,316 @@ $len = max(20, $len);
 
 
   <script>
+  function paginateRoomPages(root = document, forceRebuild = false) {
+    const A4_HEIGHT_PX = 1123;
+    const SAFE_BOTTOM_PX = 36;
+    const PAGE_LIMIT = A4_HEIGHT_PX - SAFE_BOTTOM_PX;
+
+    const basePages = Array.from(root.querySelectorAll(".page")).filter(page => {
+      return page.dataset.generatedContinuation !== "1";
+    });
+
+    basePages.forEach(page => {
+      const contentRoot = getRoomPageContentRoot(page);
+
+      if (!contentRoot.dataset.originalHtml) {
+        contentRoot.dataset.originalHtml = contentRoot.innerHTML;
+      }
+    });
+
+    if (forceRebuild) {
+      root.querySelectorAll(".page[data-generated-continuation='1']").forEach(page => page.remove());
+
+      basePages.forEach(page => {
+        const contentRoot = getRoomPageContentRoot(page);
+
+        if (contentRoot.dataset.originalHtml) {
+          contentRoot.innerHTML = contentRoot.dataset.originalHtml;
+        }
+      });
+    } else {
+      if (root.querySelector(".page[data-generated-continuation='1']")) {
+        return;
+      }
+    }
+
+    const originalPages = Array.from(root.querySelectorAll(".page")).filter(page => {
+      return page.dataset.generatedContinuation !== "1";
+    });
+
+    originalPages.forEach(originalPage => {
+      let currentPage = originalPage;
+      let pageNo = 2;
+      let guard = 0;
+
+      while (guard < 20) {
+        guard++;
+
+        const overflowChild = findRoomOverflowChild(currentPage, PAGE_LIMIT);
+        if (!overflowChild) break;
+
+        const nextPage = createRoomContinuationPage(pageNo);
+        pageNo++;
+
+        currentPage.insertAdjacentElement("afterend", nextPage);
+
+        if (
+          overflowChild.classList.contains("content-block") &&
+          overflowChild.classList.contains("paragraph") &&
+          getRoomNodeTopInPage(overflowChild, currentPage) < PAGE_LIMIT
+        ) {
+          const remainder = splitRoomParagraphToFit(overflowChild, currentPage, PAGE_LIMIT);
+
+          if (remainder) {
+            getRoomPageContentRoot(nextPage).appendChild(remainder);
+            moveFollowingRoomNodes(overflowChild, nextPage);
+          } else {
+            moveRoomNodeAndFollowing(overflowChild, nextPage);
+          }
+        } else {
+          moveRoomNodeAndFollowing(overflowChild, nextPage);
+        }
+
+        currentPage = nextPage;
+      }
+    });
+  }
+
+  function getRoomPageContentRoot(page) {
+    return page.querySelector(":scope > form") || page;
+  }
+
+  function getRoomNodeBottomInPage(node, page) {
+    const nodeRect = node.getBoundingClientRect();
+    const pageRect = page.getBoundingClientRect();
+    return nodeRect.bottom - pageRect.top;
+  }
+
+  function getRoomNodeTopInPage(node, page) {
+    const nodeRect = node.getBoundingClientRect();
+    const pageRect = page.getBoundingClientRect();
+    return nodeRect.top - pageRect.top;
+  }
+
+  function findRoomOverflowChild(page, limit) {
+    const contentRoot = getRoomPageContentRoot(page);
+
+    const children = Array.from(contentRoot.children).filter(el => {
+      if (el.matches("input[type='hidden'], .footer-actions, script, style")) {
+        return false;
+      }
+
+      if (el.classList.contains("continuation-page-number")) {
+        return false;
+      }
+
+      return true;
+    });
+
+    return children.find(el => {
+      return getRoomNodeBottomInPage(el, page) > limit;
+    });
+  }
+
+  function createRoomContinuationPage(pageNo) {
+    const page = document.createElement("section");
+    page.className = "page generated-continuation-page";
+    page.dataset.generatedContinuation = "1";
+
+    const pageNumber = document.createElement("div");
+    pageNumber.className = "continuation-page-number";
+    pageNumber.textContent = "-" + pageNo + "-";
+
+    page.appendChild(pageNumber);
+    return page;
+  }
+
+  function splitRoomParagraphToFit(paragraph, page, limit) {
+    const originalText = paragraph.textContent.replace(/\s+/g, " ").trim();
+
+    if (!originalText || originalText.length < 20) {
+      return null;
+    }
+
+    let low = 1;
+    let high = originalText.length;
+    let best = 0;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+
+      paragraph.textContent = originalText.slice(0, mid).trim();
+
+      const bottom = getRoomNodeBottomInPage(paragraph, page);
+
+      if (bottom <= limit) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    if (best < 10 || best >= originalText.length) {
+      paragraph.textContent = originalText;
+      return null;
+    }
+
+    const beforeText = originalText.slice(0, best).trim();
+    const afterText = originalText.slice(best).trim();
+
+    paragraph.textContent = beforeText;
+
+    const remainder = paragraph.cloneNode(false);
+    remainder.textContent = afterText;
+
+    return remainder;
+  }
+
+  function moveRoomNodeAndFollowing(startNode, targetPage) {
+    const targetRoot = getRoomPageContentRoot(targetPage);
+    let node = startNode;
+
+    while (node) {
+      const next = node.nextElementSibling;
+
+      if (
+        !node.matches("input[type='hidden'], .footer-actions, script, style") &&
+        !node.classList.contains("continuation-page-number")
+      ) {
+        targetRoot.appendChild(node);
+      }
+
+      node = next;
+    }
+  }
+
+  function moveFollowingRoomNodes(startNode, targetPage) {
+    const targetRoot = getRoomPageContentRoot(targetPage);
+    let node = startNode.nextElementSibling;
+
+    while (node) {
+      const next = node.nextElementSibling;
+
+      if (
+        !node.matches("input[type='hidden'], .footer-actions, script, style") &&
+        !node.classList.contains("continuation-page-number")
+      ) {
+        targetRoot.appendChild(node);
+      }
+
+      node = next;
+    }
+  }
+
+  function moveRoomFooterActionsToLastPage(root = document) {
+    const footerActionsList = Array.from(root.querySelectorAll(".footer-actions"));
+    if (footerActionsList.length === 0) return;
+
+    const footerActions = footerActionsList[0];
+
+    // กันปุ่มซ้ำ
+    footerActionsList.slice(1).forEach(el => el.remove());
+
+    const pages = Array.from(root.querySelectorAll(".page")).filter(page => {
+      return page.offsetParent !== null;
+    });
+
+    if (pages.length === 0) return;
+
+    const lastPage = pages[pages.length - 1];
+    const lastRoot = getRoomPageContentRoot(lastPage);
+
+    /*
+      เอาปุ่มกลับเข้าไปในหน้าสุดท้ายก่อน
+      เพื่อวัดว่ามันยังอยู่ใน A4 ได้ไหม
+    */
+    footerActions.classList.remove("document-action-bar");
+    lastRoot.appendChild(footerActions);
+
+    const pageRect = lastPage.getBoundingClientRect();
+    const footerRect = footerActions.getBoundingClientRect();
+
+    const footerBottomInPage = footerRect.bottom - pageRect.top;
+    const pageLimit = 1123 - 24;
+
+    /*
+      ถ้าปุ่มเกินหน้า A4 จริง ๆ ค่อยย้ายออกไปใต้กระดาษ
+      ถ้าไม่เกิน ให้ค้างอยู่ในหน้าเหมือนเดิม
+    */
+    if (footerBottomInPage > pageLimit) {
+      footerActions.classList.add("document-action-bar");
+      lastPage.insertAdjacentElement("afterend", footerActions);
+    }
+  }
+
+  function fitGovAgencyText(root = document) {
+    root.querySelectorAll(".doc-row.gov-row .chip.gov-text").forEach(el => {
+      const line = el.closest(".dot-line");
+      const page = el.closest(".page");
+      if (!line) return;
+
+      if (!el.dataset.govOriginalText) {
+        el.dataset.govOriginalText = (el.textContent || "").trim();
+      }
+
+      const originalText = el.dataset.govOriginalText;
+      const compactText = originalText.replace(/\s+/gu, "");
+
+      if (page) {
+        page.classList.remove("gov-agency-overflow-fit");
+      }
+
+      el.style.setProperty("display", "inline-block", "important");
+      el.style.setProperty("white-space", "nowrap", "important");
+      el.style.setProperty("max-width", "none", "important");
+      el.style.setProperty("letter-spacing", "normal", "important");
+
+      const fits = () => {
+        const lineWidth = Math.floor(line.getBoundingClientRect().width || line.clientWidth);
+        const textWidth = Math.ceil(el.getBoundingClientRect().width || el.scrollWidth);
+        return !!lineWidth && textWidth <= lineWidth + 1;
+      };
+
+      el.textContent = originalText;
+      for (const size of [16, 15, 14]) {
+        el.style.setProperty("font-size", size + "pt", "important");
+        if (fits()) return;
+      }
+
+      el.textContent = compactText;
+      el.style.setProperty("font-size", "14pt", "important");
+      if (fits()) return;
+
+      if (page) {
+        page.classList.add("gov-agency-overflow-fit");
+        void page.offsetWidth;
+      }
+      if (!fits()) {
+        el.style.setProperty("letter-spacing", "-0.2px", "important");
+      }
+    });
+  }
+  document.addEventListener("DOMContentLoaded", () => {
+    fitGovAgencyText(document);
+
+    requestAnimationFrame(() => {
+      paginateRoomPages(document, true);
+      moveRoomFooterActionsToLastPage(document);
+    });
+
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        fitGovAgencyText(document);
+
+        requestAnimationFrame(() => {
+          paginateRoomPages(document, true);
+          moveRoomFooterActionsToLastPage(document);
+        });
+      });
+    }
+  });
+
   const alertBox = document.getElementById('alertBox');
   if (alertBox) {
     setTimeout(() => {
@@ -1593,7 +1970,24 @@ $len = max(20, $len);
       const {
         jsPDF
       } = window.jspdf;
-      const pages = document.querySelectorAll(".page");
+
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+
+      fitGovAgencyText(document);
+      paginateRoomPages(document, true);
+      moveRoomFooterActionsToLastPage(document);
+
+      await new Promise(resolve => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(resolve);
+        });
+      });
+
+      const pages = Array.from(document.querySelectorAll(".page")).filter(page => {
+        return page.offsetParent !== null;
+      });
 
       if (!pages.length) {
         alert("ไม่พบหน้าเอกสาร .page");
@@ -1614,7 +2008,10 @@ $len = max(20, $len);
         clone.style.left = "-9999px";
         clone.style.top = "0";
         clone.style.width = "794px";
+        clone.style.height = "1123px";
         clone.style.minHeight = "1123px";
+        clone.style.maxHeight = "1123px";
+        clone.style.overflow = "hidden";
         clone.style.boxSizing = "border-box";
         clone.style.background = "#ffffff";
         clone.style.boxShadow = "none";

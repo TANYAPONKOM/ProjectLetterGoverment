@@ -12,6 +12,7 @@ if (!file_exists($autoload)) {
 }
 require_once $autoload;
 require_once __DIR__ . '/word_templates/word_common.php';
+require_once __DIR__ . '/../includes/thai_word_breaks.php';
 
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\IOFactory;
@@ -149,14 +150,23 @@ function researchThaiDateAny($rawDate) {
     return wordThaiDigit($rawDate);
 }
 
+
+
 function researchClean($text) {
-    return cleanWordText(str_replace(["\r", "\n"], ' ', (string)$text));
+    $text = str_replace(["\r", "\n", "\t"], ' ', (string)$text);
+    $text = cleanWordText($text);
+    $text = preg_replace('/[ ]{2,}/u', ' ', $text);
+    $text = wordThaiDigit(trim($text));
+
+    // สำคัญ: กัน XML พังเวลาเจอ &, <, >
+    $text = preg_replace('/&(?!amp;|lt;|gt;|quot;|apos;|#[0-9]+;|#x[0-9A-Fa-f]+;)/u', '&amp;', $text);
+    $text = str_replace(['<', '>'], ['&lt;', '&gt;'], $text);
+
+    return $text;
 }
 
 function researchInlineText($text) {
-    $text = researchClean($text);
-    $text = preg_replace('/\s+/u', ' ', $text);
-    return trim($text);
+    return researchClean($text);
 }
 
 function researchThaiWordWrap($text) {
@@ -165,84 +175,22 @@ function researchThaiWordWrap($text) {
         return '';
     }
 
-    $zwsp = "\u{200B}";
-
-    /*
-     * ห้ามแทรก ZWSP ระหว่างตัวอักษรไทยทุกตัว
-     * เพราะจะทำให้สระ/วรรณยุกต์ เช่น นี้, ที่, ผู้ เพี้ยนใน Word
-     * ให้ล้าง ZWSP เดิมออกก่อน แล้วค่อยใส่เฉพาะจุดที่ปลอดภัย
-     */
-    $text = str_replace($zwsp, '', $text);
-
-    // กันกรณีมี ZWSP หลุดไปอยู่ก่อน/หลังสระหรือวรรณยุกต์ไทย
-    $thaiMarks = "\x{0E31}\x{0E34}-\x{0E3A}\x{0E47}-\x{0E4E}";
-    $z = preg_quote($zwsp, '/');
-    $text = preg_replace('/' . $z . '(?=[' . $thaiMarks . '])/u', '', $text);
-    $text = preg_replace('/(?<=[' . $thaiMarks . '])' . $z . '/u', '', $text);
-
-    // จุดตัดที่ปลอดภัยหลังเครื่องหมาย
-    $text = preg_replace('/([\/\-–—,;:()（）"“”])/u', '$1' . $zwsp, $text);
-
-    // จุดตัดคำแบบปลอดภัย เฉพาะคำ/วลีที่มักใช้ในเอกสารนี้
-    $safeWords = [
-        'ข้อมูล',
-        'รูปภาพ',
-        'กระเป๋าสัมภาระ',
-        'ของผู้โดยสาร',
-        'ผู้โดยสาร',
-        'เพื่อใช้',
-        'ในการจัดทำ',
-        'การจัดทำ',
-        'จัดทำ',
-        'ขอความอนุเคราะห์ข้อมูล',
-        'ขอความอนุเคราะห์',
-        'ด้วยในภาคเรียนที่',
-        'ปีการศึกษา',
-        'ภาควิชาเทคโนโลยีสารสนเทศ',
-        'คณะเทคโนโลยีและการจัดการอุตสาหกรรม',
-        'มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ',
-        'วิทยาเขตปราจีนบุรี',
-        'รายวิชา',
-        'หลักสูตร',
-        'สาขาวิชา',
-        'ปริญญาตรี',
-        'ชั้นปีที่',
-        'ปริญญานิพนธ์',
-        'อาจารย์ที่ปรึกษาปริญญานิพนธ์',
-        'ทางคณะ',
-        'จึงขอความอนุเคราะห์',
-        'ให้ความอนุเคราะห์',
-        'เพื่อนำข้อมูล',
-        'มาประกอบการจัดทำ',
-        'หัวข้อดังกล่าวข้างต้น',
-        'โดยมีรายชื่อนักศึกษา',
-        'ที่จะขอความอนุเคราะห์',
-        'ในครั้งนี้',
-        'จำนวน',
-        'คน ดังนี้',
-        'จึงเรียนมาเพื่อโปรดพิจารณา',
-        'หากขัดข้องประการใด',
-        'กรุณาแจ้งให้',
-        'และขอขอบคุณ',
-        'มา ณ โอกาสนี้',
-    ];
-
-    foreach ($safeWords as $word) {
-        $text = str_replace($word, $word . $zwsp, $text);
+    if (function_exists('insertThaiWordBreaksForMemoBody')) {
+        return insertThaiWordBreaksForMemoBody($text);
     }
 
     return $text;
 }
 
-function researchNoBorderCell($valign = 'top') {
+function researchNoBorderCell($valign = 'center') {
     return [
         'borderSize' => 0,
         'borderColor' => 'FFFFFF',
-        'cellMarginTop' => 0,
-        'cellMarginBottom' => 0,
-        'cellMarginLeft' => 0,
-        'cellMarginRight' => 0,
         'valign' => $valign,
+        'marginTop' => 0,
+        'marginBottom' => 0,
+        'marginLeft' => 0,
+        'marginRight' => 0,
     ];
 }
 
@@ -259,22 +207,23 @@ function addResearchPairRow($section, $label, $value, $spaceAfter = 0) {
         'width' => 9072,
     ]);
 
-    $table->addRow();
+    $table->addRow(null, ['exactHeight' => false]);
 
-    $table->addCell(Converter::cmToTwip(1.0), researchNoBorderCell())->addText($label, 'normalFont', [
+    $table->addCell(Converter::cmToTwip(1.05), researchNoBorderCell('top'))->addText($label, 'normalFont', [
+        'alignment' => Jc::LEFT,
         'spaceBefore' => 0,
         'spaceAfter' => 0,
         'lineHeight' => 1.0,
     ]);
 
-    $table->addCell(Converter::cmToTwip(15.0), researchNoBorderCell())->addText($value, 'normalFont', [
+    $table->addCell(Converter::cmToTwip(14.95), researchNoBorderCell('top'))->addText($value, 'normalFont', [
+        'alignment' => Jc::LEFT,
         'spaceBefore' => 0,
         'spaceAfter' => $spaceAfter,
         'lineHeight' => 1.0,
     ]);
 }
-
-function addResearchPara($section, array $parts, $spaceAfter = 35, $firstLineCm = 2.5) {
+function addResearchPara($section, array $parts, $spaceAfter = 28, $firstLineCm = 2.5) {
     $text = '';
     foreach ($parts as $part) {
         $text .= is_array($part) ? ($part[0] ?? '') : $part;
@@ -287,6 +236,25 @@ function addResearchPara($section, array $parts, $spaceAfter = 35, $firstLineCm 
 
     $section->addText($text, 'normalFont', [
         'alignment' => 'thaiDistribute',
+        'lineHeight' => 0.94,
+        'spaceBefore' => 0,
+        'spaceAfter' => $spaceAfter,
+        'indentation' => ['firstLine' => Converter::cmToTwip($firstLineCm)],
+    ]);
+}
+function addResearchParaBoth($section, array $parts, $spaceAfter = 28, $firstLineCm = 2.5) {
+    $text = '';
+    foreach ($parts as $part) {
+        $text .= is_array($part) ? ($part[0] ?? '') : $part;
+    }
+
+    $text = researchThaiWordWrap($text);
+    if ($text === '') {
+        return;
+    }
+
+    $section->addText($text, 'normalFont', [
+        'alignment' => Jc::BOTH,
         'lineHeight' => 0.94,
         'spaceBefore' => 0,
         'spaceAfter' => $spaceAfter,
@@ -381,16 +349,17 @@ function addResearchHeader($section, $docNo, $displayFaculty, $thaiDocDate) {
         'cellMargin' => 0,
         'cellSpacing' => 0,
         'layout' => 'fixed',
-        'width' => Converter::cmToTwip(17.10),
+        'width' => Converter::cmToTwip(18.40),
     ]);
 
     $table->addRow(Converter::cmToTwip(3.1));
 
-    $left = $table->addCell(Converter::cmToTwip(4.95), researchNoBorderCell('top'));
-    $left->addText('', 'normalFont', ['spaceAfter' => 800, 'lineHeight' => 1.0]);
+    $left = $table->addCell(Converter::cmToTwip(6.20), researchNoBorderCell('top'));
+    $left->addText('', 'normalFont', ['spaceAfter' => 700, 'lineHeight' => 1.0]);
     $left->addText('ที่ ' . researchInlineText($docNo ?: ''), 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
 
     $middle = $table->addCell(Converter::cmToTwip(3.55), researchNoBorderCell('top'));
+
     if (file_exists($garuda)) {
         $middle->addImage($garuda, [
             'width' => 80,
@@ -400,28 +369,27 @@ function addResearchHeader($section, $docNo, $displayFaculty, $thaiDocDate) {
         $middle->addText('');
     }
 
-    $right = $table->addCell(Converter::cmToTwip(8.60), researchNoBorderCell('top'));
-    $right->addText('', 'normalFont', ['spaceAfter' => 720, 'lineHeight' => 0.95]);
-    $right->addText(researchClean('คณะ' . $displayFaculty), 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
+    $right = $table->addCell(Converter::cmToTwip(8.65), researchNoBorderCell('top'));
+    $right->addText('', 'normalFont', ['spaceAfter' => 620, 'lineHeight' => 0.95]);
+   $right->addText('คณะ' . researchClean($displayFaculty), 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
     $right->addText('มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ', 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
     $right->addText('๑๒๙ หมู่ ๒๑ ต.เนินหอม อ.เมือง จ.ปราจีนบุรี ๒๕๒๓๐', 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
 
-    $section->addText(researchClean($thaiDocDate), 'normalFont', [
+    $section->addText(str_repeat("\u{00A0}", 28) . researchClean($thaiDocDate), 'normalFont', [
         'alignment' => Jc::CENTER,
-        'spaceBefore' => 80,
+        'spaceBefore' => 40,
         'spaceAfter' => 160,
         'lineHeight' => 1.0,
-        'indentation' => ['left' => Converter::cmToTwip(1.0)],
     ]);
 }
 
 function addResearchSignature($section, $deanName, $displayFacultyDean) {
     $section->addText('ขอแสดงความนับถือ', 'normalFont', [
-        'alignment' => Jc::CENTER,
-        'spaceBefore' => 20,
-        'spaceAfter' => 500,
-        'lineHeight' => 1.0,
-    ]);
+    'alignment' => Jc::CENTER,
+    'spaceBefore' => 20,
+    'spaceAfter' => 600,
+    'lineHeight' => 1.0,
+]);
 
     $section->addText('(' . researchClean($deanName) . ')', 'normalFont', [
         'alignment' => Jc::CENTER,
@@ -457,18 +425,18 @@ function addResearchFooter($section, $displayDepartmentFull) {
 
 function addResearchDataRequestPage($phpWord, array $data) {
     $section = $phpWord->addSection([
-        'paperSize' => 'A4',
-        'marginTop' => Converter::cmToTwip(2),
-        'marginBottom' => Converter::cmToTwip(1.15),
-        'marginLeft' => Converter::cmToTwip(3.0),
-        'marginRight' => Converter::cmToTwip(2.0),
-        'footerHeight' => Converter::cmToTwip(0.85),
-    ]);
+    'paperSize' => 'A4',
+    'marginTop' => Converter::cmToTwip(1.5),
+    'marginBottom' => Converter::cmToTwip(1.15),
+    'marginLeft' => Converter::cmToTwip(3.0),
+    'marginRight' => Converter::cmToTwip(2.0),
+    'footerHeight' => Converter::cmToTwip(0.85),
+]);
 
     addResearchHeader($section, $data['docNo'], $data['displayFaculty'], $data['thaiDocDate']);
     addResearchPairRow($section, 'เรื่อง', $data['displaySubject']);
     addResearchPairRow($section, 'เรียน', $data['displayToPerson'], 20);
-
+$section->addTextBreak(1, ['size' => 6]);
     addResearchPara($section, [
         'ด้วยในภาคเรียนที่ ', $data['researchSemester'],
         ' ปีการศึกษา ', $data['researchAcademicYear'],
@@ -485,14 +453,14 @@ function addResearchDataRequestPage($phpWord, array $data) {
     ], 28);
 
     addResearchPara($section, [
-        'ทางคณะ', $data['displayFaculty'],
-        ' จึงขอความอนุเคราะห์มายังท่านได้โปรดให้ความอนุเคราะห์',
-        $data['researchDataRequestText'],
-        $data['researchDataAmount'] !== '' ? ' จำนวน ' . $data['researchDataAmount'] : '',
-        ' เพื่อนำข้อมูลมาประกอบการจัดทำปริญญานิพนธ์หัวข้อดังกล่าวข้างต้น',
-        ' โดยมีรายชื่อนักศึกษาที่จะขอความอนุเคราะห์ในครั้งนี้ จำนวน ',
-        $data['researchStudentCountText'], ' คน ดังนี้',
-    ], 8);
+    'ทางคณะ', $data['displayFaculty'],
+    ' จึงขอความอนุเคราะห์มายังท่านได้โปรดให้ความอนุเคราะห์',
+    $data['researchDataRequestText'],
+    $data['researchDataAmount'] !== '' ? ' จำนวน ' . $data['researchDataAmount'] : '',
+    ' เพื่อนำข้อมูลมาประกอบการจัดทำปริญญานิพนธ์หัวข้อดังกล่าวข้างต้น',
+    ' โดยมีรายชื่อนักศึกษาที่จะขอความอนุเคราะห์ในครั้งนี้ จำนวน ',
+    $data['researchStudentCountText'], ' คน ดังนี้',
+], 8);
 
     addResearchStudentList($section, $data['researchStudents']);
 
@@ -602,6 +570,18 @@ if ($researchContactStudent) {
 
 $phpWord = new PhpWord();
 setupWordDefaults($phpWord);
+
+$phpWord->addFontStyle('normalFont', [
+    'name' => 'TH SarabunPSK',
+    'size' => 16,
+]);
+
+$phpWord->addFontStyle('boldFont', [
+    'name' => 'TH SarabunPSK',
+    'size' => 16,
+    'bold' => true,
+]);
+
 $phpWord->addFontStyle('addressFont', [
     'name' => 'TH SarabunPSK',
     'size' => 15.5,
@@ -632,14 +612,32 @@ addResearchDataRequestPage($phpWord, [
 ]);
 
 $filename = 'request_research_data_' . $docId . '.docx';
-if (ob_get_length()) {
+
+$tmpDocx = tempnam(sys_get_temp_dir(), 'request_research_data_word_');
+if ($tmpDocx === false) {
+    http_response_code(500);
+    exit('ไม่สามารถสร้างไฟล์ชั่วคราวสำหรับ Word ได้');
+}
+
+$writer = IOFactory::createWriter($phpWord, 'Word2007');
+$writer->save($tmpDocx);
+
+if (!file_exists($tmpDocx) || filesize($tmpDocx) <= 0) {
+    @unlink($tmpDocx);
+    http_response_code(500);
+    exit('สร้างไฟล์ Word ไม่สำเร็จ');
+}
+
+while (ob_get_level() > 0) {
     ob_end_clean();
 }
+
 header('Content-Description: File Transfer');
 header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 header('Content-Disposition: attachment; filename="' . $filename . '"');
 header('Cache-Control: max-age=0');
+header('Content-Length: ' . filesize($tmpDocx));
 
-$writer = IOFactory::createWriter($phpWord, 'Word2007');
-$writer->save('php://output');
+readfile($tmpDocx);
+@unlink($tmpDocx);
 exit;

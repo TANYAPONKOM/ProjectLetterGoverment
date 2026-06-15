@@ -876,11 +876,10 @@ try {
             $errors['doc_date'] = 'required';
         }
 
-        if ($purpose === 'other') {
-            $other = trim($_POST['purpose_other_detail'] ?? '');
-            if ($other === '') {
-                $errors['purpose_other_detail'] = 'required';
-            }
+        
+
+        if ($memoSubject === '') {
+            $errors['memo_subject'] = 'required';
         }
 
         if ($purpose === 'academic') {
@@ -1065,30 +1064,23 @@ try {
         $purpose = 'consent_research_presentation';
         $joinType = 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ';
         $subject = 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ';
-    } elseif ($purpose === 'other') {
-        $joinType = trim($_POST['purpose_other_detail'] ?? '');
-        if ($joinType === '') {
-            $joinType = 'อื่นๆ';
-        }
-
-        $subject = trim($joinType . $eventTitle);
+    
     } else {
-        $joinType = match ($purpose) {
-            'academic' => 'นำเสนอผลงานวิจัย',
-            'consent_research_presentation' => 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ',
-            'training' => 'เข้ารับการฝึกอบรมหลักสูตร',
-            'meeting' => 'เข้าร่วมประชุมวิชาการในงาน',
-            default => 'อื่นๆ',
-        };
+    $joinType = match ($purpose) {
+        'academic' => 'นำเสนอผลงานวิจัย',
+        'consent_research_presentation' => 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ',
+        'meeting' => 'เข้าร่วมประชุมวิชาการในงาน',
+        'training' => 'เข้ารับการฝึกอบรมหลักสูตร',
+        default => 'เข้ารับการฝึกอบรมหลักสูตร',
+    };
 
-        if ($purpose === 'academic' && $memoSubject !== '') {
-            $subject = $memoSubject;
-        } elseif ($purpose === 'consent_research_presentation') {
-            $subject = 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ';
-        } else {
-            $subject = trim($joinType . $eventTitle);
-        }
+    if ($purpose === 'consent_research_presentation') {
+        $subject = 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ';
+    } else {
+        $subjectDetail = $memoSubject !== '' ? $memoSubject : $eventTitle;
+        $subject = 'ขออนุมัติตัวบุคคลเข้าร่วม' . $subjectDetail;
     }
+}
     $departmentPhone = trim((string) ($_POST['department_phone'] ?? ''));
     $departmentPhone = strtr($departmentPhone, [
         '๐' => '0',
@@ -1527,9 +1519,9 @@ VALUES
             11 => $department,
             12 => (string) $noCost,
 
-            // เฉพาะกรณีเลือก "นำเสนอผลงานวิจัย"
+                       // เฉพาะกรณีเลือก "นำเสนอผลงานวิจัย"
             13 => in_array($purpose, ['academic', 'consent_research_presentation']) ? $academicTopic : '',
-            14 => in_array($purpose, ['academic', 'consent_research_presentation']) ? $presenterName : '',
+            14 => $memoSubject,
             15 => in_array($purpose, ['academic', 'consent_research_presentation']) ? $academicLevel : '',
             16 => in_array($purpose, ['academic', 'consent_research_presentation']) ? $joinDates : '',
             17 => ($purpose === 'consent_research_presentation') ? $signatureAffiliation : '',

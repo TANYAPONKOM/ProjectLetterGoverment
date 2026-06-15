@@ -12,6 +12,7 @@ if (!file_exists($autoload)) {
 }
 require_once $autoload;
 require_once __DIR__ . '/word_templates/word_common.php';
+require_once __DIR__ . '/../includes/thai_word_breaks.php';
 
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\IOFactory;
@@ -154,37 +155,22 @@ function coopThaiWordWrap($text) {
         return '';
     }
 
-    $zwsp = "\u{200B}";
-
-    // ห้ามแทรกกลางตัวอักษรไทยทุกตัว เพราะทำให้สระ/วรรณยุกต์เพี้ยนใน Word
-    $text = preg_replace('/([\/\-–—,;:()（）"“”])/u', '$1' . $zwsp, $text);
-
-    $safeWords = [
-        'ภาควิชา', 'เทคโนโลยีสารสนเทศ', 'คณะ', 'มหาวิทยาลัย', 'วิทยาเขต', 'ปราจีนบุรี',
-        'สหกิจศึกษา', 'ปฏิบัติงาน', 'นักศึกษา', 'หน่วยงาน', 'ของท่าน', 'แบบประเมิน',
-        'แบบสำรวจ', 'คุณลักษณะ', 'สถานประกอบการ', 'ความต้องการ', 'พนักงานที่ปรึกษา',
-        'ข้อมูล', 'รวบรวม', 'วิเคราะห์', 'สรุปผล', 'ความอนุเคราะห์', 'ดำเนินการครั้งต่อไป',
-        'พิจารณา', 'แจ้งผู้เกี่ยวข้อง', 'ขอขอบคุณ', 'โอกาสต่อไป', 'ตั้งแต่วันที่', 'ทั้งนี้',
-        'ในการนี้', 'สุดท้ายนี้', 'จึงเรียนมา', 'รายงานการปฏิบัติงาน', 'ผลรายงาน',
-    ];
-
-    foreach ($safeWords as $word) {
-        $quoted = preg_quote($word, '/');
-        $text = preg_replace('/(' . $quoted . ')/u', '$1' . $zwsp, $text);
+    if (function_exists('insertThaiWordBreaksForMemoBody')) {
+        return insertThaiWordBreaksForMemoBody($text);
     }
 
     return $text;
 }
 
-function coopNoBorderCell($valign = 'top') {
+function coopNoBorderCell($valign = 'center') {
     return [
         'borderSize' => 0,
         'borderColor' => 'FFFFFF',
-        'cellMarginTop' => 0,
-        'cellMarginBottom' => 0,
-        'cellMarginLeft' => 0,
-        'cellMarginRight' => 0,
         'valign' => $valign,
+        'marginTop' => 0,
+        'marginBottom' => 0,
+        'marginLeft' => 0,
+        'marginRight' => 0,
     ];
 }
 
@@ -217,7 +203,7 @@ function addCoopPairRow($section, $label, $value, $spaceAfter = 0) {
     ]);
 }
 
-function addCoopPara($section, array $parts, $spaceAfter = 20, $firstLineCm = 2.5, $alignment = 'thaiDistribute') {
+function addCoopPara($section, array $parts, $spaceAfter = 28, $firstLineCm = 2.5, $alignment = 'thaiDistribute') {
     $text = '';
     foreach ($parts as $part) {
         $text .= is_array($part) ? ($part[0] ?? '') : $part;
@@ -320,15 +306,20 @@ function addCoopHeader($section, $docNo, $displayFaculty, $thaiDocDate, $display
         'cellMargin' => 0,
         'cellSpacing' => 0,
         'layout' => 'fixed',
-        // ขยายเฉพาะหัวกระดาษ เพื่อให้บรรทัดที่อยู่ด้านขวายาวเลยขอบขวาได้เล็กน้อย
-        'width' => Converter::cmToTwip(17.10),
+        'width' => Converter::cmToTwip(18.40),
     ]);
 
     $table->addRow(Converter::cmToTwip(3.1));
 
-    $left = $table->addCell(Converter::cmToTwip(4.95), coopNoBorderCell('top'));
-    $left->addText('', 'normalFont', ['spaceAfter' => 800, 'lineHeight' => 1.0]);
-    $left->addText('ที่ ' . coopInlineText($docNo ?: ''), 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
+    $left = $table->addCell(Converter::cmToTwip(6.20), coopNoBorderCell('top'));
+    $left->addText('', 'normalFont', [
+        'spaceAfter' => 700,
+        'lineHeight' => 1.0,
+    ]);
+    $left->addText('ที่ ' . coopInlineText($docNo ?: ''), 'normalFont', [
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
 
     $middle = $table->addCell(Converter::cmToTwip(3.55), coopNoBorderCell('top'));
     if (file_exists($garuda)) {
@@ -340,18 +331,29 @@ function addCoopHeader($section, $docNo, $displayFaculty, $thaiDocDate, $display
         $middle->addText('');
     }
 
-    $right = $table->addCell(Converter::cmToTwip(8.60), coopNoBorderCell('top'));
-    $right->addText('', 'normalFont', ['spaceAfter' => 720, 'lineHeight' => 0.95]);
-    $right->addText(coopClean($displayFaculty), 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
-    $right->addText('มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ', 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
-    $right->addText('๑๒๙ หมู่ ๒๑ ต.เนินหอม อ.เมือง จ.ปราจีนบุรี ๒๕๒๓๐', 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
+    $right = $table->addCell(Converter::cmToTwip(8.65), coopNoBorderCell('top'));
+    $right->addText('', 'normalFont', [
+        'spaceAfter' => 620,
+        'lineHeight' => 0.95,
+    ]);
+    $right->addText(coopClean($displayFaculty), 'addressFont', [
+        'spaceAfter' => 0,
+        'lineHeight' => 0.95,
+    ]);
+    $right->addText('มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ', 'addressFont', [
+        'spaceAfter' => 0,
+        'lineHeight' => 0.95,
+    ]);
+    $right->addText('๑๒๙ หมู่ ๒๑ ต.เนินหอม อ.เมือง จ.ปราจีนบุรี ๒๕๒๓๐', 'addressFont', [
+        'spaceAfter' => 0,
+        'lineHeight' => 0.95,
+    ]);
 
-    $section->addText(coopClean($thaiDocDate), 'normalFont', [
+    $section->addText(str_repeat("\u{00A0}", 28) . coopClean($thaiDocDate), 'normalFont', [
         'alignment' => Jc::CENTER,
-        'spaceBefore' => 80,
+        'spaceBefore' => 40,
         'spaceAfter' => 160,
         'lineHeight' => 1.0,
-        'indentation' => ['left' => Converter::cmToTwip(1.0)],
     ]);
 }
 
@@ -398,7 +400,7 @@ function addCoopFooter($section, $displayDepartmentFull) {
 function addCoopEvaluationPage($phpWord, array $data) {
     $section = $phpWord->addSection([
         'paperSize' => 'A4',
-        'marginTop' => Converter::cmToTwip(2),
+        'marginTop' => Converter::cmToTwip(1.5),
         'marginBottom' => Converter::cmToTwip(1.15),
         'marginLeft' => Converter::cmToTwip(3.0),
         'marginRight' => Converter::cmToTwip(2.0),

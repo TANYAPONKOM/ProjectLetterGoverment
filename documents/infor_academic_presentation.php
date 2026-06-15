@@ -1006,8 +1006,10 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
               <div class="w-full">
                 <textarea name="memo_subject" id="memoSubject" data-spell-field="memo_subject" rows="2"
                   class="w-full border rounded-md p-2 shadow-sm"
-                  placeholder="ขออนุมัติตัวบุคคลเพื่อไปนำเสนอผลงานวิจัยในงานประชุมวิชาการระดับนานาชาติ ACIE 2025"><?= h($memoSubject) ?></textarea>
-
+                  placeholder="ในงานประชุมวิชาการระดับนานาชาติ ACIE 2025"><?= h($memoSubject) ?></textarea>
+                <p class="text-sm text-gray-500 mt-1">
+                  หมายเหตุ: กรอกเฉพาะรายละเอียดเรื่อง ระบบจะเติมคำขึ้นต้นในเอกสารให้อัตโนมัติ เช่น ขออนุมัติตัวบุคคลไป
+                </p>
                 <div id="memoSubjectSpellBox" class="spell-box hidden"></div>
                 <div id="memoSubjectSpellLoading" class="spell-loading hidden">
                   <div class="spell-loading-row">
@@ -1331,8 +1333,9 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
             </div>
             <div id="regForm" class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-               <label class="text-gray-700">ราคา (บาท)</label>
-              <input type="text" id="regPrice" class="w-full border rounded-md p-2 js-money-input" inputmode="decimal" value="0">
+                <label class="text-gray-700">ราคา (บาท)</label>
+                <input type="text" id="regPrice" class="w-full border rounded-md p-2 js-money-input" inputmode="decimal"
+                  value="0">
               </div>
               <div>
                 <label class="text-gray-700">จำนวนคน</label>
@@ -1384,7 +1387,8 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
               </div>
               <div class="md:col-span-2">
                 <label class="text-gray-700">ราคา/คืน</label>
-                <input type="text" id="lodUnit" class="w-full border rounded-md p-2 js-money-input" inputmode="decimal" value="1,500.00">
+                <input type="text" id="lodUnit" class="w-full border rounded-md p-2 js-money-input" inputmode="decimal"
+                  value="1,500.00">
                 <div class="text-xs text-gray-500 mt-1">ค่าเริ่มต้นราชการ: 1 คน = 1,500/คืน, มากกว่า 1 คน = 1,000/คืน/คน
                 </div>
               </div>
@@ -1417,7 +1421,8 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
             <div id="perForm" class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
                 <label class="text-gray-700">ราคา/มื้อ</label>
-                <input type="text" id="perUnit" class="w-full border rounded-md p-2 js-money-input" inputmode="decimal" value="120">
+                <input type="text" id="perUnit" class="w-full border rounded-md p-2 js-money-input" inputmode="decimal"
+                  value="120">
                 <div class="text-xs text-gray-500 mt-1">ค่าเริ่มต้นราชการ: มื้อละ 120 บาท</div>
               </div>
               <div>
@@ -2742,43 +2747,43 @@ $purposeOther = ($purpose === 'other') ? $joinType : '';
     }
 
     function moneyDisplay(x) {
-  return Number(money(x)).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-}
+      return Number(money(x)).toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
 
-function formatMoneyInput(el) {
-  if (!el) return;
-  el.value = moneyDisplay(n(el.value));
-}
+    function formatMoneyInput(el) {
+      if (!el) return;
+      el.value = moneyDisplay(n(el.value));
+    }
 
-function formatMoneyTyping(el) {
-  if (!el) return;
+    function formatMoneyTyping(el) {
+      if (!el) return;
 
-  const oldValue = el.value;
-  const oldLength = oldValue.length;
-  const oldPos = el.selectionStart ?? oldLength;
+      const oldValue = el.value;
+      const oldLength = oldValue.length;
+      const oldPos = el.selectionStart ?? oldLength;
 
-  let value = oldValue.replace(/,/g, "").replace(/[^\d.]/g, "");
+      let value = oldValue.replace(/,/g, "").replace(/[^\d.]/g, "");
 
-  const parts = value.split(".");
-  let intPart = parts[0] || "";
-  let decimalPart = "";
+      const parts = value.split(".");
+      let intPart = parts[0] || "";
+      let decimalPart = "";
 
-  if (parts.length > 1) {
-    decimalPart = "." + parts.slice(1).join("").slice(0, 2);
-  }
+      if (parts.length > 1) {
+        decimalPart = "." + parts.slice(1).join("").slice(0, 2);
+      }
 
-  intPart = intPart.replace(/^0+(?=\d)/, "");
-  intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      intPart = intPart.replace(/^0+(?=\d)/, "");
+      intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
-  el.value = intPart + decimalPart;
+      el.value = intPart + decimalPart;
 
-  const newLength = el.value.length;
-  const newPos = oldPos + (newLength - oldLength);
-  el.setSelectionRange(Math.max(0, newPos), Math.max(0, newPos));
-}
+      const newLength = el.value.length;
+      const newPos = oldPos + (newLength - oldLength);
+      el.setSelectionRange(Math.max(0, newPos), Math.max(0, newPos));
+    }
 
     const GOV_LOD_RATE_ONE_PERSON = 1500;
     const GOV_LOD_RATE_MULTI_PERSON = 1000;
@@ -2788,15 +2793,15 @@ function formatMoneyTyping(el) {
       return n(lodPeople?.value || 1) > 1 ? GOV_LOD_RATE_MULTI_PERSON : GOV_LOD_RATE_ONE_PERSON;
     }
 
-   function applyDefaultLodRate(force = false) {
-  if (!lodUnit) return;
-  const current = n(lodUnit.value);
-  const oldDefaultValues = [0, GOV_LOD_RATE_ONE_PERSON, GOV_LOD_RATE_MULTI_PERSON];
-  if (force || lodUnit.dataset.userEdited !== "1" || oldDefaultValues.includes(current)) {
-    lodUnit.value = moneyDisplay(defaultLodRateByPeople());
-    lodUnit.dataset.userEdited = "0";
-  }
-}
+    function applyDefaultLodRate(force = false) {
+      if (!lodUnit) return;
+      const current = n(lodUnit.value);
+      const oldDefaultValues = [0, GOV_LOD_RATE_ONE_PERSON, GOV_LOD_RATE_MULTI_PERSON];
+      if (force || lodUnit.dataset.userEdited !== "1" || oldDefaultValues.includes(current)) {
+        lodUnit.value = moneyDisplay(defaultLodRateByPeople());
+        lodUnit.dataset.userEdited = "0";
+      }
+    }
 
     function applyDefaultMealRate(force = false) {
       if (!perUnit) return;
@@ -3358,18 +3363,18 @@ function formatMoneyTyping(el) {
     .forEach(el => el?.addEventListener("input", calcAll));
 
     document.addEventListener("input", (e) => {
-  const el = e.target.closest(".js-money-input");
-  if (!el) return;
-  formatMoneyTyping(el);
-  calcAll();
-});
+      const el = e.target.closest(".js-money-input");
+      if (!el) return;
+      formatMoneyTyping(el);
+      calcAll();
+    });
 
-document.addEventListener("blur", (e) => {
-  const el = e.target.closest(".js-money-input");
-  if (!el) return;
-  formatMoneyInput(el);
-  calcAll();
-}, true);
+    document.addEventListener("blur", (e) => {
+      const el = e.target.closest(".js-money-input");
+      if (!el) return;
+      formatMoneyInput(el);
+      calcAll();
+    }, true);
 
     [lodSingleDate, lodStartDate, lodEndDate].forEach(el => {
       el?.addEventListener("change", updateLodDateText);

@@ -1,4 +1,4 @@
-<?php //ขอเข้าไปจัดกิจกรรมโครงการ
+<?php //ขอเข้าไปจัดกิจกรรมโครงการ Pro_letter/doucments/form_memo_project_activity.php 
 session_start();
 require_once __DIR__ . '/../functions.php';
 

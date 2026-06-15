@@ -11,6 +11,7 @@ if (!file_exists($autoload)) {
 }
 require_once $autoload;
 require_once __DIR__ . '/word_templates/word_common.php';
+require_once __DIR__ . '/../includes/thai_word_breaks.php';
 
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\IOFactory;
@@ -231,138 +232,9 @@ function insertThaiWordBreaksAcademicMemo($text) {
         return '';
     }
 
-    $zwsp = "\u{200B}";
-
-    // เอา ZWSP เก่าออกก่อน เพื่อไม่ให้ตัดคำซ้อนกันมั่ว
-    $text = str_replace($zwsp, '', $text);
-
-    // ห้ามแทรกจุดตัดติดกับสระ/วรรณยุกต์ไทย เช่น ที่, นี้, ผู้
-    $thaiMarks = "\x{0E31}\x{0E34}-\x{0E3A}\x{0E47}-\x{0E4E}";
-    $z = preg_quote($zwsp, '/');
-    $text = preg_replace('/' . $z . '(?=[' . $thaiMarks . '])/u', '', $text);
-    $text = preg_replace('/(?<=[' . $thaiMarks . '])' . $z . '/u', '', $text);
-
-    // จุดตัดหลังเครื่องหมาย เพื่อให้ Word มีตำแหน่งตัดบรรทัดเพิ่มขึ้น
-    $text = preg_replace('/([\/\-–—,;:()（）"“”])/u', '$1' . $zwsp, $text);
-
-    // ชุดคำเฉพาะของ memo academic + ชุดคำที่ใช้ใน download_word_memo.php
-    // ช่วยให้ Word กระจายคำและตัดคำไทย ไม่ยกทั้งก้อนลงบรรทัดใหม่จนเกิดพื้นที่ว่าง
-    $safeWords = [
-        'ตามที่',
-        'ข้าพเจ้า',
-        'พนักงานมหาวิทยาลัย',
-        'สังกัดภาควิชา',
-        'สังกัด',
-        'ภาควิชา',
-        'คณะบริหารธุรกิจและอุตสาหกรรมบริการ',
-        'คณะเทคโนโลยีและการจัดการอุตสาหกรรม',
-        'เทคโนโลยีสารสนเทศ',
-        'มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ',
-        'วิทยาเขตปราจีนบุรี',
-        'ได้รับอนุมัติ',
-        'ตัวบุคคล',
-        'ให้เข้าร่วม',
-        'นำเสนอผลงานวิจัย',
-        'ในหัวข้อ',
-        'ซึ่งจัดขึ้นที่',
-        'ในระหว่างวันที่',
-        'โดยเอกสาร',
-        'งานประชุมวิชาการ',
-        'จะถูกตีพิมพ์',
-        'อยู่ในฐานข้อมูล',
-        'Scopus',
-        'นั้น',
-        'การนี้',
-        'จึงมีความประสงค์',
-        'มีความประสงค์',
-        'ขออนุมัติ',
-        'เดินทาง',
-        'เพื่อไป',
-        'ในงานประชุม',
-        'วิชาการระดับนานาชาติ',
-        'รวมเวลาเดินทาง',
-        'ตามวัน',
-        'เวลา',
-        'และสถานที่',
-        'ดังกล่าว',
-        'เป็นประโยชน์ต่อ',
-        'การพัฒนา',
-        'การพัฒนาการเรียนการสอน',
-        'การพัฒนาทั้งกระบวนการจัดการเรียนการสอน',
-        'กระบวนการจัดการเรียนการสอน',
-        'จัดการเรียนการสอน',
-        'งานวิจัย',
-        'และสร้างชื่อเสียง',
-        'ให้กับมหาวิทยาลัย',
-        'โดยขอใช้',
-        'งบจัดสรรให้หน่วยงาน',
-        'จัดสรรให้',
-        'หน่วยงาน',
-        'ประจำปีงบประมาณ',
-        'ประจำปี',
-        'งบประมาณ',
-        'พ.ศ.',
-        'ในส่วนของ',
-        'แผนงานจัดการศึกษาระดับอุดมศึกษา',
-        'แผนงาน',
-        'จัดการศึกษา',
-        'ระดับอุดมศึกษา',
-        'กองทุนพัฒนาบุคลากร',
-        'หมวดค่าใช้สอย',
-        'รายละเอียดตามเอกสารแนบ',
-        'รายละเอียด',
-        'ตามเอกสารแนบ',
-        'วงเงินทั้งสิ้น',
-        'บาท',
-        'โดยขอใช้แหล่งเงิน',
-        'แหล่งเงิน',
-        'รถยนต์ส่วนบุคคล',
-        'หมายเลขทะเบียน',
-        'หลักเกณฑ์และวิธีการของมหาวิทยาลัย',
-        'หลักเกณฑ์',
-        'วิธีการ',
-        'วิธีของ',
-        'จึงเรียนมา',
-        'เพื่อโปรด',
-        'พิจารณาอนุมัติ',
-        'และ',
-        'หรือ',
-        'โดย',
-        'เพื่อ',
-        'ซึ่ง',
-        'ของ',
-        'กับ',
-        'จาก',
-        'ตาม',
-        'เป็น',
-        'ให้',
-        'ได้',
-        'มี',
-        'ณ',
-    ];
-
-    foreach ($safeWords as $word) {
-        $text = str_replace($word, $word . $zwsp, $text);
+    if (function_exists('insertThaiWordBreaksForMemoBody')) {
+        return insertThaiWordBreaksForMemoBody($text);
     }
-
-    // ไม่แทรก ZWSP รายตัวอักษร เพราะ Word จะแยกคำไทยผิด เช่น กา ร / เ ชิง
-    // ให้ใช้เฉพาะจุดตัดจาก safeWords และเครื่องหมายเท่านั้น
-
-    // กันคำสำคัญไม่ให้ถูกแทรกจุดตัดผิดกลางคำ
-    $keepWords = [
-        'เทคโนโลยีสารสนเทศ',
-        'สารสนเทศ',
-        'ดิจิทัล',
-        'Scopus',
-    ];
-
-    foreach ($keepWords as $word) {
-        $text = str_replace(str_replace($zwsp, '', $word), $word, $text);
-    }
-
-    // ล้าง ZWSP ที่ไปชิดสระ/วรรณยุกต์อีกครั้งหลังแทนคำ
-    $text = preg_replace('/' . $z . '(?=[' . $thaiMarks . '])/u', '', $text);
-    $text = preg_replace('/(?<=[' . $thaiMarks . '])' . $z . '/u', '', $text);
 
     return $text;
 }
@@ -385,11 +257,11 @@ function addAcademicMemoManualPara($section, array $textParts, $spaceAfter = 28)
 
 function addAcademicClosePara($section, $spaceAfter = 120) {
     $runClose = $section->addTextRun([
-        'alignment' => Jc::CENTER,
+        'alignment' => Jc::START,
         'lineHeight' => 1.15,
         'spaceAfter' => $spaceAfter,
         'indentation' => [
-            'left' => Converter::cmToTwip(3),
+            'firstLine' => Converter::cmToTwip(2.5),
         ],
     ]);
     $runClose->addText('จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ', 'normalFont');
@@ -464,6 +336,196 @@ function addAcademicSignatureFixed($section, $name, $position) {
     ]);
 }
 
+function academicKeepSignatureLineTogether($text) {
+    $text = trim(str_replace(["\r", "\n", "\t", "\u{200B}", "\u{2060}"], ' ', (string)$text));
+    $text = preg_replace('/[ ]{2,}/u', ' ', $text);
+    if ($text === '') {
+        return '';
+    }
+    $parts = preg_split('/(\s+)/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+    $out = '';
+    $joiner = "\u{2060}";
+    foreach ($parts as $part) {
+        if ($part === '') {
+            continue;
+        }
+        if (preg_match('/^\s+$/u', $part)) {
+            $out .= $part;
+            continue;
+        }
+        $chars = preg_split('//u', $part, -1, PREG_SPLIT_NO_EMPTY);
+        $out .= $chars ? implode($joiner, $chars) : $part;
+    }
+    return $out;
+}
+
+function addAcademicDeanSignatureFixed($section, $deanName, $deanPosition, $deanIndentCm = 1.20) {
+    $safeDeanName = academicCleanNoDigit($deanName ?: '................................');
+    $safeDeanPosition = academicKeepSignatureLineTogether(academicCleanNoDigit($deanPosition ?: ''));
+
+    // เว้นพื้นที่เซ็น และให้ (ชื่อคณบดี) เริ่มแนวเดียวกับข้อความหลังคำว่า "เรียน"
+    $section->addTextBreak(2, ['size' => 16]);
+
+    $noBorder = academicNoBorderCell('top');
+    $sigTable = $section->addTable([
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'cellMargin' => 0,
+        'cellSpacing' => 0,
+        'layout' => 'fixed',
+        'width' => Converter::cmToTwip(16.0),
+    ]);
+
+    $sigTable->addRow(null, ['exactHeight' => false]);
+    $sigTable->addCell(Converter::cmToTwip($deanIndentCm), $noBorder)->addText('', 'normalFont', ['spaceAfter' => 0]);
+    $nameCell = $sigTable->addCell(Converter::cmToTwip(16.0 - $deanIndentCm), $noBorder);
+    $nameCell->addText('(' . $safeDeanName . ')', 'normalFont', [
+        'alignment' => Jc::LEFT,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+
+    $sigTable->addRow(null, ['exactHeight' => false]);
+    $sigTable->addCell(Converter::cmToTwip($deanIndentCm), $noBorder)->addText('', 'normalFont', ['spaceAfter' => 0]);
+    $positionCell = $sigTable->addCell(Converter::cmToTwip(16.0 - $deanIndentCm), $noBorder);
+    $positionCell->addText($safeDeanPosition, 'normalFont', [
+        'alignment' => Jc::LEFT,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+}
+function freeDocumentPartsToPlainText(array $parts)
+{
+    $text = '';
+
+    foreach ($parts as $part) {
+        $text .= is_array($part) ? ($part[0] ?? '') : $part;
+    }
+
+    $text = cleanWordText($text);
+    $text = preg_replace('/\s+/u', ' ', $text);
+
+    return trim($text);
+}
+
+function freeDocumentEstimateWordLines($text, $charsPerLine = 95)
+{
+    $text = trim(preg_replace('/\s+/u', ' ', (string)$text));
+
+    if ($text === '') {
+        return 0;
+    }
+
+    $len = mb_strlen($text, 'UTF-8');
+
+    return max(1, (int)ceil($len / $charsPerLine));
+}
+
+function freeDocumentShouldMoveDeanToNextPage(array $bodyTexts, $subjectText = '', $hasSigner = true)
+{
+    /*
+      Word วัดความสูงจริงแบบ Preview/PDF ไม่ได้
+      เลยประเมินจากจำนวนบรรทัดแทน
+      ให้ขึ้นหน้า -2- เฉพาะตอนเนื้อหายาวจนบล็อกคณบดีมีโอกาสล้นหน้า
+    */
+
+    $bodyLines = 0;
+
+    foreach ($bodyTexts as $text) {
+        $bodyLines += freeDocumentEstimateWordLines($text, 95);
+    }
+
+    $subjectLines = count(academicSplitHeaderLines($subjectText, 78));
+
+    // ส่วนหัวเอกสาร + เรื่อง/เรียน
+    $fixedLinesBeforeDean = 12 + $subjectLines;
+
+    // ถ้ามีลายเซ็นผู้ขอ จะใช้พื้นที่เพิ่ม
+    $signerBlockLines = $hasSigner ? 6 : 0;
+
+    // พื้นที่บล็อกคณบดีทั้งก้อน
+    $deanBlockLines = 6;
+
+    // ยิ่งเลขมาก = ขึ้นหน้าใหม่ยากขึ้น / ยิ่งเลขน้อย = ขึ้นหน้าใหม่ง่ายขึ้น
+    $maxLinesPerPage = 37;
+
+    return ($fixedLinesBeforeDean + $bodyLines + $signerBlockLines + $deanBlockLines) > $maxLinesPerPage;
+}
+
+function addFreeDocumentContinuationPageNumber($section, $pageNo = 2)
+{
+    /*
+      ใช้แบบเดียวกับ download_word_memo.php:
+      บังคับขึ้นหน้าใหม่ก่อนใส่เลข -2-
+    */
+    $section->addPageBreak();
+
+    $section->addText('-' . $pageNo . '-', 'normalFont', [
+        'alignment' => Jc::CENTER,
+        'spaceBefore' => 0,
+        'spaceAfter' => 360,
+        'lineHeight' => 1.0,
+    ]);
+}
+
+function addAcademicDeanApprovalWithAutoPage($section, $deanToText, $deanName, $deanPosition, array $bodyTexts, $subjectText, $hasSigner = true)
+{
+    if (freeDocumentShouldMoveDeanToNextPage($bodyTexts, $subjectText, $hasSigner)) {
+        addFreeDocumentContinuationPageNumber($section, 2);
+    }
+
+    addAcademicDeanApprovalFixed($section, $deanToText, $deanName, $deanPosition);
+}
+function addAcademicDeanApprovalFixed($section, $deanToText, $deanName, $deanPosition) {
+    $safeDeanToText = academicCleanNoDigit($deanToText ?: '');
+    $safeDeanName = academicCleanNoDigit($deanName ?: '................................');
+    $safeDeanPosition = academicCleanNoDigit($deanPosition ?: $safeDeanToText);
+
+    // ใช้ตาราง 2 คอลัมน์ เพื่อให้ข้อความหลังคำว่า "เรียน", บรรทัด "เพื่อ...", และ (ชื่อคณบดี)
+    // เริ่มจากแนวเดียวกันจริงใน Word
+    $deanIndentCm = 1.20;
+    $noBorder = academicNoBorderCell('top');
+    $approvalTable = $section->addTable([
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'cellMargin' => 0,
+        'cellSpacing' => 0,
+        'layout' => 'fixed',
+        'width' => Converter::cmToTwip(16.0),
+    ]);
+
+    $approvalTable->addRow(null, ['exactHeight' => false]);
+    $labelCell = $approvalTable->addCell(Converter::cmToTwip($deanIndentCm), $noBorder);
+    $labelCell->addText('เรียน', 'normalFont', [
+        'alignment' => Jc::LEFT,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+    $toCell = $approvalTable->addCell(Converter::cmToTwip(16.0 - $deanIndentCm), $noBorder);
+    $toCell->addText($safeDeanToText, 'normalFont', [
+        'alignment' => Jc::LEFT,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+
+    $approvalTable->addRow(null, ['exactHeight' => false]);
+    $approvalTable->addCell(Converter::cmToTwip($deanIndentCm), $noBorder)->addText('', 'normalFont', ['spaceAfter' => 0]);
+    $purposeCell = $approvalTable->addCell(Converter::cmToTwip(16.0 - $deanIndentCm), $noBorder);
+    $purposeCell->addText('เพื่อโปรดพิจารณาอนุมัติ', 'normalFont', [
+        'alignment' => Jc::LEFT,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ]);
+
+    addAcademicDeanSignatureFixed($section, $safeDeanName, $safeDeanPosition, $deanIndentCm);
+}
+
+
 
 
 function academicNoBorderCell($valign = 'bottom') {
@@ -489,7 +551,7 @@ function academicDottedBottomCell($valign = 'bottom') {
         'borderBottomStyle' => 'dotted',
         'valign' => $valign,
         'marginTop' => 0,
-        'marginBottom' => 20,
+        'marginBottom' => 90,
         'marginLeft' => 0,
         'marginRight' => 0,
     ];
@@ -500,10 +562,81 @@ function academicHeaderPara($align = Jc::LEFT, $spaceAfter = 0) {
         'alignment' => $align,
         'spaceBefore' => 0,
         'spaceAfter' => $spaceAfter,
+        'lineHeight' => 1.00,
+    ];
+}
+function academicDottedTextPara($align = Jc::LEFT, $spaceAfter = 0)
+{
+    return [
+        'alignment' => $align,
+        'spaceBefore' => 0,
+        'spaceAfter' => $spaceAfter,
         'lineHeight' => 1.0,
     ];
 }
 
+function academicDottedTextParaIndent($indentCm = 0.30)
+{
+    return [
+        'alignment' => Jc::LEFT,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+        'indentation' => [
+            'left' => Converter::cmToTwip($indentCm),
+        ],
+    ];
+}
+function academicHeaderParaIndent($leftCm = 0.0, $align = Jc::LEFT, $spaceAfter = 0) {
+    $para = academicHeaderPara($align, $spaceAfter);
+    if ($leftCm > 0) {
+        $para['indentation'] = ['left' => Converter::cmToTwip($leftCm)];
+    }
+    return $para;
+}
+
+function academicDottedValuePara($align = Jc::LEFT, $spaceBefore = 85) {
+    return [
+        'alignment' => $align,
+        'spaceBefore' => $spaceBefore,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ];
+}
+
+function academicDottedValueParaIndent($leftCm = 0.30, $spaceBefore = 85) {
+    return [
+        'alignment' => Jc::LEFT,
+        'spaceBefore' => $spaceBefore,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+        'indentation' => [
+            'left' => Converter::cmToTwip($leftCm),
+        ],
+    ];
+}
+
+function academicHeaderLabelCell($valign = 'bottom') {
+    return [
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'valign' => $valign,
+        'noWrap' => true,
+        'marginTop' => 0,
+        'marginBottom' => 0,
+        'marginLeft' => 0,
+        'marginRight' => 0,
+    ];
+}
+
+function academicHeaderLabelPara($align = Jc::LEFT) {
+    return [
+        'alignment' => $align,
+        'spaceBefore' => 40,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ];
+}
 function academicSplitHeaderLines($text, $limit = 78) {
     $text = trim(preg_replace('/\s+/u', ' ', (string)$text));
     if ($text === '') {
@@ -602,7 +735,21 @@ function academicApplyGovAgencyTightRightMargin($section, $headerText) {
         }
     }
 }
+function academicHeaderLabelDownCell($valign = 'bottom') {
+    $cell = academicNoBorderCell($valign);
+    $cell['marginTop'] = 90;
+    $cell['marginBottom'] = 0;
+    return $cell;
+}
 
+function academicHeaderLabelParaOnly($align = Jc::LEFT) {
+    return [
+        'alignment' => $align,
+        'spaceBefore' => 0,
+        'spaceAfter' => 0,
+        'lineHeight' => 1.0,
+    ];
+}
 function addAcademicGovAgencyDottedRowFixed($section, $headerText) {
     // แก้เฉพาะแถว "ส่วนราชการ": ใช้ความกว้างเดิมก่อน ถ้ายาวจนต้องใช้ฟอนต์ 14 ค่อยเพิ่มความกว้างเฉพาะแถวนี้เล็กน้อย
     $safeHeaderText = academicCleanNoDigit($headerText ?: 'คณะ...ภาควิชา...โทร...');
@@ -610,7 +757,7 @@ function addAcademicGovAgencyDottedRowFixed($section, $headerText) {
     $useTightWordLayout = academicGovAgencyNeedsTightWordLayout($safeHeaderText);
     // ถ้ายาวเกินเส้นจริง ค่อยใช้ความกว้างตามขอบใหม่: A4 21cm - ซ้าย 2.80cm - ขวา 1.80cm = 16.40cm
     $contentWidth = Converter::cmToTwip($useTightWordLayout ? 16.40 : 16.0);
-    $labelWidth = Converter::cmToTwip(1.95);
+    $labelWidth = Converter::cmToTwip(2.40);
     $textWidth = $contentWidth - $labelWidth;
 
     $agencyTable = $section->addTable([
@@ -622,25 +769,11 @@ function addAcademicGovAgencyDottedRowFixed($section, $headerText) {
         'width' => $contentWidth,
     ]);
 
-    $agencyTable->addRow(Converter::cmToTwip(0.42), ['exactHeight' => false]);
+    $agencyTable->addRow(Converter::cmToTwip(0.80), ['exactHeight' => true]);
 
-    $labelCell = $agencyTable->addCell($labelWidth, [
-        'borderSize' => 0,
-        'borderColor' => 'FFFFFF',
-        'valign' => 'bottom',
-        'noWrap' => true,
-        'marginTop' => 0,
-        'marginBottom' => 20,
-        'marginLeft' => 0,
-        'marginRight' => 0,
-    ]);
+$labelCell = $agencyTable->addCell($labelWidth, academicHeaderLabelCell());
 
-    $labelCell->addText('ส่วนราชการ', 'boldFont', [
-        'alignment' => Jc::LEFT,
-        'spaceBefore' => 0,
-        'spaceAfter' => 0,
-        'lineHeight' => 1.0,
-    ]);
+$labelCell->addText('ส่วนราชการ', 'headerLabelFont', academicHeaderLabelPara());
 
     $textCell = $agencyTable->addCell($textWidth, [
         'borderSize' => 0,
@@ -656,16 +789,11 @@ function addAcademicGovAgencyDottedRowFixed($section, $headerText) {
         'marginRight' => 0,
     ]);
 
-    $textCell->addText(
-        $safeHeaderText,
-        academicGovAgencyFontStyle($safeHeaderText),
-        [
-            'alignment' => Jc::LEFT,
-            'spaceBefore' => 0,
-            'spaceAfter' => 0,
-            'lineHeight' => 1.0,
-        ]
-    );
+   $textCell->addText(
+    $safeHeaderText,
+    academicGovAgencyFontStyle($safeHeaderText),
+    academicDottedValuePara()
+);
 }
 
 function addAcademicMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText, $subjectText, $toText) {
@@ -685,7 +813,10 @@ function addAcademicMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText,
 
     $left = $titleTable->addCell(Converter::cmToTwip(2.2), academicNoBorderCell('top'));
     if (file_exists($garuda)) {
-        $left->addImage($garuda, ['width' => 62, 'alignment' => Jc::LEFT]);
+        $left->addImage($garuda, [
+    'height' => 43,
+    'alignment' => Jc::LEFT
+]);
     } else {
         $left->addText('', 'normalFont', academicHeaderPara());
     }
@@ -715,16 +846,21 @@ function addAcademicMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText,
         'layout' => 'fixed',
         'width' => Converter::cmToTwip(16.0),
     ]);
-    $dateTable->addRow(null, ['exactHeight' => false]);
-    $dateTable->addCell(Converter::cmToTwip(0.45), academicNoBorderCell())->addText('ที่', 'boldFont', academicHeaderPara());
-    // แก้เฉพาะช่องข้อมูลหลังคำว่า "ที่": ถ้า doc_no ว่าง ให้ยังแสดงเลขที่เอกสารตามรูปแบบมาตรฐาน ไม่ปล่อยให้ช่องหาย
-    $dateTable->addCell(Converter::cmToTwip(5.25), academicDottedBottomCell())->addText(
-        academicCleanNoDigit($docNo ?: ''),
-        'normalFont',
-        academicHeaderPara()
-    );
-    $dateTable->addCell(Converter::cmToTwip(1.10), academicNoBorderCell())->addText('วันที่', 'boldFont', academicHeaderPara(Jc::CENTER));
-    $dateTable->addCell(Converter::cmToTwip(9.20), academicDottedBottomCell())->addText(academicCleanNoDigit($thaiDocDate), 'normalFont', academicHeaderPara());
+  $dateTable->addRow(Converter::cmToTwip(0.72), ['exactHeight' => true]);
+$dateTable->addCell(Converter::cmToTwip(0.45), academicHeaderLabelCell())->addText('ที่', 'headerLabelFont', academicHeaderLabelPara());
+
+$dateTable->addCell(Converter::cmToTwip(5.25), academicDottedBottomCell())->addText(
+    academicCleanNoDigit($docNo ?: ''),
+    'normalFont',
+    academicDottedValuePara()
+);
+
+$dateTable->addCell(Converter::cmToTwip(1.10), academicHeaderLabelCell())->addText('วันที่', 'headerLabelFont', academicHeaderLabelPara(Jc::CENTER));
+$dateTable->addCell(Converter::cmToTwip(9.20), academicDottedBottomCell())->addText(
+    academicCleanNoDigit($thaiDocDate),
+    'normalFont',
+    academicDottedValueParaIndent(0.40)
+);
 
     // เรื่อง: ถ้ายาวให้แยกเป็นหลายแถว แต่ละแถวมีเส้นประของตัวเอง
     $subjectLines = academicSplitHeaderLines($subjectText, 86);
@@ -737,12 +873,31 @@ function addAcademicMemoHeaderFixed($section, $docNo, $thaiDocDate, $headerText,
         'width' => Converter::cmToTwip(16.0),
     ]);
     foreach ($subjectLines as $i => $line) {
-        $subjectTable->addRow(null, ['exactHeight' => false]);
-        $subjectTable->addCell(Converter::cmToTwip(0.90), academicNoBorderCell())->addText($i === 0 ? 'เรื่อง' : '', 'boldFont', academicHeaderPara());
-        $subjectTable->addCell(Converter::cmToTwip(15.10), academicDottedBottomCell())->addText(academicCleanNoDigit($line), 'normalFont', academicHeaderPara());
-    }
+    $subjectTable->addRow(Converter::cmToTwip(0.80), ['exactHeight' => true]);
+    $subjectTable->addCell(Converter::cmToTwip(0.90), academicHeaderLabelCell())->addText($i === 0 ? 'เรื่อง' : '', 'headerLabelFont', academicHeaderLabelPara());
+    $subjectTable->addCell(Converter::cmToTwip(15.10), academicDottedBottomCell())->addText(
+    academicCleanNoDigit($line),
+    'normalFont',
+    academicDottedValueParaIndent(0.30)
+);
+}
 
-    $section->addText('เรียน ' . academicCleanNoDigit($toText), 'normalFont', [
+    $learnTable = $section->addTable([
+        'borderSize' => 0,
+        'borderColor' => 'FFFFFF',
+        'cellMargin' => 0,
+        'cellSpacing' => 0,
+        'layout' => 'fixed',
+        'width' => Converter::cmToTwip(16.0),
+    ]);
+    $learnTable->addRow(null, ['exactHeight' => false]);
+    $learnTable->addCell(Converter::cmToTwip(1.20), academicNoBorderCell())->addText('เรียน', 'normalFont', [
+        'alignment' => Jc::LEFT,
+        'spaceBefore' => 20,
+        'spaceAfter' => 120,
+        'lineHeight' => 1.0,
+    ]);
+    $learnTable->addCell(Converter::cmToTwip(14.80), academicNoBorderCell())->addText(academicCleanNoDigit($toText), 'normalFont', [
         'alignment' => Jc::LEFT,
         'spaceBefore' => 20,
         'spaceAfter' => 120,
@@ -767,6 +922,47 @@ $departmentPhone = academicField($valueMapByKey, $valueMap, 'free_department_pho
 $signerName = academicField($valueMapByKey, $valueMap, 'free_signer_name', 0, '');
 $signerPosition = academicField($valueMapByKey, $valueMap, 'free_signer_position', 0, '');
 
+$displayFaculty = academicCleanNoDigit($faculty);
+if ($displayFaculty === '') {
+    $displayFaculty = 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม';
+}
+if (mb_strpos($displayFaculty, 'คณะ') !== 0) {
+    $displayFaculty = 'คณะ' . $displayFaculty;
+}
+$displayFacultyDean = 'คณบดี' . $displayFaculty;
+
+$deanName = '................................';
+$deanPosition = $displayFacultyDean;
+$facultyForDean = trim($displayFaculty);
+$facultyForDeanNoPrefix = preg_replace('/^คณะ/u', '', $facultyForDean);
+try {
+    $deanStmt = $pdo->prepare("
+        SELECT dean_name, dean_position
+        FROM faculties
+        WHERE faculty_name = :faculty_full
+           OR faculty_name = :faculty_no_prefix
+        LIMIT 1
+    ");
+    $deanStmt->execute([
+        ':faculty_full' => $facultyForDean,
+        ':faculty_no_prefix' => $facultyForDeanNoPrefix,
+    ]);
+    $deanRow = $deanStmt->fetch(PDO::FETCH_ASSOC);
+    if ($deanRow) {
+        $dbDeanName = trim((string)($deanRow['dean_name'] ?? ''));
+        $dbDeanPosition = trim((string)($deanRow['dean_position'] ?? ''));
+        if ($dbDeanName !== '') {
+            $deanName = $dbDeanName;
+        }
+        if ($dbDeanPosition !== '') {
+            $deanPosition = $dbDeanPosition;
+        }
+    }
+} catch (Throwable $e) {
+    $deanName = '................................';
+    $deanPosition = $displayFacultyDean;
+}
+
 $headerText = trim(
     ($faculty ?: 'คณะ..................................') . ' ' .
     ($department ? 'ภาควิชา' . $department : 'ภาควิชา........................') .
@@ -786,10 +982,21 @@ $phpWord->addFontStyle('normalFont', [
     'name' => 'TH SarabunPSK',
     'size' => 16,
 ]);
+$phpWord->addFontStyle('dottedTextFont', [
+    'name' => 'TH SarabunPSK',
+    'size' => 16,
+    'position' => -10,
+]);
 $phpWord->addFontStyle('boldFont', [
     'name' => 'TH SarabunPSK',
     'size' => 16,
     'bold' => true,
+]);
+$phpWord->addFontStyle('headerLabelFont', [
+    'name' => 'TH SarabunPSK',
+    'size' => 20,
+    'bold' => true,
+    'position' => -4,
 ]);
 
 $phpWord->addParagraphStyle('academicBodyThaiDistribute', [
@@ -813,23 +1020,41 @@ addAcademicMemoHeaderFixed(
 );
 
 $hasParagraph = false;
+$bodyTextsForAutoPage = [];
+
 foreach ($paragraphs as $paragraph) {
     if (trim($paragraph) !== '') {
         addAcademicMemoManualPara($section, [$paragraph]);
+        $bodyTextsForAutoPage[] = freeDocumentPartsToPlainText([$paragraph]);
         $hasParagraph = true;
     }
 }
 
 if (!$hasParagraph) {
-    addAcademicMemoManualPara($section, ['................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................']);
+    $blankParagraph = '................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................';
+    addAcademicMemoManualPara($section, [$blankParagraph]);
+    $bodyTextsForAutoPage[] = freeDocumentPartsToPlainText([$blankParagraph]);
 }
 
 addAcademicClosePara($section);
+$bodyTextsForAutoPage[] = 'จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ';
 
 /* เพิ่มเฉพาะส่วนผู้ลงนามของเอกสารบันทึกข้อความทั่วไป */
-if ($signerName !== '' || $signerPosition !== '') {
+$hasSignerBlock = ($signerName !== '' || $signerPosition !== '');
+
+if ($hasSignerBlock) {
     addAcademicSignatureFixed($section, $signerName, $signerPosition);
 }
+
+addAcademicDeanApprovalWithAutoPage(
+    $section,
+    $toPerson,
+    $deanName,
+    $deanPosition,
+    $bodyTextsForAutoPage,
+    $subject ?: 'บันทึกข้อความทั่วไป',
+    $hasSignerBlock
+);
 
 $filenameSubject = trim(preg_replace('/[\\\\\/\:\*\?\"\<\>\|\r\n\t]+/u', ' ', $subject ?: 'บันทึกข้อความทั่วไป'));
 $filenameSubject = preg_replace('/\s+/u', ' ', $filenameSubject);

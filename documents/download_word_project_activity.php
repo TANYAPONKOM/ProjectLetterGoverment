@@ -243,38 +243,37 @@ function addProjectHeader($section, $docNo, $displayFaculty, $thaiDocDate) {
         'cellMargin' => 0,
         'cellSpacing' => 0,
         'layout' => 'fixed',
-        'width' => Converter::cmToTwip(17.1),
+        'width' => Converter::cmToTwip(18.40),
     ]);
 
     $table->addRow(Converter::cmToTwip(3.1));
 
-    $left = $table->addCell(Converter::cmToTwip(4.95), projectNoBorderCell('top'));
-    $left->addText('', 'normalFont', ['spaceAfter' => 800, 'lineHeight' => 1.0]);
+    $left = $table->addCell(Converter::cmToTwip(6.20), projectNoBorderCell('top'));
+    $left->addText('', 'normalFont', ['spaceAfter' => 700, 'lineHeight' => 1.0]);
     $left->addText('ที่ ' . projectInlineText($docNo ?: ''), 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
 
-    $middle = $table->addCell(Converter::cmToTwip(3.55), projectNoBorderCell('top'));
-    if (file_exists($garuda)) {
-        $middle->addImage($garuda, [
-            'width' => 80,
-            'alignment' => Jc::CENTER,
-        ]);
-    } else {
-        $middle->addText('');
-    }
+$middle = $table->addCell(Converter::cmToTwip(3.55), projectNoBorderCell('top'));
 
-    $right = $table->addCell(Converter::cmToTwip(8.60), projectNoBorderCell('top'));
-    $right->addText('', 'normalFont', ['spaceAfter' => 720, 'lineHeight' => 0.95]);
+if (file_exists($garuda)) {
+    $middle->addImage($garuda, [
+        'width' => 80,
+        'alignment' => Jc::CENTER,
+    ]);
+} else {
+    $middle->addText('');
+}
+
+    $right = $table->addCell(Converter::cmToTwip(8.65), projectNoBorderCell('top'));
+    $right->addText('', 'normalFont', ['spaceAfter' => 620, 'lineHeight' => 0.95]);
     $right->addText(projectClean($displayFaculty), 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
     $right->addText('มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ', 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
     $right->addText('๑๒๙ หมู่ ๒๑ ต.เนินหอม อ.เมือง จ.ปราจีนบุรี ๒๕๒๓๐', 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
-
-    $section->addText(projectClean($thaiDocDate), 'normalFont', [
-        'alignment' => Jc::CENTER,
-        'spaceBefore' => 80,
-        'spaceAfter' => 160,
-        'lineHeight' => 1.0,
-        'indentation' => ['left' => Converter::cmToTwip(1.0)],
-    ]);
+$section->addText(str_repeat("\u{00A0}", 28) . projectClean($thaiDocDate), 'normalFont', [
+    'alignment' => Jc::CENTER,
+    'spaceBefore' => 40,
+    'spaceAfter' => 160,
+    'lineHeight' => 1.0,
+]);
 }
 
 function addProjectPairRow($section, $label, $value, $spaceAfter = 0) {
@@ -373,7 +372,7 @@ function addProjectSignature($section, $receiverName, $receiverPosition) {
     $section->addText('ขอแสดงความนับถือ', 'normalFont', [
         'alignment' => Jc::CENTER,
         'spaceBefore' => 20,
-        'spaceAfter' => 420,
+        'spaceAfter' => 600,
         'lineHeight' => 1.0,
     ]);
 

@@ -277,6 +277,31 @@ $faculty = $getValue(['free_faculty', 'faculty', 10], '');
 $department = $getValue(['free_department', 'department', 11], '');
 $departmentPhone = $getValue(['free_department_phone', 'department_phone'], '');
 
+$deanName = '';
+$deanFacultyName = $faculty;
+try {
+  if (trim((string)$faculty) !== '') {
+    $deanStmt = $pdo->prepare("
+      SELECT faculty_name, dean_name, dean_position
+      FROM faculties
+      WHERE faculty_name = :faculty
+      LIMIT 1
+    " );
+    $deanStmt->execute([':faculty' => trim((string)$faculty)]);
+    $deanRow = $deanStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $deanFacultyName = trim((string)($deanRow['faculty_name'] ?? $deanFacultyName));
+    $deanName = trim((string)($deanRow['dean_name'] ?? ''));
+  }
+} catch (Throwable $e) {
+  $deanName = '';
+}
+
+$deanToText = 'คณบดี' . ($deanFacultyName ?: ($faculty ?: 'คณะ..................................'));
+if ($deanName === '') {
+  $deanName = '................................';
+}
+
 $getSignatureValue = function(array $fieldKeys, array $fieldLabels, $fallback = '') use ($valueMap, $valueMapByLabel) {
   foreach ($fieldKeys as $fieldKey) {
     if (array_key_exists($fieldKey, $valueMap) && trim((string)$valueMap[$fieldKey]) !== '') {
@@ -363,7 +388,16 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
   .chip,
   .dot-input,
   .subject-line,
-  .signature-block {
+  .signature-block,
+  .signature-wrapper,
+  .signature-block,
+  .sig-name,
+  .sig-position,
+  .dean-approval-block,
+  .dean-signature-wrapper,
+  .dean-signature-block,
+  .dean-sig-name,
+  .dean-sig-position {
     font-family: 'TH SarabunPSK', sans-serif !important;
   }
 
@@ -432,30 +466,35 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
     flex: 0 0 6.4cm;
   }
 
+  .subject-row .subject-label {
+    width: 1.15cm !important;
+    flex: 0 0 1.15cm !important;
+  }
+
   .subject-wrap {
     flex: 1;
+    padding-left: 0;
+    margin-left: -8px;
   }
 
   .subject-line {
     min-height: 22px;
     line-height: 1.05;
     border-bottom: 2px dotted #000;
-    padding-left: 4px;
+    padding-left: 19px;
     padding-top: 4px;
     font-family: "TH SarabunPSK";
     font-size: 16pt;
     font-weight: 300;
     white-space: normal;
-    word-break: break-word;
+    word-break: normal;
+    overflow-wrap: normal;
   }
 
   .subject-text {
     display: inline-block;
     position: relative;
     top: 4px;
-
-    /* ขยับเฉพาะตัวอักษรชื่อเรื่อง เส้นประไม่ขยับ */
-    margin-left: 0.35cm;
   }
 
   .doc-row:not(.subject-row) .dot-line>.chip {
@@ -537,20 +576,98 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
     overflow-wrap: normal;
   }
 
-  .free-document-signature {
+
+
+
+
+  .content-block.paragraph+.content-block.paragraph {
+    margin-top: 0 !important;
+  }
+
+  .content-block.paragraph.approval-sentence {
+    margin-top: 0 !important;
+    margin-bottom: 4px !important;
+    white-space: normal !important;
+  }
+
+  .dean-approval-block {
+    display: flex;
+    align-items: flex-start;
     font-family: "TH SarabunPSK";
     font-size: 16pt;
     font-weight: 400;
-    line-height: 1.35;
-    text-align: center;
-    width: 7.2cm;
-    margin-left: auto;
-    margin-right: 0.4cm;
-    margin-top: 1.35cm;
+    line-height: 1.34 !important;
+    margin-top: -0.36cm !important;
+    margin-bottom: 6px !important;
+    text-indent: 0 !important;
+    text-align: left !important;
+    text-align-last: left !important;
+    word-spacing: normal !important;
+    letter-spacing: normal !important;
+    white-space: normal;
   }
 
-  .free-document-signature .signer-name {
-    margin-bottom: 0.05cm;
+  .dean-approval-label {
+    width: 1.15cm;
+    flex: 0 0 1.15cm;
+  }
+
+  .dean-approval-text {
+    padding-left: 14px;
+  }
+
+  .dean-signature-wrapper {
+    margin-top: 1.45cm;
+    margin-bottom: 1em;
+    margin-left: calc(1.15cm + 14px);
+    text-align: left !important;
+    font-family: "TH SarabunPSK", sans-serif !important;
+    font-size: 16pt !important;
+    font-weight: 400 !important;
+    line-height: 1.15 !important;
+  }
+
+  .dean-signature-block {
+    display: inline-block;
+    width: fit-content;
+    text-align: left !important;
+    margin: 0 !important;
+    padding: 0 0 1.15em 0 !important;
+    transform: none !important;
+    position: relative;
+    font-family: "TH SarabunPSK", sans-serif !important;
+    font-size: 16pt !important;
+    font-weight: 400 !important;
+    line-height: 1.15 !important;
+  }
+
+  .dean-sig-name {
+    display: block;
+    text-align: left !important;
+    white-space: nowrap;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: "TH SarabunPSK", sans-serif !important;
+    font-size: 16pt !important;
+    font-weight: 400 !important;
+    line-height: 1.15 !important;
+  }
+
+  .dean-sig-position {
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: 1.15em;
+    transform: translateX(-50%);
+    width: max-content;
+    text-align: center !important;
+    white-space: nowrap;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: "TH SarabunPSK", sans-serif !important;
+    font-size: 16pt !important;
+    font-weight: 400 !important;
+    line-height: 1.15 !important;
   }
 
   .footer-actions {
@@ -560,6 +677,18 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
     gap: 0.35rem;
     flex-wrap: wrap;
   }
+
+  .footer-actions.document-action-bar {
+    width: 794px !important;
+    margin: 16px auto 40px auto !important;
+    padding-top: 16px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 12px !important;
+    border-top: 1px solid #e5e7eb !important;
+  }
+
 
   .pdf-loading-overlay {
     position: fixed;
@@ -607,6 +736,35 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
     line-height: 1.1;
   }
 
+  /* ===== แบ่งหน้า Preview/PDF แบบ A4 ===== */
+  .page {
+    width: 794px !important;
+    height: 1123px !important;
+    min-height: 1123px !important;
+    max-height: 1123px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    position: relative !important;
+  }
+
+  .generated-continuation-page {
+    background: #ffffff !important;
+  }
+
+  .continuation-page-number {
+    width: 100%;
+    text-align: center;
+    font-family: "TH SarabunPSK", sans-serif !important;
+    font-size: 16pt !important;
+    line-height: 1 !important;
+    margin: 0 0 1.2cm 0 !important;
+    padding: 0 !important;
+  }
+
+  .generated-continuation-page .content-block.paragraph:first-of-type {
+    margin-top: 0 !important;
+  }
+
   @keyframes pdfSpin {
     from {
       transform: rotate(0deg);
@@ -649,10 +807,17 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
   document.addEventListener("DOMContentLoaded", () => {
     Swal.fire({
       title: "บันทึกสำเร็จ",
-      text: "ระบบบันทึกข้อมูลเอกสารเรียบร้อยแล้ว",
+      text: "คุณต้องการกลับไปที่หน้าหลักหรือไม่?",
       icon: "success",
-      confirmButtonText: "ตกลง",
-      confirmButtonColor: "#14b8a6"
+      showCancelButton: true,
+      confirmButtonText: "กลับหน้าหลัก",
+      cancelButtonText: "อยู่หน้านี้ต่อ",
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#aaa",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        window.location.href = "<?= $homePath ?>";
+      }
     });
   });
   </script>
@@ -719,7 +884,7 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
       </div>
     </div>
 
-    <div class="doc-row subject-row">
+    <div class="doc-row subject-row" style="align-items:flex-start;">
       <div class="doc-label subject-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
       <div class="subject-wrap">
         <?php foreach ($subjectLines as $line): ?>
@@ -730,7 +895,7 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
 
     <div class="memo-to-row">
       <div class="memo-to-label">เรียน</div>
-      <div class="memo-to-text"><?= fd_h($toPerson ?: 'คณบดีคณะเทคโนโลยีและการจัดการอุตสาหกรรม') ?></div>
+      <div class="memo-to-text"><?= fd_h($toPerson ?: $deanToText) ?></div>
     </div>
 
     <?php foreach ($paragraphs as $paragraph): ?>
@@ -744,22 +909,34 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
       ................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
     </div>
     <?php endif; ?>
-
-<!-- ย่อหน้า 3 -->
-<div class="content-block paragraph" style="text-align: center !important; padding-left: 3cm;">
-  จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ
-</div>
+    <div class="content-block paragraph approval-sentence">จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ</div>
 
     <?php if ($signerName !== '' || $signerPosition !== ''): ?>
-    <div class="free-document-signature">
-      <?php if ($signerName !== ''): ?>
-      <div class="signer-name">(<?= fd_h($signerName) ?>)</div>
-      <?php endif; ?>
-      <?php if ($signerPosition !== ''): ?>
-      <div class="signer-position"><?= fd_h($signerPosition) ?></div>
-      <?php endif; ?>
+    <div class="signature-wrapper">
+      <div class="signature-block" id="signatureBlock">
+        <?php if ($signerName !== ''): ?>
+        <div class="sig-name">(<?= fd_h($signerName) ?>)</div>
+        <?php endif; ?>
+        <?php if ($signerPosition !== ''): ?>
+        <div class="sig-position"><?= fd_h($signerPosition) ?></div>
+        <?php endif; ?>
+      </div>
     </div>
     <?php endif; ?>
+
+    <div class="dean-approval-block">
+      <div class="dean-approval-label">เรียน</div>
+      <div class="dean-approval-text">
+        <div><?= fd_h($deanToText) ?></div>
+        <div>เพื่อโปรดพิจารณาอนุมัติ</div>
+      </div>
+    </div>
+    <div class="dean-signature-wrapper">
+      <div class="dean-signature-block">
+        <div class="dean-sig-name">(<?= fd_h($deanName) ?>)</div>
+        <div class="dean-sig-position"><?= fd_h($deanToText) ?></div>
+      </div>
+    </div>
 
     <div class="footer-actions">
       <button type="button" onclick="downloadPdf()"
@@ -793,6 +970,245 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
   </main>
 
   <script>
+  function paginateFreeDocumentPages(root = document, forceRebuild = false) {
+    const A4_HEIGHT_PX = 1123;
+    const SAFE_BOTTOM_PX = 36;
+    const PAGE_LIMIT = A4_HEIGHT_PX - SAFE_BOTTOM_PX;
+
+    const basePages = Array.from(root.querySelectorAll(".page")).filter(page => {
+      return page.dataset.generatedContinuation !== "1";
+    });
+
+    basePages.forEach(page => {
+      const contentRoot = getFreeDocumentPageContentRoot(page);
+
+      if (!contentRoot.dataset.originalHtml) {
+        contentRoot.dataset.originalHtml = contentRoot.innerHTML;
+      }
+    });
+
+    if (forceRebuild) {
+      root.querySelectorAll(".page[data-generated-continuation='1']").forEach(page => page.remove());
+
+      basePages.forEach(page => {
+        const contentRoot = getFreeDocumentPageContentRoot(page);
+
+        if (contentRoot.dataset.originalHtml) {
+          contentRoot.innerHTML = contentRoot.dataset.originalHtml;
+        }
+      });
+    } else {
+      if (root.querySelector(".page[data-generated-continuation='1']")) {
+        return;
+      }
+    }
+
+    const originalPages = Array.from(root.querySelectorAll(".page")).filter(page => {
+      return page.dataset.generatedContinuation !== "1";
+    });
+
+    originalPages.forEach(originalPage => {
+      let currentPage = originalPage;
+      let pageNo = 2;
+      let guard = 0;
+
+      while (guard < 20) {
+        guard++;
+
+        const overflowChild = findFreeDocumentOverflowChild(currentPage, PAGE_LIMIT);
+        if (!overflowChild) break;
+
+        const nextPage = createFreeDocumentContinuationPage(pageNo);
+        pageNo++;
+
+        currentPage.insertAdjacentElement("afterend", nextPage);
+
+        if (
+          overflowChild.classList.contains("content-block") &&
+          overflowChild.classList.contains("paragraph") &&
+          getFreeDocumentNodeTopInPage(overflowChild, currentPage) < PAGE_LIMIT
+        ) {
+          const remainder = splitFreeDocumentParagraphToFit(overflowChild, currentPage, PAGE_LIMIT);
+
+          if (remainder) {
+            getFreeDocumentPageContentRoot(nextPage).appendChild(remainder);
+            moveFollowingFreeDocumentNodes(overflowChild, nextPage);
+          } else {
+            moveFreeDocumentNodeAndFollowing(overflowChild, nextPage);
+          }
+        } else {
+          moveFreeDocumentNodeAndFollowing(overflowChild, nextPage);
+        }
+
+        currentPage = nextPage;
+      }
+    });
+  }
+
+  function getFreeDocumentPageContentRoot(page) {
+    return page.querySelector(":scope > form") || page;
+  }
+
+  function getFreeDocumentNodeBottomInPage(node, page) {
+    const nodeRect = node.getBoundingClientRect();
+    const pageRect = page.getBoundingClientRect();
+    return nodeRect.bottom - pageRect.top;
+  }
+
+  function getFreeDocumentNodeTopInPage(node, page) {
+    const nodeRect = node.getBoundingClientRect();
+    const pageRect = page.getBoundingClientRect();
+    return nodeRect.top - pageRect.top;
+  }
+
+  function findFreeDocumentOverflowChild(page, limit) {
+    const contentRoot = getFreeDocumentPageContentRoot(page);
+
+    const children = Array.from(contentRoot.children).filter(el => {
+      if (el.matches("input[type='hidden'], .footer-actions, script, style")) {
+        return false;
+      }
+
+      if (el.classList.contains("continuation-page-number")) {
+        return false;
+      }
+
+      return true;
+    });
+
+    return children.find(el => {
+      return getFreeDocumentNodeBottomInPage(el, page) > limit;
+    });
+  }
+
+  function createFreeDocumentContinuationPage(pageNo) {
+    const page = document.createElement("section");
+    page.className = "page generated-continuation-page";
+    page.dataset.generatedContinuation = "1";
+
+    const pageNumber = document.createElement("div");
+    pageNumber.className = "continuation-page-number";
+    pageNumber.textContent = "-" + pageNo + "-";
+
+    page.appendChild(pageNumber);
+    return page;
+  }
+
+  function splitFreeDocumentParagraphToFit(paragraph, page, limit) {
+    const originalText = paragraph.textContent.replace(/\s+/g, " ").trim();
+
+    if (!originalText || originalText.length < 20) {
+      return null;
+    }
+
+    let low = 1;
+    let high = originalText.length;
+    let best = 0;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+
+      paragraph.textContent = originalText.slice(0, mid).trim();
+
+      const bottom = getFreeDocumentNodeBottomInPage(paragraph, page);
+
+      if (bottom <= limit) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    if (best < 10 || best >= originalText.length) {
+      paragraph.textContent = originalText;
+      return null;
+    }
+
+    const beforeText = originalText.slice(0, best).trim();
+    const afterText = originalText.slice(best).trim();
+
+    paragraph.textContent = beforeText;
+
+    const remainder = paragraph.cloneNode(false);
+    remainder.textContent = afterText;
+
+    return remainder;
+  }
+
+  function moveFreeDocumentNodeAndFollowing(startNode, targetPage) {
+    const targetRoot = getFreeDocumentPageContentRoot(targetPage);
+    let node = startNode;
+
+    while (node) {
+      const next = node.nextElementSibling;
+
+      if (
+        !node.matches("input[type='hidden'], .footer-actions, script, style") &&
+        !node.classList.contains("continuation-page-number")
+      ) {
+        targetRoot.appendChild(node);
+      }
+
+      node = next;
+    }
+  }
+
+  function moveFollowingFreeDocumentNodes(startNode, targetPage) {
+    const targetRoot = getFreeDocumentPageContentRoot(targetPage);
+    let node = startNode.nextElementSibling;
+
+    while (node) {
+      const next = node.nextElementSibling;
+
+      if (
+        !node.matches("input[type='hidden'], .footer-actions, script, style") &&
+        !node.classList.contains("continuation-page-number")
+      ) {
+        targetRoot.appendChild(node);
+      }
+
+      node = next;
+    }
+  }
+
+  function moveFreeDocumentFooterActionsToLastPage(root = document) {
+    const footerActionsList = Array.from(root.querySelectorAll(".footer-actions"));
+    if (footerActionsList.length === 0) return;
+
+    const footerActions = footerActionsList[0];
+
+    // กันปุ่มซ้ำ
+    footerActionsList.slice(1).forEach(el => el.remove());
+
+    const pages = Array.from(root.querySelectorAll(".page")).filter(page => {
+      return page.offsetParent !== null;
+    });
+
+    if (pages.length === 0) return;
+
+    const lastPage = pages[pages.length - 1];
+    const lastRoot = getFreeDocumentPageContentRoot(lastPage);
+
+    /*
+      ให้ปุ่มอยู่ในกระดาษก่อน
+      ถ้าปุ่มเกิน A4 จริง ๆ ค่อยย้ายออกมาใต้กระดาษ
+    */
+    footerActions.classList.remove("document-action-bar");
+    lastRoot.appendChild(footerActions);
+
+    const pageRect = lastPage.getBoundingClientRect();
+    const footerRect = footerActions.getBoundingClientRect();
+
+    const footerBottomInPage = footerRect.bottom - pageRect.top;
+    const pageLimit = 1123 - 24;
+
+    if (footerBottomInPage > pageLimit) {
+      footerActions.classList.add("document-action-bar");
+      lastPage.insertAdjacentElement("afterend", footerActions);
+    }
+  }
+
   function fitGovAgencyText(root = document) {
     root.querySelectorAll(".doc-row.gov-row .chip.gov-text").forEach(el => {
       const line = el.closest(".dot-line");
@@ -843,8 +1259,21 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
 
   document.addEventListener("DOMContentLoaded", () => {
     fitGovAgencyText(document);
+
+    requestAnimationFrame(() => {
+      paginateFreeDocumentPages(document, true);
+      moveFreeDocumentFooterActionsToLastPage(document);
+    });
+
     if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(() => fitGovAgencyText(document));
+      document.fonts.ready.then(() => {
+        fitGovAgencyText(document);
+
+        requestAnimationFrame(() => {
+          paginateFreeDocumentPages(document, true);
+          moveFreeDocumentFooterActionsToLastPage(document);
+        });
+      });
     }
   });
 
@@ -882,7 +1311,24 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
       const {
         jsPDF
       } = window.jspdf;
-      const pages = document.querySelectorAll(".page");
+
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+
+      fitGovAgencyText(document);
+      paginateFreeDocumentPages(document, true);
+      moveFreeDocumentFooterActionsToLastPage(document);
+
+      await new Promise(resolve => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(resolve);
+        });
+      });
+
+      const pages = Array.from(document.querySelectorAll(".page")).filter(page => {
+        return page.offsetParent !== null;
+      });
 
       if (!pages.length) {
         alert("ไม่พบหน้าเอกสาร .page");
@@ -903,7 +1349,10 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
         clone.style.left = "-9999px";
         clone.style.top = "0";
         clone.style.width = "794px";
+        clone.style.height = "1123px";
         clone.style.minHeight = "1123px";
+        clone.style.maxHeight = "1123px";
+        clone.style.overflow = "hidden";
         clone.style.boxSizing = "border-box";
         clone.style.background = "#ffffff";
 
@@ -923,6 +1372,13 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
           block.style.setProperty("letter-spacing", "-0.05px", "important");
           block.style.setProperty("line-height", "1.34", "important");
           block.style.setProperty("margin-bottom", "4px", "important");
+        });
+
+        clone.querySelectorAll(".content-block.paragraph.approval-sentence").forEach(block => {
+          block.style.setProperty("margin-top", "0", "important");
+          block.style.setProperty("margin-bottom", "4px", "important");
+          block.style.setProperty("white-space", "normal", "important");
+          block.style.setProperty("text-indent", "2.5cm", "important");
         });
 
         const cloneGaruda = clone.querySelector(".garuda-img");
@@ -981,14 +1437,15 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
           line.style.height = "auto";
           line.style.minHeight = "20px";
           line.style.lineHeight = "1.2";
-          line.style.paddingLeft = "4px";
+          line.style.paddingLeft = "18px";
           line.style.paddingTop = "0";
           line.style.paddingBottom = "16px";
           line.style.margin = "0";
           line.style.borderBottom = "2px dotted #000";
           line.style.overflow = "visible";
           line.style.fontSize = "16pt";
-          line.style.wordBreak = "break-word";
+          line.style.wordBreak = "normal";
+          line.style.overflowWrap = "normal";
           line.style.fontFamily = "TH SarabunPSK";
           line.style.backgroundImage = "none";
 
@@ -1000,7 +1457,6 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
             text.style.display = "inline-block";
             text.style.position = "relative";
             text.style.top = "4px";
-            text.style.marginLeft = "0.35cm";
             text.style.zIndex = "3";
             text.style.background = "transparent";
           });

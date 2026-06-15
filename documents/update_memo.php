@@ -840,11 +840,14 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
       $errors['doc_date'] = 'required';
     }
 
-    if ($purpose === '') $errors['purpose'] = 'required';
+        if ($purpose === '') {
+      $purpose = 'training';
+    }
+
+    if ($memoSubject === '') $errors['memo_subject'] = 'required';
     if ($eventTitle === '') $errors['event_title'] = 'required';
 
     if ($purpose === 'academic') {
-      if ($memoSubject === '') $errors['memo_subject'] = 'required';
       if ($academicTopic === '') $errors['academic_topic'] = 'required';
       if ($academicLevel === '') $errors['academic_level'] = 'required';
       if ($eventDate === '') $errors['event_date'] = 'required';
@@ -974,14 +977,13 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
     $joinType = match ($purpose) {
       'consent_research_presentation' => 'หนังสือยินยอมให้นำเสนอผลงานทางวิชาการ',
       'academic' => 'นำเสนอผลงานวิจัย',
-      'training' => 'เข้ารับการฝึกอบรมหลักสูตร',
       'meeting' => 'เข้าร่วมประชุมวิชาการในงาน',
-      default => 'อื่นๆ',
+      'training' => 'เข้ารับการฝึกอบรมหลักสูตร',
+      default => 'เข้ารับการฝึกอบรมหลักสูตร',
     };
 
-    $subject = ($purpose === 'academic' && $memoSubject !== '')
-      ? $memoSubject
-      : trim($joinType . $eventTitle);
+    $subjectDetail = $memoSubject !== '' ? $memoSubject : $eventTitle;
+    $subject = 'ขออนุมัติตัวบุคคลเข้าร่วม' . $subjectDetail;
   }
 
  $up = $pdo->prepare("
@@ -1300,9 +1302,9 @@ if ($isFreeDocument) {
       11 => $department,
       12 => (string)$noCost,
 
-      // เฉพาะกรณีเลือก "นำเสนอผลงานวิจัย"
+            // เฉพาะกรณีเลือก "นำเสนอผลงานวิจัย"
       13 => in_array($purpose, ['academic', 'consent_research_presentation'], true) ? $academicTopic : '',
-      14 => in_array($purpose, ['academic', 'consent_research_presentation'], true) ? $memoSubject : '',
+      14 => $memoSubject,
       15 => in_array($purpose, ['academic', 'consent_research_presentation'], true) ? $academicLevel : '',
       16 => in_array($purpose, ['academic', 'consent_research_presentation'], true) ? $eventDate : '',
       17 => ($purpose === 'consent_research_presentation') ? $signatureAffiliation : '',
@@ -1606,21 +1608,8 @@ if (!empty($isAcademicPresentation) || $purpose === 'academic') {
     exit;
 }
 
-/* ถ้าไม่มี referer → fallback ไปหน้าตาม role */
-$role = strtolower($_SESSION['role_name'] ?? '');
-
-switch ($role) {
-    case 'admin':
-        $homePath = "/Pro_letter/admin/home.php";
-        break;
-    case 'officer':
-        $homePath = "/Pro_letter/officer/home.php";
-        break;
-    default:
-        $homePath = "/Pro_letter/user/home.php";
-}
-
-header("Location: {$homePath}?saved=1&from=update");
+/* ถ้าไม่มี referer และเป็นเอกสาร form_Memo ปกติ → กลับไปหน้า view_memo */
+header("Location: /Pro_letter/documents/view_memo.php?id={$documentId}&saved=1&from=update");
 exit;
 
 

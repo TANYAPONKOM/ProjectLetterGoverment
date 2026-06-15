@@ -12,6 +12,7 @@ if (!file_exists($autoload)) {
 }
 require_once $autoload;
 require_once __DIR__ . '/word_templates/word_common.php';
+require_once __DIR__ . '/../includes/thai_word_breaks.php';
 
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\IOFactory;
@@ -157,32 +158,13 @@ function sutThaiWordWrap($text) {
     if ($text === '') {
         return '';
     }
-    $zwsp = "\u{200B}";
-    $text = str_replace($zwsp, '', $text);
-    $thaiMarks = "\x{0E31}\x{0E34}-\x{0E3A}\x{0E47}-\x{0E4E}";
-    $z = preg_quote($zwsp, '/');
-    $text = preg_replace('/' . $z . '(?=[' . $thaiMarks . '])/u', '', $text);
-    $text = preg_replace('/(?<=[' . $thaiMarks . '])' . $z . '/u', '', $text);
-    $text = preg_replace('/([\/\-–—,;:()（）"“”])/u', '$1' . $zwsp, $text);
 
-    $safeWords = [
-        'ด้วย', 'รองศาสตราจารย์', 'ผู้ช่วยศาสตราจารย์', 'อาจารย์', 'บุคลากรสังกัด',
-        'ภาควิชาเทคโนโลยีสารสนเทศ', 'คณะเทคโนโลยีและการจัดการอุตสาหกรรม',
-        'คณะบริหารธุรกิจและอุตสาหกรรมบริการ', 'มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ',
-        'วิทยาเขตปราจีนบุรี', 'มีความประสงค์', 'จะขออนุญาต', 'เข้าเยี่ยมชม',
-        'SUT Wellness Academy', 'ศูนย์สุขภาพเพื่อการป้องกัน', 'รักษา', 'ฟื้นฟูสุขภาพ',
-        'แผนไทยประยุกต์แบบครบวงจร', 'ในวันศุกร์ที่', 'เป็นต้นไป', 'เพื่อนำข้อมูลและความรู้',
-        'ที่ได้รับมาพัฒนา', 'ให้เกิดประโยชน์', 'การจัดการเรียนการสอน', 'งานวิจัย',
-        'การพัฒนานวัตกรรม', 'โดยมีรายชื่อคณาจารย์', 'ที่จะเข้าเยี่ยมชมศึกษาดูงาน',
-        'จำนวน', 'คน', 'ดังรายชื่อต่อไปนี้', 'จึงเรียนมาเพื่อโปรดพิจารณา',
-        'อนุญาตให้เข้าเยี่ยมชมศึกษาดูงาน', 'ขอขอบคุณมา ณ โอกาสนี้',
-    ];
-    foreach ($safeWords as $word) {
-        $text = str_replace($word, $word . $zwsp, $text);
+    if (function_exists('insertThaiWordBreaksForMemoBody')) {
+        return insertThaiWordBreaksForMemoBody($text);
     }
+
     return $text;
 }
-
 
 // ใช้เฉพาะบรรทัดหัวข้อ "เรื่อง" เพื่อลดการตัดคำเกินจำเป็นตามรูปแบบ download_word_request_research_data.php
 function sutSubjectWordWrap($text) {
@@ -232,7 +214,7 @@ function sutNoBorderCell($valign = 'top') {
     ];
 }
 
-function addSutHeader($section, $docNo, $thaiDocDate) {
+function addSutHeader($section, $docNo, $thaiDocDate, $displayFaculty) {
     $garuda = __DIR__ . '/../assets/img/garuda.jpg';
 
     $table = $section->addTable([
@@ -241,42 +223,40 @@ function addSutHeader($section, $docNo, $thaiDocDate) {
         'cellMargin' => 0,
         'cellSpacing' => 0,
         'layout' => 'fixed',
-        'width' => Converter::cmToTwip(17.10),
+        'width' => Converter::cmToTwip(18.40),
     ]);
 
-    $table->addRow(Converter::cmToTwip(3.70));
+    $table->addRow(Converter::cmToTwip(3.1));
 
-    $left = $table->addCell(Converter::cmToTwip(5.35), sutNoBorderCell('top'));
-    $left->addText('', 'normalFont', ['spaceAfter' => 1060, 'lineHeight' => 1.0]);
+    $left = $table->addCell(Converter::cmToTwip(6.20), sutNoBorderCell('top'));
+    $left->addText('', 'normalFont', ['spaceAfter' => 700, 'lineHeight' => 1.0]);
     $left->addText('ที่ ' . sutInlineText($docNo ?: ''), 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
 
     $middle = $table->addCell(Converter::cmToTwip(3.55), sutNoBorderCell('top'));
     if (file_exists($garuda)) {
         $middle->addImage($garuda, [
-            'width' => 82,
+            'width' => 80,
             'alignment' => Jc::CENTER,
         ]);
     } else {
         $middle->addText('');
     }
 
-    $right = $table->addCell(Converter::cmToTwip(8.20), sutNoBorderCell('top'));
-    $right->addText('', 'normalFont', ['spaceAfter' => 1080, 'lineHeight' => 1.0]);
+    $right = $table->addCell(Converter::cmToTwip(8.65), sutNoBorderCell('top'));
+    $right->addText('', 'normalFont', ['spaceAfter' => 620, 'lineHeight' => 0.95]);
+    $right->addText(sutInlineText($displayFaculty), 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
     $right->addText('มหาวิทยาลัยเทคโนโลยีพระจอมเกล้าพระนครเหนือ', 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
     $right->addText('๑๒๙ หมู่ ๒๑ ต.เนินหอม อ.เมือง จ.ปราจีนบุรี ๒๕๒๓๐', 'addressFont', ['spaceAfter' => 0, 'lineHeight' => 0.95]);
 
-    $section->addText(sutInlineText($thaiDocDate), 'normalFont', [
+    $section->addText(str_repeat("\u{00A0}", 28) . sutInlineText($thaiDocDate), 'normalFont', [
         'alignment' => Jc::CENTER,
         'spaceBefore' => 40,
-        'spaceAfter' => 200,
+        'spaceAfter' => 160,
         'lineHeight' => 1.0,
-        'indentation' => ['left' => Converter::cmToTwip(0.7)],
     ]);
 }
 
 function addSutPairRow($section, $label, $value, $spaceAfter = 0) {
-    $isSubject = ($label === 'เรื่อง');
-
     $table = $section->addTable([
         'borderSize' => 0,
         'borderColor' => 'FFFFFF',
@@ -285,54 +265,43 @@ function addSutPairRow($section, $label, $value, $spaceAfter = 0) {
         'layout' => 'fixed',
         'width' => Converter::cmToTwip(16.0),
     ]);
+
     $table->addRow(null, ['exactHeight' => false]);
 
-    // แก้เฉพาะแถว "เรื่อง": ลดช่อง label และเพิ่มช่องข้อความ เพื่อไม่ให้ Word ตัดคำเร็วเกินไปเหมือนภาพที่ 1
-    $labelWidth = $isSubject ? 0.82 : 1.2;
-    $valueWidth = $isSubject ? 15.18 : 14.8;
+    // ช่องหัวข้อ เช่น เรื่อง / เรียน ใช้ความกว้างเท่ากัน
+    $table->addCell(Converter::cmToTwip(1.20), sutNoBorderCell('top'))->addText(
+        sutInlineText($label),
+        'normalFont',
+        [
+            'alignment' => Jc::LEFT,
+            'spaceBefore' => 0,
+            'spaceAfter' => 0,
+            'lineHeight' => 1.0,
+        ]
+    );
 
-    $table->addCell(Converter::cmToTwip($labelWidth), sutNoBorderCell('top'))->addText(sutInlineText($label), 'normalFont', [
-        'spaceBefore' => 0,
-        'spaceAfter' => 0,
-        'lineHeight' => 1.0,
-    ]);
-
-    $valueCell = $table->addCell(Converter::cmToTwip($valueWidth), sutNoBorderCell('top'));
-
-    if ($isSubject) {
-        // ใช้ข้อความดิบแบบสะอาด ไม่ใส่ ZWSP ในหัวเรื่อง และบังคับตัดเฉพาะก่อนคำว่า "คน" ตามภาพตัวอย่างที่ต้องการ
-        $subjectText = sutInlineText($value);
-        $run = $valueCell->addTextRun([
+    // ช่องข้อความหลัง เรื่อง / เรียน เริ่มตำแหน่งเดียวกัน
+    $table->addCell(Converter::cmToTwip(14.80), sutNoBorderCell('top'))->addText(
+        sutThaiWordWrap($value),
+        'normalFont',
+        [
+            'alignment' => Jc::LEFT,
             'spaceBefore' => 0,
             'spaceAfter' => $spaceAfter,
             'lineHeight' => 1.0,
-        ]);
+        ]
+    );
+}
 
-        if (preg_match('/^(.*ของ)(คน)$/u', $subjectText, $m)) {
-            $run->addText(trim($m[1]), 'normalFont');
-            $run->addTextBreak();
-            $run->addText($m[2], 'normalFont');
-        } else {
-            $run->addText($subjectText, 'normalFont');
-        }
+function addSutMainPara($section, $text, $spaceAfter = 28) {
+    $wrappedText = sutThaiWordWrap($text);
+    if ($wrappedText === '') {
         return;
     }
 
-    $valueCell->addText(sutThaiWordWrap($value), 'normalFont', [
-        'spaceBefore' => 0,
-        'spaceAfter' => $spaceAfter,
-        'lineHeight' => 1.0,
-    ]);
-}
-
-function addSutMainPara($section, $text, $spaceAfter = 50) {
-    $wrappedText = sutThaiWordWrap($text);
-    if (mb_strpos((string)$text, 'โอกาสนี้') !== false) {
-        $wrappedText = sutKeepClosingPhraseTogether($wrappedText);
-    }
     $section->addText($wrappedText, 'normalFont', [
         'alignment' => 'thaiDistribute',
-        'lineHeight' => 1.15,
+        'lineHeight' => 0.94,
         'spaceBefore' => 0,
         'spaceAfter' => $spaceAfter,
         'indentation' => ['firstLine' => Converter::cmToTwip(2.5)],
@@ -340,14 +309,18 @@ function addSutMainPara($section, $text, $spaceAfter = 50) {
 }
 
 // ใช้เฉพาะย่อหน้าปิดในภาพ เพื่อขยับบรรทัดเข้าซ้ายเล็กน้อยและกันคำท้ายตกบรรทัด
-function addSutClosingPara($section, $text, $spaceAfter = 40) {
-    $wrappedText = sutKeepClosingPhraseTogether(sutThaiWordWrap($text));
+function addSutClosingPara($section, $text, $spaceAfter = 28) {
+    $wrappedText = sutThaiWordWrap($text);
+    if ($wrappedText === '') {
+        return;
+    }
+
     $section->addText($wrappedText, 'normalFont', [
         'alignment' => 'thaiDistribute',
-        'lineHeight' => 1.15,
+        'lineHeight' => 0.94,
         'spaceBefore' => 0,
         'spaceAfter' => $spaceAfter,
-        'indentation' => ['firstLine' => Converter::cmToTwip(2.15)],
+        'indentation' => ['firstLine' => Converter::cmToTwip(2.5)],
     ]);
 }
 
@@ -365,29 +338,53 @@ function addSutTeacherList($section, array $teacherRows, $displayFaculty) {
         'width' => Converter::cmToTwip(16.0),
     ]);
 
-    // แก้เฉพาะส่วนรายชื่อในภาพ: เพิ่มพื้นที่ชื่อ + บังคับไม่ตัดบรรทัดทั้งชื่อและคณะ
     $listFont = [
         'name' => 'TH SarabunPSK',
         'size' => 15.5,
     ];
-    $nowrapCell = array_merge(sutNoBorderCell(), ['noWrap' => true]);
+
+    $nowrapCell = array_merge(sutNoBorderCell('top'), ['noWrap' => true]);
 
     foreach ($teacherRows as $idx => $row) {
         $table->addRow(null, ['exactHeight' => false]);
-        $table->addCell(Converter::cmToTwip(1.45), sutNoBorderCell())->addText('', 'normalFont', ['spaceAfter' => 0, 'lineHeight' => 1.0]);
-        $table->addCell(Converter::cmToTwip(7.25), $nowrapCell)->addText(sutThaiDigit((string)($idx + 1)) . '.  ' . sutInlineText($row['name'] ?? ''), $listFont, [
+
+        // ช่องย่อหน้า ให้ตรงกับ firstLine 2.5 cm ของเนื้อหา
+        $table->addCell(Converter::cmToTwip(2.50), sutNoBorderCell('top'))->addText('', 'normalFont', [
             'spaceBefore' => 0,
             'spaceAfter' => 0,
             'lineHeight' => 1.0,
         ]);
-        $table->addCell(Converter::cmToTwip(7.30), $nowrapCell)->addText(sutInlineText(($row['affiliation'] ?? '') ?: $displayFaculty), $listFont, [
-            'spaceBefore' => 0,
-            'spaceAfter' => 0,
-            'lineHeight' => 1.0,
-        ]);
+
+        // ช่องชื่อ ลดความกว้างลง เพื่อให้คณะเข้ามาใกล้ขึ้น
+        $table->addCell(Converter::cmToTwip(5.90), $nowrapCell)->addText(
+            sutThaiDigit((string)($idx + 1)) . '.  ' . sutInlineText($row['name'] ?? ''),
+            $listFont,
+            [
+                'alignment' => Jc::LEFT,
+                'spaceBefore' => 0,
+                'spaceAfter' => 0,
+                'lineHeight' => 1.0,
+            ]
+        );
+
+        // ช่องคณะ ขยับเข้ามาใกล้ชื่อมากขึ้น
+        $table->addCell(Converter::cmToTwip(7.60), $nowrapCell)->addText(
+            sutInlineText(($row['affiliation'] ?? '') ?: $displayFaculty),
+            $listFont,
+            [
+                'alignment' => Jc::LEFT,
+                'spaceBefore' => 0,
+                'spaceAfter' => 0,
+                'lineHeight' => 1.0,
+            ]
+        );
     }
 
-    $section->addText('', 'normalFont', ['spaceBefore' => 0, 'spaceAfter' => 40, 'lineHeight' => 1.0]);
+    $section->addText('', 'normalFont', [
+        'spaceBefore' => 0,
+        'spaceAfter' => 40,
+        'lineHeight' => 1.0,
+    ]);
 }
 
 function addSutSignature($section, $receiverName, $receiverPosition) {
@@ -435,16 +432,16 @@ function addSutFooter($section, $displayDepartmentFull) {
 }
 
 function addSutWellnessPage($phpWord, array $data) {
-    $section = $phpWord->addSection([
-        'paperSize' => 'A4',
-        'marginTop' => Converter::cmToTwip(2.0),
-        'marginBottom' => Converter::cmToTwip(1.2),
-        'marginLeft' => Converter::cmToTwip(3.0),
-        'marginRight' => Converter::cmToTwip(2.0),
-        'footerHeight' => Converter::cmToTwip(1.45),
-    ]);
+   $section = $phpWord->addSection([
+    'paperSize' => 'A4',
+    'marginTop' => Converter::cmToTwip(1.5),
+    'marginBottom' => Converter::cmToTwip(1.15),
+    'marginLeft' => Converter::cmToTwip(3.0),
+    'marginRight' => Converter::cmToTwip(2.0),
+    'footerHeight' => Converter::cmToTwip(0.85),
+]);
 
-    addSutHeader($section, $data['docNo'], $data['thaiDocDate']);
+    addSutHeader($section, $data['docNo'], $data['thaiDocDate'], $data['displayFaculty']);
     addSutPairRow($section, 'เรื่อง', $data['subject']);
     addSutPairRow($section, 'เรียน', $data['toPerson'], 90);
 
