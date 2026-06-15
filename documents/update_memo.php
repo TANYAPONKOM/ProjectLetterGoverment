@@ -904,12 +904,6 @@ if (!$researchContactStudent && count($researchStudents) > 0) {
   // admin/officer แก้แล้วให้กลับไปรอตรวจสอบทันที (submitted)
   // user แก้แล้วให้กลับไปเป็นเค้าโครง/รอยืนยันการส่ง (draft)
   $newStatusAfterEdit = $isAdminOrOfficer ? 'submitted' : 'draft';
-
-  // ถ้า user แก้เอกสารจากสถานะรอแก้ไขแล้วส่งกลับมาใหม่
-  // ให้ล้างคอมเมนต์รอบตรวจเดิมออก เพื่อให้กล่องความคิดเห็นของ admin/officer กลับไปว่างเหมือนเริ่มตรวจรอบใหม่
-  $resetReviewCommentStatuses = ['รอแก้ไข', 'รอแก้เอกสาร', 'rejected'];
-  $shouldResetReviewComment = (!$isAdminOrOfficer && in_array($currentStatus, $resetReviewCommentStatuses, true));
-
   $pdo->beginTransaction();
 
 
@@ -1041,14 +1035,7 @@ $up->execute([
       ':detail' => 'มีการแก้ไขข้อมูลเอกสาร'
   ]);
 
-  if (!empty($shouldResetReviewComment)) {
-    $resetCommentStmt = $pdo->prepare("
-      DELETE FROM audit_logs
-      WHERE document_id = :document_id
-        AND action = 'REVIEW_COMMENT'
-    ");
-    $resetCommentStmt->execute([':document_id' => $documentId]);
-  }
+
 
   // ค่า field อื่น ๆ
 $valuesByKey = [];

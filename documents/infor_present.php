@@ -689,6 +689,8 @@ $position    = $formData[3]  ?? '';
     <input type="hidden" name="department_id" id="selectedDepartmentId" value="<?= (int)$currentUserDepartmentId ?>">
 
     <input type="hidden" name="purpose" value="consent_research_presentation">
+    <input type="hidden" name="form_type" value="consent_research_presentation">
+    <input type="hidden" name="redirect_to" value="form_consent_research_presentation.php">
     <input type="hidden" name="doc_date" value="<?= h($docDate ?: date('Y-m-d')) ?>">
     <input type="hidden" name="fullname" id="fullnameHidden"
       value="<?= htmlspecialchars($ownerName ?: ($_SESSION['fullname'] ?? '')) ?>">

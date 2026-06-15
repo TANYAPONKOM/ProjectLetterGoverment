@@ -77,9 +77,15 @@ try {
         ? 'REVIEW_PASSED'
         : 'REVIEW_FAILED';
 
-    // ดึงความคิดเห็นล่าสุดจากผู้ตรวจเอกสาร เฉพาะกรณีตีกลับ/ไม่ผ่านการตรวจสอบ
-    $reviewComment = '';
-    if ($status === 'rejected') {
+// ดึงความคิดเห็นล่าสุดจากผู้ตรวจเอกสาร เฉพาะกรณีตีกลับ/ไม่ผ่านการตรวจสอบ
+$reviewComment = '';
+
+if ($status === 'rejected') {
+    // 1) รับคอมเม้นที่ส่งมาจากหน้าเว็บ ถ้ามี
+    $reviewComment = trim((string)($data['review_comment'] ?? ''));
+
+    // 2) ถ้าไม่ได้ส่งคอมเม้นมาพร้อมปุ่มไม่ผ่าน ให้ดึงคอมเม้นล่าสุดที่เคยบันทึกไว้
+    if ($reviewComment === '') {
         $commentStmt = $pdo->prepare("
             SELECT detail
             FROM audit_logs
@@ -89,13 +95,13 @@ try {
               AND TRIM(detail) <> ''
             ORDER BY created_at DESC, log_id DESC
             LIMIT 1
-        "
-        );
+        ");
         $commentStmt->execute([
             ':document_id' => $docId
         ]);
         $reviewComment = trim((string)($commentStmt->fetchColumn() ?: ''));
     }
+}
 
     // บันทึกประวัติ
     $log = $pdo->prepare("
@@ -108,6 +114,7 @@ try {
         ':action' => $actionCode,
         ':detail' => 'เจ้าหน้าที่/ผู้ดูแลระบบเปลี่ยนสถานะเอกสารเป็น ' . $statusText
     ]);
+
 
     // บันทึก notification ให้เจ้าของเอกสาร
     $noti = $pdo->prepare("

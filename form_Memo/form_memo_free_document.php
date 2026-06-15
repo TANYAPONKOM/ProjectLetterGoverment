@@ -826,6 +826,14 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
   margin-bottom: 8px;
 }
 
+.review-comment-note {
+  margin-top: 4px;
+  margin-bottom: 10px;
+  color: #dc2626;
+  font-size: 14px;
+  font-weight: 500;
+}
+
 .review-comment-textarea {
   width: 100%;
   min-height: 118px;
@@ -1097,16 +1105,14 @@ if ($errType === 'submitted') {
   <?php endif; ?>
 
   <?php if ($canWriteReviewComment): ?>
-  <form method="post" class="review-comment-panel">
-    <input type="hidden" name="action" value="save_review_comment">
-
-    <div class="review-comment-title">ความคิดเห็นผู้ตรวจเอกสาร</div>
-
-    <textarea name="review_comment"
-      class="review-comment-textarea"
-      maxlength="1000"
-      placeholder="พิมพ์ความคิดเห็นสำหรับเอกสารนี้..."
-      required><?= fd_h($reviewCommentTextareaValue) ?></textarea>
+<form method="post" class="review-comment-panel">
+  <input type="hidden" name="action" value="save_review_comment">
+  <div class="review-comment-title">ความคิดเห็นผู้ตรวจเอกสาร</div>
+  <div class="review-comment-note">
+    หมายเหตุ: กรุณากดบันทึกความคิดเห็นก่อนกดตรวจสอบว่าผ่านหรือไม่ผ่าน
+  </div>
+  <textarea name="review_comment" class="review-comment-textarea" maxlength="1000"
+    placeholder="พิมพ์ความคิดเห็นสำหรับเอกสารนี้..." required><?= h($reviewCommentTextareaValue) ?></textarea>
 
     <div class="review-comment-footer">
       <button type="submit" class="review-comment-save-btn">บันทึก</button>

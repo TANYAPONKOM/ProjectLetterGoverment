@@ -64,19 +64,36 @@ $historySql = "
         WHEN al.action = 'UPDATED' THEN 'แก้ไขเอกสาร'
         WHEN al.action = 'REVIEW_PASSED' THEN 'ผ่านการตรวจสอบ'
         WHEN al.action = 'REVIEW_FAILED' THEN 'ไม่ผ่านการตรวจสอบ'
-        WHEN al.action = 'REVIEW_COMMENT' THEN 'แสดงความคิดเห็นตีกลับเอกสาร'
+        WHEN al.action = 'REVIEW_COMMENT' THEN 'บันทึกความคิดเห็นผู้ตรวจเอกสาร'
         WHEN al.action = 'APPROVED' THEN 'อนุมัติเอกสาร'
         WHEN al.action = 'REJECTED' THEN 'ตีกลับเอกสาร'
         ELSE al.action
-      END AS action_label,
-      al.detail,
+            END AS action_label,
+      CASE
+        WHEN al.action IN ('REVIEW_FAILED', 'REJECTED') THEN
+          COALESCE(
+            (
+              SELECT rc.detail
+              FROM audit_logs rc
+              WHERE rc.document_id = al.document_id
+                AND rc.action = 'REVIEW_COMMENT'
+                AND rc.detail IS NOT NULL
+                AND TRIM(rc.detail) <> ''
+                AND rc.log_id < al.log_id
+              ORDER BY rc.created_at DESC, rc.log_id DESC
+              LIMIT 1
+            ),
+            al.detail
+          )
+        ELSE al.detail
+      END AS detail,
       d.document_id,
       d.doc_no,
       d.subject,
       CASE
         WHEN al.action IN ('REVIEW_PASSED', 'APPROVED') THEN 'approved'
-        WHEN al.action IN ('REVIEW_FAILED', 'REJECTED', 'REVIEW_COMMENT') THEN 'rejected'
-        WHEN al.action IN ('SUBMITTED') THEN 'submitted'
+        WHEN al.action IN ('REVIEW_FAILED', 'REJECTED') THEN 'rejected'
+        WHEN al.action IN ('SUBMITTED', 'REVIEW_COMMENT') THEN 'submitted'
         WHEN al.action IN ('CREATED') THEN 'draft'
         WHEN al.action = 'UPDATED' THEN
           CASE

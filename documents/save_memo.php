@@ -825,6 +825,44 @@ try {
         if ($intentionText === '') {
             $errors['intention_text'] = 'required';
         }
+
+    } elseif ($isConsentResearchPresentation) {
+            if (!$hideDocDateOnDocument && $docDate === '') {
+                $errors['doc_date'] = 'required';
+            }
+
+            if ($fullname === '') {
+                $errors['fullname'] = 'required';
+            }
+
+            if ($presenterName === '') {
+                $errors['presenter_name'] = 'required';
+            }
+
+            if ($academicTopic === '') {
+                $errors['academic_topic'] = 'required';
+            }
+
+            if ($eventTitle === '') {
+                $errors['event_title'] = 'required';
+            }
+
+            if ($academicLevel === '') {
+                $errors['academic_level'] = 'required';
+            }
+
+            if ($joinDates === '') {
+                $errors['join_date'] = 'required';
+            }
+
+            if ($place === '') {
+                $errors['place'] = 'required';
+            }
+
+            if ($signatureAffiliation === '') {
+                $errors['signature_affiliation'] = 'required';
+            }
+        
     } elseif ($isStudyVisit) {
         if (!$hideDocDateOnDocument && $docDate === '') {
             $errors['doc_date'] = 'required';
