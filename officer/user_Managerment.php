@@ -27,12 +27,14 @@ if (!$hasManageUserPermission) {
     exit;
 }
 
-// ค่า tab ที่เลือก
 $activeTab = $_GET['tab'] ?? 'all';
 $current = basename($_SERVER['PHP_SELF']);
 
 // ค่าค้นหา
 $search = trim($_GET['search'] ?? '');
+
+// สถานะข้อมูล
+$profileStatus = $_GET['profile_status'] ?? 'all';
 
 // Pagination setup
 $limit = 20; // จำนวนแถวต่อหน้า
@@ -48,6 +50,12 @@ if ($activeTab === 'active') {
     $where[] = "u.is_active = 1";
 } elseif ($activeTab === 'inactive') {
     $where[] = "u.is_active = 0";
+}
+
+if ($profileStatus === 'pending') {
+    $where[] = "u.auth_provider = 'google' AND u.profile_completed = 0 AND u.is_active = 1";
+} elseif ($profileStatus === 'completed') {
+    $where[] = "u.profile_completed = 1";
 }
 
 // เพิ่มเงื่อนไขค้นหา
@@ -207,6 +215,17 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
         <input type="hidden" name="tab" value="<?= htmlspecialchars($activeTab) ?>">
         <input type="hidden" name="page" value="1">
 
+        <div class="w-full md:w-64">
+          <select name="profile_status"
+            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400">
+            <option value="all" <?= $profileStatus === 'all' ? 'selected' : '' ?>>สถานะข้อมูลทั้งหมด</option>
+            <option value="pending" <?= $profileStatus === 'pending' ? 'selected' : '' ?>>
+              รอผู้ดูแลระบบเพิ่มข้อมูล (<?= (int)$pendingGoogleUserCount ?>)
+            </option>
+            <option value="completed" <?= $profileStatus === 'completed' ? 'selected' : '' ?>>ข้อมูลครบแล้ว</option>
+          </select>
+        </div>
+
         <div class="relative w-full md:w-96">
           <input type="text" name="search" value="<?= htmlspecialchars($search) ?>"
             placeholder="ค้นหาชื่อผู้ใช้ อีเมล สิทธิ์ ตำแหน่ง หรือสถานะ"
@@ -217,6 +236,7 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
               d="M21 21l-4.35-4.35m1.35-5.65a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
+
 
         <button type="submit"
           class="px-6 py-2 rounded-lg bg-teal-500 text-white font-semibold hover:bg-teal-600 transition">
@@ -241,8 +261,6 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
               <th class="px-4 py-3 text-left font-semibold">อีเมล</th>
               <th class="px-4 py-3 text-left font-semibold">สิทธิ์</th>
               <th class="px-4 py-3 text-left font-semibold">ตำแหน่ง</th>
-              <th class="px-4 py-3 text-center font-semibold">แก้ไขได้</th>
-              <th class="px-4 py-3 text-center font-semibold">ดูได้</th>
               <th class="px-4 py-3 text-center font-semibold">กำหนดสิทธิ์ได้</th>
               <th class="px-4 py-3 text-center font-semibold">สถานะ</th>
               <th class="px-4 py-3 text-center font-semibold">การจัดการ</th>
@@ -253,7 +271,7 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
           <tbody>
             <?php if (empty($users)): ?>
             <tr>
-              <td colspan="9" class="px-4 py-8 text-center text-gray-500 bg-gray-50">
+              <td colspan="7" class="px-4 py-8 text-center text-gray-500 bg-gray-50">
                 ไม่พบข้อมูลที่ค้นหา
               </td>
             </tr>
@@ -280,20 +298,11 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
               <!-- Position -->
               <td class="px-4 py-3 text-gray-800"><?= htmlspecialchars($row['position']) ?></td>
 
-              <!-- Permissions -->
-              <td class="px-4 py-3 text-center">
-                <input type="checkbox" class="w-4 h-4 rounded border-2 border-teal-500 bg-gray-50 cursor-not-allowed"
-                  <?= in_array(1, $permMap[$row['user_id']] ?? []) ? 'checked' : '' ?> disabled>
-              </td>
-              <td class="px-4 py-3 text-center">
-                <input type="checkbox" class="w-4 h-4 rounded border-2 border-teal-500 bg-gray-50 cursor-not-allowed"
-                  <?= in_array(2, $permMap[$row['user_id']] ?? []) ? 'checked' : '' ?> disabled>
-              </td>
-              <td class="px-4 py-3 text-center">
-                <input type="checkbox" class="w-4 h-4 rounded border-2 border-teal-500 bg-gray-50 cursor-not-allowed"
-                  <?= in_array(3, $permMap[$row['user_id']] ?? []) ? 'checked' : '' ?> disabled>
-              </td>
-
+            <!-- Permissions -->
+            <td class="px-4 py-3 text-center">
+              <input type="checkbox" class="w-4 h-4 rounded border-2 border-teal-500 bg-gray-50 cursor-not-allowed"
+                <?= in_array(3, $permMap[$row['user_id']] ?? []) ? 'checked' : '' ?> disabled>
+            </td>
               <!-- Status -->
               <td class="px-4 py-3 text-center">
                 <div class="flex flex-col items-center gap-1">

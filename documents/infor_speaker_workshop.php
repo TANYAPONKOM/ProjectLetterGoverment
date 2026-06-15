@@ -77,26 +77,32 @@ if ($isEditModeForGuard) {
             $hasDocumentEditPermissionForEditGuard = false;
         }
 
-        $checkedStatusesForEditGuard = [
-            'ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว', 'ได้รับการตรวจสอบ',
-            'ได้รับการตรวจสอบแล้ว', 'ตรวจสอบแล้ว', 'approved', 'checked', 'reviewed'
-        ];
-        $isCheckedStatusForEditGuard = in_array($editGuardDocStatus, $checkedStatusesForEditGuard, true);
+        $blockedEditStatusesForEditGuard = [
+    'รอตรวจสอบ',
+    'รอการตรวจสอบ',
+    'รอตรวจ',
+    'ผ่านการตรวจสอบ',
+    'ผ่านการตรวจสอบแล้ว',
+    'ได้รับการตรวจสอบ',
+    'ได้รับการตรวจสอบแล้ว',
+    'ตรวจสอบแล้ว',
+    'approved',
+    'checked',
+    'reviewed'
+];
 
-        // รองรับระบบเดิม: ถ้ายังไม่เคยกำหนดสิทธิ์รายบุคคล ให้เจ้าของเอกสารยังแก้เอกสารตัวเองได้
-        // แต่ถ้ามีการกำหนดสิทธิ์แล้วและไม่มี document.edit ให้ถือว่าเป็นสิทธิ์ดูอย่างเดียว
-        $legacyOwnerCanEditForEditGuard = ($editGuardOwnerId === $userId && !$hasAnyExplicitPermissionForEditGuard);
+$isBlockedEditStatusForEditGuard = in_array($editGuardDocStatus, $blockedEditStatusesForEditGuard, true);
 
-        $canEditThisFormForEditGuard = (!$isCheckedStatusForEditGuard) && (
-            $isAdminOrOfficerForEditGuard
-            || $hasDocumentEditPermissionForEditGuard
-            || $legacyOwnerCanEditForEditGuard
-        );
+$canEditThisFormForEditGuard = !$isBlockedEditStatusForEditGuard && (
+    $isAdminOrOfficerForEditGuard
+    || $editGuardOwnerId === $userId
+    || $hasDocumentEditPermissionForEditGuard
+);
 
-        if (!$canEditThisFormForEditGuard) {
-            header('Location: /Pro_letter/documents/view_memo.php?id=' . $editGuardDocId . '&err=no_permission');
-            exit;
-        }
+if (!$canEditThisFormForEditGuard) {
+    header('Location: /Pro_letter/documents/view_memo.php?id=' . $editGuardDocId . '&err=no_permission');
+    exit;
+}
 
         $categoryLockedStatusesForEditGuard = [
             'draft', 'submitted', 'reviewing', 'pending', 'pending_review',

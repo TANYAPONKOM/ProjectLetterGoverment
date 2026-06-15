@@ -75,26 +75,32 @@ if ($isEditModeForGuard) {
             $hasDocumentEditPermissionForEditGuard = false;
         }
 
-        $checkedStatusesForEditGuard = [
-            'ผ่านการตรวจสอบ', 'ผ่านการตรวจสอบแล้ว', 'ได้รับการตรวจสอบ',
-            'ได้รับการตรวจสอบแล้ว', 'ตรวจสอบแล้ว', 'approved', 'checked', 'reviewed'
-        ];
-        $isCheckedStatusForEditGuard = in_array($editGuardDocStatus, $checkedStatusesForEditGuard, true);
+        $blockedEditStatusesForEditGuard = [
+        'รอตรวจสอบ',
+        'รอการตรวจสอบ',
+        'รอตรวจ',
+        'ผ่านการตรวจสอบ',
+        'ผ่านการตรวจสอบแล้ว',
+        'ได้รับการตรวจสอบ',
+        'ได้รับการตรวจสอบแล้ว',
+        'ตรวจสอบแล้ว',
+        'approved',
+        'checked',
+        'reviewed'
+    ];
 
-        // รองรับระบบเดิม: ถ้ายังไม่เคยกำหนดสิทธิ์รายบุคคล ให้เจ้าของเอกสารยังแก้เอกสารตัวเองได้
-        // แต่ถ้ามีการกำหนดสิทธิ์แล้วและไม่มี document.edit ให้ถือว่าเป็นสิทธิ์ดูอย่างเดียว
-        $legacyOwnerCanEditForEditGuard = ($editGuardOwnerId === $userId && !$hasAnyExplicitPermissionForEditGuard);
+    $isBlockedEditStatusForEditGuard = in_array($editGuardDocStatus, $blockedEditStatusesForEditGuard, true);
 
-        $canEditThisFormForEditGuard = (!$isCheckedStatusForEditGuard) && (
-            $isAdminOrOfficerForEditGuard
-            || $hasDocumentEditPermissionForEditGuard
-            || $legacyOwnerCanEditForEditGuard
-        );
+    $canEditThisFormForEditGuard = !$isBlockedEditStatusForEditGuard && (
+        $isAdminOrOfficerForEditGuard
+        || $editGuardOwnerId === $userId
+        || $hasDocumentEditPermissionForEditGuard
+    );
 
-        if (!$canEditThisFormForEditGuard) {
-            header('Location: /Pro_letter/documents/view_memo.php?id=' . $editGuardDocId . '&err=no_permission');
-            exit;
-        }
+    if (!$canEditThisFormForEditGuard) {
+        header('Location: /Pro_letter/documents/view_memo.php?id=' . $editGuardDocId . '&err=no_permission');
+        exit;
+    }
 
         $categoryLockedStatusesForEditGuard = [
             'draft', 'submitted', 'reviewing', 'pending', 'pending_review',
@@ -277,20 +283,31 @@ if ($isEdit) {
     $doc = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$doc) exit("ไม่พบเอกสาร");
    $roleId = (int)($_SESSION['role_id'] ?? 0);
-    $isAdmin   = ($roleId === 1);
-    $isOfficer = ($roleId === 2);
-    if (!$isAdmin && !$isOfficer) {
-        if ($doc['owner_id'] != $_SESSION['user_id']) {
-            header("Location: view_memo.php?id={$docId}&err=no_permission");
-            exit;
+$isAdmin   = ($roleId === 1);
+$isOfficer = ($roleId === 2);
 
-        }
-        if (!in_array($doc['status'], ['draft','rejected'])) {
-           header("Location: view_memo.php?id={$docId}&err=no_permission");
-          exit;
-
-        }
+if (!$isAdmin && !$isOfficer) {
+    if ((int)$doc['owner_id'] !== (int)$_SESSION['user_id']) {
+        header("Location: view_memo.php?id={$docId}&err=no_permission");
+        exit;
     }
+
+    $blockedEditStatuses = [
+        'รอตรวจสอบ',
+        'รอการตรวจสอบ',
+        'รอตรวจ',
+        'ผ่านการตรวจสอบ',
+        'ผ่านการตรวจสอบแล้ว',
+        'approved',
+        'checked',
+        'reviewed'
+    ];
+
+    if (in_array(trim((string)$doc['status']), $blockedEditStatuses, true)) {
+        header("Location: view_memo.php?id={$docId}&err=no_permission");
+        exit;
+    }
+}
     $q = $pdo->prepare("
         SELECT field_id, value_text
         FROM document_values

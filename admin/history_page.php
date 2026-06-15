@@ -64,6 +64,7 @@ $historySql = "
         WHEN al.action = 'UPDATED' THEN 'แก้ไขเอกสาร'
         WHEN al.action = 'REVIEW_PASSED' THEN 'ผ่านการตรวจสอบ'
         WHEN al.action = 'REVIEW_FAILED' THEN 'ไม่ผ่านการตรวจสอบ'
+        WHEN al.action = 'REVIEW_COMMENT' THEN 'แสดงความคิดเห็นตีกลับเอกสาร'
         WHEN al.action = 'APPROVED' THEN 'อนุมัติเอกสาร'
         WHEN al.action = 'REJECTED' THEN 'ตีกลับเอกสาร'
         ELSE al.action
@@ -74,7 +75,7 @@ $historySql = "
       d.subject,
       CASE
         WHEN al.action IN ('REVIEW_PASSED', 'APPROVED') THEN 'approved'
-        WHEN al.action IN ('REVIEW_FAILED', 'REJECTED') THEN 'rejected'
+        WHEN al.action IN ('REVIEW_FAILED', 'REJECTED', 'REVIEW_COMMENT') THEN 'rejected'
         WHEN al.action IN ('SUBMITTED') THEN 'submitted'
         WHEN al.action IN ('CREATED') THEN 'draft'
         WHEN al.action = 'UPDATED' THEN

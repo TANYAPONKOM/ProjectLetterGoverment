@@ -354,32 +354,18 @@ $passwordValue = ''; // เว้นว่างไว้ เพื่อไม�
         </div>
       </div>
 
-      <!-- Permissions -->
-      <div class="mb-6">
-        <label class="block font-semibold text-gray-700 mb-2">สิทธิ์ในการเข้าถึง</label>
-        <div class="flex space-x-6 flex-wrap gap-y-3">
-          <label class="flex items-center space-x-2">
-            <input type="checkbox" name="permissions[]" value="1"
-              class="w-5 h-5 text-teal-600 border-2 border-teal-500 rounded focus:ring-teal-400"
-              <?= in_array(1, array_map('intval', $userPerms), true) ? 'checked' : '' ?>>
-            <span>แก้ไขได้</span>
-          </label>
-
-          <label class="flex items-center space-x-2">
-            <input type="checkbox" name="permissions[]" value="2"
-              class="w-5 h-5 text-teal-600 border-2 border-teal-500 rounded focus:ring-teal-400"
-              <?= in_array(2, array_map('intval', $userPerms), true) ? 'checked' : '' ?>>
-            <span>ดูได้</span>
-          </label>
-
-          <label class="flex items-center space-x-2">
-            <input type="checkbox" name="permissions[]" value="3"
-              class="w-5 h-5 text-teal-600 border-2 border-teal-500 rounded focus:ring-teal-400"
-              <?= in_array(3, array_map('intval', $userPerms), true) ? 'checked' : '' ?>>
-            <span>กำหนดสิทธิ์ได้</span>
-          </label>
-        </div>
-      </div>
+     <!-- Permissions -->
+<div class="mb-6">
+  <label class="block font-semibold text-gray-700 mb-2">สิทธิ์ในการเข้าถึง</label>
+  <div class="flex space-x-6 flex-wrap gap-y-3">
+    <label class="flex items-center space-x-2">
+      <input type="checkbox" name="permissions[]" value="3"
+        class="w-5 h-5 text-teal-600 border-2 border-teal-500 rounded focus:ring-teal-400"
+        <?= in_array(3, array_map('intval', $userPerms), true) ? 'checked' : '' ?>>
+      <span>กำหนดสิทธิ์ได้</span>
+    </label>
+  </div>
+</div>
 
       <!-- Status -->
       <div class="mb-6">
