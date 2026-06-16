@@ -797,113 +797,114 @@ $pdfDownloadName = 'บันทึกข้อความ_' . $downloadSubject
   }
 
   .document-review-layout {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 18px;
-  width: 100%;
-}
-
-.review-comment-panel {
-  position: fixed;
-  right: 18px;
-  bottom: 70px;
-  width: 300px;
-  background: #ffffff;
-  border: 1px solid #99f6e4;
-  border-radius: 14px;
-  padding: 12px;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.10);
-  z-index: 40;
-}
-
-.review-comment-title {
-  font-family: 'TH SarabunPSK', sans-serif !important;
-  font-size: 20pt;
-  font-weight: bold;
-  color: #0f766e;
-  line-height: 1;
-  margin-bottom: 8px;
-}
-
-.review-comment-note {
-  margin-top: 4px;
-  margin-bottom: 10px;
-  color: #dc2626;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.review-comment-textarea {
-  width: 100%;
-  min-height: 118px;
-  resize: vertical;
-  border: 1px solid #99f6e4;
-  border-radius: 10px;
-  padding: 8px 10px;
-  font-family: 'TH SarabunPSK', sans-serif !important;
-  font-size: 18pt;
-  line-height: 1.15;
-  outline: none;
-  color: #111827;
-  background: #ffffff;
-}
-
-.review-comment-textarea:focus {
-  border-color: #14b8a6;
-  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.16);
-}
-
-.review-comment-readonly {
-  min-height: 96px;
-  border: 1px solid #ccfbf1;
-  border-radius: 8px;
-  padding: 10px 12px;
-  background: #f0fdfa;
-  color: #134e4a;
-  font-family: 'TH SarabunPSK', sans-serif !important;
-  font-size: 18pt;
-  line-height: 1.22;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.review-comment-hint {
-  margin-top: 8px;
-  color: #64748b;
-  font-family: 'TH SarabunPSK', sans-serif !important;
-  font-size: 15pt;
-  line-height: 1.1;
-}
-
-.review-comment-footer {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 10px;
-}
-
-.review-comment-save-btn {
-  border: 0;
-  border-radius: 10px;
-  padding: 7px 16px;
-  cursor: pointer;
-  background: #14b8a6;
-  color: #ffffff;
-  font-family: 'TH SarabunPSK', sans-serif !important;
-  font-size: 18pt;
-  font-weight: bold;
-  line-height: 1;
-}
-
-.review-comment-save-btn:hover {
-  background: #0f766e;
-}
-
-@media print {
-  .review-comment-panel {
-    display: none !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 18px;
+    width: 100%;
   }
-}
+
+  .review-comment-panel {
+    position: fixed;
+    right: 18px;
+    bottom: 70px;
+    width: 300px;
+    background: #ffffff;
+    border: 1px solid #99f6e4;
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.10);
+    z-index: 40;
+  }
+
+  .review-comment-title {
+    font-family: 'TH SarabunPSK', sans-serif !important;
+    font-size: 20pt;
+    font-weight: bold;
+    color: #0f766e;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .review-comment-note {
+    margin-top: 4px;
+    margin-bottom: 10px;
+    color: #dc2626;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .review-comment-textarea {
+    width: 100%;
+    min-height: 118px;
+    resize: vertical;
+    border: 1px solid #99f6e4;
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-family: 'TH SarabunPSK', sans-serif !important;
+    font-size: 18pt;
+    line-height: 1.15;
+    outline: none;
+    color: #111827;
+    background: #ffffff;
+  }
+
+  .review-comment-textarea:focus {
+    border-color: #14b8a6;
+    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.16);
+  }
+
+  .review-comment-readonly {
+    min-height: 96px;
+    border: 1px solid #ccfbf1;
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #f0fdfa;
+    color: #134e4a;
+    font-family: 'TH SarabunPSK', sans-serif !important;
+    font-size: 18pt;
+    line-height: 1.22;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .review-comment-hint {
+    margin-top: 8px;
+    color: #64748b;
+    font-family: 'TH SarabunPSK', sans-serif !important;
+    font-size: 15pt;
+    line-height: 1.1;
+  }
+
+  .review-comment-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+  }
+
+  .review-comment-save-btn {
+    border: 0;
+    border-radius: 10px;
+    padding: 7px 16px;
+    cursor: pointer;
+    background: #14b8a6;
+    color: #ffffff;
+    font-family: 'TH SarabunPSK', sans-serif !important;
+    font-size: 18pt;
+    font-weight: bold;
+    line-height: 1;
+  }
+
+  .review-comment-save-btn:hover {
+    background: #0f766e;
+  }
+
+  @media print {
+    .review-comment-panel {
+      display: none !important;
+    }
+  }
   </style>
 </head>
 
@@ -969,169 +970,169 @@ if ($errType === 'submitted') {
   <?php endif; ?>
 
   <div class="document-review-layout">
-  <main class="page" id="memoPage">
-    <div class="memo-title-row">
-      <img src="/Pro_letter/assets/img/garuda.jpg" class="garuda-img" />
-      <h1 class="doc-title">บันทึกข้อความ</h1>
-    </div>
-
-    <div class="doc-row gov-row">
-      <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
-      <div class="dot-line">
-        <span class="chip gov-text">
-          <?= fd_h($hdrAgency ?: 'คณะ... ภาควิชา... โทร...') ?>
-        </span>
+    <main class="page" id="memoPage">
+      <div class="memo-title-row">
+        <img src="/Pro_letter/assets/img/garuda.jpg" class="garuda-img" />
+        <h1 class="doc-title">บันทึกข้อความ</h1>
       </div>
-    </div>
 
-    <div class="doc-row row-ty-date">
-      <div class="doc-label" style="font-size:20pt;font-weight:bold;">ที่</div>
-      <div class="dot-line ty-left">
-        <span class="chip"><?= fd_h($docNo ?: '') ?></span>
+      <div class="doc-row gov-row">
+        <div class="doc-label" style="font-size:20pt;font-weight:bold;">ส่วนราชการ</div>
+        <div class="dot-line">
+          <span class="chip gov-text">
+            <?= fd_h($hdrAgency ?: 'คณะ... ภาควิชา... โทร...') ?>
+          </span>
+        </div>
       </div>
-      <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
-      <div class="dot-line ty-right">
-        <span class="chip"><?= fd_h($thaiDocDate ?: '') ?></span>
+
+      <div class="doc-row row-ty-date">
+        <div class="doc-label" style="font-size:20pt;font-weight:bold;">ที่</div>
+        <div class="dot-line ty-left">
+          <span class="chip"><?= fd_h($docNo ?: '') ?></span>
+        </div>
+        <div class="doc-label" style="font-size:20pt;font-weight:bold;margin-left:1cm;">วันที่</div>
+        <div class="dot-line ty-right">
+          <span class="chip"><?= fd_h($thaiDocDate ?: '') ?></span>
+        </div>
       </div>
-    </div>
 
-    <div class="doc-row subject-row" style="align-items:flex-start;">
-      <div class="doc-label subject-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
-      <div class="subject-wrap">
-        <?php foreach ($subjectLines as $line): ?>
-        <div class="subject-line"><span class="subject-text"><?= fd_h($line) ?></span></div>
-        <?php endforeach; ?>
+      <div class="doc-row subject-row" style="align-items:flex-start;">
+        <div class="doc-label subject-label" style="font-size:20pt;font-weight:bold;">เรื่อง</div>
+        <div class="subject-wrap">
+          <?php foreach ($subjectLines as $line): ?>
+          <div class="subject-line"><span class="subject-text"><?= fd_h($line) ?></span></div>
+          <?php endforeach; ?>
+        </div>
       </div>
-    </div>
 
-    <div class="memo-to-row">
-      <div class="memo-to-label">เรียน</div>
-      <div class="memo-to-text"><?= fd_h($toPerson ?: $deanToText) ?></div>
-    </div>
-
-    <?php foreach ($paragraphs as $paragraph): ?>
-    <?php if ($paragraph !== ''): ?>
-    <div class="content-block paragraph"><?= fd_h($paragraph) ?></div>
-    <?php endif; ?>
-    <?php endforeach; ?>
-
-    <?php if (trim(implode('', $paragraphs)) === ''): ?>
-    <div class="content-block paragraph">
-      ................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
-    </div>
-    <?php endif; ?>
-    <div class="content-block paragraph approval-sentence">จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ</div>
-
-    <?php if ($signerName !== '' || $signerPosition !== ''): ?>
-    <div class="signature-wrapper">
-      <div class="signature-block" id="signatureBlock">
-        <?php if ($signerName !== ''): ?>
-        <div class="sig-name">(<?= fd_h($signerName) ?>)</div>
-        <?php endif; ?>
-        <?php if ($signerPosition !== ''): ?>
-        <div class="sig-position"><?= fd_h($signerPosition) ?></div>
-        <?php endif; ?>
+      <div class="memo-to-row">
+        <div class="memo-to-label">เรียน</div>
+        <div class="memo-to-text"><?= fd_h($toPerson ?: $deanToText) ?></div>
       </div>
-    </div>
-    <?php endif; ?>
 
-    <div class="dean-approval-block">
-      <div class="dean-approval-label">เรียน</div>
-      <div class="dean-approval-text">
-        <div><?= fd_h($deanToText) ?></div>
-        <div>เพื่อโปรดพิจารณาอนุมัติ</div>
+      <?php foreach ($paragraphs as $paragraph): ?>
+      <?php if ($paragraph !== ''): ?>
+      <div class="content-block paragraph"><?= fd_h($paragraph) ?></div>
+      <?php endif; ?>
+      <?php endforeach; ?>
+
+      <?php if (trim(implode('', $paragraphs)) === ''): ?>
+      <div class="content-block paragraph">
+        ................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
       </div>
-    </div>
-    <div class="dean-signature-wrapper">
-      <div class="dean-signature-block">
-        <div class="dean-sig-name">(<?= fd_h($deanName) ?>)</div>
-        <div class="dean-sig-position"><?= fd_h($deanToText) ?></div>
+      <?php endif; ?>
+      <div class="content-block paragraph approval-sentence">จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ</div>
+
+      <?php if ($signerName !== '' || $signerPosition !== ''): ?>
+      <div class="signature-wrapper">
+        <div class="signature-block" id="signatureBlock">
+          <?php if ($signerName !== ''): ?>
+          <div class="sig-name">(<?= fd_h($signerName) ?>)</div>
+          <?php endif; ?>
+          <?php if ($signerPosition !== ''): ?>
+          <div class="sig-position"><?= fd_h($signerPosition) ?></div>
+          <?php endif; ?>
+        </div>
       </div>
-    </div>
-
-    <div class="footer-actions">
-      <button type="button" onclick="downloadPdf()"
-        class="bg-red-700 hover:bg-red-800 text-white px-6 py-2 rounded-md text-xl font-bold">
-        ดาวน์โหลด PDF
-      </button>
-
-      <a href="/Pro_letter/documents/download_word_free_document.php?id=<?= (int)$docId ?>"
-        class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
-        ดาวน์โหลด Word
-      </a>
-
-      <?php if ($canEdit): ?>
-      <a href="/Pro_letter/documents/infor_free_document.php?id=<?= (int)$docId ?>&edit=1"
-        class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
-        แก้ไขเอกสาร
-      </a>
-      <?php else: ?>
-      <button type="button"
-        class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block opacity-80"
-        title="<?= fd_h($editAlertText ?: 'ไม่สามารถแก้ไขเอกสารนี้ได้') ?>" disabled>
-        แก้ไขเอกสาร
-      </button>
       <?php endif; ?>
 
-      <a href="<?= fd_h($homePath) ?>"
-        class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md text-xl font-bold">
-        กลับหน้าหลัก
-      </a>
-    </div>
-  </main>
+      <div class="dean-approval-block">
+        <div class="dean-approval-label">เรียน</div>
+        <div class="dean-approval-text">
+          <div><?= fd_h($deanToText) ?></div>
+          <div>เพื่อโปรดพิจารณาอนุมัติ</div>
+        </div>
+      </div>
+      <div class="dean-signature-wrapper">
+        <div class="dean-signature-block">
+          <div class="dean-sig-name">(<?= fd_h($deanName) ?>)</div>
+          <div class="dean-sig-position"><?= fd_h($deanToText) ?></div>
+        </div>
+      </div>
+
+      <div class="footer-actions">
+        <button type="button" onclick="downloadPdf()"
+          class="bg-red-700 hover:bg-red-800 text-white px-6 py-2 rounded-md text-xl font-bold">
+          ดาวน์โหลด PDF
+        </button>
+
+        <a href="/Pro_letter/documents/download_word_free_document.php?id=<?= (int)$docId ?>"
+          class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
+          ดาวน์โหลด Word
+        </a>
+
+        <?php if ($canEdit): ?>
+        <a href="/Pro_letter/documents/infor_free_document.php?id=<?= (int)$docId ?>&edit=1"
+          class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded-md text-xl font-bold inline-block">
+          แก้ไขเอกสาร
+        </a>
+        <?php else: ?>
+        <button type="button"
+          class="bg-gray-300 text-gray-600 cursor-not-allowed px-6 py-2 rounded-md text-xl font-bold inline-block opacity-80"
+          title="<?= fd_h($editAlertText ?: 'ไม่สามารถแก้ไขเอกสารนี้ได้') ?>" disabled>
+          แก้ไขเอกสาร
+        </button>
+        <?php endif; ?>
+
+        <a href="<?= fd_h($homePath) ?>"
+          class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-md text-xl font-bold">
+          กลับหน้าหลัก
+        </a>
+      </div>
+    </main>
 
     <?php if (isset($_GET['comment_saved']) && $_GET['comment_saved'] == '1'): ?>
-  <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    Swal.fire({
-      title: "บันทึกความคิดเห็นแล้ว",
-      icon: "success",
-      confirmButtonText: "ตกลง",
-      confirmButtonColor: "#14b8a6"
+    <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      Swal.fire({
+        title: "บันทึกความคิดเห็นแล้ว",
+        icon: "success",
+        confirmButtonText: "ตกลง",
+        confirmButtonColor: "#14b8a6"
+      });
     });
-  });
-  </script>
-  <?php elseif (isset($_GET['comment_err']) && $_GET['comment_err'] === 'empty'): ?>
-  <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    Swal.fire({
-      title: "กรุณากรอกความคิดเห็นก่อนบันทึก",
-      icon: "warning",
-      confirmButtonText: "ตกลง",
-      confirmButtonColor: "#14b8a6"
+    </script>
+    <?php elseif (isset($_GET['comment_err']) && $_GET['comment_err'] === 'empty'): ?>
+    <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      Swal.fire({
+        title: "กรุณากรอกความคิดเห็นก่อนบันทึก",
+        icon: "warning",
+        confirmButtonText: "ตกลง",
+        confirmButtonColor: "#14b8a6"
+      });
     });
-  });
-  </script>
-  <?php endif; ?>
+    </script>
+    <?php endif; ?>
 
-  <?php if ($canWriteReviewComment): ?>
-<form method="post" class="review-comment-panel">
-  <input type="hidden" name="action" value="save_review_comment">
-  <div class="review-comment-title">ความคิดเห็นผู้ตรวจเอกสาร</div>
-  <div class="review-comment-note">
-    หมายเหตุ: กรุณากดบันทึกความคิดเห็นก่อนกดตรวจสอบว่าผ่านหรือไม่ผ่าน
+    <?php if ($canWriteReviewComment): ?>
+    <form method="post" class="review-comment-panel">
+      <input type="hidden" name="action" value="save_review_comment">
+      <div class="review-comment-title">ความคิดเห็นผู้ตรวจเอกสาร</div>
+      <div class="review-comment-note">
+        หมายเหตุ: กรุณากดบันทึกความคิดเห็นก่อนกดตรวจสอบว่าผ่านหรือไม่ผ่าน
+      </div>
+      <textarea name="review_comment" class="review-comment-textarea" maxlength="1000"
+        placeholder="พิมพ์ความคิดเห็นสำหรับเอกสารนี้..." required><?= h($reviewCommentTextareaValue) ?></textarea>
+
+      <div class="review-comment-footer">
+        <button type="submit" class="review-comment-save-btn">บันทึก</button>
+      </div>
+    </form>
+    <?php elseif ($canReadReviewComment): ?>
+    <aside class="review-comment-panel" aria-label="ความคิดเห็นผู้ตรวจเอกสาร">
+      <div class="review-comment-title">ความคิดเห็นผู้ตรวจเอกสาร</div>
+
+      <div class="review-comment-readonly">
+        <?= fd_h($lastReviewComment !== '' ? $lastReviewComment : 'ยังไม่มีความคิดเห็นจากผู้ตรวจเอกสาร') ?>
+      </div>
+
+      <div class="review-comment-hint">
+        อ่านความคิดเห็นนี้ แล้วกดแก้ไขเอกสารเพื่อปรับข้อมูลตามคำแนะนำ
+      </div>
+    </aside>
+    <?php endif; ?>
   </div>
-  <textarea name="review_comment" class="review-comment-textarea" maxlength="1000"
-    placeholder="พิมพ์ความคิดเห็นสำหรับเอกสารนี้..." required><?= h($reviewCommentTextareaValue) ?></textarea>
-
-    <div class="review-comment-footer">
-      <button type="submit" class="review-comment-save-btn">บันทึก</button>
-    </div>
-  </form>
-  <?php elseif ($canReadReviewComment): ?>
-  <aside class="review-comment-panel" aria-label="ความคิดเห็นผู้ตรวจเอกสาร">
-    <div class="review-comment-title">ความคิดเห็นผู้ตรวจเอกสาร</div>
-
-    <div class="review-comment-readonly">
-      <?= fd_h($lastReviewComment !== '' ? $lastReviewComment : 'ยังไม่มีความคิดเห็นจากผู้ตรวจเอกสาร') ?>
-    </div>
-
-    <div class="review-comment-hint">
-      อ่านความคิดเห็นนี้ แล้วกดแก้ไขเอกสารเพื่อปรับข้อมูลตามคำแนะนำ
-    </div>
-  </aside>
-  <?php endif; ?>
-</div>
 
   <script>
   function paginateFreeDocumentPages(root = document, forceRebuild = false) {
