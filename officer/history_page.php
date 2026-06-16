@@ -129,32 +129,6 @@ $historySql = "
     FROM documents d
     LEFT JOIN users owner ON d.owner_id = owner.user_id
     LEFT JOIN templates t ON d.template_id = t.template_id
-
-    UNION ALL
-
-    SELECT
-      d.document_id AS history_id,
-      d.updated_at AS history_at,
-      'UPDATED' AS action_code,
-      'แก้ไขเอกสาร' AS action_label,
-      'มีการแก้ไขข้อมูลเอกสาร' AS detail,
-      d.document_id,
-      d.doc_no,
-      d.subject,
-      d.status AS status,
-      t.template_name,
-      COALESCE(owner.fullname, 'ไม่ระบุผู้ดำเนินการ') AS actor_name,
-      owner.fullname AS owner_name
-    FROM documents d
-    LEFT JOIN users owner ON d.owner_id = owner.user_id
-    LEFT JOIN templates t ON d.template_id = t.template_id
-    WHERE d.updated_at IS NOT NULL
-      AND NOT EXISTS (
-        SELECT 1
-        FROM audit_logs al2
-        WHERE al2.document_id = d.document_id
-          AND al2.action = 'UPDATED'
-      )
   ) h
   $whereSql
   ORDER BY h.history_at DESC
