@@ -148,11 +148,6 @@ try {
     $pendingGoogleUserCount = 0;
 }
 
-$permMap = [];
-$permStmt = $pdo->query("SELECT * FROM user_permissions");
-while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
-    $permMap[$r['user_id']][] = $r['perm_id'];
-}
 
 ?>
 
@@ -297,7 +292,6 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
               <th class="px-4 py-3 text-left font-semibold">อีเมล</th>
               <th class="px-4 py-3 text-left font-semibold">สิทธิ์</th>
               <th class="px-4 py-3 text-left font-semibold">ตำแหน่ง</th>
-              <th class="px-4 py-3 text-center font-semibold">กำหนดสิทธิ์ได้</th>
               <th class="px-4 py-3 text-center font-semibold">สถานะ</th>
               <th class="px-4 py-3 text-center font-semibold">การจัดการ</th>
             </tr>
@@ -307,7 +301,7 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
           <tbody>
             <?php if (empty($users)): ?>
             <tr>
-              <td colspan="7" class="px-4 py-8 text-center text-gray-500 bg-gray-50">
+              <td colspan="6" class="px-4 py-8 text-center text-gray-500 bg-gray-50">
                 ไม่พบข้อมูลที่ค้นหา
               </td>
             </tr>
@@ -333,12 +327,6 @@ while ($r = $permStmt->fetch(PDO::FETCH_ASSOC)) {
 
               <!-- Position -->
               <td class="px-4 py-3 text-gray-800"><?= htmlspecialchars($row['position']) ?></td>
-
-              <!-- Permissions -->
-              <td class="px-4 py-3 text-center">
-                <input type="checkbox" class="w-4 h-4 rounded border-2 border-teal-500 bg-gray-50 cursor-not-allowed"
-                  <?= in_array(3, $permMap[$row['user_id']] ?? []) ? 'checked' : '' ?> disabled>
-              </td>
 
               <!-- Status -->
               <td class="px-4 py-3 text-center">
