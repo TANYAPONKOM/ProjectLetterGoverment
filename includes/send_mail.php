@@ -16,22 +16,16 @@ function sendSystemMail($to, $subject, $htmlBody)
         $mail->Host       = 'smtp.gmail.com';
         $mail->SMTPAuth   = true;
 
-        // Gmail ที่ใช้เป็นผู้ส่ง
-        $mail->Username   = 'tanyapornkomkham1@gmail.com';
+      
 
-        // App Password 16 ตัว
-        $mail->Password   = 'kfdr nybv axjs lpec';
-
+       
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port       = 587;
 
         $mail->CharSet = 'UTF-8';
         $mail->Encoding = 'base64';
 
-        $mail->setFrom(
-            'tanyapornkomkham1@gmail.com',
-            'Smart Government Letter Assistant System'
-        );
+       
 
         if (is_array($to)) {
             foreach ($to as $email) {
